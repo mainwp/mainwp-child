@@ -1,0 +1,777 @@
+<?php
+/**
+ * MainWP Backup DB Restore Engine - resumable dump replay and atomic swap.
+ *
+ * Replays per-table .sql.php dump files through the state-machine
+ * splitter into tmp-prefixed tables on a dedicated connection, then cuts
+ * over with one atomic multi-table RENAME so the live site keeps serving
+ * throughout and a failed replay never touches a live table. The session
+ * is permissive (ALLOW_INVALID_DATES, NO_AUTO_VALUE_ON_ZERO, FK and
+ * unique checks off) so old dumps replay on MySQL 8 strict mode, and
+ * INSERTs are split to fit the restore target's max_allowed_packet.
+ *
+ * Replay is resumable: the cursor carries the file index, the byte
+ * offset, and the splitter's exported state, checkpointed by the task
+ * runner at every yield. An unclean resume (watchdog stall recovery)
+ * restarts the in-flight file from offset zero - each dump file leads
+ * with DROP TABLE IF EXISTS, so a rerun is idempotent at the per-table
+ * unit the spec defines.
+ *
+ * Fail isolation: a statement error marks its table FAILED and aborts
+ * the replay with nothing swapped. Promoting a half-loaded table into a
+ * live name would be silent data loss, so there is no continue-on-error
+ * path for real errors.
+ *
+ * Dumps that declare foreign keys take the in-place path (fk_path):
+ * statements replay against the real table names under maintenance mode
+ * and there is no swap, because a tmp-prefixed copy would collide with
+ * the live table's constraint names.
+ *
+ * @package MainWP\Child
+ */
+
+namespace MainWP\Child;
+
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
+/**
+ * Class MainWP_Backup_Db_Restore_Engine
+ *
+ * @package MainWP\Child
+ */
+class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningBraceSameLine.ContentAfterBrace -- NOSONAR.
+
+    /**
+     * Guard header every dump file starts with.
+     */
+    const GUARD = '<?php exit(); ?>';
+
+    /**
+     * Read size per fread call.
+     */
+    const CHUNK_BYTES = 262144;
+
+    /**
+     * Bytes reserved for protocol overhead under max_allowed_packet.
+     */
+    const PACKET_OVERHEAD = 1024;
+
+    /**
+     * Replay one bounded slice of the dump.
+     *
+     * @param array     $cursor   Resume cursor (empty array on first call).
+     * @param array     $config   { restore_id, source_prefix, target_prefix,
+     *                            files: string[], fk_path: bool }.
+     * @param float|int $deadline Absolute epoch the slice must yield by.
+     * @param bool      $unclean  True when resuming after a stall; the
+     *                            in-flight file restarts from offset zero.
+     *
+     * @return array { done: bool, cursor: array, error: string|null,
+     *                 error_code: string|null }
+     */
+    public function replay_slice( $cursor, $config, $deadline, $unclean = false ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- bounded replay loop with fail isolation.
+        $cursor = $this->normalize_cursor( $cursor );
+        $files  = $config['files'];
+
+        if ( $unclean && $cursor['offset'] > 0 ) {
+            $cursor = $this->restart_current_file( $cursor );
+        }
+
+        $conn = $this->connect();
+        if ( ! is_object( $conn ) ) {
+            return $this->result( false, $cursor, 'Could not open the dedicated restore connection.', MainWP_Backup_Error::ERR_DB_CONNECTION_LOST );
+        }
+
+        if ( ! empty( $config['fk_path'] ) ) {
+            $this->begin_maintenance();
+        }
+
+        $error = $this->apply_session( $conn );
+        if ( null !== $error ) {
+            $this->close_connection( $conn );
+            return $this->result( false, $cursor, $error, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+        }
+
+        $packet_budget = $this->read_packet_budget( $conn );
+        $replacement   = ! empty( $config['fk_path'] ) ? $config['target_prefix'] : $this->tmp_prefix( $config['restore_id'] );
+        $rewriter      = new MainWP_Backup_Sql_Prefix_Rewriter( $config['source_prefix'], $replacement );
+        $insert_split  = new MainWP_Backup_Insert_Splitter();
+        $did_work      = false;
+        $file_count    = count( $files );
+
+        while ( $cursor['file_index'] < $file_count ) {
+            $outcome = $this->replay_file( $conn, $cursor, $files, $rewriter, $insert_split, $replacement, $packet_budget, $deadline, $did_work );
+            if ( null !== $outcome ) {
+                $this->close_connection( $conn );
+                return $outcome;
+            }
+        }
+
+        $this->close_connection( $conn );
+        return $this->result( true, $cursor, null, null );
+    }
+
+    /**
+     * Replay from the cursor position in the current file.
+     *
+     * Returns null when the file completed and the cursor advanced to
+     * the next file; returns a slice result to propagate (yield or
+     * error) otherwise.
+     *
+     * @param object                            $conn          Connection.
+     * @param array                             $cursor        Cursor (by reference).
+     * @param string[]                          $files         Dump files.
+     * @param MainWP_Backup_Sql_Prefix_Rewriter $rewriter    Prefix rewriter.
+     * @param MainWP_Backup_Insert_Splitter     $insert_split  INSERT splitter.
+     * @param string                            $replacement   Replacement prefix.
+     * @param int                               $packet_budget Statement byte budget.
+     * @param float|int                         $deadline      Slice deadline.
+     * @param bool                              $did_work      Whether the slice did work yet (by reference).
+     *
+     * @return array|null Slice result to propagate, or null to continue.
+     */
+    private function replay_file( $conn, &$cursor, $files, $rewriter, $insert_split, $replacement, $packet_budget, $deadline, &$did_work ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- streaming loop.
+        $file = $files[ $cursor['file_index'] ];
+
+        $fh = fopen( $file, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming read of a large dump.
+        if ( false === $fh ) {
+            return $this->result( false, $cursor, 'Could not open dump file: ' . basename( $file ), MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+        }
+
+        $splitter = new MainWP_Backup_Sql_Splitter();
+        if ( ! empty( $cursor['splitter'] ) ) {
+            $splitter->restore_state( $cursor['splitter'] );
+        }
+
+        if ( $cursor['offset'] > 0 ) {
+            fseek( $fh, $cursor['offset'] );
+        }
+
+        while ( true ) {
+            if ( $did_work && microtime( true ) >= $deadline ) {
+                fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+                $cursor['splitter'] = $splitter->export_state();
+                return $this->result( false, $cursor, null, null );
+            }
+
+            $chunk = fread( $fh, $this->chunk_bytes() ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming read.
+            if ( false === $chunk || '' === $chunk ) {
+                break;
+            }
+
+            if ( 0 === $cursor['offset'] && 0 === strpos( $chunk, self::GUARD ) ) {
+                $chunk = substr( $chunk, strlen( self::GUARD ) );
+            }
+            $cursor['offset'] = ftell( $fh );
+
+            $statements = $splitter->feed( $chunk );
+            foreach ( $statements as $statement ) {
+                $error = $this->process_statement( $conn, $statement, $cursor, $rewriter, $insert_split, $replacement, $packet_budget );
+                if ( null !== $error ) {
+                    fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+                    return $this->result( false, $cursor, $error, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+                }
+            }
+            $did_work           = true;
+            $cursor['splitter'] = $splitter->export_state();
+        }
+
+        fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+
+        $tail = trim( $splitter->flush() );
+        if ( '' !== $tail ) {
+            return $this->result( false, $cursor, 'Dump file is truncated (unterminated statement): ' . basename( $file ), MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+        }
+
+        ++$cursor['file_index'];
+        $cursor['offset']   = 0;
+        $cursor['splitter'] = null;
+        return null;
+    }
+
+    /**
+     * Rewrite, split, and execute one statement.
+     *
+     * @param object                            $conn          Connection.
+     * @param string                            $statement     Raw statement.
+     * @param array                             $cursor        Cursor (by reference).
+     * @param MainWP_Backup_Sql_Prefix_Rewriter $rewriter      Prefix rewriter.
+     * @param MainWP_Backup_Insert_Splitter     $insert_split  INSERT splitter.
+     * @param string                            $replacement   Replacement prefix.
+     * @param int                               $packet_budget Statement byte budget.
+     *
+     * @return string|null Error text, or null on success.
+     */
+    private function process_statement( $conn, $statement, &$cursor, $rewriter, $insert_split, $replacement, $packet_budget ) {
+        $rewritten = $rewriter->rewrite( $statement );
+        if ( null === $rewritten ) {
+            ++$cursor['dropped'];
+            return null;
+        }
+
+        $stem = $this->statement_stem( $rewritten, $replacement );
+        if ( null !== $stem && ! isset( $cursor['tables'][ $stem ] ) ) {
+            $cursor['tables'][ $stem ] = array(
+                'status' => 'loading',
+                'rows'   => 0,
+            );
+        }
+
+        $parts = array( $rewritten );
+        if ( strlen( $rewritten ) > $packet_budget && preg_match( '/^\s*(INSERT|REPLACE)\s+INTO/i', $rewritten ) ) {
+            $parts = $insert_split->split( $rewritten, $packet_budget );
+        }
+
+        $is_insert = (bool) preg_match( '/^\s*(INSERT|REPLACE)\s+INTO/i', $rewritten );
+
+        foreach ( $parts as $part ) {
+            $affected = $this->execute_statement( $conn, $part );
+            if ( is_string( $affected ) ) {
+                if ( null !== $stem ) {
+                    $cursor['tables'][ $stem ]['status'] = 'failed';
+                }
+                $table_label = null !== $stem ? $stem : 'unknown';
+                return 'Replay failed on table ' . $table_label . ': ' . $affected;
+            }
+            if ( $is_insert && null !== $stem ) {
+                $cursor['tables'][ $stem ]['rows'] += (int) $affected;
+            }
+        }
+
+        if ( null !== $stem && 'loading' === $cursor['tables'][ $stem ]['status'] ) {
+            $cursor['tables'][ $stem ]['status'] = 'ok';
+        }
+
+        return null;
+    }
+
+    /**
+     * Promote successfully loaded tmp tables with one atomic RENAME.
+     *
+     * @param string[] $stems  Bare table stems (prefix stripped).
+     * @param array    $config Replay config.
+     *
+     * @return array { done: bool, old_tables: string[], rename_sql: string,
+     *                 error: string|null, error_code: string|null }
+     */
+    public function swap_tables( $stems, $config ) {
+        $conn = $this->connect();
+        if ( ! is_object( $conn ) ) {
+            return array(
+                'done'       => false,
+                'old_tables' => array(),
+                'rename_sql' => '',
+                'error'      => 'Could not open the dedicated restore connection.',
+                'error_code' => MainWP_Backup_Error::ERR_DB_CONNECTION_LOST,
+            );
+        }
+
+        $live   = $this->list_tables( $conn );
+        $packet = $this->read_packet_budget( $conn );
+        $sql    = $this->build_rename_sql( $stems, $config['restore_id'], $config['target_prefix'], $live, $packet );
+
+        if ( null === $sql ) {
+            $this->close_connection( $conn );
+            return array(
+                'done'       => false,
+                'old_tables' => array(),
+                'rename_sql' => '',
+                'error'      => 'The table swap statement exceeds max_allowed_packet; the swap cannot run atomically.',
+                'error_code' => MainWP_Backup_Error::ERR_RESTORE_SWAP_FAILED,
+            );
+        }
+
+        $old_tables = array();
+        foreach ( $stems as $stem ) {
+            if ( in_array( $config['target_prefix'] . $stem, $live, true ) ) {
+                $old_tables[] = $this->old_prefix( $config['restore_id'] ) . $stem;
+            }
+        }
+
+        $outcome = $this->execute_statement( $conn, $sql );
+        $this->close_connection( $conn );
+
+        if ( is_string( $outcome ) ) {
+            return array(
+                'done'       => false,
+                'old_tables' => array(),
+                'rename_sql' => $sql,
+                'error'      => 'The table swap failed: ' . $outcome,
+                'error_code' => MainWP_Backup_Error::ERR_RESTORE_SWAP_FAILED,
+            );
+        }
+
+        return array(
+            'done'       => true,
+            'old_tables' => $old_tables,
+            'rename_sql' => $sql,
+            'error'      => null,
+            'error_code' => null,
+        );
+    }
+
+    /**
+     * Build the single atomic multi-table RENAME statement.
+     *
+     * Live tables move aside to old-prefixed names in the same statement
+     * that promotes the tmp tables, so no table name is ever missing. A
+     * statement that would not fit max_allowed_packet returns null - a
+     * split swap is not atomic and a crash between parts would leave a
+     * permanently mixed schema.
+     *
+     * @param string[] $stems         Bare table stems.
+     * @param string   $restore_id    Restore id used in the prefixes.
+     * @param string   $target_prefix Live table prefix.
+     * @param string[] $live_tables   Current live table names.
+     * @param int      $max_packet    max_allowed_packet of the target.
+     *
+     * @return string|null RENAME statement, or null when over budget.
+     */
+    public function build_rename_sql( $stems, $restore_id, $target_prefix, $live_tables, $max_packet ) {
+        $pairs = array();
+        foreach ( $stems as $stem ) {
+            $target = $target_prefix . $stem;
+            if ( in_array( $target, $live_tables, true ) ) {
+                $pairs[] = '`' . $target . '` TO `' . $this->old_prefix( $restore_id ) . $stem . '`';
+            }
+            $pairs[] = '`' . $this->tmp_prefix( $restore_id ) . $stem . '` TO `' . $target . '`';
+        }
+
+        $sql = 'RENAME TABLE ' . implode( ', ', $pairs );
+        if ( strlen( $sql ) > $max_packet - self::PACKET_OVERHEAD ) {
+            return null;
+        }
+        return $sql;
+    }
+
+    /**
+     * Compare live row counts against the counts recorded during replay.
+     *
+     * @param array  $expected      Rows by stem.
+     * @param string $target_prefix Live table prefix.
+     *
+     * @return array { ok: bool, mismatches: array<string,array{expected:int,actual:int}> }
+     */
+    public function verify_row_counts( $expected, $target_prefix ) {
+        $conn = $this->connect();
+        if ( ! is_object( $conn ) ) {
+            return array(
+                'ok'         => false,
+                'mismatches' => array(),
+            );
+        }
+
+        $mismatches = array();
+        foreach ( $expected as $stem => $rows ) {
+            $result = $this->query_rows( $conn, 'SELECT COUNT(*) AS c FROM `' . $target_prefix . $stem . '`' );
+            $actual = ( is_array( $result ) && isset( $result[0]['c'] ) ) ? (int) $result[0]['c'] : -1;
+            if ( $actual !== (int) $rows ) {
+                $mismatches[ $stem ] = array(
+                    'expected' => (int) $rows,
+                    'actual'   => $actual,
+                );
+            }
+        }
+        $this->close_connection( $conn );
+
+        return array(
+            'ok'         => empty( $mismatches ),
+            'mismatches' => $mismatches,
+        );
+    }
+
+    /**
+     * Drop the old-prefixed aside tables after verification passed.
+     *
+     * @param string $restore_id Restore id.
+     */
+    public function drop_old_tables( $restore_id ) {
+        $this->drop_tables_by_prefix( $this->old_prefix( $restore_id ) );
+    }
+
+    /**
+     * Drop any tmp-prefixed tables a failed restore left behind.
+     *
+     * @param string $restore_id Restore id.
+     */
+    public function cleanup_tmp_tables( $restore_id ) {
+        $this->drop_tables_by_prefix( $this->tmp_prefix( $restore_id ) );
+    }
+
+    /**
+     * Public maintenance-mode exit for the runner's phase transitions
+     * and terminal failures.
+     */
+    public function exit_maintenance() {
+        $this->end_maintenance();
+    }
+
+    /**
+     * Read the dump banner from the first table file.
+     *
+     * @param string $file Dump file path.
+     *
+     * @return array { info: array|null, meta: array|null }
+     */
+    public function read_banner( $file ) {
+        $head = file_get_contents( $file, false, null, 0, 8192 ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bounded local read.
+        if ( false === $head ) {
+            return array(
+                'info' => null,
+                'meta' => null,
+            );
+        }
+
+        return array(
+            'info' => $this->parse_banner_line( $head, '-- mainwp-backup-info: ' ),
+            'meta' => $this->parse_banner_line( $head, '-- mainwp-backup-meta: ' ),
+        );
+    }
+
+    /**
+     * Probe dump files for FOREIGN KEY clauses.
+     *
+     * Used when the banner lacks the has_foreign_keys flag (tier-2
+     * dumps record null). Scans in chunks with overlap so a clause
+     * spanning a read boundary is still found.
+     *
+     * @param string[] $files Dump file paths.
+     *
+     * @return bool True when any file declares a foreign key.
+     */
+    public function probe_fk( $files ) {
+        $needle  = 'FOREIGN KEY';
+        $overlap = strlen( $needle ) - 1;
+
+        foreach ( $files as $file ) {
+            $fh = fopen( $file, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming scan.
+            if ( false === $fh ) {
+                continue;
+            }
+            $carry = '';
+            while ( ! feof( $fh ) ) {
+                $chunk = fread( $fh, $this->chunk_bytes() ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming scan.
+                if ( false === $chunk || '' === $chunk ) {
+                    break;
+                }
+                if ( false !== stripos( $carry . $chunk, $needle ) ) {
+                    fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+                    return true;
+                }
+                $carry = substr( $chunk, -$overlap );
+            }
+            fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+        }
+
+        return false;
+    }
+
+    /**
+     * The tmp table prefix for a restore id.
+     *
+     * @param string $restore_id Restore id.
+     *
+     * @return string Prefix.
+     */
+    public function tmp_prefix( $restore_id ) {
+        return 'tmp' . $restore_id . '_';
+    }
+
+    /**
+     * The aside table prefix for a restore id.
+     *
+     * @param string $restore_id Restore id.
+     *
+     * @return string Prefix.
+     */
+    public function old_prefix( $restore_id ) {
+        return 'old' . $restore_id . '_';
+    }
+
+    /**
+     * Extract one banner JSON line.
+     *
+     * @param string $head   File head bytes.
+     * @param string $marker Line marker.
+     *
+     * @return array|null Decoded JSON or null.
+     */
+    private function parse_banner_line( $head, $marker ) {
+        $pos = strpos( $head, $marker );
+        if ( false === $pos ) {
+            return null;
+        }
+        $start = $pos + strlen( $marker );
+        $end   = strpos( $head, "\n", $start );
+        $json  = false === $end ? substr( $head, $start ) : substr( $head, $start, $end - $start );
+        $data  = json_decode( trim( $json ), true );
+        return is_array( $data ) ? $data : null;
+    }
+
+    /**
+     * Apply the permissive replay session.
+     *
+     * @param object $conn Connection.
+     *
+     * @return string|null Error text or null.
+     */
+    private function apply_session( $conn ) {
+        $session = array(
+            "SET SESSION sql_mode = 'ALLOW_INVALID_DATES,NO_AUTO_VALUE_ON_ZERO'",
+            'SET FOREIGN_KEY_CHECKS=0',
+            'SET UNIQUE_CHECKS=0',
+        );
+        foreach ( $session as $sql ) {
+            $outcome = $this->execute_statement( $conn, $sql );
+            if ( is_string( $outcome ) ) {
+                return 'Could not apply the restore session: ' . $outcome;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Read max_allowed_packet minus overhead.
+     *
+     * @param object $conn Connection.
+     *
+     * @return int Statement byte budget.
+     */
+    private function read_packet_budget( $conn ) {
+        $rows   = $this->query_rows( $conn, 'SELECT @@max_allowed_packet AS map' );
+        $packet = ( is_array( $rows ) && isset( $rows[0]['map'] ) ) ? (int) $rows[0]['map'] : 1048576;
+        $budget = $packet - self::PACKET_OVERHEAD;
+        return $budget > 4096 ? $budget : 4096;
+    }
+
+    /**
+     * List current table names.
+     *
+     * @param object $conn Connection.
+     *
+     * @return string[] Table names.
+     */
+    private function list_tables( $conn ) {
+        $rows   = $this->query_rows( $conn, 'SHOW TABLES' );
+        $tables = array();
+        foreach ( (array) $rows as $row ) {
+            $values = array_values( (array) $row );
+            if ( isset( $values[0] ) ) {
+                $tables[] = (string) $values[0];
+            }
+        }
+        return $tables;
+    }
+
+    /**
+     * Drop every table carrying the given prefix.
+     *
+     * @param string $prefix Table name prefix.
+     */
+    private function drop_tables_by_prefix( $prefix ) {
+        $conn = $this->connect();
+        if ( ! is_object( $conn ) ) {
+            return;
+        }
+        foreach ( $this->list_tables( $conn ) as $table ) {
+            if ( 0 === strpos( $table, $prefix ) ) {
+                $this->execute_statement( $conn, 'DROP TABLE IF EXISTS `' . $table . '`' );
+            }
+        }
+        $this->close_connection( $conn );
+    }
+
+    /**
+     * Pull the bare table stem out of a rewritten statement.
+     *
+     * The rewriter normalizes the table token to backticks, so the
+     * first backticked token is the table for every statement kind it
+     * lets through.
+     *
+     * @param string $rewritten   Rewritten statement.
+     * @param string $replacement Replacement prefix.
+     *
+     * @return string|null Bare stem or null for table-less statements.
+     */
+    private function statement_stem( $rewritten, $replacement ) {
+        if ( ! preg_match( '/`((?:[^`]|``)+)`/', $rewritten, $m ) ) {
+            return null;
+        }
+        $name = str_replace( '``', '`', $m[1] );
+        if ( 0 !== strpos( $name, $replacement ) ) {
+            return null;
+        }
+        return substr( $name, strlen( $replacement ) );
+    }
+
+    /**
+     * Reset the in-flight file for an unclean resume.
+     *
+     * The rerun is idempotent because each dump file leads with
+     * DROP TABLE IF EXISTS for its own table.
+     *
+     * @param array $cursor Cursor.
+     *
+     * @return array Cursor with the current file restarted.
+     */
+    private function restart_current_file( $cursor ) {
+        $cursor['offset']   = 0;
+        $cursor['splitter'] = null;
+        return $cursor;
+    }
+
+    /**
+     * Fill cursor defaults.
+     *
+     * @param array $cursor Cursor or empty array.
+     *
+     * @return array Normalized cursor.
+     */
+    private function normalize_cursor( $cursor ) {
+        return array_merge(
+            array(
+                'file_index' => 0,
+                'offset'     => 0,
+                'splitter'   => null,
+                'tables'     => array(),
+                'dropped'    => 0,
+            ),
+            is_array( $cursor ) ? $cursor : array()
+        );
+    }
+
+    /**
+     * Build a slice result.
+     *
+     * @param bool        $done       Whether the replay completed.
+     * @param array       $cursor     Cursor.
+     * @param string|null $error      Error text.
+     * @param string|null $error_code Error code.
+     *
+     * @return array Slice result.
+     */
+    private function result( $done, $cursor, $error, $error_code ) {
+        return array(
+            'done'       => $done,
+            'cursor'     => $cursor,
+            'error'      => $error,
+            'error_code' => $error_code,
+        );
+    }
+
+    /**
+     * Open the dedicated mysqli connection (mirrors the dumper).
+     *
+     * @return \mysqli|object|null Connection or null on failure.
+     */
+    protected function connect() {
+        $params = MainWP_Backup_Db_Dumper::instance()->get_connection_params();
+
+        //phpcs:disable WordPress.DB -- raw mysqli is the point: a dedicated connection independent of $wpdb.
+        $mysqli = mysqli_init();
+        $mysqli->options( MYSQLI_OPT_CONNECT_TIMEOUT, 10 );
+        $connected = @$mysqli->real_connect( // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failure handled by the caller with a coded error.
+            $params['host'],
+            $params['user'],
+            $params['password'],
+            $params['name'],
+            null !== $params['port'] ? (int) $params['port'] : 0,
+            $params['socket']
+        );
+        if ( ! $connected ) {
+            return null;
+        }
+        $mysqli->set_charset( 'utf8mb4' );
+        //phpcs:enable WordPress.DB
+        return $mysqli;
+    }
+
+    /**
+     * Close the dedicated connection.
+     *
+     * @param object $conn Connection.
+     */
+    protected function close_connection( $conn ) {
+        if ( $conn instanceof \mysqli ) {
+            @$conn->close(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- best-effort close.
+        }
+    }
+
+    /**
+     * Execute one statement on the dedicated connection.
+     *
+     * @param object $conn Connection.
+     * @param string $sql  Statement.
+     *
+     * @return int|string Affected row count, or error text on failure.
+     */
+    protected function execute_statement( $conn, $sql ) {
+        //phpcs:disable WordPress.DB -- raw mysqli replay on the dedicated connection.
+        $result = $conn->query( $sql );
+        if ( false === $result ) {
+            return (string) $conn->error;
+        }
+        if ( $result instanceof \mysqli_result ) {
+            $result->free();
+        }
+        $affected = (int) $conn->affected_rows;
+        //phpcs:enable WordPress.DB
+        return $affected >= 0 ? $affected : 0;
+    }
+
+    /**
+     * Run a query returning rows.
+     *
+     * @param object $conn Connection.
+     * @param string $sql  Query.
+     *
+     * @return array|null Assoc rows or null on failure.
+     */
+    protected function query_rows( $conn, $sql ) {
+        //phpcs:disable WordPress.DB -- raw mysqli on the dedicated connection.
+        $result = $conn->query( $sql );
+        if ( false === $result || ! ( $result instanceof \mysqli_result ) ) {
+            return null;
+        }
+        $rows = array();
+        while ( $row = $result->fetch_assoc() ) { // phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition -- standard mysqli fetch loop.
+            $rows[] = $row;
+        }
+        $result->free();
+        //phpcs:enable WordPress.DB
+        return $rows;
+    }
+
+    /**
+     * Bytes per fread.
+     *
+     * @return int Chunk size.
+     */
+    protected function chunk_bytes() {
+        return self::CHUNK_BYTES;
+    }
+
+    /**
+     * Enter WordPress core maintenance mode.
+     *
+     * Re-entrant: each call refreshes the timestamp so long in-place
+     * restores do not fall out of maintenance after ten minutes.
+     */
+    protected function begin_maintenance() {
+        $file = ABSPATH . '.maintenance';
+        file_put_contents( $file, '<?php $upgrading = ' . time() . '; ?>' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- core maintenance marker.
+    }
+
+    /**
+     * Leave WordPress core maintenance mode.
+     */
+    protected function end_maintenance() {
+        $file = ABSPATH . '.maintenance';
+        if ( file_exists( $file ) ) {
+            @unlink( $file ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions -- best-effort removal.
+        }
+    }
+}
