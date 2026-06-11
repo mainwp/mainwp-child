@@ -30,6 +30,8 @@ class BackupErrorTest extends WP_UnitTestCase {
 			MainWP_Backup_Error::ERR_TOO_MANY_SKIPPED,
 			MainWP_Backup_Error::ERR_STALLED,
 			MainWP_Backup_Error::ERR_ALREADY_RUNNING,
+			MainWP_Backup_Error::ERR_MANIFEST_CHUNK_WRONG_PHASE,
+			MainWP_Backup_Error::ERR_MANIFEST_CHUNK_CORRUPT,
 		);
 		foreach ( $codes as $code ) {
 			$this->assertStringStartsWith( 'mainwp_backup_', $code );

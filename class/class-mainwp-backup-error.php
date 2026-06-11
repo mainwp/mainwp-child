@@ -47,6 +47,9 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
     const ERR_INCREMENTAL_BASE_MISSING = 'mainwp_backup_incremental_base_missing';
     const ERR_MANIFEST_TOO_LARGE       = 'mainwp_backup_manifest_too_large';
 
+    const ERR_MANIFEST_CHUNK_WRONG_PHASE = 'mainwp_backup_manifest_chunk_wrong_phase';
+    const ERR_MANIFEST_CHUNK_CORRUPT     = 'mainwp_backup_manifest_chunk_corrupt';
+
     const ERR_RESTORE_DB_REPLAY   = 'mainwp_restore_db_replay';
     const ERR_RESTORE_SWAP_FAILED = 'mainwp_restore_swap_failed';
     const ERR_RESTORE_EXTRACT     = 'mainwp_restore_extract';
@@ -207,6 +210,9 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
 
             self::ERR_INCREMENTAL_BASE_MISSING => esc_html__( 'The file list from the previous backup is missing or unusable, so changed files cannot be identified. The Dashboard will run a full backup instead to start a new chain.', 'mainwp-child' ),
             self::ERR_MANIFEST_TOO_LARGE       => esc_html__( 'The file list from the previous backup is too large to receive. The Dashboard will run a full backup instead.', 'mainwp-child' ),
+
+            self::ERR_MANIFEST_CHUNK_WRONG_PHASE => esc_html__( 'The file-list piece arrived outside of an active staging session on this site. The Dashboard will restart the file-list transfer from the beginning.', 'mainwp-child' ),
+            self::ERR_MANIFEST_CHUNK_CORRUPT     => esc_html__( 'The transferred file list does not match its expected checksum and was discarded. The Dashboard will transfer it again or run a full backup instead.', 'mainwp-child' ),
 
             self::ERR_RESTORE_DB_REPLAY        => esc_html__( 'The database could not be replayed from the backup. The live database was not changed. Check the child site error log for the failing table and try the restore again.', 'mainwp-child' ),
             self::ERR_RESTORE_SWAP_FAILED      => esc_html__( 'The restored tables could not be promoted to live. The previous tables are still in place. Check the child site error log and try the restore again.', 'mainwp-child' ),
