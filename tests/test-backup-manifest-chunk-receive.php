@@ -106,6 +106,9 @@ class BackupManifestChunkReceiveTest extends WP_UnitTestCase {
 		$this->assertSame( 50, $ack['bytes_received'] );
 		$this->assertMatchesRegularExpression( '/^[a-z0-9]{16}$/', $ack['mtoken'], 'The token is child-generated and path-safe.' );
 		$this->assertFileExists( $this->dir . '/manifest-staged-' . $ack['mtoken'] . '.list' );
+
+		$second = $this->send( '', 'other-manifest', 0, hash( 'sha256', 'other-manifest' ) );
+		$this->assertNotSame( $ack['mtoken'], $second['mtoken'], 'Every session gets its own token.' );
 	}
 
 	/**

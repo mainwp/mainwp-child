@@ -228,14 +228,12 @@ class MainWP_Child_Backup_Manifest_Chunk_Receiver { // phpcs:ignore Generic.Clas
     }
 
     /**
-     * Generate a new staging token.
+     * Generate a new staging token from the platform CSPRNG.
      *
-     * @return string Token.
+     * @return string Token (16 lowercase hex chars).
      */
     protected function generate_token() {
-        $token = strtolower( wp_generate_password( 32, false ) );
-        $token = preg_replace( '/[^a-z0-9]/', '', $token ) . md5( uniqid( '', true ) );
-        return substr( $token, 0, 16 );
+        return bin2hex( random_bytes( 8 ) );
     }
 
     /**
