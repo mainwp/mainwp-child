@@ -673,6 +673,12 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             }
             $params['parent_manifest_b64'] = $raw_manifest;
             $params['parent_snapshot_id']  = isset( $_POST['parent_snapshot_id'] ) ? sanitize_text_field( wp_unslash( $_POST['parent_snapshot_id'] ) ) : '';
+
+            // A manifest too large for one request arrives beforehand via
+            // backup_manifest_chunk; the create request references the
+            // staged session instead of carrying the bytes inline.
+            $params['parent_manifest_ref']    = isset( $_POST['parent_manifest_ref'] ) ? sanitize_text_field( wp_unslash( $_POST['parent_manifest_ref'] ) ) : '';
+            $params['parent_manifest_sha256'] = isset( $_POST['parent_manifest_sha256'] ) ? sanitize_text_field( wp_unslash( $_POST['parent_manifest_sha256'] ) ) : '';
         }
         // phpcs:enable WordPress.Security.NonceVerification
 

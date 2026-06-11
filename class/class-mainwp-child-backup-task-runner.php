@@ -128,6 +128,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             throw new MainWP_Exception( 'Unknown backup type requested for the backup task.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
         }
 
+        $params = $this->resolve_staged_manifest( $type, is_array( $params ) ? $params : array() );
+
         $spine = MainWP_Child_Backup_Task::instance();
         $spine->install();
 
@@ -141,6 +143,41 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         return $task_id;
+    }
+
+    /**
+     * Resolve a staged-manifest reference into the inline manifest param.
+     *
+     * An incremental create may reference a manifest the dashboard
+     * chunked over beforehand (too large for one request). The staged
+     * session is verified against the hash this request carries and
+     * consumed exactly once; the reference keys never persist on the
+     * task cursor. Other types ignore stray reference keys.
+     *
+     * @param string $type   Backup type.
+     * @param array  $params Backup params from the request.
+     *
+     * @throws MainWP_Exception When the referenced session is missing,
+     *                          not ready, or fails verification.
+     *
+     * @return array Params with the manifest inlined.
+     */
+    protected function resolve_staged_manifest( $type, $params ) {
+        $ref  = isset( $params['parent_manifest_ref'] ) ? (string) $params['parent_manifest_ref'] : '';
+        $hash = isset( $params['parent_manifest_sha256'] ) ? (string) $params['parent_manifest_sha256'] : '';
+        unset( $params['parent_manifest_ref'], $params['parent_manifest_sha256'] );
+
+        if ( 'incremental' !== $type || '' === $ref ) {
+            return $params;
+        }
+
+        $staged = MainWP_Child_Backup_Manifest_Chunk_Receiver::instance()->consume_staged( $ref, $hash );
+        if ( isset( $staged['error'] ) ) {
+            throw new MainWP_Exception( esc_html( $staged['error'] ), null, $staged['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+
+        $params['parent_manifest_b64'] = $staged['b64'];
+        return $params;
     }
 
     /**

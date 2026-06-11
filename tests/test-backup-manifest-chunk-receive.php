@@ -68,6 +68,7 @@ class BackupManifestChunkReceiveTest extends WP_UnitTestCase {
 	public function tear_down() {
 		global $wpdb;
 		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'mainwp_manifest_staging_%'" ); // phpcs:ignore WordPress.DB -- test cleanup.
+		$wpdb->query( 'DELETE FROM ' . \MainWP\Child\MainWP_Child_Backup_Task::instance()->get_table_name() ); // phpcs:ignore WordPress.DB -- test cleanup.
 		foreach ( (array) glob( $this->dir . '/*' ) as $file ) {
 			unlink( $file );
 		}
@@ -247,6 +248,101 @@ class BackupManifestChunkReceiveTest extends WP_UnitTestCase {
 		$consumed = $this->receiver->consume_staged( $ack['mtoken'], hash( 'sha256', $content ) );
 
 		$this->assertSame( MainWP_Backup_Error::ERR_MANIFEST_CHUNK_WRONG_PHASE, $consumed['error_code'] );
+	}
+
+	/**
+	 * An incremental task created with a manifest ref consumes the
+	 * staged session into its cursor, exactly as the inline push would.
+	 */
+	public function test_create_task_with_valid_ref_consumes_staged_manifest() {
+		$content = "wp-content/themes/x/style.css\t10\t1700000000\n";
+		$total   = hash( 'sha256', $content );
+		$ack     = $this->send( '', $content, 0, $total, true );
+
+		$runner  = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+		$task_id = $runner->create_task_for_params(
+			'incremental',
+			array(
+				'ext'                    => 'tar',
+				'parent_snapshot_id'     => '7',
+				'parent_manifest_ref'    => $ack['mtoken'],
+				'parent_manifest_sha256' => $total,
+			)
+		);
+
+		$spine     = \MainWP\Child\MainWP_Child_Backup_Task::instance();
+		$task      = $spine->get_task( $task_id );
+		$dirs      = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup', false );
+		$sub_state = $spine->read_sub_state( $task, $dirs[0] );
+
+		$this->assertSame( base64_encode( $content ), $sub_state['params']['parent_manifest_b64'] );
+		$this->assertArrayNotHasKey( 'parent_manifest_ref', $sub_state['params'], 'The consumed ref must not persist on the cursor.' );
+		$this->assertSame( array(), (array) glob( $this->dir . '/manifest-staged-*' ), 'The staged file is consumed.' );
+		$this->assertSame( array(), $this->staging_options() );
+	}
+
+	/**
+	 * A ref whose staged content fails the task-create hash is refused
+	 * and the session discarded; no task is created on bad data.
+	 */
+	public function test_create_task_with_bad_sha256_throws() {
+		$content = str_repeat( 'C', 64 );
+		$ack     = $this->send( '', $content, 0, hash( 'sha256', $content ), true );
+
+		try {
+			\MainWP\Child\MainWP_Child_Backup_Task_Runner::instance()->create_task_for_params(
+				'incremental',
+				array(
+					'parent_manifest_ref'    => $ack['mtoken'],
+					'parent_manifest_sha256' => hash( 'sha256', 'something-else' ),
+				)
+			);
+			$this->fail( 'Expected the mismatched manifest to refuse the task' );
+		} catch ( \MainWP\Child\MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_MANIFEST_CHUNK_CORRUPT, $e->get_message_error_code() );
+		}
+
+		$this->assertSame( array(), (array) glob( $this->dir . '/manifest-staged-*' ) );
+		$this->assertSame( array(), \MainWP\Child\MainWP_Child_Backup_Task::instance()->get_active_tasks() );
+	}
+
+	/**
+	 * An unknown ref is refused: the dashboard restarts the transfer.
+	 */
+	public function test_create_task_with_unknown_ref_throws() {
+		try {
+			\MainWP\Child\MainWP_Child_Backup_Task_Runner::instance()->create_task_for_params(
+				'incremental',
+				array(
+					'parent_manifest_ref'    => 'aaaabbbbcccc0000',
+					'parent_manifest_sha256' => hash( 'sha256', 'whatever' ),
+				)
+			);
+			$this->fail( 'Expected the unknown ref to refuse the task' );
+		} catch ( \MainWP\Child\MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_MANIFEST_CHUNK_WRONG_PHASE, $e->get_message_error_code() );
+		}
+	}
+
+	/**
+	 * A non-incremental task ignores stray ref params entirely.
+	 */
+	public function test_create_task_ignores_ref_for_full_type() {
+		$task_id = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance()->create_task_for_params(
+			'full',
+			array(
+				'ext'                    => 'tar',
+				'parent_manifest_ref'    => 'aaaabbbbcccc0000',
+				'parent_manifest_sha256' => hash( 'sha256', 'whatever' ),
+			)
+		);
+
+		$spine     = \MainWP\Child\MainWP_Child_Backup_Task::instance();
+		$dirs      = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup', false );
+		$sub_state = $spine->read_sub_state( $spine->get_task( $task_id ), $dirs[0] );
+
+		$this->assertArrayNotHasKey( 'parent_manifest_ref', $sub_state['params'] );
+		$this->assertArrayNotHasKey( 'parent_manifest_b64', $sub_state['params'] );
 	}
 
 	/**
