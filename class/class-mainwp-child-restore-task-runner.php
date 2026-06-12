@@ -154,6 +154,26 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     }
 
     /**
+     * The URL-rewrite exclusion map: every posts table's guid column
+     * stays untouched, covering the main site's table and each
+     * sub-blog's numbered table on a multisite network.
+     *
+     * @param array  $stems         Loaded table stems.
+     * @param string $target_prefix Live table prefix.
+     *
+     * @return array<string,array> Excluded columns by table name.
+     */
+    public function guid_exclusions( $stems, $target_prefix ) {
+        $exclude = array();
+        foreach ( (array) $stems as $stem ) {
+            if ( 'posts' === $stem || preg_match( '/^\d+_posts$/', (string) $stem ) ) {
+                $exclude[ $target_prefix . $stem ] = array( 'guid' );
+            }
+        }
+        return $exclude;
+    }
+
+    /**
      * Sanitize a cloud-pull manifest from the wire against the task's
      * own artifact list.
      *
@@ -1206,7 +1226,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             array(
                 'tables'  => $tables,
                 'pairs'   => $pairs,
-                'exclude' => array( $target_prefix . 'posts' => array( 'guid' ) ),
+                'exclude' => $this->guid_exclusions( $this->loaded_stems( $sub_state ), $target_prefix ),
             ),
             $deadline
         );

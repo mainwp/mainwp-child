@@ -912,6 +912,21 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * GUID columns are excluded from URL rewriting for the main posts
+	 * table and every sub-blog posts table, and nothing else.
+	 */
+	public function test_guid_exclusions_cover_sub_blog_posts_tables() {
+		$exclude = $this->runner->guid_exclusions( array( 'posts', '2_posts', '10_posts', 'comments', 'postmeta', '2_options' ), 'rt_' );
+
+		$this->assertSame( array( 'guid' ), $exclude['rt_posts'] );
+		$this->assertSame( array( 'guid' ), $exclude['rt_2_posts'] );
+		$this->assertSame( array( 'guid' ), $exclude['rt_10_posts'] );
+		$this->assertArrayNotHasKey( 'rt_comments', $exclude );
+		$this->assertArrayNotHasKey( 'rt_postmeta', $exclude );
+		$this->assertArrayNotHasKey( 'rt_2_options', $exclude );
+	}
+
+	/**
 	 * Restore task creation no longer refuses multisite installs: the
 	 * capability gate lives on the dashboard, and an old dashboard
 	 * talking to a new child simply restores network-wide.
