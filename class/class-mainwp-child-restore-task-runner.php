@@ -317,6 +317,10 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             return $this->chunk_error( esc_html__( 'The artifact data could not be written. The site may be out of disk space.', 'mainwp-child' ), $write_error );
         }
         if ( '' !== $raw ) {
+            // The append streamed through fopen/fwrite, which leaves the
+            // pre-append size in PHP's stat cache on some PHP versions;
+            // acking that stale count tells the sender no bytes landed.
+            clearstatcache( true, $path );
             $size = (int) filesize( $path );
         }
 
