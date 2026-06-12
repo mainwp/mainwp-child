@@ -54,6 +54,16 @@ class BackupErrorTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The cloud-pull failure code is registered with an actionable
+	 * message that tells the user the dashboard falls back on its own.
+	 */
+	public function test_cloud_pull_failed_code_registered() {
+		$this->assertSame( 'mainwp_cloud_pull_failed', MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED );
+		$this->assertContains( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED, MainWP_Backup_Error::get_registered_codes() );
+		$this->assertStringContainsString( 'cloud storage', MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ) );
+	}
+
+	/**
 	 * Unknown codes fall back to a generic but well-formed message.
 	 */
 	public function test_message_unknown_code_falls_back() {
