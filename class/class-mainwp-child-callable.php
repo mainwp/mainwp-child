@@ -836,6 +836,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         $source_prefix = isset( $_POST['source_prefix'] ) ? sanitize_text_field( wp_unslash( $_POST['source_prefix'] ) ) : '';
         $artifacts_raw = isset( $_POST['artifacts_json'] ) ? wp_unslash( $_POST['artifacts_json'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- decoded and per-field sanitized below.
         $options_raw   = isset( $_POST['options_json'] ) ? wp_unslash( $_POST['options_json'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- decoded and per-field sanitized below.
+        $pull_raw      = isset( $_POST['pull_manifest_json'] ) ? wp_unslash( $_POST['pull_manifest_json'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- decoded and per-field sanitized below.
         // phpcs:enable WordPress.Security.NonceVerification
 
         if ( ! preg_match( '/^[a-z0-9]{6,16}$/', $restore_id ) ) {
@@ -861,6 +862,19 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             'file_rollback'    => ! empty( $options['file_rollback'] ),
         );
 
+        // A rejected pull manifest never fails the create: the task
+        // proceeds without it and the Dashboard takes the staged
+        // transfer path instead.
+        $pull_rejected = false;
+        if ( '' !== $pull_raw ) {
+            $pull_manifest = MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest( json_decode( (string) $pull_raw, true ), $artifacts );
+            if ( null === $pull_manifest ) {
+                $pull_rejected = true;
+            } else {
+                $params['pull_manifest'] = $pull_manifest;
+            }
+        }
+
         try {
             $task_id = MainWP_Child_Restore_Task_Runner::instance()->create_restore_task( $sub_type, $params );
         } catch ( MainWP_Exception $e ) {
@@ -874,13 +888,16 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             $disk_free = false === $probe ? 0 : (int) $probe;
         }
 
-        MainWP_Helper::write(
-            array(
-                'task_id'         => $task_id,
-                'phase'           => MainWP_Child_Backup_Task::PHASE_QUEUED,
-                'disk_free_bytes' => $disk_free,
-            )
+        $response = array(
+            'task_id'         => $task_id,
+            'phase'           => MainWP_Child_Backup_Task::PHASE_QUEUED,
+            'disk_free_bytes' => $disk_free,
         );
+        if ( $pull_rejected ) {
+            $response['pull_manifest_rejected'] = true;
+        }
+
+        MainWP_Helper::write( $response );
     }
 
     /**

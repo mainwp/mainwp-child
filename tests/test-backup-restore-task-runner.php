@@ -1114,6 +1114,114 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The pull-manifest sanitizer accepts well-formed whole-file and
+	 * chunked manifests whose names belong to the task's artifact list.
+	 */
+	public function test_sanitize_pull_manifest_accepts_valid_manifests() {
+		$artifacts = array(
+			array(
+				'file'       => 'db.zip',
+				'adopt_only' => false,
+			),
+			array(
+				'file'       => 'big.zip',
+				'adopt_only' => false,
+			),
+		);
+		$sha       = str_repeat( 'a', 64 );
+
+		$clean = MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest(
+			array(
+				'artifacts' => array(
+					array(
+						'file'   => 'db.zip',
+						'sha256' => $sha,
+						'size'   => 10,
+						'url'    => 'https://bucket.example/db.zip?X-Amz-Signature=x',
+					),
+					array(
+						'file'   => 'big.zip',
+						'sha256' => $sha,
+						'size'   => 20,
+						'chunks' => array(
+							array(
+								'hash' => $sha,
+								'url'  => 'https://bucket.example/chunks/aa.bin?sig=1',
+							),
+						),
+					),
+				),
+			),
+			$artifacts
+		);
+
+		$this->assertNotNull( $clean );
+		$this->assertCount( 2, $clean['artifacts'] );
+		$this->assertSame( 'db.zip', $clean['artifacts'][0]['file'] );
+		$this->assertSame( 10, $clean['artifacts'][0]['size'] );
+		$this->assertCount( 1, $clean['artifacts'][1]['chunks'] );
+	}
+
+	/**
+	 * The sanitizer rejects manifests wholesale on any violation: a
+	 * non-https URL, an unknown basename, a malformed hash, an
+	 * adopt-only target, or a shape that is not a manifest.
+	 */
+	public function test_sanitize_pull_manifest_rejects_violations() {
+		$sha       = str_repeat( 'a', 64 );
+		$artifacts = array(
+			array(
+				'file'       => 'db.zip',
+				'adopt_only' => false,
+			),
+			array(
+				'file'       => 'old.zip',
+				'adopt_only' => true,
+			),
+		);
+		$entry     = function ( $over = array() ) use ( $sha ) {
+			return array(
+				'artifacts' => array(
+					array_merge(
+						array(
+							'file'   => 'db.zip',
+							'sha256' => $sha,
+							'size'   => 10,
+							'url'    => 'https://bucket.example/db.zip',
+						),
+						$over
+					),
+				),
+			);
+		};
+
+		$this->assertNull( MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest( 'not-an-array', $artifacts ) );
+		$this->assertNull( MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest( array( 'artifacts' => array() ), $artifacts ) );
+		$this->assertNull( MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest( $entry( array( 'url' => 'http://bucket.example/db.zip' ) ), $artifacts ), 'Plain http URLs must be rejected.' );
+		$this->assertNull( MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest( $entry( array( 'file' => 'evil.zip' ) ), $artifacts ), 'Unknown basenames must be rejected.' );
+		$this->assertNull( MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest( $entry( array( 'file' => 'old.zip' ) ), $artifacts ), 'Adopt-only artifacts must never be pull targets.' );
+		$this->assertNull( MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest( $entry( array( 'sha256' => 'nothex' ) ), $artifacts ), 'Malformed hashes must be rejected.' );
+		$this->assertNull( MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest( $entry( array( 'url' => null ) ), $artifacts ), 'A whole-file entry without a URL must be rejected.' );
+		$this->assertNull(
+			MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest(
+				$entry(
+					array(
+						'url'    => null,
+						'chunks' => array(
+							array(
+								'hash' => $sha,
+								'url'  => 'ftp://bucket.example/aa.bin',
+							),
+						),
+					)
+				),
+				$artifacts
+			),
+			'Non-https chunk URLs must be rejected.'
+		);
+	}
+
+	/**
 	 * The disk preflight fails the task before any download when free
 	 * space cannot hold the manifest's artifacts.
 	 */

@@ -149,6 +149,91 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     }
 
     /**
+     * Sanitize a cloud-pull manifest from the wire against the task's
+     * own artifact list.
+     *
+     * Rejection is wholesale: any malformed entry, any URL that is not
+     * https, any hash that is not hex sha256, or any basename outside
+     * the artifact list (or adopt-only) invalidates the whole manifest.
+     * The caller then creates the task without it and the restore takes
+     * the staged transfer path.
+     *
+     * @param mixed $raw       Decoded pull_manifest_json.
+     * @param array $artifacts Sanitized task artifact entries.
+     *
+     * @return array|null Clean manifest, or null when rejected.
+     */
+    public static function sanitize_pull_manifest( $raw, $artifacts ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- ordered validation gates on wire input.
+        if ( ! is_array( $raw ) || empty( $raw['artifacts'] ) || ! is_array( $raw['artifacts'] ) ) {
+            return null;
+        }
+
+        $allowed = array();
+        foreach ( $artifacts as $artifact ) {
+            if ( empty( $artifact['adopt_only'] ) && isset( $artifact['file'] ) ) {
+                $allowed[ (string) $artifact['file'] ] = true;
+            }
+        }
+
+        $clean = array();
+        foreach ( $raw['artifacts'] as $entry ) {
+            if ( ! is_array( $entry ) || empty( $entry['file'] ) || empty( $allowed[ (string) $entry['file'] ] ) ) {
+                return null;
+            }
+            if ( ! isset( $entry['sha256'] ) || ! is_string( $entry['sha256'] ) || ! preg_match( '/^[a-f0-9]{64}$/', $entry['sha256'] ) ) {
+                return null;
+            }
+
+            $item = array(
+                'file'   => (string) $entry['file'],
+                'sha256' => $entry['sha256'],
+                'size'   => isset( $entry['size'] ) ? (int) $entry['size'] : 0,
+            );
+
+            if ( isset( $entry['chunks'] ) && is_array( $entry['chunks'] ) && ! empty( $entry['chunks'] ) ) {
+                $chunks = array();
+                foreach ( $entry['chunks'] as $chunk ) {
+                    if ( ! is_array( $chunk ) || ! isset( $chunk['hash'] ) || ! is_string( $chunk['hash'] ) || ! preg_match( '/^[a-f0-9]{64}$/', $chunk['hash'] ) ) {
+                        return null;
+                    }
+                    if ( ! static::is_https_url( isset( $chunk['url'] ) ? $chunk['url'] : '' ) ) {
+                        return null;
+                    }
+                    $chunks[] = array(
+                        'hash' => $chunk['hash'],
+                        'url'  => (string) $chunk['url'],
+                    );
+                }
+                $item['chunks'] = $chunks;
+            } else {
+                if ( ! static::is_https_url( isset( $entry['url'] ) ? $entry['url'] : '' ) ) {
+                    return null;
+                }
+                $item['url'] = (string) $entry['url'];
+            }
+
+            $clean[] = $item;
+        }
+
+        return array( 'artifacts' => $clean );
+    }
+
+    /**
+     * Whether a value is an https URL.
+     *
+     * @param mixed $url Candidate.
+     *
+     * @return bool
+     */
+    protected static function is_https_url( $url ) {
+        if ( ! is_string( $url ) || '' === $url ) {
+            return false;
+        }
+        $parts = wp_parse_url( $url );
+        return is_array( $parts ) && isset( $parts['scheme'], $parts['host'] ) && 'https' === strtolower( $parts['scheme'] );
+    }
+
+    /**
      * Cancel a restore task cleanly.
      *
      * The cancel respects the lease: while another runner is mid-slice
