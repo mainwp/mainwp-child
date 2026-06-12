@@ -193,7 +193,18 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             if ( isset( $entry['chunks'] ) && is_array( $entry['chunks'] ) && ! empty( $entry['chunks'] ) ) {
                 $chunks = array();
                 foreach ( $entry['chunks'] as $chunk ) {
-                    if ( ! is_array( $chunk ) || ! isset( $chunk['hash'] ) || ! is_string( $chunk['hash'] ) || ! preg_match( '/^[a-f0-9]{64}$/', $chunk['hash'] ) ) {
+                    if ( ! is_array( $chunk ) ) {
+                        return null;
+                    }
+                    // Chunks are content-addressed with the algorithm the
+                    // upload recorded; only known, locally available
+                    // algorithms are verifiable here.
+                    $algo = isset( $chunk['algo'] ) ? (string) $chunk['algo'] : 'sha256';
+                    if ( ! in_array( $algo, array( 'sha256', 'xxh128' ), true ) || ! in_array( $algo, hash_algos(), true ) ) {
+                        return null;
+                    }
+                    $length = 'sha256' === $algo ? 64 : 32;
+                    if ( ! isset( $chunk['hash'] ) || ! is_string( $chunk['hash'] ) || ! preg_match( '/^[a-f0-9]{' . $length . '}$/', $chunk['hash'] ) ) {
                         return null;
                     }
                     if ( ! static::is_https_url( isset( $chunk['url'] ) ? $chunk['url'] : '' ) ) {
@@ -201,6 +212,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                     }
                     $chunks[] = array(
                         'hash' => $chunk['hash'],
+                        'algo' => $algo,
                         'url'  => (string) $chunk['url'],
                     );
                 }
@@ -757,7 +769,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ) ), null, MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
             }
 
-            $actual = hash_file( 'sha256', $piece );
+            $algo   = isset( $chunk['algo'] ) && in_array( (string) $chunk['algo'], hash_algos(), true ) ? (string) $chunk['algo'] : 'sha256';
+            $actual = hash_file( $algo, $piece );
             if ( empty( $chunk['hash'] ) || ! is_string( $actual ) || ! hash_equals( (string) $chunk['hash'], $actual ) ) {
                 wp_delete_file( $piece );
                 wp_delete_file( $assembly );

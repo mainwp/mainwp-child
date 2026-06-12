@@ -1082,6 +1082,129 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Chunk pieces verify with the algorithm the manifest declares:
+	 * production uploads content-address chunks with xxh128 where
+	 * available, and the pull must honor that.
+	 */
+	public function test_cloud_pull_chunked_verifies_with_declared_algo() {
+		if ( ! in_array( 'xxh128', hash_algos(), true ) ) {
+			$this->markTestSkipped( 'xxh128 is not available on this PHP.' );
+		}
+
+		$runner = $this->use_cloud_pull_runner();
+		$cloud  = $this->make_cloud_only_db_artifact();
+
+		$split  = (int) ceil( strlen( $cloud['bytes'] ) / 2 );
+		$piece1 = substr( $cloud['bytes'], 0, $split );
+		$piece2 = substr( $cloud['bytes'], $split );
+		$url1   = 'https://bucket.example/chunks/' . hash( 'xxh128', $piece1 ) . '.bin?sig=a';
+		$url2   = 'https://bucket.example/chunks/' . hash( 'xxh128', $piece2 ) . '.bin?sig=b';
+
+		$runner->pull_responses[ $url1 ] = $piece1;
+		$runner->pull_responses[ $url2 ] = $piece2;
+
+		$task_id = $this->make_task(
+			'db',
+			array( $cloud['artifact'] ),
+			array(
+				'pull_manifest' => array(
+					'mode'      => 'chunked',
+					'artifacts' => array(
+						array(
+							'file'   => 'db.zip',
+							'sha256' => $cloud['artifact']['sha256'],
+							'size'   => $cloud['artifact']['size'],
+							'chunks' => array(
+								array(
+									'hash' => hash( 'xxh128', $piece1 ),
+									'algo' => 'xxh128',
+									'url'  => $url1,
+								),
+								array(
+									'hash' => hash( 'xxh128', $piece2 ),
+									'algo' => 'xxh128',
+									'url'  => $url2,
+								),
+							),
+						),
+					),
+				),
+			)
+		);
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+	}
+
+	/**
+	 * The sanitizer accepts xxh128 chunk hashes with their declared
+	 * algorithm and rejects algorithms it does not know.
+	 */
+	public function test_sanitize_pull_manifest_chunk_algos() {
+		$artifacts = array(
+			array(
+				'file'       => 'big.zip',
+				'adopt_only' => false,
+			),
+		);
+		$sha       = str_repeat( 'a', 64 );
+		$manifest  = function ( $chunk ) use ( $sha ) {
+			return array(
+				'artifacts' => array(
+					array(
+						'file'   => 'big.zip',
+						'sha256' => $sha,
+						'size'   => 10,
+						'chunks' => array( $chunk ),
+					),
+				),
+			);
+		};
+
+		if ( in_array( 'xxh128', hash_algos(), true ) ) {
+			$clean = MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest(
+				$manifest(
+					array(
+						'hash' => str_repeat( '1', 32 ),
+						'algo' => 'xxh128',
+						'url'  => 'https://bucket.example/c.bin',
+					)
+				),
+				$artifacts
+			);
+			$this->assertNotNull( $clean );
+			$this->assertSame( 'xxh128', $clean['artifacts'][0]['chunks'][0]['algo'] );
+		}
+
+		$this->assertNull(
+			MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest(
+				$manifest(
+					array(
+						'hash' => str_repeat( '1', 32 ),
+						'algo' => 'md5',
+						'url'  => 'https://bucket.example/c.bin',
+					)
+				),
+				$artifacts
+			),
+			'Unknown chunk algorithms must be rejected.'
+		);
+
+		$this->assertNull(
+			MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest(
+				$manifest(
+					array(
+						'hash' => str_repeat( '1', 32 ),
+						'url'  => 'https://bucket.example/c.bin',
+					)
+				),
+				$artifacts
+			),
+			'A 32-hex hash without a declared algorithm must be rejected.'
+		);
+	}
+
+	/**
 	 * A pull manifest naming a file the task was not created with is
 	 * rejected without downloading anything.
 	 */
