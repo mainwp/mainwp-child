@@ -103,6 +103,19 @@ class BackupPreflightTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The report carries the install's multisite state and whether this
+	 * child can restore a multisite network. The test environment is
+	 * single-site, so both report 0 here; the keys existing is what the
+	 * Dashboard's capability stamp needs.
+	 */
+	public function test_check_backup_readiness_reports_multisite_state() {
+		$report = MainWP_Backup::get()->check_backup_readiness();
+
+		$this->assertSame( 0, $report['is_multisite'] );
+		$this->assertSame( 0, $report['restore_multisite'] );
+	}
+
+	/**
 	 * disk_free is a byte count when the host exposes disk_free_space().
 	 */
 	public function test_check_backup_readiness_reports_disk_space() {

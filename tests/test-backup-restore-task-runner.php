@@ -912,22 +912,17 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A multisite install is refused at restore task creation with the
-	 * dedicated error code; single-site creation is unaffected.
+	 * Restore task creation no longer refuses multisite installs: the
+	 * capability gate lives on the dashboard, and an old dashboard
+	 * talking to a new child simply restores network-wide.
 	 */
-	public function test_create_restore_task_blocked_on_multisite() {
+	public function test_create_restore_task_allows_multisite() {
 		$this->runner->fake_is_multisite = true;
-
-		try {
-			$this->make_task( 'db', array( $this->make_db_artifact() ) );
-			$this->fail( 'A multisite install must refuse restore task creation.' );
-		} catch ( \MainWP\Child\MainWP_Exception $e ) {
-			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_MULTISITE, $e->get_message_error_code() );
-		}
-
-		$this->runner->fake_is_multisite = false;
 		$task_id                         = $this->make_task( 'db', array( $this->make_db_artifact() ) );
 		$this->assertNotEmpty( $task_id );
+
+		$task = $this->spine->get_task( $task_id );
+		$this->assertSame( 'restore_db', $task->type );
 	}
 
 	/**

@@ -1203,6 +1203,13 @@ class MainWP_Backup {
             // Restores can pull artifacts straight from cloud storage
             // via presigned URLs instead of the staged chunk transfer.
             'cloud_restore_pull' => 1,
+
+            // The install's multisite state, and whether this child can
+            // restore a whole network point in time. The Dashboard
+            // stamps both so it can gate restore on multisite children
+            // running an older child plugin.
+            'is_multisite'       => is_multisite() ? 1 : 0,
+            'restore_multisite'  => is_multisite() ? 1 : 0,
         );
 
         // 1. Backup directory writable (randomized directory, created on demand).

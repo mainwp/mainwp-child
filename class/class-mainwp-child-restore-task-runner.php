@@ -106,10 +106,6 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @return string Task id.
      */
     public function create_restore_task( $sub_type, $params ) {
-        if ( $this->is_multisite_install() ) {
-            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_MULTISITE ) ), null, MainWP_Backup_Error::ERR_RESTORE_MULTISITE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
-        }
-
         $spine = MainWP_Child_Backup_Task::instance();
         $spine->install();
 
