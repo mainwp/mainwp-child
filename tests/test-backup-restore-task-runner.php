@@ -238,6 +238,65 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 }
 
 /**
+ * Restore runner whose cloud downloads are scripted: URLs map to bytes
+ * (or false for a failed transfer), and every pulled URL is recorded.
+ */
+class Cloud_Pull_Test_Restore_Runner extends Testable_Restore_Task_Runner {
+
+	/**
+	 * Scripted responses: url => bytes, or false for a failure.
+	 *
+	 * @var array<string,string|false>
+	 */
+	public $pull_responses = array();
+
+	/**
+	 * Every URL the runner tried to pull.
+	 *
+	 * @var string[]
+	 */
+	public $pulled_urls = array();
+
+	/**
+	 * Scripted free disk space, or null to skip the check.
+	 *
+	 * @var float|null
+	 */
+	public $fake_free_space = null;
+
+	/**
+	 * Scripted download.
+	 *
+	 * @param string $url       Presigned URL.
+	 * @param string $dest_path Local target.
+	 *
+	 * @return bool
+	 */
+	protected function download_url_to_file( $url, $dest_path ) {
+		$this->pulled_urls[] = $url;
+		if ( ! array_key_exists( $url, $this->pull_responses ) || false === $this->pull_responses[ $url ] ) {
+			return false;
+		}
+		file_put_contents( $dest_path, $this->pull_responses[ $url ] ); // phpcs:ignore -- fixture.
+		return true;
+	}
+
+	/**
+	 * Scripted free space.
+	 *
+	 * @param string $dir Directory.
+	 *
+	 * @return float|null
+	 */
+	protected function free_disk_space( $dir ) {
+		if ( null !== $this->fake_free_space ) {
+			return $this->fake_free_space;
+		}
+		return parent::free_disk_space( $dir );
+	}
+}
+
+/**
  * Tests for the restore task runner: the full phase pipeline over real
  * artifacts, failure cleanup discipline, the in-place FK route, and
  * watchdog ownership routing.
@@ -834,5 +893,257 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 
 		// Scratch staging is gone after a verified restore.
 		$this->assertDirectoryDoesNotExist( $this->dir . '/restore-' . $task_id );
+	}
+
+	/**
+	 * Swap in the cloud-pull runner, keeping the pinned dirs and engine.
+	 *
+	 * @return Cloud_Pull_Test_Restore_Runner
+	 */
+	protected function use_cloud_pull_runner() {
+		$runner                  = new Cloud_Pull_Test_Restore_Runner();
+		$runner->test_backup_dir = $this->dir;
+		$runner->test_site_root  = $this->site;
+		$runner->fake_engine     = $this->runner->fake_engine;
+		$this->runner            = $runner;
+		return $runner;
+	}
+
+	/**
+	 * Build the db artifact, capture its bytes, and remove the local
+	 * copy so adoption cannot satisfy it - only the cloud has it.
+	 *
+	 * @return array { artifact, bytes }
+	 */
+	protected function make_cloud_only_db_artifact() {
+		$artifact = $this->make_db_artifact();
+		$bytes    = file_get_contents( $this->dir . '/db.zip' );
+		unlink( $this->dir . '/db.zip' );
+		return array(
+			'artifact' => $artifact,
+			'bytes'    => $bytes,
+		);
+	}
+
+	/**
+	 * A restore with a whole-file pull manifest downloads the artifact
+	 * from the cloud, verifies it, and completes the full pipeline
+	 * without any wire transfer.
+	 */
+	public function test_cloud_pull_whole_artifact_restore_completes() {
+		$runner = $this->use_cloud_pull_runner();
+		$cloud  = $this->make_cloud_only_db_artifact();
+		$url    = 'https://bucket.example/4/42/files/db.zip?X-Amz-Signature=test';
+
+		$runner->pull_responses[ $url ] = $cloud['bytes'];
+
+		$task_id = $this->make_task(
+			'db',
+			array( $cloud['artifact'] ),
+			array(
+				'pull_manifest' => array(
+					'mode'      => 'whole_files',
+					'artifacts' => array(
+						array(
+							'file'   => 'db.zip',
+							'sha256' => $cloud['artifact']['sha256'],
+							'size'   => $cloud['artifact']['size'],
+							'url'    => $url,
+						),
+					),
+				),
+			)
+		);
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertContains( $url, $runner->pulled_urls );
+	}
+
+	/**
+	 * Pulled bytes that fail the artifact hash land the task terminal
+	 * failed with the cloud-pull error code, and the error never echoes
+	 * the presigned URL.
+	 */
+	public function test_cloud_pull_bad_hash_fails_with_pull_code() {
+		$runner = $this->use_cloud_pull_runner();
+		$cloud  = $this->make_cloud_only_db_artifact();
+		$url    = 'https://bucket.example/db.zip?X-Amz-Signature=secret';
+
+		$runner->pull_responses[ $url ] = 'garbage-bytes';
+
+		$task_id = $this->make_task(
+			'db',
+			array( $cloud['artifact'] ),
+			array(
+				'pull_manifest' => array(
+					'mode'      => 'whole_files',
+					'artifacts' => array(
+						array(
+							'file'   => 'db.zip',
+							'sha256' => $cloud['artifact']['sha256'],
+							'size'   => $cloud['artifact']['size'],
+							'url'    => $url,
+						),
+					),
+				),
+			)
+		);
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+
+		$payload = $this->spine->status_payload( $task );
+		$this->assertSame( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED, $payload['error_code'] );
+		$this->assertStringNotContainsString( 'X-Amz', $payload['error'], 'The presigned URL must never appear in errors.' );
+	}
+
+	/**
+	 * A failed download lands terminal failed with the cloud-pull error
+	 * code so the dashboard falls back to the staged transfer.
+	 */
+	public function test_cloud_pull_download_failure_fails_with_pull_code() {
+		$runner = $this->use_cloud_pull_runner();
+		$cloud  = $this->make_cloud_only_db_artifact();
+		$url    = 'https://bucket.example/db.zip?X-Amz-Signature=test';
+
+		$runner->pull_responses[ $url ] = false;
+
+		$task_id = $this->make_task(
+			'db',
+			array( $cloud['artifact'] ),
+			array(
+				'pull_manifest' => array(
+					'mode'      => 'whole_files',
+					'artifacts' => array(
+						array(
+							'file'   => 'db.zip',
+							'sha256' => $cloud['artifact']['sha256'],
+							'size'   => $cloud['artifact']['size'],
+							'url'    => $url,
+						),
+					),
+				),
+			)
+		);
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED, $this->spine->status_payload( $task )['error_code'] );
+	}
+
+	/**
+	 * A chunked pull manifest downloads every piece, verifies each chunk
+	 * hash, reassembles the artifact, verifies the whole, and completes.
+	 */
+	public function test_cloud_pull_chunked_artifact_reassembles_and_completes() {
+		$runner = $this->use_cloud_pull_runner();
+		$cloud  = $this->make_cloud_only_db_artifact();
+
+		$split  = (int) ceil( strlen( $cloud['bytes'] ) / 2 );
+		$piece1 = substr( $cloud['bytes'], 0, $split );
+		$piece2 = substr( $cloud['bytes'], $split );
+		$url1   = 'https://bucket.example/chunks/' . hash( 'sha256', $piece1 ) . '.bin?X-Amz-Signature=a';
+		$url2   = 'https://bucket.example/chunks/' . hash( 'sha256', $piece2 ) . '.bin?X-Amz-Signature=b';
+
+		$runner->pull_responses[ $url1 ] = $piece1;
+		$runner->pull_responses[ $url2 ] = $piece2;
+
+		$task_id = $this->make_task(
+			'db',
+			array( $cloud['artifact'] ),
+			array(
+				'pull_manifest' => array(
+					'mode'      => 'chunked',
+					'artifacts' => array(
+						array(
+							'file'   => 'db.zip',
+							'sha256' => $cloud['artifact']['sha256'],
+							'size'   => $cloud['artifact']['size'],
+							'chunks' => array(
+								array(
+									'hash' => hash( 'sha256', $piece1 ),
+									'url'  => $url1,
+								),
+								array(
+									'hash' => hash( 'sha256', $piece2 ),
+									'url'  => $url2,
+								),
+							),
+						),
+					),
+				),
+			)
+		);
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( array( $url1, $url2 ), $runner->pulled_urls );
+	}
+
+	/**
+	 * A pull manifest naming a file the task was not created with is
+	 * rejected without downloading anything.
+	 */
+	public function test_cloud_pull_rejects_unknown_basename() {
+		$runner = $this->use_cloud_pull_runner();
+		$cloud  = $this->make_cloud_only_db_artifact();
+
+		$task_id = $this->make_task(
+			'db',
+			array( $cloud['artifact'] ),
+			array(
+				'pull_manifest' => array(
+					'mode'      => 'whole_files',
+					'artifacts' => array(
+						array(
+							'file'   => 'evil.zip',
+							'sha256' => $cloud['artifact']['sha256'],
+							'size'   => 4,
+							'url'    => 'https://bucket.example/evil.zip',
+						),
+					),
+				),
+			)
+		);
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED, $this->spine->status_payload( $task )['error_code'] );
+		$this->assertSame( array(), $runner->pulled_urls, 'Nothing may download for a rejected manifest.' );
+	}
+
+	/**
+	 * The disk preflight fails the task before any download when free
+	 * space cannot hold the manifest's artifacts.
+	 */
+	public function test_cloud_pull_disk_preflight_fails_early() {
+		$runner = $this->use_cloud_pull_runner();
+		$cloud  = $this->make_cloud_only_db_artifact();
+
+		$runner->fake_free_space = 10.0;
+
+		$task_id = $this->make_task(
+			'db',
+			array( $cloud['artifact'] ),
+			array(
+				'pull_manifest' => array(
+					'mode'      => 'whole_files',
+					'artifacts' => array(
+						array(
+							'file'   => 'db.zip',
+							'sha256' => $cloud['artifact']['sha256'],
+							'size'   => $cloud['artifact']['size'],
+							'url'    => 'https://bucket.example/db.zip',
+						),
+					),
+				),
+			)
+		);
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_DISK_FULL, $this->spine->status_payload( $task )['error_code'] );
+		$this->assertSame( array(), $runner->pulled_urls, 'Nothing may download when disk space is insufficient.' );
 	}
 }

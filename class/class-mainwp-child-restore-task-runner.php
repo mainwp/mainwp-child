@@ -496,10 +496,18 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     }
 
     /**
-     * Pulling phase: when the dashboard supplied no cloud-pull
-     * manifest, the phase is a transparent no-op and the task advances
-     * straight to receiving, keeping the staged chunk transfer path
-     * exactly as it was.
+     * Pulling phase: download artifacts straight from cloud storage
+     * using the presigned URLs in the task's pull manifest. When the
+     * dashboard supplied no manifest, the phase is a transparent no-op
+     * and the task advances straight to receiving, keeping the staged
+     * chunk transfer path exactly as it was.
+     *
+     * Every pulled file verifies against the sha256 the task was
+     * created with; manifest basenames must belong to the task's own
+     * artifact list, so nothing in the manifest can name a new write
+     * path. Failures land terminal with the cloud-pull error code -
+     * the dashboard reacts by re-staging through the standard transfer.
+     * Presigned URLs never appear in errors or in anything logged.
      *
      * @param object $task       Task row.
      * @param int    $version    Owned version.
@@ -507,17 +515,297 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @param int    $deadline   Slice deadline.
      * @param string $backup_dir Scratch root.
      *
+     * @throws MainWP_Exception On insufficient disk space or any pull failure.
+     *
      * @return array Slice result.
      */
     protected function run_pulling( $task, $version, $sub_state, $deadline, $backup_dir ) {
-        unset( $deadline );
-
         $params = isset( $sub_state['params'] ) ? $sub_state['params'] : array();
-        if ( empty( $params['pull_manifest'] ) ) {
+        $pull   = isset( $params['pull_manifest'] ) && is_array( $params['pull_manifest'] ) ? $params['pull_manifest'] : array();
+        $list   = isset( $pull['artifacts'] ) && is_array( $pull['artifacts'] ) ? array_values( $pull['artifacts'] ) : array();
+
+        if ( empty( $list ) ) {
             return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
         }
 
+        $allowed = array();
+        foreach ( isset( $params['artifacts'] ) ? (array) $params['artifacts'] : array() as $artifact ) {
+            if ( empty( $artifact['adopt_only'] ) && isset( $artifact['file'] ) ) {
+                $allowed[ (string) $artifact['file'] ] = true;
+            }
+        }
+
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        if ( ! is_dir( $scratch ) ) {
+            wp_mkdir_p( $scratch );
+        }
+
+        $pulling = isset( $sub_state['pulling'] ) && is_array( $sub_state['pulling'] ) ? $sub_state['pulling'] : array( 'next' => 0 );
+
+        if ( empty( $pulling['disk_checked'] ) ) {
+            $this->assert_pull_disk_space( $list, (int) $pulling['next'], $scratch );
+            $pulling['disk_checked'] = true;
+        }
+
+        $count    = count( $list );
+        $progress = false;
+        while ( $pulling['next'] < $count ) {
+            if ( $progress && time() >= $deadline ) {
+                $sub_state['pulling'] = $pulling;
+                return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+            }
+
+            $artifact = (array) $list[ $pulling['next'] ];
+            $base     = isset( $artifact['file'] ) ? (string) $artifact['file'] : '';
+            if ( '' === $base || empty( $allowed[ $base ] ) ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ) ), null, MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
+
+            if ( ! empty( $artifact['chunks'] ) ) {
+                if ( ! $this->pull_chunked_artifact( $artifact, $scratch, $pulling, $deadline ) ) {
+                    $sub_state['pulling'] = $pulling;
+                    return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+                }
+            } else {
+                $this->pull_whole_artifact( $artifact, $scratch );
+            }
+
+            $sub_state = $this->mark_artifact_pulled( $sub_state, $scratch, $base );
+            ++$pulling['next'];
+            unset( $pulling['chunk'] );
+            $progress = true;
+        }
+
+        $sub_state['pulling'] = $pulling;
         return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Download one whole artifact and verify it before promoting it
+     * into the scratch staging area.
+     *
+     * @param array  $artifact Pull manifest entry: file, sha256, url.
+     * @param string $scratch  Scratch dir with trailing slash.
+     *
+     * @throws MainWP_Exception When the download, hash, or promote fails.
+     */
+    protected function pull_whole_artifact( $artifact, $scratch ) {
+        $base = (string) $artifact['file'];
+        $path = $scratch . $base;
+        $tmp  = $path . '.pulling';
+        $url  = isset( $artifact['url'] ) ? (string) $artifact['url'] : '';
+
+        if ( ! $this->download_url_to_file( $url, $tmp ) ) {
+            if ( file_exists( $tmp ) ) {
+                wp_delete_file( $tmp );
+            }
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ) ), null, MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+
+        $expected = isset( $artifact['sha256'] ) ? (string) $artifact['sha256'] : '';
+        $actual   = hash_file( 'sha256', $tmp );
+        if ( '' === $expected || ! is_string( $actual ) || ! hash_equals( $expected, $actual ) ) {
+            wp_delete_file( $tmp );
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ) ), null, MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+
+        if ( ! rename( $tmp, $path ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic promote of the pulled artifact.
+            wp_delete_file( $tmp );
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ) ), null, MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+    }
+
+    /**
+     * Reassemble one chunked artifact from per-chunk presigned URLs.
+     *
+     * Each piece verifies against its content hash before appending;
+     * the finished file verifies against the artifact's sha256 (and
+     * recorded size) before promoting. The chunk cursor lives on the
+     * pulling state, so a slice that runs out of budget resumes at the
+     * next chunk.
+     *
+     * @param array  $artifact Pull manifest entry: file, sha256, size, chunks.
+     * @param string $scratch  Scratch dir with trailing slash.
+     * @param array  $pulling  Pulling cursor (by reference).
+     * @param int    $deadline Slice deadline.
+     *
+     * @throws MainWP_Exception When a download, hash, write, or promote fails.
+     *
+     * @return bool True when the artifact finished; false to yield mid-chunk.
+     */
+    protected function pull_chunked_artifact( $artifact, $scratch, &$pulling, $deadline ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- resumable verify-then-append loop.
+        $base     = (string) $artifact['file'];
+        $assembly = $scratch . $base . '.assembling';
+        $chunks   = array_values( (array) $artifact['chunks'] );
+        $cursor   = isset( $pulling['chunk'] ) && is_array( $pulling['chunk'] ) ? $pulling['chunk'] : array(
+            'next'  => 0,
+            'bytes' => 0,
+        );
+
+        // A stale assembly file that does not match the cursor restarts
+        // clean - appending to unknown bytes would corrupt the artifact.
+        $on_disk = file_exists( $assembly ) ? (int) filesize( $assembly ) : 0;
+        if ( $on_disk !== (int) $cursor['bytes'] ) {
+            wp_delete_file( $assembly );
+            $cursor = array(
+                'next'  => 0,
+                'bytes' => 0,
+            );
+        }
+
+        $count    = count( $chunks );
+        $progress = false;
+        while ( $cursor['next'] < $count ) {
+            if ( $progress && time() >= $deadline ) {
+                $pulling['chunk'] = $cursor;
+                return false;
+            }
+
+            $chunk = (array) $chunks[ $cursor['next'] ];
+            $piece = $scratch . $base . '.chunk';
+            $url   = isset( $chunk['url'] ) ? (string) $chunk['url'] : '';
+
+            if ( ! $this->download_url_to_file( $url, $piece ) ) {
+                if ( file_exists( $piece ) ) {
+                    wp_delete_file( $piece );
+                }
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ) ), null, MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
+
+            $actual = hash_file( 'sha256', $piece );
+            if ( empty( $chunk['hash'] ) || ! is_string( $actual ) || ! hash_equals( (string) $chunk['hash'], $actual ) ) {
+                wp_delete_file( $piece );
+                wp_delete_file( $assembly );
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ) ), null, MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
+
+            $bytes = (string) file_get_contents( $piece ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- verified chunk bytes.
+            wp_delete_file( $piece );
+
+            $fh = fopen( $assembly, 'ab' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming append to the assembly file.
+            if ( false === $fh || strlen( $bytes ) !== fwrite( $fh, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming append.
+                if ( false !== $fh ) {
+                    fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+                }
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) ), null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
+            fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+
+            $cursor['bytes'] += strlen( $bytes );
+            ++$cursor['next'];
+            $progress = true;
+        }
+
+        $expected_size = isset( $artifact['size'] ) ? (int) $artifact['size'] : 0;
+        $expected_hash = isset( $artifact['sha256'] ) ? (string) $artifact['sha256'] : '';
+        clearstatcache( true, $assembly );
+        $whole = hash_file( 'sha256', $assembly );
+        if ( ( $expected_size > 0 && (int) filesize( $assembly ) !== $expected_size )
+            || '' === $expected_hash || ! is_string( $whole ) || ! hash_equals( $expected_hash, $whole )
+            || ! rename( $assembly, $scratch . $base ) // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic promote of the reassembled artifact.
+        ) {
+            wp_delete_file( $assembly );
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ) ), null, MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+
+        unset( $pulling['chunk'] );
+        return true;
+    }
+
+    /**
+     * Record a pulled artifact on the receiving state, so the receiving
+     * phase finds it complete and advances without any wire transfer.
+     *
+     * @param array  $sub_state Cursor.
+     * @param string $scratch   Scratch dir with trailing slash.
+     * @param string $base      Artifact basename.
+     *
+     * @return array Updated cursor.
+     */
+    protected function mark_artifact_pulled( $sub_state, $scratch, $base ) {
+        if ( ! isset( $sub_state['receiving'] ) || ! is_array( $sub_state['receiving'] ) ) {
+            $sub_state['receiving'] = array(
+                'adoption_done' => false,
+                'files'         => array(),
+                'hashes'        => array(),
+            );
+        }
+
+        clearstatcache( true, $scratch . $base );
+        $sub_state['receiving']['files'][ $base ] = array(
+            'bytes' => (int) filesize( $scratch . $base ),
+            'done'  => true,
+        );
+
+        return $sub_state;
+    }
+
+    /**
+     * Fail before the first download when free disk space cannot hold
+     * the artifacts still to pull (plus a working margin).
+     *
+     * @param array  $artifacts Pull manifest artifacts.
+     * @param int    $next    Index of the next artifact to pull.
+     * @param string $scratch Scratch dir.
+     *
+     * @throws MainWP_Exception When free space is insufficient.
+     */
+    protected function assert_pull_disk_space( $artifacts, $next, $scratch ) {
+        $needed = 0;
+        $count  = count( $artifacts );
+        for ( $i = $next; $i < $count; $i++ ) {
+            $needed += isset( $artifacts[ $i ]['size'] ) ? (int) $artifacts[ $i ]['size'] : 0;
+        }
+
+        $free = $this->free_disk_space( $scratch );
+        if ( null !== $free && $free < $needed + 64 * 1024 * 1024 ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) ), null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+    }
+
+    /**
+     * Free disk space for a directory, or null when unknowable.
+     *
+     * @param string $dir Directory.
+     *
+     * @return float|null
+     */
+    protected function free_disk_space( $dir ) {
+        $free = function_exists( 'disk_free_space' ) ? @disk_free_space( $dir ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- some hosts disable the call; unknown free space skips the check.
+        return false === $free ? null : (float) $free;
+    }
+
+    /**
+     * Stream a presigned URL to a local file over HTTPS.
+     *
+     * The URL carries its own query authentication; nothing else is
+     * sent. The response body streams to disk, so artifact bytes never
+     * pass through memory. Redirects are refused - a presigned URL
+     * never redirects, and following one would widen where these
+     * requests can land.
+     *
+     * @param string $url       Presigned URL.
+     * @param string $dest_path Local target path.
+     *
+     * @return bool Whether the download completed with HTTP 200.
+     */
+    protected function download_url_to_file( $url, $dest_path ) {
+        $response = wp_remote_get(
+            $url,
+            array(
+                'stream'      => true,
+                'filename'    => $dest_path,
+                'timeout'     => 120,
+                'sslverify'   => true,
+                'redirection' => 0,
+            )
+        );
+
+        if ( is_wp_error( $response ) ) {
+            return false;
+        }
+
+        return 200 === (int) wp_remote_retrieve_response_code( $response );
     }
 
     /**
