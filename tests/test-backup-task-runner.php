@@ -769,6 +769,28 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The recorded artifact size comes from the archive on disk, not from
+	 * the engine's reported figure. The engine reads its own size right
+	 * after closing the file it has been statting all along, where a
+	 * stale stat-cache entry would report a pre-close byte count.
+	 */
+	public function test_full_backup_records_disk_size_not_engine_report() {
+		$this->runner->stubs['run_file_archiver'] = array(
+			'file'     => 'backup-artifact.tar',
+			'filesize' => 99,
+		);
+
+		$task_id = $this->create_task( 'files' );
+		$task    = $this->advance( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+
+		$sub_state = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $this->backup_dir );
+		$this->assertSame( 'backup-artifact.tar', $sub_state['artifact']['file'] );
+		$this->assertSame( 2048, $sub_state['artifact']['size'], 'The size must be re-read from disk after the engine closes the archive.' );
+	}
+
+	/**
 	 * An archiver budget bail surfaces the growing archive size on the next
 	 * slice's checkpoint.
 	 */

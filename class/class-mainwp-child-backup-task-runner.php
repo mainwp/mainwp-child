@@ -388,6 +388,9 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             if ( empty( $artifact ) || ! file_exists( $artifact ) ) {
                 throw new MainWP_Exception( 'The database backup archive could not be created.', null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
             }
+            // The archive engine stats the artifact while building it; drop
+            // that cache entry so the recorded size reads the closed file.
+            clearstatcache( true, $artifact );
             $sub_state['artifact'] = array(
                 'file' => basename( $artifact ),
                 'size' => (int) filesize( $artifact ),
@@ -455,9 +458,16 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             return $this->slice_result( $version, true );
         }
 
+        // The engine reads its own size right after closing the archive it
+        // has been statting all along; a stale stat-cache entry there would
+        // report a pre-close byte count. Re-read the size from disk.
+        $archive_path = rtrim( $backup_dir, '/' ) . '/' . $res['file'];
+        clearstatcache( true, $archive_path );
+        $archive_size = file_exists( $archive_path ) ? (int) filesize( $archive_path ) : (int) $res['filesize'];
+
         $sub_state['artifact'] = array(
             'file' => $res['file'],
-            'size' => (int) $res['filesize'],
+            'size' => $archive_size,
         );
         unset( $sub_state['db_files'] );
 
@@ -478,7 +488,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 $sub_state['artifacts'] = array(
                     array(
                         'file' => $res['file'],
-                        'size' => (int) $res['filesize'],
+                        'size' => $archive_size,
                         'role' => 'full',
                     ),
                     array(
@@ -582,6 +592,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             if ( empty( $db_artifact ) || ! file_exists( $db_artifact ) ) {
                 throw new MainWP_Exception( 'The database backup archive could not be created.', null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
             }
+            // Same stat-cache guard as the db-only path above.
+            clearstatcache( true, $db_artifact );
             $artifacts[] = array(
                 'file' => basename( $db_artifact ),
                 'size' => (int) filesize( $db_artifact ),
