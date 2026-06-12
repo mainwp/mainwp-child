@@ -92,6 +92,17 @@ class BackupPreflightTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The report advertises cloud-pull restore support, so the Dashboard
+	 * only sends presigned pull manifests to children that can download
+	 * restore artifacts straight from cloud storage.
+	 */
+	public function test_check_backup_readiness_advertises_cloud_restore_pull() {
+		$report = MainWP_Backup::get()->check_backup_readiness();
+
+		$this->assertSame( 1, $report['cloud_restore_pull'] );
+	}
+
+	/**
 	 * disk_free is a byte count when the host exposes disk_free_space().
 	 */
 	public function test_check_backup_readiness_reports_disk_space() {

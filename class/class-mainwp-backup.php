@@ -1184,21 +1184,25 @@ class MainWP_Backup {
      */
     public function check_backup_readiness() {
         $report = array(
-            'disk_free'       => false,
-            'dir_writable'    => false,
-            'db_connected'    => false,
-            'memory_limit'    => ini_get( 'memory_limit' ),
-            'max_exec_time'   => ini_get( 'max_execution_time' ),
-            'zip_support'     => $this->check_zip_support(),
-            'gz_support'      => function_exists( 'gzopen' ),
-            'bz2_support'     => function_exists( 'bzopen' ),
-            'time_limit_ok'   => ! in_array( 'set_time_limit', array_map( 'trim', explode( ',', (string) ini_get( 'disable_functions' ) ) ), true ),
-            'backup_dir_hash' => MainWP_Helper::get_backup_dir_hash(),
-            'task_spine'      => 1,
-            'download_token'  => 1,
-            'incremental'     => 1,
-            'manifest_chunk'  => 1,
-            'restore_files'   => 1,
+            'disk_free'          => false,
+            'dir_writable'       => false,
+            'db_connected'       => false,
+            'memory_limit'       => ini_get( 'memory_limit' ),
+            'max_exec_time'      => ini_get( 'max_execution_time' ),
+            'zip_support'        => $this->check_zip_support(),
+            'gz_support'         => function_exists( 'gzopen' ),
+            'bz2_support'        => function_exists( 'bzopen' ),
+            'time_limit_ok'      => ! in_array( 'set_time_limit', array_map( 'trim', explode( ',', (string) ini_get( 'disable_functions' ) ) ), true ),
+            'backup_dir_hash'    => MainWP_Helper::get_backup_dir_hash(),
+            'task_spine'         => 1,
+            'download_token'     => 1,
+            'incremental'        => 1,
+            'manifest_chunk'     => 1,
+            'restore_files'      => 1,
+
+            // Restores can pull artifacts straight from cloud storage
+            // via presigned URLs instead of the staged chunk transfer.
+            'cloud_restore_pull' => 1,
         );
 
         // 1. Backup directory writable (randomized directory, created on demand).
