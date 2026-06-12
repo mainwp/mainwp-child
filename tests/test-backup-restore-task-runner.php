@@ -222,6 +222,22 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 	}
 
 	/**
+	 * Scripted multisite flag.
+	 *
+	 * @var bool
+	 */
+	public $fake_is_multisite = false;
+
+	/**
+	 * Pinned multisite check.
+	 *
+	 * @return bool
+	 */
+	protected function is_multisite_install() {
+		return $this->fake_is_multisite;
+	}
+
+	/**
 	 * Loopback stub.
 	 *
 	 * @return int
@@ -893,6 +909,25 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 
 		// Scratch staging is gone after a verified restore.
 		$this->assertDirectoryDoesNotExist( $this->dir . '/restore-' . $task_id );
+	}
+
+	/**
+	 * A multisite install is refused at restore task creation with the
+	 * dedicated error code; single-site creation is unaffected.
+	 */
+	public function test_create_restore_task_blocked_on_multisite() {
+		$this->runner->fake_is_multisite = true;
+
+		try {
+			$this->make_task( 'db', array( $this->make_db_artifact() ) );
+			$this->fail( 'A multisite install must refuse restore task creation.' );
+		} catch ( \MainWP\Child\MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_MULTISITE, $e->get_message_error_code() );
+		}
+
+		$this->runner->fake_is_multisite = false;
+		$task_id                         = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$this->assertNotEmpty( $task_id );
 	}
 
 	/**
