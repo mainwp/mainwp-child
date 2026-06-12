@@ -262,6 +262,12 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ZIP_FAILED ) ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
         }
 
+        // The part path was stat'd before the close (open_new_part /
+        // open_for_append), and not every runtime invalidates that cache
+        // entry when the archive is finalized; a stale read here would
+        // record the pre-close byte count.
+        clearstatcache( true, $path );
+
         return array(
             'file'    => self::part_basename( $this->component, $index ),
             'size'    => (int) filesize( $path ),

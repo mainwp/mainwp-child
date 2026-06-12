@@ -226,6 +226,53 @@ class BackupIncrementalZipWriterTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The size reported by close_part matches the bytes on disk even when
+	 * a stat-family call primed PHP's stat cache for the part path earlier
+	 * in the request. Some runtimes do not invalidate the cache when the
+	 * archive is finalized, which would otherwise report a pre-close size.
+	 */
+	public function test_close_part_size_matches_disk_after_stat_prime() {
+		$path = $this->dir . '/core.part001.zip';
+
+		$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
+		$writer->open_new_part( 1 );
+		$writer->add_file( $this->src . '/a.php', 'a.php' );
+
+		// Prime the stat cache with the pre-close state of the part path.
+		file_exists( $path );
+
+		$record = $writer->close_part();
+
+		clearstatcache( true, $path );
+		$this->assertSame( (int) filesize( $path ), $record['size'] );
+		$this->assertGreaterThan( 0, $record['size'] );
+	}
+
+	/**
+	 * Same contract on the append path: open_for_append reads the closed
+	 * part's size (priming the stat cache with the old byte count), so the
+	 * size reported after appending must still be the fresh on-disk size.
+	 */
+	public function test_close_part_size_matches_disk_after_append_stat_prime() {
+		$path = $this->dir . '/core.part001.zip';
+
+		$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
+		$writer->open_new_part( 1 );
+		$writer->add_file( $this->src . '/a.php', 'a.php' );
+		$old_size = $writer->close_part()['size'];
+
+		$resumed = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
+		$this->assertTrue( $resumed->open_for_append( 1, 1 ) );
+		$resumed->add_file( $this->src . '/b.php', 'b.php' );
+		$resumed->add_file( $this->src . '/c.php', 'c.php' );
+		$record = $resumed->close_part();
+
+		clearstatcache( true, $path );
+		$this->assertSame( (int) filesize( $path ), $record['size'] );
+		$this->assertGreaterThan( $old_size, $record['size'] );
+	}
+
+	/**
 	 * A source file that vanished between the walk and the pack is skipped
 	 * without aborting the part.
 	 */
