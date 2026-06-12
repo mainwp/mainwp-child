@@ -59,6 +59,7 @@ class BackupRestoreTaskSpineTest extends WP_UnitTestCase {
 		$this->assertSame(
 			array(
 				MainWP_Child_Backup_Task::PHASE_QUEUED,
+				MainWP_Child_Backup_Task::PHASE_PULLING_ARTIFACTS,
 				MainWP_Child_Backup_Task::PHASE_RECEIVING_ARTIFACTS,
 				MainWP_Child_Backup_Task::PHASE_VERIFYING_ARTIFACTS,
 				MainWP_Child_Backup_Task::PHASE_RESTORING_FILES,
@@ -78,9 +79,37 @@ class BackupRestoreTaskSpineTest extends WP_UnitTestCase {
 	public function test_restore_db_type_skips_file_phase() {
 		$chain = $this->walk_chain( 'restore_db' );
 		$this->assertNotContains( MainWP_Child_Backup_Task::PHASE_RESTORING_FILES, $chain );
+		$this->assertContains( MainWP_Child_Backup_Task::PHASE_PULLING_ARTIFACTS, $chain );
 		$this->assertContains( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $chain );
 		$this->assertContains( MainWP_Child_Backup_Task::PHASE_SWAPPING_DB, $chain );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, end( $chain ) );
+	}
+
+	/**
+	 * The pulling phase slots between queued and receiving on every
+	 * restore type, and never enters a backup chain.
+	 */
+	public function test_pulling_phase_position() {
+		foreach ( array( 'restore', 'restore_db', 'restore_files' ) as $type ) {
+			$this->assertSame(
+				MainWP_Child_Backup_Task::PHASE_PULLING_ARTIFACTS,
+				MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_QUEUED, $type ),
+				"Queued must advance to pulling for {$type}."
+			);
+			$this->assertSame(
+				MainWP_Child_Backup_Task::PHASE_RECEIVING_ARTIFACTS,
+				MainWP_Child_Backup_Task::next_phase( MainWP_Child_Backup_Task::PHASE_PULLING_ARTIFACTS, $type ),
+				"Pulling must advance to receiving for {$type}."
+			);
+		}
+
+		foreach ( array( 'full', 'db', 'files', 'incremental' ) as $type ) {
+			$this->assertNotContains(
+				MainWP_Child_Backup_Task::PHASE_PULLING_ARTIFACTS,
+				$this->walk_chain( $type ),
+				"Backup type {$type} must not pull artifacts."
+			);
+		}
 	}
 
 	/**
@@ -139,6 +168,7 @@ class BackupRestoreTaskSpineTest extends WP_UnitTestCase {
 		$this->assertSame(
 			array(
 				MainWP_Child_Backup_Task::PHASE_QUEUED,
+				MainWP_Child_Backup_Task::PHASE_PULLING_ARTIFACTS,
 				MainWP_Child_Backup_Task::PHASE_RECEIVING_ARTIFACTS,
 				MainWP_Child_Backup_Task::PHASE_VERIFYING_ARTIFACTS,
 				MainWP_Child_Backup_Task::PHASE_RESTORING_FILES,

@@ -36,6 +36,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
 
     // Restore task phases (types restore / restore_db). Names stay
     // within the varchar(20) phase column.
+    const PHASE_PULLING_ARTIFACTS   = 'pulling';
     const PHASE_RECEIVING_ARTIFACTS = 'receiving';
     const PHASE_VERIFYING_ARTIFACTS = 'verifying';
     const PHASE_RESTORING_FILES     = 'restoring_files';
@@ -130,18 +131,18 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                 $order = array( self::PHASE_QUEUED, self::PHASE_DUMPING_DB, self::PHASE_ARCHIVING_FILES, self::PHASE_UPLOADING, self::PHASE_SUBMITTING, self::PHASE_COMPLETED );
                 break;
             case 'restore':
-                $order = array( self::PHASE_QUEUED, self::PHASE_RECEIVING_ARTIFACTS, self::PHASE_VERIFYING_ARTIFACTS, self::PHASE_RESTORING_FILES, self::PHASE_REPLAYING_DB, self::PHASE_SWAPPING_DB, self::PHASE_REWRITING_URLS, self::PHASE_POST_RESTORE_VERIFY, self::PHASE_COMPLETED );
+                $order = array( self::PHASE_QUEUED, self::PHASE_PULLING_ARTIFACTS, self::PHASE_RECEIVING_ARTIFACTS, self::PHASE_VERIFYING_ARTIFACTS, self::PHASE_RESTORING_FILES, self::PHASE_REPLAYING_DB, self::PHASE_SWAPPING_DB, self::PHASE_REWRITING_URLS, self::PHASE_POST_RESTORE_VERIFY, self::PHASE_COMPLETED );
                 break;
             case 'restore_db':
                 // No file payload: straight from artifact verification to
                 // the database replay.
-                $order = array( self::PHASE_QUEUED, self::PHASE_RECEIVING_ARTIFACTS, self::PHASE_VERIFYING_ARTIFACTS, self::PHASE_REPLAYING_DB, self::PHASE_SWAPPING_DB, self::PHASE_REWRITING_URLS, self::PHASE_POST_RESTORE_VERIFY, self::PHASE_COMPLETED );
+                $order = array( self::PHASE_QUEUED, self::PHASE_PULLING_ARTIFACTS, self::PHASE_RECEIVING_ARTIFACTS, self::PHASE_VERIFYING_ARTIFACTS, self::PHASE_REPLAYING_DB, self::PHASE_SWAPPING_DB, self::PHASE_REWRITING_URLS, self::PHASE_POST_RESTORE_VERIFY, self::PHASE_COMPLETED );
                 break;
             case 'restore_files':
                 // No database payload: files extract over the site root,
                 // so the replay, swap, and URL-rewrite phases do not
                 // exist for this type.
-                $order = array( self::PHASE_QUEUED, self::PHASE_RECEIVING_ARTIFACTS, self::PHASE_VERIFYING_ARTIFACTS, self::PHASE_RESTORING_FILES, self::PHASE_POST_RESTORE_VERIFY, self::PHASE_COMPLETED );
+                $order = array( self::PHASE_QUEUED, self::PHASE_PULLING_ARTIFACTS, self::PHASE_RECEIVING_ARTIFACTS, self::PHASE_VERIFYING_ARTIFACTS, self::PHASE_RESTORING_FILES, self::PHASE_POST_RESTORE_VERIFY, self::PHASE_COMPLETED );
                 break;
             default:
                 $order = array( self::PHASE_QUEUED, self::PHASE_DUMPING_DB, self::PHASE_ARCHIVING_FILES, self::PHASE_UPLOADING, self::PHASE_SUBMITTING, self::PHASE_COMPLETED );

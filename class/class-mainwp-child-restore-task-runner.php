@@ -268,7 +268,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         if ( null === $task || ! static::is_restore_type( $task->type ) ) {
             return $this->chunk_error( esc_html__( 'Restore task not found. It may have been cleaned up or was never created on this site.', 'mainwp-child' ), '' );
         }
-        if ( MainWP_Child_Backup_Task::PHASE_RECEIVING_ARTIFACTS !== $task->phase && MainWP_Child_Backup_Task::PHASE_QUEUED !== $task->phase ) {
+        $chunk_phases = array(
+            MainWP_Child_Backup_Task::PHASE_QUEUED,
+            MainWP_Child_Backup_Task::PHASE_PULLING_ARTIFACTS,
+            MainWP_Child_Backup_Task::PHASE_RECEIVING_ARTIFACTS,
+        );
+        if ( ! in_array( $task->phase, $chunk_phases, true ) ) {
             return $this->chunk_error( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_WRONG_PHASE ), MainWP_Backup_Error::ERR_RESTORE_WRONG_PHASE );
         }
 
@@ -465,6 +470,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             switch ( $task->phase ) {
                 case MainWP_Child_Backup_Task::PHASE_QUEUED:
                     return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_PULLING_ARTIFACTS:
+                    return $this->run_pulling( $task, $version, $sub_state, $deadline, $backup_dir );
                 case MainWP_Child_Backup_Task::PHASE_RECEIVING_ARTIFACTS:
                     return $this->run_receiving( $task, $version, $sub_state, $backup_dir );
                 case MainWP_Child_Backup_Task::PHASE_VERIFYING_ARTIFACTS:
@@ -486,6 +493,31 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $this->terminal_cleanup( $task, $sub_state, $backup_dir );
             throw $e;
         }
+    }
+
+    /**
+     * Pulling phase: when the dashboard supplied no cloud-pull
+     * manifest, the phase is a transparent no-op and the task advances
+     * straight to receiving, keeping the staged chunk transfer path
+     * exactly as it was.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param int    $deadline   Slice deadline.
+     * @param string $backup_dir Scratch root.
+     *
+     * @return array Slice result.
+     */
+    protected function run_pulling( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        unset( $deadline );
+
+        $params = isset( $sub_state['params'] ) ? $sub_state['params'] : array();
+        if ( empty( $params['pull_manifest'] ) ) {
+            return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+        }
+
+        return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
     }
 
     /**
