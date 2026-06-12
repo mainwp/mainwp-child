@@ -138,6 +138,25 @@ class BackupFileWalkerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The reported manifest size matches the bytes on disk even when an
+	 * earlier stat-family call primed PHP's stat cache for the staged
+	 * path. The sidecar is streamed through fopen/fwrite/fclose, which on
+	 * some runtimes leaves the primed entry in place.
+	 *
+	 * @return void
+	 */
+	public function test_emit_sidecars_size_fresh_after_stat_prime() {
+		$staged = $this->backup_dir . '/files.list.staged';
+		file_put_contents( $staged, 'leftover from an interrupted run' ); // phpcs:ignore -- test fixture.
+		filesize( $staged ); // Prime the stat cache with the leftover size.
+
+		$result = $this->walker()->emit_sidecars( $this->backup_dir );
+
+		clearstatcache( true, $staged );
+		$this->assertSame( (int) filesize( $staged ), (int) $result['size'] );
+	}
+
+	/**
 	 * files.list lines carry relpath, size, and mtime for every file, sorted
 	 * by relpath so a sorted-merge diff stays possible.
 	 *

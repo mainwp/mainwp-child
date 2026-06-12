@@ -161,6 +161,12 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) ), null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
         }
 
+        // The sidecar was just streamed through fopen/fwrite/fclose, which
+        // leaves any earlier stat result for the path in PHP's stat cache
+        // on some runtimes; a stale read here would report the wrong
+        // manifest size.
+        clearstatcache( true, $files_list );
+
         return array(
             'file'  => self::FILES_LIST,
             'size'  => (int) filesize( $files_list ),
