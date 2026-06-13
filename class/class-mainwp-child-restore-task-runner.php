@@ -1280,6 +1280,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             'row_counts_ok'   => true,
             'sentinel_ok'     => true,
             'loopback_status' => $this->loopback_status(),
+            'sub_site_probes' => $this->sub_site_probes(),
         );
 
         // Verification passed: retire the rollback tables and staging.
@@ -1687,6 +1688,80 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             return 0;
         }
         return (int) wp_remote_retrieve_response_code( $response );
+    }
+
+    /**
+     * Active non-main sub-blog home URLs on a multisite network.
+     *
+     * Bounded on purpose: the smoke check probes a single sub-site, so a
+     * large network is never loaded wholesale. Archived, spam, and
+     * deleted sub-blogs are skipped - a probe against one of those is not
+     * a meaningful health signal.
+     *
+     * @return array<int,string> Blog id => home URL.
+     */
+    protected function sub_site_urls() {
+        if ( ! function_exists( 'get_sites' ) ) {
+            return array();
+        }
+        $ids  = get_sites(
+            array(
+                'fields'   => 'ids',
+                'number'   => 10,
+                'archived' => 0,
+                'spam'     => 0,
+                'deleted'  => 0,
+            )
+        );
+        $urls = array();
+        foreach ( (array) $ids as $id ) {
+            $id = (int) $id;
+            if ( is_main_site( $id ) ) {
+                continue;
+            }
+            $urls[ $id ] = get_home_url( $id );
+        }
+        return $urls;
+    }
+
+    /**
+     * Advisory per-sub-blog smoke check for multisite restores.
+     *
+     * After a network restore every sub-blog's tables were swapped too,
+     * but the main-site loopback says nothing about them. This probes the
+     * first sub-site over HTTP and records the result. Advisory like
+     * loopback_status(): it never throws and never fails the restore, so
+     * it is safe to call before the rollback tables are retired.
+     *
+     * @return array<int,array> List of blog_id/url/status entries.
+     */
+    protected function sub_site_probes() {
+        if ( ! $this->is_multisite_install() ) {
+            return array();
+        }
+        $urls = $this->sub_site_urls();
+        if ( empty( $urls ) ) {
+            return array();
+        }
+
+        $probes = array();
+        foreach ( $urls as $blog_id => $url ) {
+            $response = wp_remote_get(
+                $url,
+                array(
+                    'timeout'   => 10,
+                    'sslverify' => false,
+                )
+            );
+            $status   = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+            $probes[] = array(
+                'blog_id' => (int) $blog_id,
+                'url'     => (string) $url,
+                'status'  => $status,
+            );
+            break; // First sub-site only - a smoke check, not a network sweep.
+        }
+        return $probes;
     }
 
     /**

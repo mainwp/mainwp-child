@@ -247,6 +247,33 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 	}
 
 	/**
+	 * Injected sub-blog URLs (blog_id => home URL). Child tests boot
+	 * frontend-only and cannot enable real multisite, so this seam stands
+	 * in for the production get_sites() walk.
+	 *
+	 * @var array<int,string>
+	 */
+	public $fake_sub_site_urls = array();
+
+	/**
+	 * Scripted sub-blog URLs.
+	 *
+	 * @return array<int,string>
+	 */
+	protected function sub_site_urls() {
+		return $this->fake_sub_site_urls;
+	}
+
+	/**
+	 * Public proxy so tests can exercise the protected smoke check.
+	 *
+	 * @return array<int,array>
+	 */
+	public function expose_sub_site_probes() {
+		return $this->sub_site_probes();
+	}
+
+	/**
 	 * No cache side effects in tests.
 	 */
 	protected function flush_caches() {
@@ -938,6 +965,119 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 
 		$task = $this->spine->get_task( $task_id );
 		$this->assertSame( 'restore_db', $task->type );
+	}
+
+	/**
+	 * On a single-site install the sub-blog smoke check is skipped even
+	 * when sub-site URLs happen to be present: the multisite gate wins.
+	 */
+	public function test_sub_site_probes_empty_on_single_site() {
+		$this->runner->fake_is_multisite  = false;
+		$this->runner->fake_sub_site_urls = array( 2 => 'http://example.org/sub/' );
+
+		$this->assertSame( array(), $this->runner->expose_sub_site_probes() );
+	}
+
+	/**
+	 * A multisite network with only the main site (no sub-blogs) records
+	 * no probes.
+	 */
+	public function test_sub_site_probes_empty_when_network_has_no_sub_blogs() {
+		$this->runner->fake_is_multisite  = true;
+		$this->runner->fake_sub_site_urls = array();
+
+		$this->assertSame( array(), $this->runner->expose_sub_site_probes() );
+	}
+
+	/**
+	 * On multisite the smoke check probes the first sub-site only and
+	 * records its blog id, URL, and HTTP status.
+	 */
+	public function test_sub_site_probes_records_first_sub_site() {
+		$this->runner->fake_is_multisite  = true;
+		$this->runner->fake_sub_site_urls = array(
+			2 => 'http://example.org/blog2/',
+			3 => 'http://example.org/blog3/',
+		);
+
+		$probed = array();
+		$filter = function ( $pre, $args, $url ) use ( &$probed ) {
+			$probed[] = $url;
+			return array(
+				'response' => array(
+					'code'    => 200,
+					'message' => 'OK',
+				),
+				'body'     => '',
+				'headers'  => array(),
+			);
+		};
+		add_filter( 'pre_http_request', $filter, 10, 3 );
+
+		$probes = $this->runner->expose_sub_site_probes();
+
+		remove_filter( 'pre_http_request', $filter, 10 );
+
+		$this->assertCount( 1, $probes );
+		$this->assertSame( 2, $probes[0]['blog_id'] );
+		$this->assertSame( 'http://example.org/blog2/', $probes[0]['url'] );
+		$this->assertSame( 200, $probes[0]['status'] );
+		$this->assertSame( array( 'http://example.org/blog2/' ), $probed );
+	}
+
+	/**
+	 * A failed sub-site request records status 0 and never throws - the
+	 * smoke check is advisory.
+	 */
+	public function test_sub_site_probe_records_zero_on_http_error() {
+		$this->runner->fake_is_multisite  = true;
+		$this->runner->fake_sub_site_urls = array( 2 => 'http://example.org/blog2/' );
+
+		$filter = function () {
+			return new WP_Error( 'http_request_failed', 'boom' );
+		};
+		add_filter( 'pre_http_request', $filter, 10, 3 );
+
+		$probes = $this->runner->expose_sub_site_probes();
+
+		remove_filter( 'pre_http_request', $filter, 10 );
+
+		$this->assertCount( 1, $probes );
+		$this->assertSame( 0, $probes[0]['status'] );
+	}
+
+	/**
+	 * A multisite restore carries the sub-blog probe results through the
+	 * verification payload alongside the existing fields.
+	 */
+	public function test_verification_payload_carries_sub_site_probes() {
+		$this->runner->fake_is_multisite  = true;
+		$this->runner->fake_sub_site_urls = array( 2 => 'http://example.org/blog2/' );
+
+		$filter = function () {
+			return array(
+				'response' => array(
+					'code'    => 200,
+					'message' => 'OK',
+				),
+				'body'     => '',
+				'headers'  => array(),
+			);
+		};
+		add_filter( 'pre_http_request', $filter, 10, 3 );
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$task    = $this->drive( $task_id );
+
+		remove_filter( 'pre_http_request', $filter, 10 );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+
+		$sub_state = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertArrayHasKey( 'sub_site_probes', $sub_state['verification'] );
+		$this->assertCount( 1, $sub_state['verification']['sub_site_probes'] );
+		$this->assertSame( 2, $sub_state['verification']['sub_site_probes'][0]['blog_id'] );
+		$this->assertSame( 200, $sub_state['verification']['sub_site_probes'][0]['status'] );
 	}
 
 	/**
