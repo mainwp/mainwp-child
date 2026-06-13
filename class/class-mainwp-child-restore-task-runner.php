@@ -1788,8 +1788,16 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
             $engine->exit_maintenance();
             $this->remove_scratch_dir( $task, $backup_dir );
-        } catch ( \Throwable $cleanup_error ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement -- cleanup must never mask the original failure.
-            null;
+        } catch ( \Throwable $cleanup_error ) {
+            // Cleanup must never mask the original failure, so the error is not
+            // rethrown. Record it for support instead - a failed cleanup can
+            // leave tmp tables, the maintenance flag, or scratch behind.
+            // Credentials are scrubbed in case the error came from the database.
+            MainWP_Helper::log_debug(
+                '[MainWP Backup] Restore terminal cleanup failed for task ' .
+                ( isset( $task->task_id ) ? $task->task_id : '?' ) . ': ' .
+                MainWP_Backup_Error::scrub_db_credentials( $cleanup_error->getMessage() )
+            );
         }
     }
 

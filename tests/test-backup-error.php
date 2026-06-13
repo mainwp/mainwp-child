@@ -54,6 +54,23 @@ class BackupErrorTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The wall-clock timeout and unknown-phase codes are registered with
+	 * actionable messages. The child emits these on failures that used to
+	 * reach the Dashboard as a bare "failed" with no reason or code.
+	 */
+	public function test_silent_failure_codes_registered() {
+		$this->assertSame( 'mainwp_backup_wall_clock_exceeded', MainWP_Backup_Error::ERR_WALL_CLOCK );
+		$this->assertSame( 'mainwp_backup_unknown_phase', MainWP_Backup_Error::ERR_UNKNOWN_PHASE );
+
+		$registered = MainWP_Backup_Error::get_registered_codes();
+		$this->assertContains( MainWP_Backup_Error::ERR_WALL_CLOCK, $registered );
+		$this->assertContains( MainWP_Backup_Error::ERR_UNKNOWN_PHASE, $registered );
+
+		$this->assertStringContainsString( 'maximum time', MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_WALL_CLOCK ) );
+		$this->assertStringContainsString( 'MainWP Child', MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_UNKNOWN_PHASE ) );
+	}
+
+	/**
 	 * The cloud-pull failure code is registered with an actionable
 	 * message that tells the user the dashboard falls back on its own.
 	 */

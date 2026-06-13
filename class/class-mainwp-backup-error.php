@@ -40,6 +40,8 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
     const ERR_TOO_MANY_SKIPPED   = 'mainwp_backup_too_many_skipped';
     const ERR_STALLED            = 'mainwp_backup_stalled';
     const ERR_ALREADY_RUNNING    = 'mainwp_backup_already_running';
+    const ERR_WALL_CLOCK         = 'mainwp_backup_wall_clock_exceeded';
+    const ERR_UNKNOWN_PHASE      = 'mainwp_backup_unknown_phase';
     const ERR_DL_FILE_NOT_FOUND  = 'mainwp_backup_dl_file_not_found';
     const ERR_DL_FILE_CHANGED    = 'mainwp_backup_dl_file_changed';
     const ERR_DL_TOKEN_INVALID   = 'mainwp_backup_dl_token_invalid';
@@ -205,6 +207,8 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
             self::ERR_TOO_MANY_SKIPPED           => esc_html__( 'Too many files could not be added to the backup. Check disk space and file permissions on the child site, then try again.', 'mainwp-child' ),
             self::ERR_STALLED                    => esc_html__( 'The backup stopped making progress. The process may have been killed by the host. Check the child site error log and try running the backup again.', 'mainwp-child' ),
             self::ERR_ALREADY_RUNNING            => esc_html__( 'Another backup process is already running on this site. Wait for it to finish or for the stale process to be detected, then try again.', 'mainwp-child' ),
+            self::ERR_WALL_CLOCK                 => esc_html__( 'The backup ran past the maximum time allowed on the child site and was stopped. The site may be very large or the host may limit how long a process can run. Try running the backup during off-peak hours, or split large folders into separate schedules.', 'mainwp-child' ),
+            self::ERR_UNKNOWN_PHASE              => esc_html__( 'The backup reached a step this child site does not recognize. This usually means the MainWP Child plugin is older than the Dashboard. Update the MainWP Child plugin to the latest version, then run the backup again.', 'mainwp-child' ),
             self::ERR_DL_FILE_NOT_FOUND          => esc_html__( 'The requested backup file was not found on the child site. It may have been removed by a cleanup. Run a new backup and try the download again.', 'mainwp-child' ),
             self::ERR_DL_FILE_CHANGED            => esc_html__( 'The backup file changed on the child site after the download was authorized. Request a new download to get a fresh authorization for the current file.', 'mainwp-child' ),
             self::ERR_DL_TOKEN_INVALID           => esc_html__( 'The download authorization is invalid, expired, or was already used. Request a new download from the Dashboard to get a fresh authorization.', 'mainwp-child' ),

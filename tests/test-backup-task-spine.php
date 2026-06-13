@@ -492,10 +492,38 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 		$task = $spine->get_task( $task_id );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
 
+		// The Dashboard sees a timeout reason and code, not a bare "failed".
+		$payload = $spine->status_payload( $task );
+		$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_WALL_CLOCK, $payload['error_code'] );
+		$this->assertNotEmpty( $payload['error'] );
+
 		// A healthy task is untouched.
 		$task_id2 = $spine->create_task( 'full' );
 		$this->assertFalse( $spine->enforce_wall_clock_deadline( $task_id2 ) );
 		$task2 = $spine->get_task( $task_id2 );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $task2->phase );
+	}
+
+	/**
+	 * A stalled task at its resume cap is failed by the watchdog with a
+	 * reason and code, so the Dashboard can explain why it gave up instead
+	 * of showing a bare "failed".
+	 */
+	public function test_watchdog_resume_cap_records_reason() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full' );
+
+		// At the resume cap and stalled well past any threshold.
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET resume_count = max_resumes, last_progress_at = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE task_id = %s', $task_id ) ); // phpcs:ignore -- test fixture.
+
+		\MainWP\Child\MainWP_Child_Backup_Watchdog::instance()->check_tasks( 1 );
+
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+
+		$payload = $spine->status_payload( $task );
+		$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_STALLED, $payload['error_code'] );
+		$this->assertNotEmpty( $payload['error'] );
 	}
 }

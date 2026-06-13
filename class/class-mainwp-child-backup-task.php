@@ -525,11 +525,26 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      */
     public function enforce_wall_clock_deadline( $task_id ) {
         global $wpdb;
+
+        // Record why the task failed in the same guarded write so the Dashboard
+        // poll sees a timeout reason and code, not a bare "failed". The error is
+        // small and inline; any oversized progress sidecar is left behind as
+        // harmless scratch the prune step removes.
+        $sub_state = wp_json_encode(
+            array(
+                'error' => array(
+                    'message' => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_WALL_CLOCK ),
+                    'code'    => MainWP_Backup_Error::ERR_WALL_CLOCK,
+                ),
+            )
+        );
+
         $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- conditional terminal write on the spine table.
             $wpdb->prepare(
                 'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
-                " SET phase = 'failed', version = version + 1
+                " SET phase = 'failed', sub_state = %s, version = version + 1
                  WHERE task_id = %s AND phase NOT IN ('completed','failed') AND max_wall_clock_at < NOW()",
+                $sub_state,
                 $task_id
             )
         );

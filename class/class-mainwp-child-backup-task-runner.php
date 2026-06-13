@@ -280,6 +280,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @param int    $deadline   Slice deadline (unix time).
      * @param string $backup_dir Scratch directory.
      *
+     * @throws MainWP_Exception When the task is in a phase this runner does not implement.
+     *
      * @return array { version: int, yield: bool, abandon: bool }
      */
     protected function run_phase( $task, $version, $sub_state, $deadline, $backup_dir ) {
@@ -295,9 +297,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             case MainWP_Child_Backup_Task::PHASE_SUBMITTING:
                 return $this->run_stub_phase( $task, $version, $sub_state, $backup_dir, 'submit_accepted', 'perform_submit' );
             default:
-                // Unknown phase - nothing sane to do; yield and let the
-                // wall-clock deadline fail the task eventually.
-                return $this->slice_result( $version, true );
+                // A phase this runner does not implement - usually a child
+                // older than the Dashboard. Fail now with a clear code instead
+                // of stalling silently until the wall-clock deadline fires.
+                throw new MainWP_Exception( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_UNKNOWN_PHASE ), '', MainWP_Backup_Error::ERR_UNKNOWN_PHASE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
         }
     }
 

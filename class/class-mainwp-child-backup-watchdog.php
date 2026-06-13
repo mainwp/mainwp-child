@@ -144,7 +144,21 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
             $version = (int) $task->version;
 
             if ( (int) $task->resume_count >= (int) $task->max_resumes ) {
-                $spine->checkpoint( $task->task_id, $version, array( 'phase' => MainWP_Child_Backup_Task::PHASE_FAILED ) );
+                // Out of resume attempts: record why so the Dashboard shows a
+                // reason and a code instead of a bare "failed".
+                $spine->checkpoint(
+                    $task->task_id,
+                    $version,
+                    array(
+                        'phase'     => MainWP_Child_Backup_Task::PHASE_FAILED,
+                        'sub_state' => array(
+                            'error' => array(
+                                'message' => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_STALLED ),
+                                'code'    => MainWP_Backup_Error::ERR_STALLED,
+                            ),
+                        ),
+                    )
+                );
                 continue;
             }
 
