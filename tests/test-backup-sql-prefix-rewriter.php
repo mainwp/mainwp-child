@@ -61,6 +61,25 @@ class BackupSqlPrefixRewriterTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A multi-table DROP is dropped wholesale: rewriting only the first
+	 * token would pass the remaining (live) tables through to a real DROP.
+	 */
+	public function test_multi_table_drop_is_dropped() {
+		$this->assertNull( $this->rewriter->rewrite( 'DROP TABLE IF EXISTS `wp_a`, `wp_options`' ) );
+		$this->assertNull( $this->rewriter->rewrite( 'DROP TABLE `wp_a`,`wp_b`' ) );
+		$this->assertNull( $this->rewriter->rewrite( 'DROP TABLE IF EXISTS `wp_a`, `wp_b`, `wp_c`' ) );
+	}
+
+	/**
+	 * A single-table DROP still rewrites, including RESTRICT/CASCADE which
+	 * carry no comma.
+	 */
+	public function test_single_table_drop_still_rewrites() {
+		$this->assertSame( 'DROP TABLE `tmp1234_posts` RESTRICT', $this->rewriter->rewrite( 'DROP TABLE `wp_posts` RESTRICT' ) );
+		$this->assertSame( 'DROP TABLE `tmp1234_posts` CASCADE', $this->rewriter->rewrite( 'DROP TABLE `wp_posts` CASCADE' ) );
+	}
+
+	/**
 	 * A bare (unbacktick'd) table name is rewritten too.
 	 */
 	public function test_bare_table_name_rewritten() {

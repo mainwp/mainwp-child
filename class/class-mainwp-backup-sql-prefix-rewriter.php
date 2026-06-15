@@ -141,10 +141,13 @@ class MainWP_Backup_Sql_Prefix_Rewriter { // phpcs:ignore Generic.Classes.Openin
             return null;
         }
 
-        // A LOCK TABLES naming further tables would leave them
-        // unrewritten; drop rather than touch a live table.
+        // A LOCK TABLES or DROP TABLE naming further tables would leave
+        // them unrewritten; drop rather than touch a live table. Only
+        // these two statement kinds take a comma-separated table list
+        // here (RENAME is handled separately; the rest carry commas only
+        // inside column lists or VALUES, which must not trip this guard).
         $rest = substr( $statement, $token['end'] );
-        if ( preg_match( '/^LOCK/i', ltrim( substr( $statement, $this->skip_leading_trivia( $statement ) ) ) ) && preg_match( '/,\s*[`A-Za-z0-9_$]/', $rest ) ) {
+        if ( preg_match( '/^(LOCK|DROP)/i', ltrim( substr( $statement, $this->skip_leading_trivia( $statement ) ) ) ) && preg_match( '/,\s*[`A-Za-z0-9_$]/', $rest ) ) {
             return null;
         }
 
