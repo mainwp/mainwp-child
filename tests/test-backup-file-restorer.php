@@ -103,6 +103,23 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Build a plain tar archive fixture.
+	 *
+	 * @param string $name    Archive file name (.tar).
+	 * @param array  $entries relpath => content map.
+	 *
+	 * @return string Archive path.
+	 */
+	protected function make_tar( $name, $entries ) {
+		$path = $this->dir . '/' . $name;
+		$phar = new PharData( $path );
+		foreach ( $entries as $relpath => $content ) {
+			$phar->addFromString( $relpath, $content );
+		}
+		return $path;
+	}
+
+	/**
 	 * Config for a set of parts with correct hashes.
 	 *
 	 * @param string[] $parts Archive paths.
@@ -184,6 +201,50 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$result = $this->restorer->restore_slice( array(), $config, microtime( true ) + 3600 );
 		$this->assertNotNull( $result['error'] );
 		$this->assertFileDoesNotExist( $this->extract_to . '/a.txt' );
+	}
+
+	/**
+	 * A pre-existing leaf symlink at the target path is not followed:
+	 * extraction replaces it with a regular file and never writes through
+	 * it to a location outside the extraction root.
+	 */
+	public function test_extraction_does_not_follow_leaf_symlink() {
+		$outside = $this->dir . '/outside-secret.txt';
+		file_put_contents( $outside, 'SECRET' );
+
+		mkdir( $this->extract_to . '/wp-content', 0777, true );
+		if ( true !== @symlink( $outside, $this->extract_to . '/wp-content/evil.txt' ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors -- probe symlink support.
+			$this->markTestSkipped( 'Filesystem does not support symlinks.' );
+		}
+
+		$zip    = $this->make_zip( 'part001.zip', array( 'wp-content/evil.txt' => 'ARCHIVE' ) );
+		$result = $this->run_all( $this->config( array( $zip ) ) );
+
+		$this->assertNull( $result['error'] );
+		$this->assertSame( 'SECRET', file_get_contents( $outside ), 'The symlink target outside the root must be untouched.' );
+		$this->assertFalse( is_link( $this->extract_to . '/wp-content/evil.txt' ), 'The leaf symlink must be replaced by a regular file.' );
+		$this->assertSame( 'ARCHIVE', file_get_contents( $this->extract_to . '/wp-content/evil.txt' ) );
+	}
+
+	/**
+	 * The same leaf-symlink guard holds for tar extraction.
+	 */
+	public function test_tar_extraction_does_not_follow_leaf_symlink() {
+		$outside = $this->dir . '/outside-secret-tar.txt';
+		file_put_contents( $outside, 'SECRET' );
+
+		mkdir( $this->extract_to . '/wp-content', 0777, true );
+		if ( true !== @symlink( $outside, $this->extract_to . '/wp-content/evil.txt' ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors -- probe symlink support.
+			$this->markTestSkipped( 'Filesystem does not support symlinks.' );
+		}
+
+		$tar = $this->make_tar( 'part001.tar', array( 'wp-content/evil.txt' => 'ARCHIVE' ) );
+		$result = $this->run_all( $this->config( array( $tar ) ) );
+
+		$this->assertNull( $result['error'] );
+		$this->assertSame( 'SECRET', file_get_contents( $outside ), 'The symlink target outside the root must be untouched.' );
+		$this->assertFalse( is_link( $this->extract_to . '/wp-content/evil.txt' ) );
+		$this->assertSame( 'ARCHIVE', file_get_contents( $this->extract_to . '/wp-content/evil.txt' ) );
 	}
 
 	/**

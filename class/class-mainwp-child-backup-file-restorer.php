@@ -192,6 +192,11 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                     if ( false === $stream ) {
                         throw new \Exception( sprintf( 'Could not read archive entry: %s.', esc_html( $entry['name'] ) ) );
                     }
+                    // Neutralize a pre-existing leaf symlink so extraction
+                    // never writes through it outside the validated parent.
+                    if ( is_link( $target ) ) {
+                        unlink( $target ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- neutralize a stale symlink before writing.
+                    }
                     $out = fopen( $target, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming extraction to the validated path.
                     if ( false === $out ) {
                         fclose( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
@@ -402,6 +407,13 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         $stream = $zip->getStream( $name );
         if ( false === $stream ) {
             throw new \Exception( sprintf( 'Could not read archive entry: %s.', esc_html( $name ) ) );
+        }
+
+        // validate_extract_path resolves the parent, but a pre-existing
+        // symlink at the leaf would let fopen('wb') write through it to a
+        // target outside the root; replace it with a fresh regular file.
+        if ( is_link( $target ) ) {
+            unlink( $target ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- neutralize a stale symlink before writing.
         }
 
         $out = fopen( $target, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming extraction to the validated path.
