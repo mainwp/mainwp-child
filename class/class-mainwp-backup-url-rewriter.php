@@ -42,6 +42,20 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
     const PAGE_SIZE = 5000;
 
     /**
+     * Count of row writes that failed during this run.
+     *
+     * @var int
+     */
+    private $failed_updates = 0;
+
+    /**
+     * The last write error seen during this run.
+     *
+     * @var string
+     */
+    private $last_error = '';
+
+    /**
      * Rewrite one bounded slice.
      *
      * @param array     $cursor   Resume cursor (empty array on first call).
@@ -67,8 +81,10 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
         while ( $cursor['table_index'] < $table_count ) {
             if ( $did_work && microtime( true ) >= $deadline ) {
                 return array(
-                    'done'   => false,
-                    'cursor' => $cursor,
+                    'done'           => false,
+                    'cursor'         => $cursor,
+                    'failed_updates' => $this->failed_updates,
+                    'last_error'     => $this->last_error,
                 );
             }
 
@@ -86,8 +102,10 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
         }
 
         return array(
-            'done'   => true,
-            'cursor' => $cursor,
+            'done'           => true,
+            'cursor'         => $cursor,
+            'failed_updates' => $this->failed_updates,
+            'last_error'     => $this->last_error,
         );
     }
 
@@ -171,7 +189,26 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
             );
         }
 
-        $wpdb->update( $table, $updates, $where ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- writing rewritten values back to a restored table outside $wpdb's own prefix map.
+        if ( false === $this->persist_update( $table, $updates, $where ) ) {
+            ++$this->failed_updates;
+            $error            = (string) $wpdb->last_error;
+            $this->last_error = '' !== $error ? $error : 'A restored row could not be URL-rewritten.';
+        }
+    }
+
+    /**
+     * Write rewritten columns back to a restored row. Isolated so the
+     * failure path is testable without forcing a real SQL error.
+     *
+     * @param string $table   Table name.
+     * @param array  $updates Columns to set.
+     * @param array  $where   Match clause.
+     *
+     * @return int|false Rows affected, or false on error.
+     */
+    protected function persist_update( $table, $updates, $where ) {
+        global $wpdb;
+        return $wpdb->update( $table, $updates, $where ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- writing rewritten values back to a restored table outside $wpdb's own prefix map.
     }
 
     /**

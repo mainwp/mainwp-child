@@ -31,6 +31,26 @@ class Testable_Url_Rewriter extends MainWP_Backup_Url_Rewriter {
 }
 
 /**
+ * Rewriter whose row writes always fail, to exercise the failure-
+ * surfacing path without forcing a real SQL error.
+ */
+class Failing_Url_Rewriter extends MainWP_Backup_Url_Rewriter {
+
+	/**
+	 * Simulate a failed write.
+	 *
+	 * @param string $table   Table name.
+	 * @param array  $updates Columns to set.
+	 * @param array  $where   Match clause.
+	 *
+	 * @return false
+	 */
+	protected function persist_update( $table, $updates, $where ) {
+		return false;
+	}
+}
+
+/**
  * Tests for the paginated serialization-aware URL rewriter.
  *
  * Runs against real tables on the WP test database. Serialized values
@@ -103,6 +123,49 @@ class BackupUrlRewriterTest extends WP_UnitTestCase {
 	protected function fetch( $name ) {
 		global $wpdb;
 		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM `' . $this->table . '` WHERE name = %s', $name ), ARRAY_A ); // phpcs:ignore WordPress.DB -- test verification.
+	}
+
+	/**
+	 * A failed row update is surfaced in the slice outcome rather than
+	 * being silently swallowed, while the slice still completes.
+	 */
+	public function test_failed_update_is_surfaced_not_silent() {
+		$this->insert( 'home', 'http://old.example', '' );
+
+		$rewriter = new Failing_Url_Rewriter();
+		$outcome  = $rewriter->rewrite_slice(
+			array(),
+			array(
+				'tables'  => array( $this->table ),
+				'pairs'   => array( array( 'from' => 'http://old.example', 'to' => 'http://new.example' ) ),
+				'exclude' => array(),
+			),
+			microtime( true ) + 3600
+		);
+
+		$this->assertTrue( $outcome['done'] );
+		$this->assertSame( 1, $outcome['failed_updates'] );
+		$this->assertNotSame( '', $outcome['last_error'] );
+	}
+
+	/**
+	 * A clean rewrite reports zero failed updates.
+	 */
+	public function test_successful_rewrite_reports_no_failures() {
+		$this->insert( 'home', 'http://old.example', '' );
+
+		$outcome = $this->rewriter->rewrite_slice(
+			array(),
+			array(
+				'tables'  => array( $this->table ),
+				'pairs'   => array( array( 'from' => 'http://old.example', 'to' => 'http://new.example' ) ),
+				'exclude' => array(),
+			),
+			microtime( true ) + 3600
+		);
+
+		$this->assertTrue( $outcome['done'] );
+		$this->assertSame( 0, $outcome['failed_updates'] );
 	}
 
 	/**

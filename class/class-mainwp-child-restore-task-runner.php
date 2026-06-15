@@ -1336,6 +1336,15 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         );
 
         $sub_state['url_rewrite'] = $outcome['cursor'];
+        if ( ! empty( $outcome['failed_updates'] ) ) {
+            // A failed write leaves that row's URLs un-rewritten. The
+            // restored data is intact, so this is not fatal, but it must
+            // not pass silently: carry the count into the verification
+            // payload the dashboard surfaces.
+            $prior                                   = isset( $sub_state['url_rewrite_failed_updates'] ) ? (int) $sub_state['url_rewrite_failed_updates'] : 0;
+            $sub_state['url_rewrite_failed_updates'] = $prior + (int) $outcome['failed_updates'];
+            $sub_state['url_rewrite_error']          = (string) $outcome['last_error'];
+        }
         if ( ! $outcome['done'] ) {
             return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
         }
@@ -1381,10 +1390,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         }
 
         $sub_state['verification'] = array(
-            'row_counts_ok'   => true,
-            'sentinel_ok'     => true,
-            'loopback_status' => $this->loopback_status(),
-            'sub_site_probes' => $this->sub_site_probes(),
+            'row_counts_ok'              => true,
+            'sentinel_ok'                => true,
+            'loopback_status'            => $this->loopback_status(),
+            'sub_site_probes'            => $this->sub_site_probes(),
+            'url_rewrite_failed_updates' => isset( $sub_state['url_rewrite_failed_updates'] ) ? (int) $sub_state['url_rewrite_failed_updates'] : 0,
+            'url_rewrite_error'          => isset( $sub_state['url_rewrite_error'] ) ? (string) $sub_state['url_rewrite_error'] : '',
         );
 
         // Verification passed: retire the rollback tables and staging.
