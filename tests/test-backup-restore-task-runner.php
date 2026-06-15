@@ -340,6 +340,32 @@ class Cloud_Pull_Test_Restore_Runner extends Testable_Restore_Task_Runner {
 }
 
 /**
+ * Restore runner whose DNS resolution is scripted so the SSRF host
+ * checks run without real network lookups.
+ */
+class Ssrf_Resolver_Test_Restore_Runner extends MainWP_Child_Restore_Task_Runner {
+
+	/**
+	 * Scripted host => IP map. A host absent from the map resolves to
+	 * itself, matching the gethostbyname-failure contract.
+	 *
+	 * @var array<string,string>
+	 */
+	public static $resolved = array();
+
+	/**
+	 * Scripted resolution.
+	 *
+	 * @param string $host Hostname.
+	 *
+	 * @return string
+	 */
+	protected static function resolve_host_ip( $host ) {
+		return isset( self::$resolved[ $host ] ) ? self::$resolved[ $host ] : $host;
+	}
+}
+
+/**
  * Tests for the restore task runner: the full phase pipeline over real
  * artifacts, failure cleanup discipline, the in-place FK route, and
  * watchdog ownership routing.
@@ -1526,6 +1552,111 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 				$artifacts
 			),
 			'Non-https chunk URLs must be rejected.'
+		);
+	}
+
+	/**
+	 * SSRF: cloud-metadata and link-local pull URLs are rejected
+	 * unconditionally, with the private-pull override on or off.
+	 */
+	public function test_sanitize_pull_manifest_blocks_metadata_and_link_local() {
+		$sha       = str_repeat( 'a', 64 );
+		$artifacts = array( array( 'file' => 'db.zip', 'adopt_only' => false ) );
+		$manifest  = function ( $url ) use ( $sha ) {
+			return array(
+				'artifacts' => array(
+					array(
+						'file'   => 'db.zip',
+						'sha256' => $sha,
+						'size'   => 10,
+						'url'    => $url,
+					),
+				),
+			);
+		};
+
+		$targets = array(
+			'https://169.254.169.254/latest/meta-data/'         => 'AWS/Azure metadata IP',
+			'https://metadata.google.internal/computeMetadata/' => 'GCP metadata hostname',
+			'https://[::1]/object'                              => 'IPv6 loopback literal',
+		);
+
+		foreach ( array( '', '1' ) as $override ) {
+			if ( '' === $override ) {
+				delete_option( 'mainwp_backup_allow_private_pull' );
+			} else {
+				update_option( 'mainwp_backup_allow_private_pull', $override );
+			}
+			foreach ( $targets as $url => $label ) {
+				$this->assertNull(
+					MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest( $manifest( $url ), $artifacts ),
+					$label . ' must be blocked regardless of the private-pull override.'
+				);
+			}
+		}
+		delete_option( 'mainwp_backup_allow_private_pull' );
+	}
+
+	/**
+	 * SSRF: an RFC1918 / loopback pull URL is denied by default and
+	 * accepted only when the private-pull override option is set (the
+	 * on-prem MinIO / testbed case).
+	 */
+	public function test_sanitize_pull_manifest_private_denied_unless_overridden() {
+		$sha       = str_repeat( 'a', 64 );
+		$artifacts = array( array( 'file' => 'db.zip', 'adopt_only' => false ) );
+		$manifest  = array(
+			'artifacts' => array(
+				array(
+					'file'   => 'db.zip',
+					'sha256' => $sha,
+					'size'   => 10,
+					'url'    => 'https://127.0.0.1:9443/mainwp-e2e/db.zip',
+				),
+			),
+		);
+
+		delete_option( 'mainwp_backup_allow_private_pull' );
+		$this->assertNull(
+			MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest( $manifest, $artifacts ),
+			'A private/loopback pull URL must be denied by default.'
+		);
+
+		update_option( 'mainwp_backup_allow_private_pull', '1' );
+		$clean = MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest( $manifest, $artifacts );
+		$this->assertNotNull( $clean, 'The override option must allow a configured private endpoint.' );
+		$this->assertSame( 'db.zip', $clean['artifacts'][0]['file'] );
+		delete_option( 'mainwp_backup_allow_private_pull' );
+	}
+
+	/**
+	 * SSRF: a public-looking hostname that resolves to the metadata IP is
+	 * blocked, while one that does not resolve to a private IP passes.
+	 */
+	public function test_sanitize_pull_manifest_blocks_hostname_resolving_to_metadata() {
+		$sha       = str_repeat( 'a', 64 );
+		$artifacts = array( array( 'file' => 'db.zip', 'adopt_only' => false ) );
+		$manifest  = array(
+			'artifacts' => array(
+				array(
+					'file'   => 'db.zip',
+					'sha256' => $sha,
+					'size'   => 10,
+					'url'    => 'https://innocent.example.com/db.zip',
+				),
+			),
+		);
+
+		Ssrf_Resolver_Test_Restore_Runner::$resolved = array( 'innocent.example.com' => '169.254.169.254' );
+		$this->assertNull(
+			Ssrf_Resolver_Test_Restore_Runner::sanitize_pull_manifest( $manifest, $artifacts ),
+			'A hostname resolving to the metadata IP must be blocked.'
+		);
+
+		Ssrf_Resolver_Test_Restore_Runner::$resolved = array();
+		$this->assertNotNull(
+			Ssrf_Resolver_Test_Restore_Runner::sanitize_pull_manifest( $manifest, $artifacts ),
+			'A hostname that does not resolve to a private IP passes.'
 		);
 	}
 

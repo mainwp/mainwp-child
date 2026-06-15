@@ -256,18 +256,122 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     }
 
     /**
-     * Whether a value is an https URL.
+     * Whether a value is a safe https pull URL. Retained as the call seam
+     * inside sanitize_pull_manifest(); delegates to is_safe_remote_url() so
+     * the manifest URL gates also block SSRF targets.
      *
      * @param mixed $url Candidate.
      *
      * @return bool
      */
     protected static function is_https_url( $url ) {
+        return static::is_safe_remote_url( $url );
+    }
+
+    /**
+     * Whether a pull URL is safe to fetch.
+     *
+     * Requires https. Cloud-metadata and link-local targets (169.254.0.0/16,
+     * the metadata hostnames, IPv6 ::1 and fe80::/10) are rejected
+     * unconditionally. Other private/loopback hosts (RFC1918, 127.0.0.0/8,
+     * fc00::/7) are rejected unless an operator opts in with the
+     * MAINWP_BACKUP_ALLOW_PRIVATE_PULL constant or the
+     * mainwp_backup_allow_private_pull option (the on-prem MinIO case). Both
+     * the literal host and a resolved IPv4 are checked. This is deliberately
+     * not a blanket wp_http_validate_url(): a configured private endpoint
+     * must stay reachable when the override is set.
+     *
+     * @param mixed $url Candidate.
+     *
+     * @return bool
+     */
+    protected static function is_safe_remote_url( $url ) {
         if ( ! is_string( $url ) || '' === $url ) {
             return false;
         }
         $parts = wp_parse_url( $url );
-        return is_array( $parts ) && isset( $parts['scheme'], $parts['host'] ) && 'https' === strtolower( $parts['scheme'] );
+        if ( ! is_array( $parts ) || ! isset( $parts['scheme'], $parts['host'] ) || 'https' !== strtolower( $parts['scheme'] ) ) {
+            return false;
+        }
+
+        $host = strtolower( $parts['host'] );
+
+        // Metadata aliases are blocked by name, before any resolution.
+        if ( in_array( $host, array( 'metadata', 'metadata.google.internal' ), true ) ) {
+            return false;
+        }
+
+        // Candidate IPs: the literal host when it is an IP, plus a resolved
+        // IPv4 when it is a name. A name that does not resolve (gethostbyname
+        // returns it unchanged) yields no IP and is treated as public.
+        $literal = trim( $host, '[]' );
+        $ips     = array();
+        if ( false !== filter_var( $literal, FILTER_VALIDATE_IP ) ) {
+            $ips[] = $literal;
+        } else {
+            $resolved = static::resolve_host_ip( $host );
+            if ( is_string( $resolved ) && false !== filter_var( $resolved, FILTER_VALIDATE_IP ) ) {
+                $ips[] = $resolved;
+            }
+        }
+
+        foreach ( $ips as $ip ) {
+            if ( static::ip_is_metadata_or_link_local( $ip ) ) {
+                return false;
+            }
+        }
+
+        $allow_private = ( defined( 'MAINWP_BACKUP_ALLOW_PRIVATE_PULL' ) && MAINWP_BACKUP_ALLOW_PRIVATE_PULL )
+            || (bool) get_option( 'mainwp_backup_allow_private_pull' );
+        if ( $allow_private ) {
+            return true;
+        }
+
+        foreach ( $ips as $ip ) {
+            // NO_PRIV_RANGE + NO_RES_RANGE reject RFC1918, loopback,
+            // link-local and other reserved blocks; a public IP survives.
+            if ( false === filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Whether an IP is a cloud-metadata / link-local address that no
+     * override may reach: IPv4 169.254.0.0/16, IPv6 ::1 and fe80::/10.
+     *
+     * @param string $ip Validated IP literal.
+     *
+     * @return bool
+     */
+    protected static function ip_is_metadata_or_link_local( $ip ) {
+        if ( false !== strpos( $ip, ':' ) ) {
+            $packed = inet_pton( $ip );
+            if ( false === $packed || 16 !== strlen( $packed ) ) {
+                return false;
+            }
+            if ( inet_pton( '::1' ) === $packed ) {
+                return true;
+            }
+            // fe80::/10 -> first 10 bits 1111111010.
+            return 0xfe === ord( $packed[0] ) && 0x80 === ( ord( $packed[1] ) & 0xc0 );
+        }
+        return 0 === strpos( $ip, '169.254.' );
+    }
+
+    /**
+     * Resolve a hostname to an IPv4 address, returning the host unchanged
+     * when resolution fails (the gethostbyname contract). Isolated so tests
+     * can script resolution without real DNS.
+     *
+     * @param string $host Hostname.
+     *
+     * @return string
+     */
+    protected static function resolve_host_ip( $host ) {
+        return gethostbyname( $host );
     }
 
     /**
