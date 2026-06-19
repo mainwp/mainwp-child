@@ -717,6 +717,47 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
+     * Probe that the dedicated restore connection holds the grants the table
+     * swap needs: CREATE, RENAME (ALTER), and DROP. Exercises them on a
+     * throwaway table so a missing grant fails the restore preflight instead
+     * of mid-swap, after transfer work is already spent.
+     *
+     * Inconclusive cases never block a restore: a connection that cannot be
+     * opened returns true and lets the replay surface the real error with its
+     * own code.
+     *
+     * @return bool False only when a required grant is confirmed missing.
+     */
+    public function probe_swap_grants() {
+        $conn = $this->connect();
+        if ( null === $conn ) {
+            return true;
+        }
+
+        $base = 'mainwp_restore_preflight_' . substr( md5( uniqid( '', true ) ), 0, 12 );
+        $a    = $base . '_a';
+        $b    = $base . '_b';
+
+        // Best-effort clear of any prior litter, then CREATE -> RENAME -> DROP,
+        // exactly the grants the swap and old-table cleanup exercise.
+        $this->execute_statement( $conn, 'DROP TABLE IF EXISTS `' . $a . '`, `' . $b . '`' );
+
+        $ok = is_int( $this->execute_statement( $conn, 'CREATE TABLE `' . $a . '` ( id INT )' ) );
+        if ( $ok ) {
+            $ok = is_int( $this->execute_statement( $conn, 'RENAME TABLE `' . $a . '` TO `' . $b . '`' ) );
+        }
+        if ( $ok ) {
+            $ok = is_int( $this->execute_statement( $conn, 'DROP TABLE IF EXISTS `' . $b . '`' ) );
+        }
+
+        // Drop whatever survived, regardless of the outcome above.
+        $this->execute_statement( $conn, 'DROP TABLE IF EXISTS `' . $a . '`, `' . $b . '`' );
+        $this->close_connection( $conn );
+
+        return $ok;
+    }
+
+    /**
      * Execute one statement on the dedicated connection.
      *
      * @param object $conn Connection.

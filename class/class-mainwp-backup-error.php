@@ -58,6 +58,7 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
     const ERR_RESTORE_MULTISITE   = 'mainwp_restore_multisite';
     const ERR_RESTORE_WRONG_PHASE = 'mainwp_restore_wrong_phase';
     const ERR_RESTORE_CANCELLED   = 'mainwp_restore_cancelled';
+    const ERR_RESTORE_DB_PERMS    = 'mainwp_restore_db_perms';
     const ERR_CHUNK_GAP           = 'mainwp_restore_chunk_gap';
     const ERR_CHUNK_HASH          = 'mainwp_restore_chunk_hash';
     const ERR_ARTIFACT_UNKNOWN    = 'mainwp_restore_artifact_unknown';
@@ -225,6 +226,7 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
             self::ERR_RESTORE_MULTISITE          => esc_html__( 'Restore is not available for multisite installations in this version.', 'mainwp-child' ),
             self::ERR_RESTORE_WRONG_PHASE        => esc_html__( 'The restore task is not accepting artifact data in its current phase. Check the task status and retry the transfer if it is still receiving.', 'mainwp-child' ),
             self::ERR_RESTORE_CANCELLED          => esc_html__( 'The restore was cancelled from the dashboard. Any tables already replaced were kept aside for rollback.', 'mainwp-child' ),
+            self::ERR_RESTORE_DB_PERMS           => esc_html__( 'The database user is missing a permission the restore needs to swap tables. The live database was not changed. Grant the database user the CREATE, DROP, and ALTER permissions, or ask your host, then try again.', 'mainwp-child' ),
             self::ERR_CHUNK_GAP                  => esc_html__( 'The artifact data arrived out of order. The Dashboard will resend from the last received byte.', 'mainwp-child' ),
             self::ERR_CHUNK_HASH                 => esc_html__( 'A piece of the artifact failed its integrity check during transfer and was not written. The Dashboard will resend it.', 'mainwp-child' ),
             self::ERR_ARTIFACT_UNKNOWN           => esc_html__( 'The transferred file is not part of this restore. Only artifacts named when the restore was created are accepted.', 'mainwp-child' ),

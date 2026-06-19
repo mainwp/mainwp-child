@@ -10,6 +10,7 @@ use MainWP\Child\MainWP_Backup_Error;
 use MainWP\Child\MainWP_Child_Backup_Task;
 use MainWP\Child\MainWP_Child_Backup_Task_Runner;
 use MainWP\Child\MainWP_Child_Restore_Task_Runner;
+use MainWP\Child\MainWP_Exception;
 
 /**
  * Scripted DB restore engine: no database side effects, behavior set
@@ -137,6 +138,23 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	 */
 	public function exit_maintenance() {
 		$this->calls[] = 'exit_maintenance';
+	}
+
+	/**
+	 * Whether the swap-grant probe reports the grants exist.
+	 *
+	 * @var bool
+	 */
+	public $grants_ok = true;
+
+	/**
+	 * Scripted grant probe.
+	 *
+	 * @return bool
+	 */
+	public function probe_swap_grants() {
+		$this->calls[] = 'probe_swap_grants';
+		return $this->grants_ok;
 	}
 }
 
@@ -681,6 +699,62 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertContains( 'exit_maintenance', $calls );
 		$this->assertNotContains( 'drop_old_tables', $calls );
 		$this->assertDirectoryDoesNotExist( $this->dir . '/restore-' . $task_id );
+	}
+
+	/**
+	 * A database-bearing restore whose target user lacks the table-swap
+	 * grants fails at preflight, before any replay or swap runs.
+	 */
+	public function test_preflight_fails_when_db_grants_missing() {
+		$this->runner->fake_engine->grants_ok = false;
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+
+		$payload = $this->spine->status_payload( $task );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_PERMS, $payload['error_code'] );
+
+		$calls = $this->runner->fake_engine->calls;
+		$this->assertContains( 'probe_swap_grants', $calls );
+		$this->assertNotContains( 'swap_tables:items', $calls );
+	}
+
+	/**
+	 * A files-only restore never touches the database, so the grant probe
+	 * is skipped even when the grants would fail.
+	 */
+	public function test_preflight_skips_grant_probe_for_files_only_restore() {
+		$this->runner->fake_engine->grants_ok = false;
+
+		$task_id = $this->make_task( 'files', array( $this->make_db_artifact() ) );
+		$this->drive( $task_id );
+
+		$this->assertNotContains( 'probe_swap_grants', $this->runner->fake_engine->calls );
+	}
+
+	/**
+	 * Preflight refuses a restore whose scratch target cannot be made
+	 * writable, surfacing the not-writable code before any change.
+	 */
+	public function test_preflight_rejects_unwritable_scratch_target() {
+		$blocker = $this->dir . '/blocker-file';
+		file_put_contents( $blocker, 'x' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- test fixture.
+
+		$task   = (object) array(
+			'task_id' => 'pf-write',
+			'type'    => 'restore_db',
+		);
+		$method = new \ReflectionMethod( $this->runner, 'preflight_restore' );
+		$method->setAccessible( true );
+
+		try {
+			$method->invoke( $this->runner, $task, $blocker . '/under-a-file' );
+			$this->fail( 'Preflight must reject an uncreatable scratch target.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE, $e->get_message_error_code() );
+		}
 	}
 
 	/**

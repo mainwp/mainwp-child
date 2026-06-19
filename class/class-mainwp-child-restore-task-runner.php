@@ -695,6 +695,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         try {
             switch ( $task->phase ) {
                 case MainWP_Child_Backup_Task::PHASE_QUEUED:
+                    $this->preflight_restore( $task, $backup_dir );
                     return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
                 case MainWP_Child_Backup_Task::PHASE_PULLING_ARTIFACTS:
                     return $this->run_pulling( $task, $version, $sub_state, $deadline, $backup_dir );
@@ -718,6 +719,38 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - cleanup must run on any phase failure.
             $this->terminal_cleanup( $task, $sub_state, $backup_dir );
             throw $e;
+        }
+    }
+
+    /**
+     * Restore preflight: fail fast on the cheap, high-value checks before any
+     * file or database change. A non-writable scratch target, or a database
+     * user missing the table-swap grants, is surfaced here with a stable code
+     * instead of after the transfer work is already spent. The dashboard
+     * confirms remote-artifact availability; the disk check rides the pull
+     * phase.
+     *
+     * @param object $task       Task row.
+     * @param string $backup_dir Scratch root.
+     *
+     * @throws MainWP_Exception When a target is not writable or a grant is missing.
+     *
+     * @return void
+     */
+    protected function preflight_restore( $task, $backup_dir ) {
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        if ( ! is_dir( $scratch ) ) {
+            wp_mkdir_p( $scratch );
+        }
+        if ( ! is_dir( $scratch ) || ! is_writable( $scratch ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- a cheap readiness probe; WP_Filesystem is not initialized this early in a restore slice.
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ) ), null, MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+
+        // A database-bearing restore swaps tables with CREATE/RENAME/DROP;
+        // probe those grants so a missing one stops the restore here, not
+        // mid-swap. A files-only restore never touches the database.
+        if ( 'restore_files' !== $task->type && ! $this->restore_engine()->probe_swap_grants() ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_DB_PERMS ) ), null, MainWP_Backup_Error::ERR_RESTORE_DB_PERMS ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
         }
     }
 
