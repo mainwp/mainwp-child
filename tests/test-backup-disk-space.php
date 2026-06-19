@@ -32,6 +32,31 @@ class BackupDiskSpaceTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The wp-content inventory walk is cached so preflight and the disk-space
+	 * pre-check do not re-walk the tree on every estimate within a backup run.
+	 */
+	public function test_estimate_backup_size_uses_cached_content_inventory() {
+		// Prime the cache with a sentinel inventory; a real walk of wp-content
+		// would never produce these exact numbers.
+		set_transient(
+			'mainwp_backup_content_inventory',
+			array(
+				'bytes' => 123456,
+				'count' => 7,
+			),
+			HOUR_IN_SECONDS
+		);
+
+		$db_only    = MainWP_Backup::get()->estimate_backup_size( false );
+		$with_files = MainWP_Backup::get()->estimate_backup_size( true );
+
+		// The files portion came from the cached sentinel, not a disk walk.
+		$this->assertSame( $db_only + 123456, $with_files );
+
+		delete_transient( 'mainwp_backup_content_inventory' );
+	}
+
+	/**
 	 * The during-backup check passes when plenty of space is free.
 	 */
 	public function test_during_backup_check_passes_with_free_space() {

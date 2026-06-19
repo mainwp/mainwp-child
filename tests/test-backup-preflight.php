@@ -116,6 +116,22 @@ class BackupPreflightTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The report carries a size estimate and a wp-content file count so the
+	 * Dashboard can guard against ZIP archiving on large sites. ZIP restarts
+	 * from zero on each slice timeout; tar.gz appends and resumes.
+	 */
+	public function test_check_backup_readiness_reports_size_estimate() {
+		$report = MainWP_Backup::get()->check_backup_readiness();
+
+		$this->assertArrayHasKey( 'estimated_bytes', $report );
+		$this->assertArrayHasKey( 'file_count', $report );
+		$this->assertIsInt( $report['estimated_bytes'] );
+		$this->assertIsInt( $report['file_count'] );
+		$this->assertGreaterThanOrEqual( 0, $report['estimated_bytes'] );
+		$this->assertGreaterThanOrEqual( 0, $report['file_count'] );
+	}
+
+	/**
 	 * disk_free is a byte count when the host exposes disk_free_space().
 	 */
 	public function test_check_backup_readiness_reports_disk_space() {

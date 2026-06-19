@@ -925,6 +925,13 @@ class MainWP_Backup {
     const MAX_FAILED_ADDS = 10;
 
     /**
+     * Transient key caching the wp-content inventory (total file bytes and
+     * file count) so a size estimate does not re-walk the tree on every call
+     * within a backup run.
+     */
+    const CONTENT_INVENTORY_TRANSIENT = 'mainwp_backup_content_inventory';
+
+    /**
      * Allowed containment bases for the current backup traversal, null for
      * the defaults (ABSPATH and WP_CONTENT_DIR).
      *
@@ -1080,20 +1087,43 @@ class MainWP_Backup {
             }
         }
         if ( $include_files ) {
-            $size += static::get_directory_size( WP_CONTENT_DIR );
+            $inventory = static::get_content_inventory();
+            $size     += $inventory['bytes'];
         }
         return $size;
     }
 
     /**
-     * Sum the size of all regular files under a directory, skipping symlinks.
+     * Inventory of WP_CONTENT_DIR - total regular-file bytes and file count.
+     *
+     * The recursive stat-walk is the costly part of a size estimate, so the
+     * result is cached briefly. The preflight readiness report and the pre-
+     * backup disk-space check both read this inventory instead of walking
+     * wp-content twice in the same backup run.
+     *
+     * @return array Inventory with 'bytes' (int) and 'count' (int) keys.
+     */
+    protected static function get_content_inventory() {
+        $cached = get_transient( static::CONTENT_INVENTORY_TRANSIENT );
+        if ( is_array( $cached ) && isset( $cached['bytes'], $cached['count'] ) ) {
+            return $cached;
+        }
+        $inventory = static::get_directory_inventory( WP_CONTENT_DIR );
+        set_transient( static::CONTENT_INVENTORY_TRANSIENT, $inventory, HOUR_IN_SECONDS );
+        return $inventory;
+    }
+
+    /**
+     * Sum the size and count of all regular files under a directory, skipping
+     * symlinks.
      *
      * @param string $dir Directory to measure.
      *
-     * @return int Total size in bytes.
+     * @return array Inventory with 'bytes' (int) and 'count' (int) keys.
      */
-    private static function get_directory_size( $dir ) {
-        $size = 0;
+    private static function get_directory_inventory( $dir ) {
+        $bytes = 0;
+        $count = 0;
         try {
             $iterator = new \RecursiveIteratorIterator(
                 new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ),
@@ -1102,14 +1132,18 @@ class MainWP_Backup {
             );
             foreach ( $iterator as $file ) {
                 if ( $file->isFile() && ! $file->isLink() ) {
-                    $size += (int) $file->getSize();
+                    $bytes += (int) $file->getSize();
+                    ++$count;
                 }
             }
         } catch ( \Exception $e ) {
             // Unreadable subtree - the walk is best-effort for an estimate.
             unset( $e );
         }
-        return $size;
+        return array(
+            'bytes' => $bytes,
+            'count' => $count,
+        );
     }
 
     /**
@@ -1246,6 +1280,15 @@ class MainWP_Backup {
         if ( ! $report['db_connected'] ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DB_CONNECTION_LOST ) ), null, MainWP_Backup_Error::ERR_DB_CONNECTION_LOST ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
         }
+
+        // 4. Size estimate and wp-content file count, so the Dashboard can
+        // guard against ZIP archiving on large sites: ZIP restarts from zero on
+        // each slice timeout, while tar.gz appends and resumes. The wp-content
+        // walk is cached so reporting the estimate does not double the IO before
+        // the backup runs.
+        $report['estimated_bytes'] = $this->estimate_backup_size( true );
+        $inventory                 = static::get_content_inventory();
+        $report['file_count']      = $inventory['count'];
 
         return $report;
     }
