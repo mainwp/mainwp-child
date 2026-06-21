@@ -140,6 +140,41 @@ class Testable_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 }
 
 /**
+ * Engine that records the config handed to replay_slice instead of
+ * running it, so the rollback's prefix handling can be asserted without a
+ * live database.
+ */
+class Capturing_Rollback_Engine extends Testable_Restore_Engine {
+
+	/**
+	 * Configs passed to replay_slice, in order.
+	 *
+	 * @var array[]
+	 */
+	public $replay_configs = array();
+
+	/**
+	 * Record the config; report success without touching anything.
+	 *
+	 * @param array     $cursor   Cursor.
+	 * @param array     $config   Config.
+	 * @param float|int $deadline Deadline.
+	 * @param bool      $unclean  Unclean resume flag.
+	 *
+	 * @return array Slice result.
+	 */
+	public function replay_slice( $cursor, $config, $deadline, $unclean = false ) {
+		$this->replay_configs[] = $config;
+		return array(
+			'done'       => true,
+			'cursor'     => array( 'tables' => array() ),
+			'error'      => null,
+			'error_code' => null,
+		);
+	}
+}
+
+/**
  * Tests for the DB restore engine: chunked replay with byte-offset
  * resume, per-table fail isolation, the atomic RENAME builder, banner
  * and foreign-key probing, and the in-place maintenance path.
@@ -190,6 +225,12 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 		global $wpdb;
 		foreach ( $this->real_tables as $table ) {
 			$wpdb->query( 'DROP TABLE IF EXISTS `' . $table . '`' ); // phpcs:ignore WordPress.DB -- test cleanup.
+		}
+		// The in-place replay path writes a real .maintenance flag through the
+		// engine; clear it so it never bleeds into the next test's WP bootstrap.
+		$maintenance = ABSPATH . '.maintenance';
+		if ( file_exists( $maintenance ) ) {
+			unlink( $maintenance ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- test cleanup of a flag the engine wrote.
 		}
 		parent::tear_down();
 	}
@@ -653,5 +694,253 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 		$engine->cleanup_tmp_tables( 'r34l01' );
 		$engine->drop_old_tables( 'r34l01' );
 		$this->assertEmpty( $wpdb->get_var( "SHOW TABLES LIKE 'tmpr34l01%'" ) ); // phpcs:ignore WordPress.DB -- test verification.
+	}
+
+	/**
+	 * peek_table_name() reads the table a dump file leads with, from both
+	 * the DROP and the CREATE forms, banner or no banner.
+	 */
+	public function test_peek_table_name_reads_leading_table() {
+		$drop   = $this->write_dump( 'dbBackup-wp_a.sql.php', "DROP TABLE IF EXISTS `wp_a`;\nCREATE TABLE `wp_a` (id INT);\n" );
+		$create = $this->write_dump( 'dbBackup-wp_b.sql.php', "CREATE TABLE `wp_b` (id INT);\n" );
+		$banner = $this->write_dump( 'dbBackup-wp_c.sql.php', "DROP TABLE IF EXISTS `wp_c`;\n", '-- mainwp-backup-meta: {"tier":2}' );
+
+		$this->assertSame( 'wp_a', $this->engine->peek_table_name( $drop ) );
+		$this->assertSame( 'wp_b', $this->engine->peek_table_name( $create ) );
+		$this->assertSame( 'wp_c', $this->engine->peek_table_name( $banner ) );
+	}
+
+	/**
+	 * A file naming no table returns null.
+	 */
+	public function test_peek_table_name_null_when_absent() {
+		$file = $this->write_dump( 'dbBackup-empty.sql.php', "SET FOREIGN_KEY_CHECKS=0;\n" );
+		$this->assertNull( $this->engine->peek_table_name( $file ) );
+	}
+
+	/**
+	 * The dump's tables split into live tables that exist and stems the
+	 * dump would create fresh; the live names use the target prefix.
+	 */
+	public function test_list_dump_live_tables_splits_existing_and_new() {
+		$this->engine->live_tables = array( 'wp_a', 'wp_options' );
+		$files                     = array(
+			$this->write_dump( 'dbBackup-wp_a.sql.php', "CREATE TABLE `wp_a` (id INT);\n" ),
+			$this->write_dump( 'dbBackup-wp_new.sql.php', "CREATE TABLE `wp_new` (id INT);\n" ),
+		);
+
+		$result = $this->engine->list_dump_live_tables( $files, 'wp_', 'wp_', array() );
+
+		$this->assertSame( array( 'wp_a' ), $result['existing'] );
+		$this->assertSame( array( 'new' ), $result['new_stems'] );
+	}
+
+	/**
+	 * Skip-list stems are excluded from both buckets.
+	 */
+	public function test_list_dump_live_tables_excludes_skip_stems() {
+		$this->engine->live_tables = array( 'wp_a', 'wp_mainwp_child_backup_task' );
+		$files                     = array(
+			$this->write_dump( 'dbBackup-wp_a.sql.php', "CREATE TABLE `wp_a` (id INT);\n" ),
+			$this->write_dump( 'dbBackup-wp_spine.sql.php', "CREATE TABLE `wp_mainwp_child_backup_task` (id INT);\n" ),
+		);
+
+		$result = $this->engine->list_dump_live_tables( $files, 'wp_', 'wp_', array( 'mainwp_child_backup_task' ) );
+
+		$this->assertSame( array( 'wp_a' ), $result['existing'] );
+		$this->assertSame( array(), $result['new_stems'] );
+	}
+
+	/**
+	 * A prefix-changing restore maps the dump's source-prefixed stems onto
+	 * the live target prefix.
+	 */
+	public function test_list_dump_live_tables_maps_changed_prefix() {
+		$this->engine->live_tables = array( 'live_a' );
+		$files                     = array(
+			$this->write_dump( 'dbBackup-old_a.sql.php', "CREATE TABLE `old_a` (id INT);\n" ),
+			$this->write_dump( 'dbBackup-old_b.sql.php', "CREATE TABLE `old_b` (id INT);\n" ),
+		);
+
+		$result = $this->engine->list_dump_live_tables( $files, 'old_', 'live_', array() );
+
+		$this->assertSame( array( 'live_a' ), $result['existing'] );
+		$this->assertSame( array( 'b' ), $result['new_stems'] );
+	}
+
+	/**
+	 * The grant probe now also exercises INSERT and SELECT, the rollback's
+	 * refill grants.
+	 */
+	public function test_probe_swap_grants_exercises_insert_and_select() {
+		$this->assertTrue( $this->engine->probe_swap_grants() );
+
+		$joined = implode( "\n", $this->engine->executed );
+		$this->assertStringContainsString( 'INSERT INTO `mainwp_restore_preflight_', $joined );
+	}
+
+	/**
+	 * A denied INSERT fails the probe.
+	 */
+	public function test_probe_swap_grants_false_when_insert_denied() {
+		$this->engine->fail_on = 'INSERT INTO `mainwp_restore_preflight_';
+		$this->assertFalse( $this->engine->probe_swap_grants() );
+	}
+
+	/**
+	 * Rollback drops every dump-stem table first, then replays the aside
+	 * dump with the live prefix on BOTH sides - the origin prefix would
+	 * make the rewriter discard every aside statement.
+	 */
+	public function test_rollback_aside_slice_drops_then_replays_with_live_prefix() {
+		$engine = new Capturing_Rollback_Engine();
+
+		$result = $engine->rollback_aside_slice(
+			array(),
+			array(
+				'drop_tables'   => array( 'live_a', 'live_b' ),
+				'aside_files'   => array( '/tmp/aside-live_a.sql.php' ),
+				'target_prefix' => 'live_',
+				'restore_id'    => 'rid',
+				'skip_stems'    => array(),
+			),
+			microtime( true ) + 3600
+		);
+
+		$this->assertTrue( $result['done'] );
+
+		$joined = implode( "\n", $engine->executed );
+		$this->assertStringContainsString( 'SET FOREIGN_KEY_CHECKS=0', $joined );
+		$this->assertStringContainsString( 'DROP TABLE IF EXISTS `live_a`', $joined );
+		$this->assertStringContainsString( 'DROP TABLE IF EXISTS `live_b`', $joined );
+
+		$this->assertCount( 1, $engine->replay_configs );
+		$config = $engine->replay_configs[0];
+		$this->assertSame( 'live_', $config['source_prefix'] );
+		$this->assertSame( 'live_', $config['target_prefix'] );
+		$this->assertTrue( $config['fk_path'] );
+		$this->assertSame( array( '/tmp/aside-live_a.sql.php' ), $config['files'] );
+	}
+
+	/**
+	 * A drop failure during rollback surfaces ERR_RESTORE_ROLLBACK_FAILED
+	 * and never reaches the replay.
+	 */
+	public function test_rollback_aside_slice_drop_failure_reports_rollback_failed() {
+		$engine          = new Capturing_Rollback_Engine();
+		$engine->fail_on = 'DROP TABLE IF EXISTS `live_a`';
+
+		$result = $engine->rollback_aside_slice(
+			array(),
+			array(
+				'drop_tables'   => array( 'live_a' ),
+				'aside_files'   => array( '/tmp/aside-live_a.sql.php' ),
+				'target_prefix' => 'live_',
+				'restore_id'    => 'rid',
+				'skip_stems'    => array(),
+			),
+			microtime( true ) + 3600
+		);
+
+		$this->assertFalse( $result['done'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED, $result['error_code'] );
+		$this->assertEmpty( $engine->replay_configs );
+	}
+
+	/**
+	 * Real-database foreign-key round trip: snapshot two FK-linked InnoDB
+	 * tables aside, destructively mutate the live tables (as a failed
+	 * in-place replay would), then roll back and confirm the original rows
+	 * and the foreign-key constraint return, and a table the failed replay
+	 * created is gone.
+	 */
+	public function test_fk_snapshot_and_rollback_round_trip() {
+		global $wpdb;
+
+		// Real (not TEMPORARY) tables: the dumper reads on its own connection
+		// and temporary tables cannot carry foreign keys, so the test opts out
+		// of the harness's temporary-table rewriting and cleans up by hand.
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+
+		$prefix = 'fkt_';
+		$parent = $prefix . 'parent';
+		$child  = $prefix . 'child';
+		$orphan = $prefix . 'orphan';
+		// Child (the referencing table) drops first so tear_down is FK-safe.
+		$this->real_tables = array( $child, $orphan, $parent );
+
+		$wpdb->query( "DROP TABLE IF EXISTS `$child`" ); // phpcs:ignore WordPress.DB -- test fixture.
+		$wpdb->query( "DROP TABLE IF EXISTS `$orphan`" ); // phpcs:ignore WordPress.DB -- test fixture.
+		$wpdb->query( "DROP TABLE IF EXISTS `$parent`" ); // phpcs:ignore WordPress.DB -- test fixture.
+		$wpdb->query( "CREATE TABLE `$parent` (id INT NOT NULL, label VARCHAR(40), PRIMARY KEY (id)) ENGINE=InnoDB" ); // phpcs:ignore WordPress.DB -- test fixture.
+		$wpdb->query( "CREATE TABLE `$child` (id INT NOT NULL, pid INT, body TEXT, PRIMARY KEY (id), KEY pid (pid), CONSTRAINT `fkt_link` FOREIGN KEY (pid) REFERENCES `$parent` (id)) ENGINE=InnoDB" ); // phpcs:ignore WordPress.DB -- test fixture.
+		$wpdb->query( "INSERT INTO `$parent` (id,label) VALUES (1,'one'),(2,'two')" ); // phpcs:ignore WordPress.DB -- test fixture.
+		$wpdb->query( "INSERT INTO `$child` (id,pid,body) VALUES (10,1,'a'),(11,2,'b')" ); // phpcs:ignore WordPress.DB -- test fixture.
+		// The dumper reads on its own connection, so the fixtures must commit.
+		$wpdb->query( 'COMMIT' ); // phpcs:ignore WordPress.DB -- cross-connection visibility.
+
+		$engine = new MainWP_Backup_Db_Restore_Engine();
+
+		// Snapshot the live tables aside.
+		$cursor = array();
+		$files  = array();
+		$guard  = 0;
+		do {
+			$snap   = $engine->snapshot_tables_slice(
+				$cursor,
+				array(
+					'tables'       => array( $parent, $child ),
+					'aside_prefix' => $this->dir . '/aside',
+				),
+				microtime( true ) + 3600
+			);
+			$cursor = $snap['cursor'];
+			$files  = $snap['files'];
+			$this->assertNull( $snap['error'] );
+		} while ( ! $snap['done'] && ++$guard < 50 );
+		$this->assertTrue( $snap['done'] );
+		$this->assertNotEmpty( $files );
+
+		// Simulate the damage a failed in-place replay leaves behind.
+		$wpdb->query( "DELETE FROM `$child`" ); // phpcs:ignore WordPress.DB -- corruption fixture.
+		$wpdb->query( "DELETE FROM `$parent`" ); // phpcs:ignore WordPress.DB -- corruption fixture.
+		$wpdb->query( "INSERT INTO `$parent` (id,label) VALUES (99,'corrupt')" ); // phpcs:ignore WordPress.DB -- corruption fixture.
+		$wpdb->query( "CREATE TABLE `$orphan` (id INT) ENGINE=InnoDB" ); // phpcs:ignore WordPress.DB -- corruption fixture.
+		$wpdb->query( 'COMMIT' ); // phpcs:ignore WordPress.DB -- cross-connection visibility.
+
+		// Roll back from the aside snapshot.
+		$rcursor = array();
+		$guard   = 0;
+		do {
+			$rb      = $engine->rollback_aside_slice(
+				$rcursor,
+				array(
+					'drop_tables'   => array( $child, $parent, $orphan ),
+					'aside_files'   => $files,
+					'target_prefix' => $prefix,
+					'restore_id'    => 'fktid',
+					'skip_stems'    => array(),
+				),
+				microtime( true ) + 3600
+			);
+			$rcursor = $rb['cursor'];
+			$this->assertNull( $rb['error'] );
+		} while ( ! $rb['done'] && ++$guard < 50 );
+		$this->assertTrue( $rb['done'] );
+		$wpdb->query( 'COMMIT' ); // phpcs:ignore WordPress.DB -- read fresh after the rollback connection committed.
+
+		$prows = $wpdb->get_results( "SELECT id,label FROM `$parent` ORDER BY id", ARRAY_A ); // phpcs:ignore WordPress.DB -- verification.
+		$this->assertCount( 2, $prows );
+		$this->assertSame( 'one', $prows[0]['label'] );
+
+		$crows = $wpdb->get_results( "SELECT id,pid,body FROM `$child` ORDER BY id", ARRAY_A ); // phpcs:ignore WordPress.DB -- verification.
+		$this->assertCount( 2, $crows );
+		$this->assertSame( 'b', $crows[1]['body'] );
+
+		$create = $wpdb->get_row( "SHOW CREATE TABLE `$child`", ARRAY_N ); // phpcs:ignore WordPress.DB -- verification.
+		$this->assertStringContainsString( 'FOREIGN KEY', $create[1] );
+
+		$this->assertEmpty( $wpdb->get_var( "SHOW TABLES LIKE '$orphan'" ) ); // phpcs:ignore WordPress.DB -- verification.
 	}
 }

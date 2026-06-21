@@ -208,8 +208,8 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             throw new MainWP_Exception(
                 esc_html( MainWP_Backup_Error::scrub_db_credentials( 'Dedicated DB connection failed: ' . $error ) ),
                 null,
-                MainWP_Backup_Error::ERR_DB_CONNECTION_LOST
-            ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message escaped and scrubbed, code is a registry class constant.
+                MainWP_Backup_Error::ERR_DB_CONNECTION_LOST // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message escaped and scrubbed, code is a registry class constant.
+            );
         }
 
         $mysqli->set_charset( 'utf8mb4' );
@@ -314,8 +314,8 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             throw new MainWP_Exception(
                 esc_html( MainWP_Backup_Error::scrub_db_credentials( $e->getMessage() ) ),
                 null,
-                MainWP_Backup_Error::ERR_DB_QUERY_FAILED
-            ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message escaped and scrubbed, code is a registry class constant.
+                MainWP_Backup_Error::ERR_DB_QUERY_FAILED // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message escaped and scrubbed, code is a registry class constant.
+            );
         }
         //phpcs:enable WordPress.DB
 
@@ -546,6 +546,40 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             'tier'        => 2,
             'consistency' => 'paginated',
         );
+    }
+
+    /**
+     * Dump a specific list of tables using the resumable tier-2 slice loop.
+     *
+     * Used by the restore engine's foreign-key rollback: before an in-place
+     * replay overwrites the live tables, a copy of exactly the tables the
+     * replay will touch is dumped aside so a failed replay can be undone. The
+     * cursor is seeded from the provided list (the same shape the whole-DB seed
+     * in dump_tier2_slice() builds) so every chunking, generated-column, and
+     * pagination guard downstream is reused unchanged.
+     *
+     * @param string[]  $tables          Full table names to dump (live names).
+     * @param string    $filepath_prefix Output path prefix for the per-table files.
+     * @param array     $cursor          Resume cursor (empty array on first call).
+     * @param float|int $time_budget     Seconds the slice may run before yielding.
+     *
+     * @return array { done: bool, cursor: array, files: string[], tier: int,
+     *                 consistency: string }
+     */
+    public function dump_tables_tier2_slice( $tables, $filepath_prefix, $cursor, $time_budget = 45 ) {
+        if ( ! is_array( $cursor ) || empty( $cursor ) ) {
+            $cursor = array(
+                'tables'  => array_values( (array) $tables ),
+                'index'   => 0,
+                'started' => false,
+                'pk_col'  => null,
+                'last_id' => 0,
+                'offset'  => 0,
+                'files'   => array(),
+                'first'   => true,
+            );
+        }
+        return $this->dump_tier2_slice( $filepath_prefix, $cursor, $time_budget );
     }
 
     /**

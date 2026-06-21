@@ -59,11 +59,16 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
     const ERR_RESTORE_WRONG_PHASE = 'mainwp_restore_wrong_phase';
     const ERR_RESTORE_CANCELLED   = 'mainwp_restore_cancelled';
     const ERR_RESTORE_DB_PERMS    = 'mainwp_restore_db_perms';
-    const ERR_CHUNK_GAP           = 'mainwp_restore_chunk_gap';
-    const ERR_CHUNK_HASH          = 'mainwp_restore_chunk_hash';
-    const ERR_ARTIFACT_UNKNOWN    = 'mainwp_restore_artifact_unknown';
-    const ERR_ARTIFACT_CORRUPT    = 'mainwp_restore_artifact_corrupt';
-    const ERR_CLOUD_PULL_FAILED   = 'mainwp_cloud_pull_failed';
+
+    const ERR_RESTORE_ROLLED_BACK     = 'mainwp_restore_rolled_back';
+    const ERR_RESTORE_ROLLBACK_FAILED = 'mainwp_restore_rollback_failed';
+    const ERR_RESTORE_SNAPSHOT_FAILED = 'mainwp_restore_snapshot_failed';
+
+    const ERR_CHUNK_GAP         = 'mainwp_restore_chunk_gap';
+    const ERR_CHUNK_HASH        = 'mainwp_restore_chunk_hash';
+    const ERR_ARTIFACT_UNKNOWN  = 'mainwp_restore_artifact_unknown';
+    const ERR_ARTIFACT_CORRUPT  = 'mainwp_restore_artifact_corrupt';
+    const ERR_CLOUD_PULL_FAILED = 'mainwp_cloud_pull_failed';
 
     /**
      * Get all registered error codes.
@@ -227,6 +232,9 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
             self::ERR_RESTORE_WRONG_PHASE        => esc_html__( 'The restore task is not accepting artifact data in its current phase. Check the task status and retry the transfer if it is still receiving.', 'mainwp-child' ),
             self::ERR_RESTORE_CANCELLED          => esc_html__( 'The restore was cancelled from the dashboard. Any tables already replaced were kept aside for rollback.', 'mainwp-child' ),
             self::ERR_RESTORE_DB_PERMS           => esc_html__( 'The database user is missing a permission the restore needs to swap tables. The live database was not changed. Grant the database user the CREATE, DROP, and ALTER permissions, or ask your host, then try again.', 'mainwp-child' ),
+            self::ERR_RESTORE_ROLLED_BACK        => esc_html__( 'The database restore failed partway through, so the site\'s original tables were restored from the copy taken before the restore. No data was permanently changed. Check the child site error log for the failing table and try the restore again.', 'mainwp-child' ),
+            self::ERR_RESTORE_ROLLBACK_FAILED    => esc_html__( 'The database restore failed partway through and the automatic recovery could not finish, so the database may be in a partial state. The site has been left in maintenance mode on purpose. Ask your host or a database administrator to check the database before bringing the site back online.', 'mainwp-child' ),
+            self::ERR_RESTORE_SNAPSHOT_FAILED    => esc_html__( 'A safe copy of the database tables could not be made before the restore, so the restore did not start. The live database was not changed. Free up disk space and confirm the database permissions on the child site, then try again.', 'mainwp-child' ),
             self::ERR_CHUNK_GAP                  => esc_html__( 'The artifact data arrived out of order. The Dashboard will resend from the last received byte.', 'mainwp-child' ),
             self::ERR_CHUNK_HASH                 => esc_html__( 'A piece of the artifact failed its integrity check during transfer and was not written. The Dashboard will resend it.', 'mainwp-child' ),
             self::ERR_ARTIFACT_UNKNOWN           => esc_html__( 'The transferred file is not part of this restore. Only artifacts named when the restore was created are accepted.', 'mainwp-child' ),

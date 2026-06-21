@@ -717,10 +717,12 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
-     * Probe that the dedicated restore connection holds the grants the table
-     * swap needs: CREATE, RENAME (ALTER), and DROP. Exercises them on a
-     * throwaway table so a missing grant fails the restore preflight instead
-     * of mid-swap, after transfer work is already spent.
+     * Probe that the dedicated restore connection holds the grants the restore
+     * needs: CREATE, RENAME (ALTER), and DROP for the swap, plus INSERT and
+     * SELECT for the foreign-key rollback (it refills the live tables from the
+     * aside copy with INSERT ... SELECT). Exercises them on a throwaway table so
+     * a missing grant fails the restore preflight instead of mid-swap or
+     * mid-rollback, after transfer work is already spent.
      *
      * Inconclusive cases never block a restore: a connection that cannot be
      * opened returns true and lets the replay surface the real error with its
@@ -738,11 +740,18 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
         $a    = $base . '_a';
         $b    = $base . '_b';
 
-        // Best-effort clear of any prior litter, then CREATE -> RENAME -> DROP,
-        // exactly the grants the swap and old-table cleanup exercise.
+        // Best-effort clear of any prior litter, then CREATE -> INSERT -> SELECT
+        // -> RENAME -> DROP, exactly the grants the swap, the rollback refill,
+        // and the old-table cleanup exercise.
         $this->execute_statement( $conn, 'DROP TABLE IF EXISTS `' . $a . '`, `' . $b . '`' );
 
         $ok = is_int( $this->execute_statement( $conn, 'CREATE TABLE `' . $a . '` ( id INT )' ) );
+        if ( $ok ) {
+            $ok = is_int( $this->execute_statement( $conn, 'INSERT INTO `' . $a . '` (id) VALUES (1)' ) );
+        }
+        if ( $ok ) {
+            $ok = is_array( $this->query_rows( $conn, 'SELECT id FROM `' . $a . '`' ) );
+        }
         if ( $ok ) {
             $ok = is_int( $this->execute_statement( $conn, 'RENAME TABLE `' . $a . '` TO `' . $b . '`' ) );
         }
@@ -755,6 +764,192 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
         $this->close_connection( $conn );
 
         return $ok;
+    }
+
+    /**
+     * Read the table name a per-table dump file leads with.
+     *
+     * Each dump file opens with the PHP guard, an optional banner, then a
+     * `DROP TABLE IF EXISTS` / `CREATE TABLE` naming its one table. The
+     * foreign-key snapshot needs the table set before the replay runs (the
+     * replay cursor only records stems as it touches them), so the name is read
+     * from the file head rather than derived from the sanitized file name.
+     *
+     * @param string $file Dump file path.
+     *
+     * @return string|null Backticked table name decoded, or null when none is found.
+     */
+    public function peek_table_name( $file ) {
+        $head = file_get_contents( $file, false, null, 0, 8192 ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bounded local read.
+        if ( false === $head ) {
+            return null;
+        }
+        if ( ! preg_match( '/(?:DROP\s+TABLE(?:\s+IF\s+EXISTS)?|CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?)\s+`((?:[^`]|``)+)`/i', $head, $m ) ) {
+            return null;
+        }
+        return str_replace( '``', '`', $m[1] );
+    }
+
+    /**
+     * Split the dump's tables into live tables that exist and tables the dump
+     * would create fresh, scoped to what the foreign-key rollback must protect.
+     *
+     * Each dump file names a source-prefixed table; the live equivalent is the
+     * target prefix plus the bare stem. Tables on the skip list (the running
+     * restore's own spine) and tables whose dump name does not carry the source
+     * prefix (the replay would drop those, never touching a live table) are
+     * excluded.
+     *
+     * @param string[] $files         Dump file paths.
+     * @param string   $source_prefix Prefix the dump's table names carry.
+     * @param string   $target_prefix Live table prefix.
+     * @param string[] $skip_stems    Bare stems never replayed.
+     *
+     * @return array { existing: string[] live table names, new_stems: string[] bare stems }
+     */
+    public function list_dump_live_tables( $files, $source_prefix, $target_prefix, $skip_stems = array() ) {
+        $conn = $this->connect();
+        $live = is_object( $conn ) ? $this->list_tables( $conn ) : array();
+        if ( is_object( $conn ) ) {
+            $this->close_connection( $conn );
+        }
+
+        $existing = array();
+        $new      = array();
+        foreach ( (array) $files as $file ) {
+            $name = $this->peek_table_name( $file );
+            if ( null === $name || '' === $source_prefix || 0 !== strpos( $name, $source_prefix ) ) {
+                continue;
+            }
+            $stem = substr( $name, strlen( $source_prefix ) );
+            if ( in_array( $stem, (array) $skip_stems, true ) ) {
+                continue;
+            }
+            $live_name = $target_prefix . $stem;
+            if ( in_array( $live_name, $live, true ) ) {
+                $existing[] = $live_name;
+            } else {
+                $new[] = $stem;
+            }
+        }
+
+        return array(
+            'existing'  => array_values( array_unique( $existing ) ),
+            'new_stems' => array_values( array_unique( $new ) ),
+        );
+    }
+
+    /**
+     * Dump one bounded slice of the foreign-key rollback snapshot.
+     *
+     * Drives the resumable tier-2 dumper over the named live tables, writing
+     * aside per-table dump files the rollback replays back on failure. A dumper
+     * failure (disk, permissions) returns a coded error rather than throwing, so
+     * the snapshot phase can fail cleanly before any live table is touched.
+     *
+     * @param array     $cursor   Dumper cursor (empty array on first call).
+     * @param array     $config   { tables: string[], aside_prefix: string }.
+     * @param float|int $deadline Absolute epoch the slice must yield by.
+     *
+     * @return array { done: bool, cursor: array, files: string[],
+     *                 error: string|null, error_code: string|null }
+     */
+    public function snapshot_tables_slice( $cursor, $config, $deadline ) {
+        $budget = (int) ( $deadline - microtime( true ) );
+        if ( $budget < 1 ) {
+            $budget = 1;
+        }
+
+        try {
+            $result = MainWP_Backup_Db_Dumper::instance()->dump_tables_tier2_slice( $config['tables'], $config['aside_prefix'], $cursor, $budget );
+        } catch ( \Throwable $e ) {
+            return array(
+                'done'       => false,
+                'cursor'     => $cursor,
+                'files'      => array(),
+                'error'      => $e->getMessage(),
+                'error_code' => MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED,
+            );
+        }
+
+        return array(
+            'done'       => ! empty( $result['done'] ),
+            'cursor'     => $result['cursor'],
+            'files'      => isset( $result['files'] ) ? $result['files'] : array(),
+            'error'      => null,
+            'error_code' => null,
+        );
+    }
+
+    /**
+     * Restore the live tables from the foreign-key rollback snapshot.
+     *
+     * First (once, idempotently) drops every table the failed replay could have
+     * touched under FOREIGN_KEY_CHECKS=0 - both the tables that existed and the
+     * ones the replay created from scratch - which frees the schema-global FK
+     * constraint names. Then replays the aside dump back through the tested
+     * replay engine. The replay config MUST set source and target to the live
+     * prefix: the aside files carry live table names, and the prefix rewriter
+     * drops any statement whose table does not match the source prefix, so the
+     * dump's origin prefix would silently discard every aside statement.
+     *
+     * @param array     $cursor   Rollback cursor { drop_done: bool, replay: array }.
+     * @param array     $config   { drop_tables: string[], aside_files: string[],
+     *                            target_prefix: string, restore_id: string,
+     *                            skip_stems: string[] }.
+     * @param float|int $deadline Absolute epoch the slice must yield by.
+     * @param bool      $unclean  True on a stall resume; restarts the in-flight file.
+     *
+     * @return array { done: bool, cursor: array, error: string|null, error_code: string|null }
+     */
+    public function rollback_aside_slice( $cursor, $config, $deadline, $unclean = false ) {
+        $cursor = is_array( $cursor ) ? $cursor : array();
+        if ( empty( $cursor['drop_done'] ) ) {
+            $conn = $this->connect();
+            if ( ! is_object( $conn ) ) {
+                return array(
+                    'done'       => false,
+                    'cursor'     => $cursor,
+                    'error'      => 'Could not open the dedicated restore connection.',
+                    'error_code' => MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED,
+                );
+            }
+            $this->execute_statement( $conn, 'SET FOREIGN_KEY_CHECKS=0' );
+            foreach ( (array) $config['drop_tables'] as $table ) {
+                $outcome = $this->execute_statement( $conn, 'DROP TABLE IF EXISTS `' . $table . '`' );
+                if ( is_string( $outcome ) ) {
+                    $this->close_connection( $conn );
+                    return array(
+                        'done'       => false,
+                        'cursor'     => $cursor,
+                        'error'      => 'Rollback could not drop the half-restored table ' . $table . ': ' . $outcome,
+                        'error_code' => MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED,
+                    );
+                }
+            }
+            $this->close_connection( $conn );
+            $cursor['drop_done'] = true;
+        }
+
+        $replay_config = array(
+            'restore_id'    => $config['restore_id'],
+            'source_prefix' => $config['target_prefix'],
+            'target_prefix' => $config['target_prefix'],
+            'files'         => $config['aside_files'],
+            'fk_path'       => true,
+            'skip_stems'    => isset( $config['skip_stems'] ) ? $config['skip_stems'] : array(),
+        );
+
+        $replay_cursor    = isset( $cursor['replay'] ) ? $cursor['replay'] : array();
+        $outcome          = $this->replay_slice( $replay_cursor, $replay_config, $deadline, $unclean );
+        $cursor['replay'] = $outcome['cursor'];
+
+        return array(
+            'done'       => $outcome['done'],
+            'cursor'     => $cursor,
+            'error'      => $outcome['error'],
+            'error_code' => null !== $outcome['error'] ? MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED : null,
+        );
     }
 
     /**

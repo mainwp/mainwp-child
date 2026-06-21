@@ -705,8 +705,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                     return $this->run_verifying( $task, $version, $sub_state, $backup_dir );
                 case MainWP_Child_Backup_Task::PHASE_RESTORING_FILES:
                     return $this->run_restoring_files( $task, $version, $sub_state, $deadline, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_SNAPSHOTTING_DB:
+                    return $this->run_snapshotting_db( $task, $version, $sub_state, $deadline, $backup_dir );
                 case MainWP_Child_Backup_Task::PHASE_REPLAYING_DB:
                     return $this->run_replaying_db( $task, $version, $sub_state, $deadline, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK:
+                    return $this->run_fk_rollback( $task, $version, $sub_state, $deadline, $backup_dir );
                 case MainWP_Child_Backup_Task::PHASE_SWAPPING_DB:
                     return $this->run_swapping_db( $task, $version, $sub_state, $backup_dir );
                 case MainWP_Child_Backup_Task::PHASE_REWRITING_URLS:
@@ -1231,7 +1235,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @param int    $deadline   Slice deadline.
      * @param string $backup_dir Scratch root.
      *
-     * @throws MainWP_Exception On extraction or replay failure.
+     * @throws MainWP_Exception On extraction or a swap-path replay failure.
+     * @throws \Throwable Re-thrown swap-path replay errors (the foreign-key path routes to rollback instead).
      *
      * @return array Slice result.
      */
@@ -1251,6 +1256,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 
         $db = $sub_state['db_replay'];
 
+        // The in-place foreign-key replay overwrites the live tables with no
+        // staging, so a copy of those tables is taken aside first. The replay
+        // only runs once the snapshot is complete; on failure it can be undone.
+        if ( ! empty( $db['fk_path'] ) && empty( $db['snapshot_done'] ) ) {
+            return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_SNAPSHOTTING_DB );
+        }
+
         // A resume after a stall restarts the in-flight dump file; the
         // file's own leading DROP keeps that idempotent.
         $unclean = (int) $task->resume_count > (int) $db['seen_resumes'];
@@ -1269,14 +1281,27 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             'skip_stems'    => array( 'mainwp_child_backup_task' ),
         );
 
-        $outcome      = $engine->replay_slice( $db['cursor'], $config, $deadline, $unclean );
-        $db['cursor'] = $outcome['cursor'];
+        try {
+            $outcome = $engine->replay_slice( $db['cursor'], $config, $deadline, $unclean );
+        } catch ( \Throwable $e ) {
+            // On the foreign-key path the live tables may already be half
+            // overwritten, so any replay failure (returned or thrown) routes
+            // to the rollback phase instead of a bare terminal failure.
+            if ( ! empty( $db['fk_path'] ) ) {
+                $code = ( $e instanceof MainWP_Exception ) ? $e->get_message_error_code() : MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY;
+                return $this->enter_fk_rollback( $task, $version, $sub_state, $backup_dir, $e->getMessage(), $code );
+            }
+            throw $e;
+        }
+        $db['cursor']           = $outcome['cursor'];
+        $sub_state['db_replay'] = $db;
 
         if ( null !== $outcome['error'] ) {
+            if ( ! empty( $db['fk_path'] ) ) {
+                return $this->enter_fk_rollback( $task, $version, $sub_state, $backup_dir, $outcome['error'], $outcome['error_code'] );
+            }
             throw new MainWP_Exception( esc_html( $outcome['error'] ), null, $outcome['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
         }
-
-        $sub_state['db_replay'] = $db;
 
         if ( ! $outcome['done'] ) {
             return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
@@ -1298,6 +1323,203 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         }
 
         return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Snapshot phase (foreign-key path only): copy the live tables the
+     * in-place replay will overwrite to aside dump files under the scratch
+     * dir, so a failed replay can be rolled back. Maintenance mode is entered
+     * here and carried through the replay that follows. Resumable: the dumper
+     * cursor and the file list are checkpointed across slices.
+     *
+     * @param object    $task       Task row.
+     * @param int       $version    Owned version.
+     * @param array     $sub_state  Cursor.
+     * @param float|int $deadline   Slice deadline.
+     * @param string    $backup_dir Scratch root.
+     *
+     * @throws MainWP_Exception When the aside snapshot cannot be written.
+     *
+     * @return array Slice result.
+     */
+    protected function run_snapshotting_db( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        $engine  = $this->restore_engine();
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        $db      = $sub_state['db_replay'];
+
+        // The live tables are read while the site is offline so the aside copy
+        // is consistent; the replay re-enters maintenance, which is idempotent.
+        $engine->begin_maintenance();
+
+        if ( ! isset( $sub_state['fk_snapshot'] ) ) {
+            $split                    = $engine->list_dump_live_tables( $db['files'], $db['source_prefix'], $this->target_prefix(), array( 'mainwp_child_backup_task' ) );
+            $sub_state['fk_snapshot'] = array(
+                'existing'  => $split['existing'],
+                'new_stems' => $split['new_stems'],
+                'cursor'    => array(),
+                'files'     => array(),
+            );
+        }
+        $fk = $sub_state['fk_snapshot'];
+
+        // Nothing live to copy (a fresh-install target): no aside is needed,
+        // the rollback would just drop whatever the replay creates.
+        if ( empty( $fk['existing'] ) ) {
+            $db['snapshot_done']    = true;
+            $db['aside_files']      = array();
+            $sub_state['db_replay'] = $db;
+            return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_REPLAYING_DB );
+        }
+
+        $aside_dir = $scratch . 'aside/';
+        if ( ! is_dir( $aside_dir ) ) {
+            wp_mkdir_p( $aside_dir );
+        }
+
+        $snap                     = $engine->snapshot_tables_slice(
+            $fk['cursor'],
+            array(
+                'tables'       => $fk['existing'],
+                'aside_prefix' => $aside_dir . 'aside',
+            ),
+            $deadline
+        );
+        $fk['cursor']             = $snap['cursor'];
+        $fk['files']              = $snap['files'];
+        $sub_state['fk_snapshot'] = $fk;
+
+        if ( null !== $snap['error'] ) {
+            // The snapshot runs before any live table changes, so a failure
+            // here leaves the database untouched.
+            throw new MainWP_Exception( esc_html( $snap['error'] ), null, $snap['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+        }
+
+        if ( ! $snap['done'] ) {
+            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+        }
+
+        $db['snapshot_done']    = true;
+        $db['aside_files']      = $fk['files'];
+        $sub_state['db_replay'] = $db;
+        return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_REPLAYING_DB );
+    }
+
+    /**
+     * Enter the rollback phase, carrying the original replay error so the
+     * terminal failure reports what went wrong.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param string $backup_dir Scratch root.
+     * @param string $error      Original replay error message.
+     * @param string $error_code Original replay error code.
+     *
+     * @return array Slice result.
+     */
+    protected function enter_fk_rollback( $task, $version, $sub_state, $backup_dir, $error, $error_code ) {
+        $sub_state['fk_rollback'] = array(
+            'original_error'      => (string) $error,
+            'original_error_code' => (string) $error_code,
+            'cursor'              => array(),
+            'seen_resumes'        => (int) $task->resume_count,
+        );
+        return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK );
+    }
+
+    /**
+     * Rollback phase (foreign-key path only): drop the half-restored live
+     * tables and replay the aside snapshot back, returning the database to its
+     * pre-restore state. Resumable. On success the task fails with a rolled-back
+     * code (the original restore still did not apply); if the rollback itself
+     * cannot finish, maintenance mode is deliberately kept on and the task
+     * fails with a rollback-failed code so the site is not served broken.
+     *
+     * @param object    $task       Task row.
+     * @param int       $version    Owned version.
+     * @param array     $sub_state  Cursor.
+     * @param float|int $deadline   Slice deadline.
+     * @param string    $backup_dir Scratch root.
+     *
+     * @return array Slice result.
+     */
+    protected function run_fk_rollback( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        $engine        = $this->restore_engine();
+        $target_prefix = $this->target_prefix();
+
+        // Hold the site offline through the rollback. Entry from a replay
+        // failure is already in maintenance; entry from a post-replay verify
+        // failure is not, because the successful replay had exited it. The
+        // call is idempotent and refreshes the flag for a long rollback.
+        $engine->begin_maintenance();
+
+        $fkr = $sub_state['fk_rollback'];
+        $fk  = isset( $sub_state['fk_snapshot'] ) ? $sub_state['fk_snapshot'] : array(
+            'existing'  => array(),
+            'new_stems' => array(),
+            'files'     => array(),
+        );
+
+        $drop_tables = isset( $fk['existing'] ) ? $fk['existing'] : array();
+        foreach ( (array) ( isset( $fk['new_stems'] ) ? $fk['new_stems'] : array() ) as $stem ) {
+            $drop_tables[] = $target_prefix . $stem;
+        }
+        $aside_files = isset( $sub_state['db_replay']['aside_files'] ) ? $sub_state['db_replay']['aside_files'] : ( isset( $fk['files'] ) ? $fk['files'] : array() );
+
+        $unclean = (int) $task->resume_count > (int) $fkr['seen_resumes'];
+        if ( $unclean ) {
+            $fkr['seen_resumes'] = (int) $task->resume_count;
+        }
+
+        $rb                       = $engine->rollback_aside_slice(
+            isset( $fkr['cursor'] ) ? $fkr['cursor'] : array(),
+            array(
+                'drop_tables'   => $drop_tables,
+                'aside_files'   => $aside_files,
+                'target_prefix' => $target_prefix,
+                'restore_id'    => $sub_state['params']['restore_id'],
+                'skip_stems'    => array( 'mainwp_child_backup_task' ),
+            ),
+            $deadline,
+            $unclean
+        );
+        $fkr['cursor']            = $rb['cursor'];
+        $sub_state['fk_rollback'] = $fkr;
+
+        if ( null !== $rb['error'] ) {
+            // Recovery could not finish: the database may be inconsistent, so
+            // the site is left in maintenance mode on purpose.
+            return $this->fail_terminal( $task, $version, $sub_state, $backup_dir, $rb['error'], MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED );
+        }
+
+        if ( ! $rb['done'] ) {
+            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+        }
+
+        // The live database is back to its pre-restore state.
+        $engine->exit_maintenance();
+        $this->remove_scratch_dir( $task, $backup_dir );
+        return $this->fail_terminal( $task, $version, $sub_state, $backup_dir, $fkr['original_error'], MainWP_Backup_Error::ERR_RESTORE_ROLLED_BACK );
+    }
+
+    /**
+     * Checkpoint the task terminal-failed with an explicit error and code.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param string $backup_dir Scratch root.
+     * @param string $message    Error message.
+     * @param string $code       Error code.
+     *
+     * @return array Slice result.
+     */
+    protected function fail_terminal( $task, $version, $sub_state, $backup_dir, $message, $code ) {
+        $sub_state['error'] = array(
+            'message' => (string) $message,
+            'code'    => (string) $code,
+        );
+        return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_FAILED );
     }
 
     /**
@@ -1413,12 +1635,26 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
         }
 
+        // On the foreign-key path the live tables were overwritten in place,
+        // so a verification failure here is a wrong restore that must be undone
+        // from the aside snapshot (still on disk until this phase passes), not
+        // a bare failure that would discard it. The swap path keeps its old
+        // tables aside, so it fails terminally as before.
+        $is_fk = ! empty( $sub_state['db_replay']['fk_path'] );
+
         $counts = $engine->verify_row_counts( $expected, $target_prefix );
         if ( ! $counts['ok'] ) {
-            throw new MainWP_Exception( esc_html( 'Post-restore row counts do not match the replayed data. The previous tables were kept for rollback. Mismatches: ' . wp_json_encode( $counts['mismatches'] ) ), null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+            $detail = 'Post-restore row counts do not match the replayed data. Mismatches: ' . wp_json_encode( $counts['mismatches'] );
+            if ( $is_fk ) {
+                return $this->enter_fk_rollback( $task, $version, $sub_state, $backup_dir, $detail, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+            }
+            throw new MainWP_Exception( esc_html( $detail . ' The previous tables were kept for rollback.' ), null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
         }
 
         if ( ! $this->sentinel_round_trip( $target_prefix, $sub_state['params']['restore_id'] ) ) {
+            if ( $is_fk ) {
+                return $this->enter_fk_rollback( $task, $version, $sub_state, $backup_dir, 'The restored options table failed a write/read round trip.', MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+            }
             throw new MainWP_Exception( 'The restored options table failed a write/read round trip. The previous tables were kept for rollback.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
         }
 

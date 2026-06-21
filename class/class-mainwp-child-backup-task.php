@@ -40,10 +40,16 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     const PHASE_RECEIVING_ARTIFACTS = 'receiving';
     const PHASE_VERIFYING_ARTIFACTS = 'verifying';
     const PHASE_RESTORING_FILES     = 'restoring_files';
+    const PHASE_SNAPSHOTTING_DB     = 'snapshot_db';
     const PHASE_REPLAYING_DB        = 'replaying_db';
     const PHASE_SWAPPING_DB         = 'swapping_db';
+    const PHASE_FK_ROLLBACK         = 'fk_rollback';
     const PHASE_REWRITING_URLS      = 'rewriting_urls';
     const PHASE_POST_RESTORE_VERIFY = 'verify_site';
+
+    // The two phases above (snapshot_db, fk_rollback) are reached only by an
+    // explicit jump_phase() on the foreign-key restore path, never by the
+    // linear next_phase() order, so the swap path never enters them.
 
     /**
      * Default resume cap - a stalled task is re-entered at most this many

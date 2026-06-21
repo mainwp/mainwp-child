@@ -100,6 +100,13 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	}
 
 	/**
+	 * Whether the scripted verification reports matching row counts.
+	 *
+	 * @var bool
+	 */
+	public $verify_ok = true;
+
+	/**
 	 * Scripted verification.
 	 *
 	 * @param array  $expected      Expected counts.
@@ -110,8 +117,8 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	public function verify_row_counts( $expected, $target_prefix ) {
 		$this->calls[] = 'verify_row_counts';
 		return array(
-			'ok'         => true,
-			'mismatches' => array(),
+			'ok'         => $this->verify_ok,
+			'mismatches' => $this->verify_ok ? array() : array( 'items' => array( 'expected' => 2, 'actual' => 1 ) ),
 		);
 	}
 
@@ -155,6 +162,117 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	public function probe_swap_grants() {
 		$this->calls[] = 'probe_swap_grants';
 		return $this->grants_ok;
+	}
+
+	/**
+	 * Error the aside snapshot should report, or null.
+	 *
+	 * @var string|null
+	 */
+	public $snapshot_error = null;
+
+	/**
+	 * Error the rollback should report, or null.
+	 *
+	 * @var string|null
+	 */
+	public $rollback_error = null;
+
+	/**
+	 * Live tables the dump-table split reports as existing.
+	 *
+	 * @var string[]
+	 */
+	public $fk_existing = array( 'rt_items' );
+
+	/**
+	 * Stems the dump-table split reports as new (absent live).
+	 *
+	 * @var string[]
+	 */
+	public $fk_new_stems = array();
+
+	/**
+	 * No-op maintenance entry: the real one writes a .maintenance flag into
+	 * the WordPress root, which would break the next test's bootstrap.
+	 */
+	public function begin_maintenance() {
+		$this->calls[] = 'begin_maintenance';
+	}
+
+	/**
+	 * Scripted dump-table split.
+	 *
+	 * @param string[] $files         Dump files.
+	 * @param string   $source_prefix Source prefix.
+	 * @param string   $target_prefix Target prefix.
+	 * @param string[] $skip_stems    Skip list.
+	 *
+	 * @return array Existing/new split.
+	 */
+	public function list_dump_live_tables( $files, $source_prefix, $target_prefix, $skip_stems = array() ) {
+		$this->calls[] = 'list_dump_live_tables';
+		return array(
+			'existing'  => $this->fk_existing,
+			'new_stems' => $this->fk_new_stems,
+		);
+	}
+
+	/**
+	 * Scripted aside snapshot.
+	 *
+	 * @param array     $cursor   Cursor.
+	 * @param array     $config   Config.
+	 * @param float|int $deadline Deadline.
+	 *
+	 * @return array Slice result.
+	 */
+	public function snapshot_tables_slice( $cursor, $config, $deadline ) {
+		$this->calls[] = 'snapshot_tables_slice';
+		if ( null !== $this->snapshot_error ) {
+			return array(
+				'done'       => false,
+				'cursor'     => array(),
+				'files'      => array(),
+				'error'      => $this->snapshot_error,
+				'error_code' => MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED,
+			);
+		}
+		return array(
+			'done'       => true,
+			'cursor'     => array(),
+			'files'      => array( '/tmp/aside-rt_items.sql.php' ),
+			'error'      => null,
+			'error_code' => null,
+		);
+	}
+
+	/**
+	 * Scripted rollback.
+	 *
+	 * @param array     $cursor   Cursor.
+	 * @param array     $config   Config.
+	 * @param float|int $deadline Deadline.
+	 * @param bool      $unclean  Unclean resume flag.
+	 *
+	 * @return array Slice result.
+	 */
+	public function rollback_aside_slice( $cursor, $config, $deadline, $unclean = false ) {
+		$this->calls[] = 'rollback_aside_slice';
+		if ( null !== $this->rollback_error ) {
+			return array(
+				'done'       => false,
+				'cursor'     => array(),
+				'error'      => $this->rollback_error,
+				'error_code' => MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED,
+			);
+		}
+		return array(
+			'done'       => true,
+			'cursor'     => array(),
+			'error'      => null,
+			'error_code' => null,
+		);
 	}
 }
 
@@ -774,6 +892,126 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		foreach ( $calls as $call ) {
 			$this->assertStringNotContainsString( 'swap_tables', $call );
 		}
+	}
+
+	/**
+	 * The foreign-key path copies the live tables aside before the in-place
+	 * replay touches them: the snapshot runs before replay_slice.
+	 */
+	public function test_fk_path_snapshots_before_replay() {
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+
+		$calls         = $this->runner->fake_engine->calls;
+		$snapshot_at   = array_search( 'snapshot_tables_slice', $calls, true );
+		$replay_at     = array_search( 'replay_slice:fk', $calls, true );
+		$this->assertNotFalse( $snapshot_at, 'The snapshot must run on the foreign-key path.' );
+		$this->assertNotFalse( $replay_at );
+		$this->assertLessThan( $replay_at, $snapshot_at, 'The aside snapshot must precede the in-place replay.' );
+	}
+
+	/**
+	 * A foreign-key replay failure rolls the live tables back to their
+	 * pre-restore state and reports the rolled-back code - not a bare
+	 * replay failure that would leave the database half written.
+	 */
+	public function test_fk_replay_failure_rolls_back_and_reports_rolled_back() {
+		$this->runner->fake_engine->replay_error = 'Replay failed on table items: forced';
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+
+		$payload = $this->spine->status_payload( $task );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_ROLLED_BACK, $payload['error_code'] );
+
+		$calls = $this->runner->fake_engine->calls;
+		$this->assertContains( 'rollback_aside_slice', $calls );
+		$this->assertContains( 'exit_maintenance', $calls );
+		$this->assertDirectoryDoesNotExist( $this->dir . '/restore-' . $task_id );
+	}
+
+	/**
+	 * When the rollback itself cannot finish, the task reports the
+	 * rollback-failed code and maintenance mode is deliberately left on so
+	 * the possibly-inconsistent site is not served.
+	 */
+	public function test_fk_rollback_failure_reports_rollback_failed_and_keeps_maintenance() {
+		$this->runner->fake_engine->replay_error   = 'Replay failed on table items: forced';
+		$this->runner->fake_engine->rollback_error = 'disk full during rollback';
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+
+		$payload = $this->spine->status_payload( $task );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED, $payload['error_code'] );
+
+		$calls = $this->runner->fake_engine->calls;
+		$this->assertContains( 'rollback_aside_slice', $calls );
+		// Maintenance is held: no exit_maintenance after the failed rollback.
+		$this->assertNotContains( 'exit_maintenance', $calls );
+	}
+
+	/**
+	 * A snapshot failure stops the restore before any live table changes:
+	 * the replay never runs and the snapshot-failed code is reported.
+	 */
+	public function test_fk_snapshot_failure_fails_before_any_replay() {
+		$this->runner->fake_engine->snapshot_error = 'could not write aside dump';
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+
+		$payload = $this->spine->status_payload( $task );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED, $payload['error_code'] );
+
+		$this->assertNotContains( 'replay_slice:fk', $this->runner->fake_engine->calls );
+	}
+
+	/**
+	 * On the foreign-key path a post-replay verification failure rolls the
+	 * live tables back from the aside snapshot instead of failing terminally
+	 * and discarding it (the in-place replay already overwrote the tables).
+	 */
+	public function test_fk_verify_failure_rolls_back() {
+		$this->runner->fake_engine->verify_ok = false;
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+
+		$payload = $this->spine->status_payload( $task );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_ROLLED_BACK, $payload['error_code'] );
+
+		$calls = $this->runner->fake_engine->calls;
+		$this->assertContains( 'replay_slice:fk', $calls );
+		$this->assertContains( 'verify_row_counts', $calls );
+		$this->assertContains( 'rollback_aside_slice', $calls );
+	}
+
+	/**
+	 * The swap path keeps the old tables aside, so a verification failure
+	 * there fails terminally as before, never entering the rollback phase.
+	 */
+	public function test_swap_path_verify_failure_does_not_roll_back() {
+		$this->runner->fake_engine->verify_ok = false;
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( false ) ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+
+		$payload = $this->spine->status_payload( $task );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $payload['error_code'] );
+		$this->assertNotContains( 'rollback_aside_slice', $this->runner->fake_engine->calls );
 	}
 
 	/**
