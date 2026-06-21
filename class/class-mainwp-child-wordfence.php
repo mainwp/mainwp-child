@@ -2988,7 +2988,7 @@ SQL
     public static function add_cache_exclusion() { //phpcs:ignore -- NOSONAR - ignore complex.
         $ex = \wfConfig::get( 'cacheExclusions', false );
         if ( $ex ) {
-            $ex = unserialize( $ex ); // phpcs:ignore -- safe internal value, third party credit.
+            $ex = unserialize( $ex, array( 'allowed_classes' => false ) ); // phpcs:ignore -- Wordfence wfConfig cacheExclusions, restricted unserialize.
         } else {
             $ex = array();
         }
@@ -3029,7 +3029,7 @@ SQL
         if ( ! $ex ) {
             return array( 'ex' => false );
         }
-        $ex = unserialize( $ex ); // phpcs:ignore -- safe internal value, third party.
+        $ex = unserialize( $ex, array( 'allowed_classes' => false ) ); // phpcs:ignore -- Wordfence wfConfig cacheExclusions, restricted unserialize.
         return array(
             'ok' => 1,
             'ex' => $ex,
@@ -3051,7 +3051,7 @@ SQL
         if ( ! $ex ) {
             return array( 'ok' => 1 );
         }
-        $ex              = unserialize( $ex ); // phpcs:ignore -- safe internal value, third party.
+        $ex              = unserialize( $ex, array( 'allowed_classes' => false ) ); // phpcs:ignore -- Wordfence wfConfig cacheExclusions, restricted unserialize.
         $rewriteHtaccess = false;
         $removed         = false;
         $count_ex        = count( $ex );

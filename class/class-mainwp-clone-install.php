@@ -803,7 +803,7 @@ class MainWP_Clone_Install {
 
         // some unseriliased data cannot be re-serialised eg. SimpleXMLElements.
         try {
-            $unserialized = ( is_string( $data ) && is_serialized( $data ) ) ? unserialize( $data ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+            $unserialized = ( is_string( $data ) && is_serialized( $data ) ) ? unserialize( $data, array( 'allowed_classes' => false ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- restricted unserialize of clone-source row data, no classes instantiated.
             if ( is_string( $data ) && is_serialized( $data ) && ! is_serialized_string( $data ) && false !== $unserialized ) {
                 $data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
             } elseif ( is_array( $data ) ) {
@@ -826,7 +826,7 @@ class MainWP_Clone_Install {
                 $data = $_tmp;
                 unset( $_tmp );
             } elseif ( is_serialized_string( $data ) && is_serialized( $data ) ) {
-                $data = unserialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+                $data = unserialize( $data, array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- restricted unserialize of a plain serialized string.
                 if ( false !== $data ) {
                     $data = str_replace( $from, $to, $data );
                     $data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
