@@ -549,21 +549,29 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         // here in PHP and committed with a deadline + phase guarded write:
         // MySQL time still owns the deadline, the version bump makes a
         // still-live runner back off, and the rollback gets a fresh deadline.
+        //
+        // The reroute waits for the lease to be free (the same gate the runner
+        // acquires through), so the rollback that follows can never overlap a
+        // replay still writing the live tables, and a replay that has just
+        // finished - still holding the lease through its phase transition -
+        // is never rerouted into rolling back a restore that already applied.
+        // A mid-replay fk restore is therefore never forced to a bare failure
+        // that would skip the rollback: it reroutes when the lease frees or a
+        // later poll retries.
         if ( self::PHASE_REPLAYING_DB === $task->phase && $this->is_fk_replay_in_progress( $task ) ) {
             $rerouted = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- conditional reroute write on the spine table.
                 $wpdb->prepare(
                     'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
                     ' SET phase = %s, max_wall_clock_at = DATE_ADD(NOW(), INTERVAL %d SECOND), version = version + 1
-                     WHERE task_id = %s AND phase = %s AND max_wall_clock_at < NOW()',
+                     WHERE task_id = %s AND phase = %s AND max_wall_clock_at < NOW()
+                       AND ( lease_owner IS NULL OR lease_expires_at < NOW() )',
                     self::PHASE_FK_ROLLBACK,
                     self::FK_ROLLBACK_DEADLINE_SECONDS,
                     $task_id,
                     self::PHASE_REPLAYING_DB
                 )
             );
-            if ( 1 === $rerouted ) {
-                return true;
-            }
+            return 1 === $rerouted;
         }
 
         // Every other timed-out task fails. A rollback that itself timed out

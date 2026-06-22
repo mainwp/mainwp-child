@@ -1189,6 +1189,38 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The deadline reroute waits for the lease: while a runner still holds it
+	 * (a replay may still be writing the live tables), the task is neither
+	 * rerouted nor failed. A later poll, once the lease is free, reroutes.
+	 */
+	public function test_wall_clock_does_not_reroute_while_lease_held() {
+		$this->runner->fake_engine->replay_yield_once = true;
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+
+		$task  = $this->spine->get_task( $task_id );
+		$guard = 0;
+		while ( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB !== $task->phase && $guard < 20 ) {
+			$task = $this->runner->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
+			++$guard;
+		}
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $task->phase );
+
+		// A live runner holds the lease, modelling a replay still in flight.
+		$held = $this->spine->acquire_lease( $task_id, 'live-runner', (int) $this->spine->get_task( $task_id )->version, 180 );
+		$this->assertTrue( $held );
+
+		$this->force_deadline_past( $task_id );
+		$this->assertFalse( $this->spine->enforce_wall_clock_deadline( $task_id ), 'The reroute must wait while the lease is held.' );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $this->spine->get_task( $task_id )->phase, 'A held-lease task is neither rerouted nor failed.' );
+
+		// Once the lease frees, the next poll reroutes to the rollback.
+		$this->spine->release_lease( $task_id, 'live-runner', (int) $this->spine->get_task( $task_id )->version );
+		$this->assertTrue( $this->spine->enforce_wall_clock_deadline( $task_id ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK, $this->spine->get_task( $task_id )->phase );
+	}
+
+	/**
 	 * A rollback that itself runs past the deadline fails terminally with the
 	 * rollback-failed code and is not rerouted again, so it cannot loop. The
 	 * site stays in maintenance because nothing exits it.

@@ -1580,7 +1580,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 'drop_tables'   => $drop_tables,
                 'aside_files'   => $aside_files,
                 'target_prefix' => $target_prefix,
-                'restore_id'    => $sub_state['params']['restore_id'],
+                'restore_id'    => isset( $sub_state['params']['restore_id'] ) ? (string) $sub_state['params']['restore_id'] : '',
                 'skip_stems'    => array( 'mainwp_child_backup_task' ),
             ),
             $deadline,
