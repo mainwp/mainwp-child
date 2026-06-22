@@ -64,6 +64,12 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     const SLICE_BUDGET_SECONDS = 90;
 
     /**
+     * Fresh wall-clock budget granted to a foreign-key rollback when a replay
+     * is rerouted to it at its deadline, so the recovery has time to finish.
+     */
+    const FK_ROLLBACK_DEADLINE_SECONDS = 3600;
+
+    /**
      * Largest sub_state JSON stored inline in the column, in bytes. Bigger
      * cursors spill to a sidecar file so writes stay far below
      * max_allowed_packet.
@@ -532,15 +538,48 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     public function enforce_wall_clock_deadline( $task_id ) {
         global $wpdb;
 
-        // Record why the task failed in the same guarded write so the Dashboard
-        // poll sees a timeout reason and code, not a bare "failed". The error is
-        // small and inline; any oversized progress sidecar is left behind as
-        // harmless scratch the prune step removes.
+        $task = $this->get_task( $task_id );
+        if ( null === $task || self::is_terminal_phase( $task->phase ) ) {
+            return false;
+        }
+
+        // A foreign-key restore that times out mid-replay is rerouted to roll
+        // the half-applied database back instead of failing outright. The
+        // foreign-key condition lives in the JSON sub_state, so it is resolved
+        // here in PHP and committed with a deadline + phase guarded write:
+        // MySQL time still owns the deadline, the version bump makes a
+        // still-live runner back off, and the rollback gets a fresh deadline.
+        if ( self::PHASE_REPLAYING_DB === $task->phase && $this->is_fk_replay_in_progress( $task ) ) {
+            $rerouted = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- conditional reroute write on the spine table.
+                $wpdb->prepare(
+                    'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
+                    ' SET phase = %s, max_wall_clock_at = DATE_ADD(NOW(), INTERVAL %d SECOND), version = version + 1
+                     WHERE task_id = %s AND phase = %s AND max_wall_clock_at < NOW()',
+                    self::PHASE_FK_ROLLBACK,
+                    self::FK_ROLLBACK_DEADLINE_SECONDS,
+                    $task_id,
+                    self::PHASE_REPLAYING_DB
+                )
+            );
+            if ( 1 === $rerouted ) {
+                return true;
+            }
+        }
+
+        // Every other timed-out task fails. A rollback that itself timed out
+        // keeps maintenance on (nothing exits it) and reports the
+        // rollback-failed code so the cause is clear; everything else reports
+        // the wall-clock code. The error is recorded in the same guarded write
+        // so the Dashboard poll sees a reason, not a bare "failed".
+        $code = ( self::PHASE_FK_ROLLBACK === $task->phase )
+            ? MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED
+            : MainWP_Backup_Error::ERR_WALL_CLOCK;
+
         $sub_state = wp_json_encode(
             array(
                 'error' => array(
-                    'message' => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_WALL_CLOCK ),
-                    'code'    => MainWP_Backup_Error::ERR_WALL_CLOCK,
+                    'message' => MainWP_Backup_Error::message( $code ),
+                    'code'    => $code,
                 ),
             )
         );
@@ -555,6 +594,26 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             )
         );
         return 1 === $result;
+    }
+
+    /**
+     * Whether a task is a foreign-key restore that has taken its aside snapshot
+     * and is now in the in-place replay, where a timeout must roll the
+     * half-applied database back rather than fail outright.
+     *
+     * @param object $task Task row.
+     *
+     * @return bool
+     */
+    protected function is_fk_replay_in_progress( $task ) {
+        $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
+        $sub_state = $this->read_sub_state( $task, $dirs[0] );
+        if ( ! is_array( $sub_state ) || empty( $sub_state['db_replay'] ) || ! is_array( $sub_state['db_replay'] ) ) {
+            return false;
+        }
+
+        $db = $sub_state['db_replay'];
+        return ! empty( $db['fk_path'] ) && ! empty( $db['snapshot_done'] );
     }
 
     /**

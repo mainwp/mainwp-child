@@ -26,6 +26,35 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	public $replay_error = null;
 
 	/**
+	 * Whether replay_slice should throw instead of returning an error.
+	 *
+	 * @var bool
+	 */
+	public $replay_throw = false;
+
+	/**
+	 * Whether exit_maintenance should throw, to model a post-replay failure.
+	 *
+	 * @var bool
+	 */
+	public $exit_maintenance_throw = false;
+
+	/**
+	 * Whether the first replay slice yields unfinished, so a task can be
+	 * paused mid-replay in the replaying_db phase.
+	 *
+	 * @var bool
+	 */
+	public $replay_yield_once = false;
+
+	/**
+	 * Replay slice counter backing replay_yield_once.
+	 *
+	 * @var int
+	 */
+	public $replay_calls = 0;
+
+	/**
 	 * Tables the replay reports.
 	 *
 	 * @var array
@@ -64,12 +93,23 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	public function replay_slice( $cursor, $config, $deadline, $unclean = false ) {
 		$this->calls[]            = 'replay_slice' . ( $unclean ? ':unclean' : '' ) . ( ! empty( $config['fk_path'] ) ? ':fk' : '' );
 		$this->last_replay_config = $config;
+		if ( $this->replay_throw ) {
+			throw new MainWP_Exception( 'replay exploded', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- test fixture message.
+		}
 		if ( null !== $this->replay_error ) {
 			return array(
 				'done'       => false,
 				'cursor'     => array( 'tables' => array() ),
 				'error'      => $this->replay_error,
 				'error_code' => MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY,
+			);
+		}
+		if ( $this->replay_yield_once && 0 === $this->replay_calls++ ) {
+			return array(
+				'done'       => false,
+				'cursor'     => array( 'tables' => array() ),
+				'error'      => null,
+				'error_code' => null,
 			);
 		}
 		return array(
@@ -145,6 +185,9 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	 */
 	public function exit_maintenance() {
 		$this->calls[] = 'exit_maintenance';
+		if ( $this->exit_maintenance_throw ) {
+			throw new \RuntimeException( 'exit maintenance failed' );
+		}
 	}
 
 	/**
@@ -1063,6 +1106,138 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			$this->spine->get_task( $nf_id )->max_wall_clock_at,
 			'A non-foreign-key restore must keep its original budget.'
 		);
+	}
+
+	/**
+	 * A foreign-key replay that throws (not just returns an error) still routes
+	 * to the rollback, so a half-applied database is recovered.
+	 */
+	public function test_fk_thrown_replay_failure_rolls_back() {
+		$this->runner->fake_engine->replay_throw = true;
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_ROLLED_BACK, $this->spine->status_payload( $task )['error_code'] );
+		$this->assertContains( 'rollback_aside_slice', $this->runner->fake_engine->calls );
+	}
+
+	/**
+	 * A non-foreign-key replay that throws fails terminally as before - there
+	 * is nothing to roll back because the swap path never touched live tables.
+	 */
+	public function test_non_fk_thrown_replay_failure_fails_without_rollback() {
+		$this->runner->fake_engine->replay_throw = true;
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( false ) ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertNotContains( 'rollback_aside_slice', $this->runner->fake_engine->calls );
+	}
+
+	/**
+	 * A failure after the replay has already applied (here, exiting maintenance
+	 * throws) must not roll back: the restore succeeded, so undoing it would
+	 * lose the restored data. It fails terminally instead.
+	 */
+	public function test_fk_post_replay_failure_does_not_roll_back() {
+		$this->runner->fake_engine->exit_maintenance_throw = true;
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertContains( 'replay_slice:fk', $this->runner->fake_engine->calls );
+		$this->assertNotContains( 'rollback_aside_slice', $this->runner->fake_engine->calls );
+	}
+
+	/**
+	 * A foreign-key restore that runs past its wall-clock deadline mid-replay is
+	 * rerouted to roll the half-applied database back rather than failing
+	 * outright, and the deadline is pushed out so the rollback has time. The
+	 * rollback then runs even though no enter_fk_rollback set it up.
+	 */
+	public function test_wall_clock_reroutes_fk_replay_to_rollback() {
+		$this->runner->fake_engine->replay_yield_once = true;
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+
+		// Step until the first replay slice has yielded: snapshot done, paused
+		// in the replaying_db phase.
+		$task  = $this->spine->get_task( $task_id );
+		$guard = 0;
+		while ( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB !== $task->phase && $guard < 20 ) {
+			$task = $this->runner->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
+			++$guard;
+		}
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $task->phase );
+
+		$this->force_deadline_past( $task_id );
+		$expired = strtotime( $this->spine->get_task( $task_id )->max_wall_clock_at );
+		$this->assertTrue( $this->spine->enforce_wall_clock_deadline( $task_id ) );
+
+		$task = $this->spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK, $task->phase, 'A timed-out fk replay must reroute to rollback.' );
+		$this->assertGreaterThan( $expired, strtotime( $task->max_wall_clock_at ), 'The rollback must get a fresh deadline past the one that expired.' );
+
+		$task = $this->drive( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_ROLLED_BACK, $this->spine->status_payload( $task )['error_code'] );
+		$this->assertContains( 'rollback_aside_slice', $this->runner->fake_engine->calls );
+	}
+
+	/**
+	 * A rollback that itself runs past the deadline fails terminally with the
+	 * rollback-failed code and is not rerouted again, so it cannot loop. The
+	 * site stays in maintenance because nothing exits it.
+	 */
+	public function test_wall_clock_during_rollback_reports_rollback_failed() {
+		$task_id = $this->spine->create_task( 'restore_db', array(), 20, 3600 );
+		$version = (int) $this->spine->get_task( $task_id )->version;
+		$this->spine->checkpoint( $task_id, $version, array( 'phase' => MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK ) );
+
+		$this->force_deadline_past( $task_id );
+		$this->assertTrue( $this->spine->enforce_wall_clock_deadline( $task_id ) );
+
+		$task = $this->spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED, $this->spine->status_payload( $task )['error_code'] );
+	}
+
+	/**
+	 * A non-foreign-key restore that times out mid-replay still fails outright:
+	 * the swap path keeps the old tables aside, so there is nothing to roll back.
+	 */
+	public function test_wall_clock_non_fk_replay_still_fails() {
+		$task_id = $this->spine->create_task( 'restore_db', array(), 20, 3600 );
+		$version = (int) $this->spine->get_task( $task_id )->version;
+		$this->spine->checkpoint(
+			$task_id,
+			$version,
+			array(
+				'phase'     => MainWP_Child_Backup_Task::PHASE_REPLAYING_DB,
+				'sub_state' => array( 'db_replay' => array( 'fk_path' => false, 'snapshot_done' => false ) ),
+			)
+		);
+
+		$this->force_deadline_past( $task_id );
+		$this->assertTrue( $this->spine->enforce_wall_clock_deadline( $task_id ) );
+
+		$task = $this->spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_WALL_CLOCK, $this->spine->status_payload( $task )['error_code'] );
+	}
+
+	/**
+	 * Force a task's wall-clock deadline into the past.
+	 *
+	 * @param string $task_id Task id.
+	 */
+	protected function force_deadline_past( $task_id ) {
+		global $wpdb;
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET max_wall_clock_at = DATE_SUB(NOW(), INTERVAL 60 SECOND) WHERE task_id = %s', $task_id ) ); // phpcs:ignore WordPress.DB -- test fixture.
 	}
 
 	/**

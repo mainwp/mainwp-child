@@ -1548,7 +1548,15 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         // call is idempotent and refreshes the flag for a long rollback.
         $engine->begin_maintenance();
 
-        $fkr = $sub_state['fk_rollback'];
+        // Entry from enter_fk_rollback carries the original replay error. Entry
+        // from a deadline-forced reroute does not, so the bookkeeping is
+        // initialised cold with the wall-clock reason.
+        $fkr = isset( $sub_state['fk_rollback'] ) ? $sub_state['fk_rollback'] : array(
+            'original_error'      => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_WALL_CLOCK ),
+            'original_error_code' => MainWP_Backup_Error::ERR_WALL_CLOCK,
+            'cursor'              => array(),
+            'seen_resumes'        => (int) $task->resume_count,
+        );
         $fk  = isset( $sub_state['fk_snapshot'] ) ? $sub_state['fk_snapshot'] : array(
             'existing'  => array(),
             'new_stems' => array(),
