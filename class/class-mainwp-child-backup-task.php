@@ -558,6 +558,42 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     }
 
     /**
+     * Push a running task's wall-clock deadline out by a fixed amount.
+     *
+     * The foreign-key restore path adds an aside snapshot and a possible
+     * rollback replay on top of the in-place replay, so it needs more
+     * wall-clock than the replay alone. The extension is monotonic and rebased
+     * on NOW() when the old deadline has already passed, so a deadline-forced
+     * reroute to rollback still gets real time to finish. It touches only the
+     * deadline column - not phase, version, or sub_state - so it does not
+     * disturb the CAS state machine and needs no version guard.
+     *
+     * @param string $task_id       Task id.
+     * @param int    $extra_seconds Seconds to add to the deadline.
+     *
+     * @return bool True when a row was updated.
+     */
+    public function extend_wall_clock( $task_id, $extra_seconds ) {
+        global $wpdb;
+
+        $extra = (int) $extra_seconds;
+        if ( $extra <= 0 ) {
+            return false;
+        }
+
+        $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- deadline-only write on the spine table.
+            $wpdb->prepare(
+                'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
+                " SET max_wall_clock_at = DATE_ADD(GREATEST(max_wall_clock_at, NOW()), INTERVAL %d SECOND)
+                 WHERE task_id = %s AND phase NOT IN ('completed','failed')",
+                $extra,
+                $task_id
+            )
+        );
+        return 1 === $result;
+    }
+
+    /**
      * The status array a Dashboard poll or run call consumes.
      *
      * On completion the artifact file name and size surface top-level; on

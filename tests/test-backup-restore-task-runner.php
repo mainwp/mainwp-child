@@ -414,6 +414,52 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 	 */
 	protected function flush_caches() {
 	}
+
+	/**
+	 * Scripted free disk space, or null to defer to the real probe.
+	 *
+	 * @var float|null
+	 */
+	public $fake_free_space = null;
+
+	/**
+	 * Scripted free space, so the snapshot disk preflight can be driven
+	 * without a real low-disk host.
+	 *
+	 * @param string $dir Directory.
+	 *
+	 * @return float|null
+	 */
+	protected function free_disk_space( $dir ) {
+		if ( null !== $this->fake_free_space ) {
+			return $this->fake_free_space;
+		}
+		return parent::free_disk_space( $dir );
+	}
+
+	/**
+	 * Scripted aside-copy size estimate, or null to query information_schema.
+	 * The real query is unreliable inside the WP test transaction (a freshly
+	 * created table has no settled information_schema row), so the disk
+	 * preflight is driven through this seam.
+	 *
+	 * @var int|null
+	 */
+	public $fake_snapshot_bytes = null;
+
+	/**
+	 * Scripted size estimate.
+	 *
+	 * @param string[] $tables Tables.
+	 *
+	 * @return int
+	 */
+	protected function estimate_live_tables_bytes( $tables ) {
+		if ( null !== $this->fake_snapshot_bytes ) {
+			return (int) $this->fake_snapshot_bytes;
+		}
+		return parent::estimate_live_tables_bytes( $tables );
+	}
 }
 
 /**
@@ -437,13 +483,6 @@ class Cloud_Pull_Test_Restore_Runner extends Testable_Restore_Task_Runner {
 	public $pulled_urls = array();
 
 	/**
-	 * Scripted free disk space, or null to skip the check.
-	 *
-	 * @var float|null
-	 */
-	public $fake_free_space = null;
-
-	/**
 	 * Scripted download.
 	 *
 	 * @param string $url       Presigned URL.
@@ -458,20 +497,6 @@ class Cloud_Pull_Test_Restore_Runner extends Testable_Restore_Task_Runner {
 		}
 		file_put_contents( $dest_path, $this->pull_responses[ $url ] ); // phpcs:ignore -- fixture.
 		return true;
-	}
-
-	/**
-	 * Scripted free space.
-	 *
-	 * @param string $dir Directory.
-	 *
-	 * @return float|null
-	 */
-	protected function free_disk_space( $dir ) {
-		if ( null !== $this->fake_free_space ) {
-			return $this->fake_free_space;
-		}
-		return parent::free_disk_space( $dir );
 	}
 }
 
@@ -973,6 +998,71 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED, $payload['error_code'] );
 
 		$this->assertNotContains( 'replay_slice:fk', $this->runner->fake_engine->calls );
+	}
+
+	/**
+	 * The foreign-key snapshot needs room for the aside copy. When free disk
+	 * space is below the estimate the restore fails before the site goes
+	 * offline - the live database is untouched and no replay runs.
+	 */
+	public function test_fk_snapshot_disk_preflight_fails_before_any_change() {
+		$this->runner->fake_snapshot_bytes = 50 * 1024 * 1024; // The aside needs 50MB.
+		$this->runner->fake_free_space     = 1.0;              // One byte free: it cannot fit.
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+
+		$payload = $this->spine->status_payload( $task );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED, $payload['error_code'] );
+
+		$calls = $this->runner->fake_engine->calls;
+		$this->assertNotContains( 'snapshot_tables_slice', $calls, 'No aside copy may be written when the disk preflight fails.' );
+		$this->assertNotContains( 'replay_slice:fk', $calls, 'The in-place replay must not run when the disk preflight fails.' );
+	}
+
+	/**
+	 * Ample free disk space lets the foreign-key restore proceed: the preflight
+	 * does not false-positive on a host that clearly has room.
+	 */
+	public function test_fk_snapshot_disk_preflight_allows_ample_space() {
+		$this->runner->fake_free_space = 1.0e12; // A terabyte free.
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertContains( 'replay_slice:fk', $this->runner->fake_engine->calls );
+	}
+
+	/**
+	 * The foreign-key path snapshots, replays, and may replay again to roll
+	 * back, so it widens the wall-clock budget once the path is committed. A
+	 * non-foreign-key restore keeps the budget it was created with.
+	 */
+	public function test_fk_detection_extends_wall_clock_budget() {
+		$fk_id      = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$fk_created = $this->spine->get_task( $fk_id )->max_wall_clock_at;
+		$fk_task    = $this->drive( $fk_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $fk_task->phase );
+		$this->assertGreaterThan(
+			strtotime( $fk_created ),
+			strtotime( $this->spine->get_task( $fk_id )->max_wall_clock_at ),
+			'The foreign-key path must widen the wall-clock budget.'
+		);
+
+		$nf_id      = $this->make_task( 'db', array( $this->make_db_artifact( false ) ) );
+		$nf_created = $this->spine->get_task( $nf_id )->max_wall_clock_at;
+		$nf_task    = $this->drive( $nf_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $nf_task->phase );
+		$this->assertSame(
+			$nf_created,
+			$this->spine->get_task( $nf_id )->max_wall_clock_at,
+			'A non-foreign-key restore must keep its original budget.'
+		);
 	}
 
 	/**

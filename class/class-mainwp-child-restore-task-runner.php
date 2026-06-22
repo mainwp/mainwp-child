@@ -1040,6 +1040,89 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     }
 
     /**
+     * Extra wall-clock seconds the foreign-key path needs over the replay
+     * alone, covering the aside snapshot and a possible rollback replay.
+     *
+     * @param int $bytes Estimated size of the tables being snapshotted.
+     *
+     * @return int Seconds to add to the task's deadline.
+     */
+    protected function fk_extra_budget_seconds( $bytes ) {
+        // Two extra passes over the snapshotted bytes (snapshot + rollback) at
+        // the same per-byte rate the create-time replay budget uses, plus a
+        // base allowance for the fixed overhead of each pass.
+        $per_pass = (int) ( (int) $bytes / 524288 );
+        return self::RESTORE_MIN_DEADLINE_SECONDS + ( $per_pass * 2 );
+    }
+
+    /**
+     * Sum the on-disk size of the named live tables from information_schema.
+     *
+     * @param string[] $tables Fully-qualified live table names.
+     *
+     * @return int Estimated bytes, or 0 when the size is unknowable.
+     */
+    protected function estimate_live_tables_bytes( $tables ) {
+        global $wpdb;
+
+        $tables = array_values( array_filter( array_map( 'strval', (array) $tables ) ) );
+        if ( empty( $tables ) ) {
+            return 0;
+        }
+
+        $placeholders = implode( ',', array_fill( 0, count( $tables ), '%s' ) );
+        $bytes        = $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- size estimate, no caching applicable.
+            $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- table list expands the placeholders.
+                'SELECT SUM(DATA_LENGTH + INDEX_LENGTH) FROM information_schema.TABLES
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (' . $placeholders . ')', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- the %s placeholders are built above and bound below.
+                $tables
+            )
+        );
+        return null === $bytes ? 0 : (int) $bytes;
+    }
+
+    /**
+     * Require enough free disk for the aside snapshot before it starts.
+     *
+     * Advisory hosts (disk_free_space disabled) pass: the during-snapshot
+     * dumper failure still catches a full disk and reports the same code with
+     * the live database untouched, so this is a faster, cleaner failure rather
+     * than the only guard. The multiplier is filterable for cautious hosts and
+     * defaults to 1.0 so the check only fires when the copy clearly cannot fit.
+     *
+     * @param int    $needed_bytes Estimated aside-copy size.
+     * @param string $scratch      Directory the aside copy is written to.
+     *
+     * @throws MainWP_Exception When free space is below the estimate.
+     */
+    protected function preflight_snapshot_disk( $needed_bytes, $scratch ) {
+        $needed_bytes = (int) $needed_bytes;
+        if ( $needed_bytes <= 0 ) {
+            return;
+        }
+
+        $free = $this->free_disk_space( $scratch );
+        if ( null === $free ) {
+            return;
+        }
+
+        $multiplier = (float) apply_filters( 'mainwp_restore_snapshot_disk_multiplier', 1.0 );
+        $required   = (float) $needed_bytes * $multiplier;
+        if ( (float) $free < $required ) {
+            throw new MainWP_Exception(
+                sprintf(
+                    /* translators: 1: estimated space needed, 2: free space available */
+                    esc_html__( 'Not enough free disk space to copy the database aside before the restore. Estimated need %1$s, available %2$s. Free up disk space on the child site and try again.', 'mainwp-child' ),
+                    esc_html( size_format( $required ) ),
+                    esc_html( size_format( $free ) )
+                ),
+                null,
+                MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message parts escaped above, code is a registry constant.
+            );
+        }
+    }
+
+    /**
      * Stream a presigned URL to a local file over HTTPS.
      *
      * The URL carries its own query authentication; nothing else is
@@ -1347,12 +1430,20 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
         $db      = $sub_state['db_replay'];
 
-        // The live tables are read while the site is offline so the aside copy
-        // is consistent; the replay re-enters maintenance, which is idempotent.
-        $engine->begin_maintenance();
-
         if ( ! isset( $sub_state['fk_snapshot'] ) ) {
-            $split                    = $engine->list_dump_live_tables( $db['files'], $db['source_prefix'], $this->target_prefix(), array( 'mainwp_child_backup_task' ) );
+            $split = $engine->list_dump_live_tables( $db['files'], $db['source_prefix'], $this->target_prefix(), array( 'mainwp_child_backup_task' ) );
+
+            // The aside copy needs room for the live tables it replaces, and the
+            // snapshot + replay + rollback passes need more wall-clock than the
+            // replay alone. Both are sized once, before maintenance starts, so a
+            // disk shortfall fails with the site still online and the live
+            // database untouched.
+            if ( ! empty( $split['existing'] ) ) {
+                $bytes = $this->estimate_live_tables_bytes( $split['existing'] );
+                $this->preflight_snapshot_disk( $bytes, $scratch );
+                MainWP_Child_Backup_Task::instance()->extend_wall_clock( $task->task_id, $this->fk_extra_budget_seconds( $bytes ) );
+            }
+
             $sub_state['fk_snapshot'] = array(
                 'existing'  => $split['existing'],
                 'new_stems' => $split['new_stems'],
@@ -1360,6 +1451,10 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 'files'     => array(),
             );
         }
+
+        // The live tables are read while the site is offline so the aside copy
+        // is consistent; the replay re-enters maintenance, which is idempotent.
+        $engine->begin_maintenance();
         $fk = $sub_state['fk_snapshot'];
 
         // Nothing live to copy (a fresh-install target): no aside is needed,
