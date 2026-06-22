@@ -92,13 +92,16 @@ class MainWP_Child_WP_CLI_Command extends \WP_CLI_Command { // phpcs:ignore Gene
     /**
      * Backup operations.
      *
-     * Restores a local backup archive without the dashboard or wp-admin, for
+     * Restores a backup archive without the dashboard or wp-admin, for
      * recovering a site whose admin is down. It reuses the same restore engine
-     * the dashboard drives, so there is no parallel restore path. The archive
-     * must already sit in this site's backup directory; the dashboard keeps a
-     * local copy of each native backup until retention prunes it. A local
-     * archive is plaintext, so an encrypted offsite copy is not restorable
-     * here yet.
+     * the dashboard drives, so there is no parallel restore path.
+     *
+     * For a plaintext local archive, the file must already sit in this site's
+     * backup directory; the dashboard keeps a local copy of each native backup
+     * until retention prunes it. For a total-loss recovery where the local copy
+     * is gone, pull the encrypted offsite copy (the snapshot's manifest, its
+     * HMAC, and its sealed file or chunks) into a directory and pass that with
+     * --bundle and the recovery --passphrase to decrypt and restore it here.
      *
      * There is no automatic pre-restore backup on this path. A database
      * restore overwrites the live database, so it requires --yes.
@@ -109,7 +112,8 @@ class MainWP_Child_WP_CLI_Command extends \WP_CLI_Command { // phpcs:ignore Gene
      *  : The backup subcommand. Only "restore" is supported.
      *
      * [<archive>]
-     *  : The archive file name in this site's backup directory.
+     *  : The archive file name. For an encrypted bundle, the artifact file name
+     *  : recorded in the manifest.
      *
      * [--type=<type>]
      *  : What to restore: full, db, or files. Default: full.
@@ -121,6 +125,13 @@ class MainWP_Child_WP_CLI_Command extends \WP_CLI_Command { // phpcs:ignore Gene
      *   - files
      * ---
      *
+     * [--passphrase=<passphrase>]
+     *  : Recovery passphrase for an encrypted offsite bundle. Requires --bundle.
+     *
+     * [--bundle=<dir>]
+     *  : Directory holding the pulled offsite bundle (manifest.json,
+     *  : manifest.json.hmac, and the sealed file or chunks).
+     *
      * [--yes]
      *  : Confirm a database-bearing restore. Required for full and db.
      *
@@ -128,24 +139,29 @@ class MainWP_Child_WP_CLI_Command extends \WP_CLI_Command { // phpcs:ignore Gene
      *
      *     wp mainwp-child backup restore backup-1718900000.zip --type=full --yes
      *
+     *     wp mainwp-child backup restore backup-1718900000.zip --type=db --yes \
+     *       --bundle=/home/recover/4/37 --passphrase='correct horse battery staple'
+     *
      * @param array $args       Positional arguments.
      * @param array $assoc_args Associative arguments.
      */
     public function backup( $args, $assoc_args ) {
         $command = isset( $args[0] ) ? $args[0] : '';
         if ( 'restore' !== $command ) {
-            \WP_CLI::error( 'Unknown subcommand. Usage: wp mainwp-child backup restore <archive> [--type=full|db|files] [--yes]' );
+            \WP_CLI::error( 'Unknown subcommand. Usage: wp mainwp-child backup restore <archive> [--type=full|db|files] [--bundle=<dir> --passphrase=<p>] [--yes]' );
             return;
         }
 
         $archive = isset( $args[1] ) ? $args[1] : '';
         if ( '' === $archive ) {
-            \WP_CLI::error( 'Provide the archive file name. Usage: wp mainwp-child backup restore <archive> [--type=full|db|files] [--yes]' );
+            \WP_CLI::error( 'Provide the archive file name. Usage: wp mainwp-child backup restore <archive> [--type=full|db|files] [--bundle=<dir> --passphrase=<p>] [--yes]' );
             return;
         }
 
-        $type      = isset( $assoc_args['type'] ) ? $assoc_args['type'] : 'full';
-        $confirmed = isset( $assoc_args['yes'] );
+        $type       = isset( $assoc_args['type'] ) ? $assoc_args['type'] : 'full';
+        $confirmed  = isset( $assoc_args['yes'] );
+        $passphrase = isset( $assoc_args['passphrase'] ) ? (string) $assoc_args['passphrase'] : '';
+        $bundle     = isset( $assoc_args['bundle'] ) ? (string) $assoc_args['bundle'] : '';
 
         // The restore engine reads files through WP_Filesystem, which CLI does
         // not initialise on its own.
@@ -167,7 +183,7 @@ class MainWP_Child_WP_CLI_Command extends \WP_CLI_Command { // phpcs:ignore Gene
             \WP_CLI::log( '  phase: ' . $task->phase );
         };
 
-        $result = $runner->run( $archive, $type, $confirmed, $progress );
+        $result = $runner->run( $archive, $type, $confirmed, $progress, $passphrase, $bundle );
 
         if ( ! empty( $result['ok'] ) ) {
             \WP_CLI::success( 'Restore completed.' );

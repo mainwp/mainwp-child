@@ -57,25 +57,36 @@ class MainWP_Child_CLI_Restore_Runner {
     protected $idle_giveup_seconds;
 
     /**
+     * Decrypts an encrypted offsite bundle before restore (injected seam).
+     *
+     * @var MainWP_Child_Backup_Decryptor
+     */
+    protected $decryptor;
+
+    /**
      * Constructor.
      *
      * @param MainWP_Child_Restore_Task_Runner $runner              Restore runner.
      * @param MainWP_Child_Backup_Task         $spine               Task spine.
      * @param int                              $idle_giveup_seconds Idle tolerance.
+     * @param MainWP_Child_Backup_Decryptor    $decryptor           Optional decryptor.
      */
-    public function __construct( $runner, $spine, $idle_giveup_seconds = 180 ) {
+    public function __construct( $runner, $spine, $idle_giveup_seconds = 180, $decryptor = null ) {
         $this->runner              = $runner;
         $this->spine               = $spine;
         $this->idle_giveup_seconds = (int) $idle_giveup_seconds;
+        $this->decryptor           = null !== $decryptor ? $decryptor : new MainWP_Child_Backup_Decryptor();
     }
 
     /**
      * Restore a local archive, end to end.
      *
-     * @param string        $archive   Archive basename in the backup directory.
-     * @param string        $sub_type  One of full, db, files.
-     * @param bool          $confirmed Operator passed the destructive confirm.
-     * @param callable|null $progress  Optional per-slice callback, given the task row.
+     * @param string        $archive    Archive basename in the backup directory.
+     * @param string        $sub_type   One of full, db, files.
+     * @param bool          $confirmed  Operator passed the destructive confirm.
+     * @param callable|null $progress   Optional per-slice callback, given the task row.
+     * @param string        $passphrase Recovery passphrase for an encrypted offsite bundle.
+     * @param string        $bundle     Directory holding the pulled offsite bundle.
      *
      * @return array {
      *     @type bool   $ok               True when the restore reached completed.
@@ -86,7 +97,7 @@ class MainWP_Child_CLI_Restore_Runner {
      *     @type bool   $maintenance_left The site was left in maintenance mode.
      * }
      */
-    public function run( $archive, $sub_type, $confirmed, $progress = null ) {
+    public function run( $archive, $sub_type, $confirmed, $progress = null, $passphrase = '', $bundle = '' ) {
         if ( ! in_array( $sub_type, array( 'full', 'db', 'files' ), true ) ) {
             return $this->fail( 'Unknown restore type "' . $sub_type . '". Use full, db, or files.' );
         }
@@ -98,13 +109,30 @@ class MainWP_Child_CLI_Restore_Runner {
             return $this->fail( 'A ' . $sub_type . ' restore overwrites the live database. Re-run with --yes to confirm.' );
         }
 
+        // Encrypted offsite recovery: decrypt the pulled bundle into a
+        // plaintext archive in the backup directory, then let the normal path
+        // below adopt and restore it. A wrong passphrase fails closed here.
+        if ( '' !== (string) $passphrase ) {
+            if ( '' === (string) $bundle ) {
+                return $this->fail( 'Provide --bundle=<dir> with --passphrase so the encrypted archive and its manifest can be found.', MainWP_Backup_Error::ERR_RESTORE_DECRYPT );
+            }
+            try {
+                $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
+                $this->decryptor->decrypt_to_plaintext( $bundle, $archive, (string) $passphrase, $dirs[0] );
+            } catch ( MainWP_Exception $e ) {
+                return $this->fail( $e->getMessage(), $e->get_message_error_code() );
+            }
+        } elseif ( '' !== (string) $bundle && 'encrypted' === $this->detect_encryption( $archive, $bundle ) ) {
+            return $this->fail( 'This archive is encrypted. Re-run with --passphrase=<p> and --bundle=<dir> to decrypt and restore it.', MainWP_Backup_Error::ERR_RESTORE_ENCRYPTED );
+        }
+
         $path = MainWP_Helper::locate_backup_file( $archive );
         if ( false === $path ) {
             return $this->fail( 'Archive not found in the backup directory: ' . $archive );
         }
 
         if ( ! $this->archive_is_readable( $path, $archive ) ) {
-            return $this->fail( 'The archive is not a readable backup. It may be corrupt, or an encrypted offsite copy, which CLI restore cannot decrypt yet.' );
+            return $this->fail( 'The archive is not a readable backup. It may be corrupt, or an encrypted offsite copy. For an encrypted copy, re-run with --passphrase and --bundle.' );
         }
 
         $params = array(
@@ -260,6 +288,34 @@ class MainWP_Child_CLI_Restore_Runner {
         }
 
         return false; // Unknown extension: refuse rather than feed the engine garbage.
+    }
+
+    /**
+     * Classify an archive before restore. A bundle manifest that marks the
+     * snapshot encrypted is the only reliable encrypted signal, since raw
+     * ciphertext has no header that distinguishes it from a corrupt file.
+     *
+     * @param string $archive Archive basename.
+     * @param string $bundle  Optional bundle directory.
+     *
+     * @return string One of plaintext, encrypted, corrupt.
+     */
+    protected function detect_encryption( $archive, $bundle ) {
+        if ( '' !== (string) $bundle ) {
+            $manifest = $this->decryptor->read_manifest( $bundle );
+            if ( null !== $manifest ) {
+                $data = $manifest['data'];
+                if ( MainWP_Child_Backup_Decryptor::meta_is_encrypted( isset( $data['encryption'] ) ? $data['encryption'] : null ) ) {
+                    return 'encrypted';
+                }
+            }
+        }
+
+        $path = MainWP_Helper::locate_backup_file( $archive );
+        if ( false !== $path && $this->archive_is_readable( $path, $archive ) ) {
+            return 'plaintext';
+        }
+        return 'corrupt';
     }
 
     /**

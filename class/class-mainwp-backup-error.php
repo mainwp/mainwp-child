@@ -70,6 +70,10 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
     const ERR_ARTIFACT_CORRUPT  = 'mainwp_restore_artifact_corrupt';
     const ERR_CLOUD_PULL_FAILED = 'mainwp_cloud_pull_failed';
 
+    const ERR_RESTORE_DECRYPT     = 'mainwp_restore_decrypt';
+    const ERR_RESTORE_ENCRYPTED   = 'mainwp_restore_encrypted';
+    const ERR_RESTORE_INCREMENTAL = 'mainwp_restore_incremental';
+
     /**
      * Get all registered error codes.
      *
@@ -240,6 +244,9 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
             self::ERR_ARTIFACT_UNKNOWN           => esc_html__( 'The transferred file is not part of this restore. Only artifacts named when the restore was created are accepted.', 'mainwp-child' ),
             self::ERR_ARTIFACT_CORRUPT           => esc_html__( 'The transferred artifact does not match its expected checksum and was discarded. The Dashboard will transfer it again.', 'mainwp-child' ),
             self::ERR_CLOUD_PULL_FAILED          => esc_html__( 'This site could not download the backup from cloud storage directly. The Dashboard will retry using the standard transfer method.', 'mainwp-child' ),
+            self::ERR_RESTORE_DECRYPT            => esc_html__( 'The encrypted backup could not be decrypted. The recovery passphrase may be wrong, or the bundle is incomplete or tampered. Check the passphrase and that the manifest and sealed files were copied in full.', 'mainwp-child' ),
+            self::ERR_RESTORE_ENCRYPTED          => esc_html__( 'This backup is encrypted. Re-run the restore with the recovery passphrase and the bundle directory holding the manifest and sealed files.', 'mainwp-child' ),
+            self::ERR_RESTORE_INCREMENTAL        => esc_html__( 'This is an incremental snapshot. Restoring it needs the full backup chain, which the dashboard restore handles; the command-line restore recovers self-contained snapshots only.', 'mainwp-child' ),
         );
     }
 }
