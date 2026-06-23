@@ -81,6 +81,13 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	public $last_replay_config = null;
 
 	/**
+	 * Last expected-count map handed to verify_row_counts.
+	 *
+	 * @var array|null
+	 */
+	public $last_verify_expected = null;
+
+	/**
 	 * Scripted replay.
 	 *
 	 * @param array     $cursor   Cursor.
@@ -155,7 +162,8 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	 * @return array Verification result.
 	 */
 	public function verify_row_counts( $expected, $target_prefix ) {
-		$this->calls[] = 'verify_row_counts';
+		$this->calls[]               = 'verify_row_counts';
+		$this->last_verify_expected = $expected;
 		return array(
 			'ok'         => $this->verify_ok,
 			'mismatches' => $this->verify_ok ? array() : array( 'items' => array( 'expected' => 2, 'actual' => 1 ) ),
@@ -1183,8 +1191,10 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A preserve restore on the swap path runs the gate, enters and leaves
-	 * maintenance, records the preserve outcome, and skips the order tables.
+	 * A preserve restore on the swap path runs the gate, records the preserve
+	 * outcome, and skips the order tables - WITHOUT entering maintenance mode,
+	 * since the dashboard-polled restore cannot reach a child held offline by a
+	 * WordPress maintenance 503.
 	 */
 	public function test_preserve_pipeline_swap_path() {
 		$this->seed_woo_tables();
@@ -1193,14 +1203,36 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
 		$calls = $this->runner->fake_engine->calls;
-		$this->assertContains( 'begin_maintenance', $calls );
-		$this->assertContains( 'exit_maintenance', $calls );
+		$this->assertNotContains( 'begin_maintenance', $calls );
 		$this->assertContains( 'wc_orders', $this->runner->fake_engine->last_replay_config['skip_stems'] );
 
 		$sub_state = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertTrue( ! empty( $sub_state['woo_capture']['done'] ) );
 		$this->assertTrue( ! empty( $sub_state['woo_merge']['done'] ) );
 		$this->assertArrayHasKey( 'woo_preserve', $sub_state['progress'] );
+	}
+
+	/**
+	 * A preserve restore drops users and usermeta from the post-restore
+	 * row-count check: the merge re-inserts the kept customers into those tables
+	 * after the swap, so they legitimately exceed the backup counts and a strict
+	 * check would fail a correct restore.
+	 */
+	public function test_preserve_excludes_merged_tables_from_verify() {
+		$this->seed_woo_tables();
+		$this->runner->fake_engine->tables = array(
+			'items'    => array( 'status' => 'ok', 'rows' => 2 ),
+			'users'    => array( 'status' => 'ok', 'rows' => 1 ),
+			'usermeta' => array( 'status' => 'ok', 'rows' => 18 ),
+		);
+		$task_id = $this->make_task( 'db', array( $this->make_hpos_db_artifact() ), array( 'preserve_orders' => true, 'woo_order_since' => 0 ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$expected = $this->runner->fake_engine->last_verify_expected;
+		$this->assertArrayHasKey( 'items', $expected );
+		$this->assertArrayNotHasKey( 'users', $expected );
+		$this->assertArrayNotHasKey( 'usermeta', $expected );
 	}
 
 	/**

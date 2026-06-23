@@ -1764,10 +1764,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * build_woo_skip_stems(); this phase handles only the customers and stock
      * that live in shared tables and would otherwise be reverted.
      *
-     * The gate runs before maintenance and before any database change, so an
-     * unsupported store is left exactly as it was. Once it passes, maintenance
-     * mode is held through the merge phase so the captured snapshot cannot drift
-     * from the kept live orders.
+     * The gate runs before any database change, so an unsupported store is left
+     * exactly as it was. Capture reads the live tables directly and the site is
+     * NOT held in maintenance mode: the restore is driven by the dashboard
+     * polling the child, and WordPress maintenance mode returns a 503 to that
+     * poll, which would break the restore. Any customer or stock change between
+     * capture and the swap is surfaced by the post-restore orphan scan instead.
      *
      * @param object    $task       Task row.
      * @param int       $version    Owned version.
@@ -1783,9 +1785,6 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         if ( null !== $gate ) {
             return $this->fail_terminal( $task, $version, $sub_state, $backup_dir, MainWP_Backup_Error::message( $gate ), $gate );
         }
-
-        // Hold the site offline through capture, replay, swap, and merge.
-        $this->restore_engine()->begin_maintenance();
 
         $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
         if ( ! is_dir( $scratch ) ) {
@@ -1806,11 +1805,10 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     /**
      * WooCommerce merge phase (jump-only): re-insert the captured customer
      * accounts the restore reverted away, and re-apply the captured live product
-     * stock, then leave maintenance mode. Runs after the database is live and
-     * after URL rewriting. Idempotent and resumable: re-inserts use INSERT
-     * IGNORE and stock re-apply is an UPDATE, so a re-run after a killed slice
-     * converges. The outcome counts are recorded for the dashboard, never a
-     * silent partial success.
+     * stock. Runs after the database is live and after URL rewriting. Idempotent
+     * and resumable: re-inserts use INSERT IGNORE and stock re-apply is an
+     * UPDATE, so a re-run after a killed slice converges. The outcome counts are
+     * recorded for the dashboard, never a silent partial success.
      *
      * @param object    $task       Task row.
      * @param int       $version    Owned version.
@@ -1829,7 +1827,6 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $sub_state['progress']    = $progress;
         $sub_state['woo_merge']   = array( 'done' => true );
 
-        $this->restore_engine()->exit_maintenance();
         $this->flush_caches();
 
         return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY );
@@ -2216,6 +2213,15 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                     $expected[ $stem ] = (int) $info['rows'];
                 }
             }
+        }
+
+        // A preserve restore re-inserts the kept customers into users and
+        // usermeta after the swap, so those tables hold more rows than the
+        // backup by design. Drop them from the strict row-count check; their
+        // integrity is covered by the orphan scan, not a count match. Stock is
+        // re-applied with UPDATE, so postmeta and the lookup keep their counts.
+        if ( $this->should_preserve_woo( $sub_state ) ) {
+            unset( $expected['users'], $expected['usermeta'] );
         }
 
         // On the foreign-key path the live tables were overwritten in place,
