@@ -125,9 +125,10 @@ class Testable_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	}
 
 	/**
-	 * Log maintenance entry.
+	 * Log maintenance entry. Public to match the parent's public
+	 * begin_maintenance(), which the runner calls cross-class.
 	 */
-	protected function begin_maintenance() {
+	public function begin_maintenance() {
 		$this->maintenance_calls[] = 'begin';
 	}
 

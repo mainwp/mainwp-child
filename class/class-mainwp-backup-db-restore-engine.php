@@ -1009,10 +1009,15 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
     /**
      * Enter WordPress core maintenance mode.
      *
+     * Public so the runner can hold the site offline across the snapshot,
+     * replay, and rollback phases (and the WooCommerce preserve/merge phases),
+     * mirroring the public exit_maintenance() entry point. The runner calls
+     * this cross-class, so it cannot be protected.
+     *
      * Re-entrant: each call refreshes the timestamp so long in-place
      * restores do not fall out of maintenance after ten minutes.
      */
-    protected function begin_maintenance() {
+    public function begin_maintenance() {
         $file = ABSPATH . '.maintenance';
         file_put_contents( $file, '<?php $upgrading = ' . time() . '; ?>' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- core maintenance marker.
     }
