@@ -1153,6 +1153,29 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * When the restore reverted a product to an unmanaged state, its _stock meta
+	 * row is gone; the merge inserts it back rather than silently applying
+	 * nothing through a zero-row UPDATE.
+	 */
+	public function test_woo_merge_inserts_absent_stock_meta() {
+		global $wpdb;
+		$this->seed_woo_tables();
+		$scratch = $this->dir . '/scratch/';
+		mkdir( $scratch, 0777, true );
+		$sub_state = array( 'params' => array( 'preserve_orders' => true, 'woo_order_since' => 0 ) );
+		$summary   = $this->runner->expose_capture_woo_state( $sub_state, $scratch );
+		$sub_state['woo_capture'] = array( 'file' => $summary['file'] );
+
+		// The product still exists (it keeps other postmeta), but its _stock row
+		// was reverted away.
+		$wpdb->query( "DELETE FROM `rt_postmeta` WHERE post_id = 100 AND meta_key = '_stock'" ); // phpcs:ignore WordPress.DB
+
+		$merge = $this->runner->expose_merge_woo_state( $sub_state, $scratch );
+		$this->assertSame( 1, $merge['stock_applied'] );
+		$this->assertSame( '8', $wpdb->get_var( "SELECT meta_value FROM `rt_postmeta` WHERE post_id = 100 AND meta_key = '_stock'" ) ); // phpcs:ignore WordPress.DB
+	}
+
+	/**
 	 * The capture date bound excludes a customer who registered before the
 	 * backup (already in the backup, so the revert keeps them).
 	 */

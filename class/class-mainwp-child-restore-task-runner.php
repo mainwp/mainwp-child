@@ -1951,6 +1951,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @param array  $sub_state Cursor.
      * @param string $scratch   Per-task scratch directory (with trailing slash).
      *
+     * @throws MainWP_Exception When the capture file cannot be written.
+     *
      * @return array { file: string, customers: int, stock: int }
      */
     protected function capture_woo_state( $sub_state, $scratch ) {
@@ -1993,10 +1995,17 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             'stock'    => $stock,
         );
 
-        $file = $scratch . 'woo-preserve.json';
-        $tmp  = $file . '.tmp';
-        if ( false !== file_put_contents( $tmp, wp_json_encode( $payload ) ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic temp-then-rename.
-            rename( $tmp, $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic rename.
+        // The merge phase reads this file after the swap; if the write or the
+        // atomic rename fails, abort here (before any replay) rather than mark
+        // the capture done and silently re-apply nothing later.
+        $file    = $scratch . 'woo-preserve.json';
+        $tmp     = $file . '.tmp';
+        $written = file_put_contents( $tmp, wp_json_encode( $payload ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic temp-then-rename.
+        if ( false === $written || ! rename( $tmp, $file ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic rename.
+            if ( file_exists( $tmp ) ) {
+                wp_delete_file( $tmp );
+            }
+            throw new MainWP_Exception( 'Could not write the WooCommerce order-preservation capture file.', null, MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
         }
 
         return array(
@@ -2144,9 +2153,18 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 ++$summary['products_missing'];
                 continue;
             }
+            // Upsert each meta row: a product unmanaged in the backup has no
+            // _stock row to UPDATE, so re-applying live stock would silently do
+            // nothing. Insert the row when it is absent.
             foreach ( array( '_stock', '_stock_status', '_manage_stock' ) as $key ) {
-                if ( isset( $s[ $key ] ) ) {
+                if ( ! isset( $s[ $key ] ) ) {
+                    continue;
+                }
+                $has_meta = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM `' . $postmeta . '` WHERE post_id = %d AND meta_key = %s', $pid, $key ) );
+                if ( $has_meta > 0 ) {
                     $wpdb->query( $wpdb->prepare( 'UPDATE `' . $postmeta . '` SET meta_value = %s WHERE post_id = %d AND meta_key = %s', (string) $s[ $key ], $pid, $key ) );
+                } else {
+                    $wpdb->query( $wpdb->prepare( 'INSERT INTO `' . $postmeta . '` (post_id, meta_key, meta_value) VALUES (%d, %s, %s)', $pid, $key, (string) $s[ $key ] ) );
                 }
             }
             if ( $has_lookup && isset( $s['lookup_status'] ) ) {
