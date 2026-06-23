@@ -860,6 +860,12 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             'artifacts'        => $artifacts,
             'has_foreign_keys' => isset( $options['has_foreign_keys'] ) ? $options['has_foreign_keys'] : null,
             'file_rollback'    => ! empty( $options['file_rollback'] ),
+            // WooCommerce order preservation: keep the live order tables and
+            // re-merge the customers and stock they reference. woo_order_since
+            // is the backup's created time, used only to bound the customer
+            // capture set; correctness does not depend on it.
+            'preserve_orders'  => ! empty( $options['preserve_orders'] ),
+            'woo_order_since'  => isset( $options['woo_order_since'] ) ? (int) $options['woo_order_since'] : 0,
         );
 
         // A rejected pull manifest never fails the create: the task

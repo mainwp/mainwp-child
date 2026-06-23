@@ -47,9 +47,17 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     const PHASE_REWRITING_URLS      = 'rewriting_urls';
     const PHASE_POST_RESTORE_VERIFY = 'verify_site';
 
-    // The two phases above (snapshot_db, fk_rollback) are reached only by an
-    // explicit jump_phase() on the foreign-key restore path, never by the
-    // linear next_phase() order, so the swap path never enters them.
+    // WooCommerce order preservation phases (restore / restore_db when
+    // preserve_orders is set): capture the live customers and stock the kept
+    // orders reference, then re-merge them after the database is live.
+    const PHASE_PRESERVING_WOO = 'preserve_woo';
+    const PHASE_MERGING_WOO    = 'merge_woo';
+
+    // The snapshot_db and fk_rollback phases above, and the two WooCommerce
+    // phases, are reached only by an explicit jump_phase() - snapshot_db and
+    // fk_rollback on the foreign-key restore path, preserve_woo and merge_woo
+    // when an operator preserves orders - never by the linear next_phase()
+    // order, so a plain restore never enters any of them.
 
     /**
      * Default resume cap - a stalled task is re-entered at most this many

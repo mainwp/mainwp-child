@@ -709,6 +709,10 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                     return $this->run_snapshotting_db( $task, $version, $sub_state, $deadline, $backup_dir );
                 case MainWP_Child_Backup_Task::PHASE_REPLAYING_DB:
                     return $this->run_replaying_db( $task, $version, $sub_state, $deadline, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_PRESERVING_WOO:
+                    return $this->run_preserving_woo( $task, $version, $sub_state, $deadline, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_MERGING_WOO:
+                    return $this->run_merging_woo( $task, $version, $sub_state, $deadline, $backup_dir );
                 case MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK:
                     return $this->run_fk_rollback( $task, $version, $sub_state, $deadline, $backup_dir );
                 case MainWP_Child_Backup_Task::PHASE_SWAPPING_DB:
@@ -1339,6 +1343,15 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 
         $db = $sub_state['db_replay'];
 
+        // WooCommerce order preservation runs once, before any replay touches
+        // the live database: the gate confirms a supported store, maintenance
+        // is entered, and the customers and stock the kept orders reference are
+        // captured while the live tables are still current. The done flag keeps
+        // the jump from re-firing when preserve_woo routes back here.
+        if ( $this->should_preserve_woo( $sub_state ) && empty( $sub_state['woo_capture']['done'] ) ) {
+            return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_PRESERVING_WOO );
+        }
+
         // The in-place foreign-key replay overwrites the live tables with no
         // staging, so a copy of those tables is taken aside first. The replay
         // only runs once the snapshot is complete; on failure it can be undone.
@@ -1360,8 +1373,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             'files'         => $db['files'],
             'fk_path'       => $db['fk_path'],
             // The running restore's own state lives in the task spine;
-            // replaying the dump's copy would clobber it mid-flight.
-            'skip_stems'    => array( 'mainwp_child_backup_task' ),
+            // replaying the dump's copy would clobber it mid-flight. When
+            // preserving orders, the live WooCommerce order tables are kept too.
+            'skip_stems'    => array_merge( array( 'mainwp_child_backup_task' ), $this->build_woo_skip_stems( $sub_state ) ),
         );
 
         try {
@@ -1431,7 +1445,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $db      = $sub_state['db_replay'];
 
         if ( ! isset( $sub_state['fk_snapshot'] ) ) {
-            $split = $engine->list_dump_live_tables( $db['files'], $db['source_prefix'], $this->target_prefix(), array( 'mainwp_child_backup_task' ) );
+            $split = $engine->list_dump_live_tables( $db['files'], $db['source_prefix'], $this->target_prefix(), array_merge( array( 'mainwp_child_backup_task' ), $this->build_woo_skip_stems( $sub_state ) ) );
 
             // The aside copy needs room for the live tables it replaces, and the
             // snapshot + replay + rollback passes need more wall-clock than the
@@ -1581,7 +1595,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 'aside_files'   => $aside_files,
                 'target_prefix' => $target_prefix,
                 'restore_id'    => isset( $sub_state['params']['restore_id'] ) ? (string) $sub_state['params']['restore_id'] : '',
-                'skip_stems'    => array( 'mainwp_child_backup_task' ),
+                'skip_stems'    => array_merge( array( 'mainwp_child_backup_task' ), $this->build_woo_skip_stems( $sub_state ) ),
             ),
             $deadline,
             $unclean
@@ -1673,7 +1687,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     protected function run_rewriting_urls( $task, $version, $sub_state, $deadline, $backup_dir ) {
         $pairs = $this->url_pairs( $sub_state );
         if ( empty( $pairs ) ) {
-            return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+            return $this->advance_or_merge_woo( $task, $version, $sub_state, $backup_dir );
         }
 
         $target_prefix = $this->target_prefix();
@@ -1708,7 +1722,473 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         }
 
         $this->flush_caches();
+        return $this->advance_or_merge_woo( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Whether this restore opted in to WooCommerce order preservation.
+     *
+     * @param array $sub_state Cursor.
+     *
+     * @return bool
+     */
+    protected function should_preserve_woo( $sub_state ) {
+        return ! empty( $sub_state['params']['preserve_orders'] );
+    }
+
+    /**
+     * Route the end of the URL-rewrite phase: into the WooCommerce merge phase
+     * when preserving (once), otherwise straight on to verification. This is the
+     * single entry to merge_woo, so both the swap path and the in-place
+     * foreign-key path converge here after the database is live.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param string $backup_dir Scratch root.
+     *
+     * @return array Slice result.
+     */
+    protected function advance_or_merge_woo( $task, $version, $sub_state, $backup_dir ) {
+        if ( $this->should_preserve_woo( $sub_state ) && empty( $sub_state['woo_merge']['done'] ) ) {
+            return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_MERGING_WOO );
+        }
         return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * WooCommerce preserve phase (jump-only): confirm the store and backup are a
+     * supported configuration, then capture - while the live database is still
+     * current - the customer accounts and product stock the kept orders
+     * reference. The order tables themselves stay in place via
+     * build_woo_skip_stems(); this phase handles only the customers and stock
+     * that live in shared tables and would otherwise be reverted.
+     *
+     * The gate runs before maintenance and before any database change, so an
+     * unsupported store is left exactly as it was. Once it passes, maintenance
+     * mode is held through the merge phase so the captured snapshot cannot drift
+     * from the kept live orders.
+     *
+     * @param object    $task       Task row.
+     * @param int       $version    Owned version.
+     * @param array     $sub_state  Cursor.
+     * @param float|int $deadline   Slice deadline (capture is bounded; unused).
+     * @param string    $backup_dir Scratch root.
+     *
+     * @return array Slice result.
+     */
+    protected function run_preserving_woo( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        $db   = $sub_state['db_replay'];
+        $gate = $this->woo_preserve_gate( $db['files'], $db['source_prefix'] );
+        if ( null !== $gate ) {
+            return $this->fail_terminal( $task, $version, $sub_state, $backup_dir, MainWP_Backup_Error::message( $gate ), $gate );
+        }
+
+        // Hold the site offline through capture, replay, swap, and merge.
+        $this->restore_engine()->begin_maintenance();
+
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        if ( ! is_dir( $scratch ) ) {
+            wp_mkdir_p( $scratch );
+        }
+        $summary = $this->capture_woo_state( $sub_state, $scratch );
+
+        $sub_state['woo_capture'] = array(
+            'done'      => true,
+            'file'      => $summary['file'],
+            'customers' => $summary['customers'],
+            'stock'     => $summary['stock'],
+        );
+
+        return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_REPLAYING_DB );
+    }
+
+    /**
+     * WooCommerce merge phase (jump-only): re-insert the captured customer
+     * accounts the restore reverted away, and re-apply the captured live product
+     * stock, then leave maintenance mode. Runs after the database is live and
+     * after URL rewriting. Idempotent and resumable: re-inserts use INSERT
+     * IGNORE and stock re-apply is an UPDATE, so a re-run after a killed slice
+     * converges. The outcome counts are recorded for the dashboard, never a
+     * silent partial success.
+     *
+     * @param object    $task       Task row.
+     * @param int       $version    Owned version.
+     * @param array     $sub_state  Cursor.
+     * @param float|int $deadline   Slice deadline (merge is bounded; unused).
+     * @param string    $backup_dir Scratch root.
+     *
+     * @return array Slice result.
+     */
+    protected function run_merging_woo( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        $summary = $this->merge_woo_state( $sub_state, $scratch );
+
+        $progress                 = isset( $sub_state['progress'] ) && is_array( $sub_state['progress'] ) ? $sub_state['progress'] : array();
+        $progress['woo_preserve'] = $summary;
+        $sub_state['progress']    = $progress;
+        $sub_state['woo_merge']   = array( 'done' => true );
+
+        $this->restore_engine()->exit_maintenance();
+        $this->flush_caches();
+
+        return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY );
+    }
+
+    /**
+     * Confirm the live store and the backup are a supported configuration for
+     * keeping live WooCommerce orders through a restore. Returns an error code
+     * to abort with, or null when preservation is safe to proceed.
+     *
+     * Supported only when the live store uses High-Performance Order Storage as
+     * the sole source of orders (custom orders table enabled, posts sync off),
+     * the backup also used HPOS (its dump carries a wc_orders table), and the
+     * backup's WooCommerce version matches the live version so the kept tables
+     * and the reverted woocommerce_db_version agree.
+     *
+     * @param string[] $files         Dump file paths.
+     * @param string   $source_prefix Prefix the dump's tables carry.
+     *
+     * @return string|null Error code to abort with, or null to proceed.
+     */
+    protected function woo_preserve_gate( $files, $source_prefix ) {
+        // The backup must store orders in HPOS, or reverting wp_posts would
+        // bring shop_order posts back alongside the kept live wc_orders.
+        if ( null === $this->find_dump_file_for_table( $files, $source_prefix . 'wc_orders' ) ) {
+            return MainWP_Backup_Error::ERR_RESTORE_WOO_LEGACY_ORDERS;
+        }
+
+        // The live store must read orders only from HPOS; on the legacy posts
+        // storage the kept wc_orders are not authoritative.
+        if ( 'yes' !== $this->woo_live_option( 'woocommerce_custom_orders_table_enabled' ) ) {
+            return MainWP_Backup_Error::ERR_RESTORE_WOO_LEGACY_ORDERS;
+        }
+
+        // Sync mode keeps a shop_order mirror in wp_posts that the restore would
+        // revert under the kept orders, leaving the two representations at odds.
+        if ( 'yes' === $this->woo_live_option( 'woocommerce_custom_orders_table_data_sync_enabled' ) ) {
+            return MainWP_Backup_Error::ERR_RESTORE_WOO_SYNC_MODE;
+        }
+
+        // A WooCommerce version change can migrate the order schema, leaving the
+        // kept tables and the reverted woocommerce_db_version out of step. An
+        // unreadable backup version fails closed.
+        $backup_ver = $this->read_dump_option( $files, $source_prefix, 'woocommerce_db_version' );
+        $live_ver   = $this->woo_live_option( 'woocommerce_db_version' );
+        if ( '' === (string) $backup_ver || (string) $backup_ver !== (string) $live_ver ) {
+            return MainWP_Backup_Error::ERR_RESTORE_WOO_VERSION_SKEW;
+        }
+
+        return null;
+    }
+
+    /**
+     * Read one option value straight from the live options table by the target
+     * prefix, bypassing the object cache (the restore is mid-flight, pre-swap).
+     *
+     * @param string $name Option name.
+     *
+     * @return string Option value, empty string when absent.
+     */
+    protected function woo_live_option( $name ) {
+        global $wpdb;
+        $table = $this->target_prefix() . 'options';
+        $value = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM `' . $table . '` WHERE option_name = %s', $name ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- live read by prefix, cache bypassed.
+        return null === $value ? '' : (string) $value;
+    }
+
+    /**
+     * Read one option's value from the backup's options dump file without
+     * replaying it - the gate needs the backup's woocommerce_db_version before
+     * any replay runs. Returns an empty string when the option is not found.
+     *
+     * @param string[] $files         Dump file paths.
+     * @param string   $source_prefix Prefix the dump's tables carry.
+     * @param string   $name          Option name.
+     *
+     * @return string Option value, empty string when absent.
+     */
+    protected function read_dump_option( $files, $source_prefix, $name ) {
+        $file = $this->find_dump_file_for_table( $files, $source_prefix . 'options' );
+        if ( null === $file ) {
+            return '';
+        }
+        $sql = file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bounded local dump read.
+        if ( false === $sql ) {
+            return '';
+        }
+        // The options dump writes (option_id, 'name', 'value', 'autoload')
+        // tuples; the value is the quoted field right after the option name.
+        if ( preg_match( '/' . preg_quote( "'" . $name . "'", '/' ) . "\\s*,\\s*'((?:[^'\\\\]|\\\\.)*)'/", $sql, $m ) ) {
+            return stripslashes( $m[1] );
+        }
+        return '';
+    }
+
+    /**
+     * The dump file whose single table matches a given name, or null.
+     *
+     * @param string[] $files Dump file paths.
+     * @param string   $table Source-prefixed table name to find.
+     *
+     * @return string|null Matching file path, or null.
+     */
+    protected function find_dump_file_for_table( $files, $table ) {
+        $engine = $this->restore_engine();
+        foreach ( (array) $files as $file ) {
+            if ( $table === $engine->peek_table_name( $file ) ) {
+                return $file;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Capture, from the live database, the customer accounts and product stock
+     * the kept orders reference, writing them to a scratch file the merge phase
+     * reads after the swap. Customers are bounded to those a revert could drop
+     * (registered since the backup, with a day of clock-skew margin); product
+     * stock covers every managed-stock product. No row cap - a silent cap would
+     * be the data loss this feature exists to prevent.
+     *
+     * @param array  $sub_state Cursor.
+     * @param string $scratch   Per-task scratch directory (with trailing slash).
+     *
+     * @return array { file: string, customers: int, stock: int }
+     */
+    protected function capture_woo_state( $sub_state, $scratch ) {
+        global $wpdb;
+        $prefix = $this->target_prefix();
+        $since  = (int) ( isset( $sub_state['params']['woo_order_since'] ) ? $sub_state['params']['woo_order_since'] : 0 );
+
+        $orders_tb = $prefix . 'wc_orders';
+        $users_tb  = $prefix . 'users';
+        $meta_tb   = $prefix . 'usermeta';
+
+        $where = '';
+        if ( $since > 0 ) {
+            $where = $wpdb->prepare( ' AND u.user_registered >= %s', gmdate( 'Y-m-d H:i:s', max( 0, $since - DAY_IN_SECONDS ) ) );
+        }
+
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- raw reads by live prefix, pre-swap, into a scratch capture file.
+        $users = $wpdb->get_results(
+            'SELECT u.* FROM `' . $users_tb . '` u'
+            . ' WHERE u.ID IN ( SELECT DISTINCT customer_id FROM `' . $orders_tb . '` WHERE customer_id > 0 )' . $where,
+            ARRAY_A
+        );
+        $users = is_array( $users ) ? $users : array();
+
+        $ids = array();
+        foreach ( $users as $u ) {
+            $ids[] = (int) $u['ID'];
+        }
+        $usermeta = array();
+        if ( ! empty( $ids ) ) {
+            $usermeta = $wpdb->get_results( 'SELECT * FROM `' . $meta_tb . '` WHERE user_id IN (' . implode( ',', array_map( 'intval', $ids ) ) . ')', ARRAY_A );
+            $usermeta = is_array( $usermeta ) ? $usermeta : array();
+        }
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
+
+        $stock   = $this->capture_woo_stock( $prefix );
+        $payload = array(
+            'users'    => $users,
+            'usermeta' => $usermeta,
+            'stock'    => $stock,
+        );
+
+        $file = $scratch . 'woo-preserve.json';
+        $tmp  = $file . '.tmp';
+        if ( false !== file_put_contents( $tmp, wp_json_encode( $payload ) ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic temp-then-rename.
+            rename( $tmp, $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic rename.
+        }
+
+        return array(
+            'file'      => 'woo-preserve.json',
+            'customers' => count( $users ),
+            'stock'     => count( $stock ),
+        );
+    }
+
+    /**
+     * Snapshot the live stock of every managed-stock product: the _stock,
+     * _stock_status, and _manage_stock postmeta, plus the product lookup row
+     * when the lookup table exists.
+     *
+     * @param string $prefix Live table prefix.
+     *
+     * @return array<int,array> Stock rows keyed by index, each with product_id.
+     */
+    protected function capture_woo_stock( $prefix ) {
+        global $wpdb;
+        $postmeta = $prefix . 'postmeta';
+
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- raw reads by live prefix into a scratch file.
+        $managed = $wpdb->get_col( 'SELECT post_id FROM `' . $postmeta . "` WHERE meta_key = '_manage_stock' AND meta_value = 'yes'" );
+        $managed = is_array( $managed ) ? array_map( 'intval', $managed ) : array();
+        if ( empty( $managed ) ) {
+            return array();
+        }
+        $in   = implode( ',', $managed );
+        $rows = $wpdb->get_results(
+            'SELECT post_id, meta_key, meta_value FROM `' . $postmeta . '`'
+            . ' WHERE post_id IN (' . $in . ") AND meta_key IN ('_stock','_stock_status','_manage_stock')",
+            ARRAY_A
+        );
+        $rows = is_array( $rows ) ? $rows : array();
+
+        $stock = array();
+        foreach ( $rows as $r ) {
+            $pid = (int) $r['post_id'];
+            if ( ! isset( $stock[ $pid ] ) ) {
+                $stock[ $pid ] = array( 'product_id' => $pid );
+            }
+            $stock[ $pid ][ $r['meta_key'] ] = $r['meta_value'];
+        }
+
+        $lookup = $prefix . 'wc_product_meta_lookup';
+        if ( $this->table_exists( $lookup ) ) {
+            $lrows = $wpdb->get_results( 'SELECT product_id, stock_quantity, stock_status FROM `' . $lookup . '` WHERE product_id IN (' . $in . ')', ARRAY_A );
+            foreach ( (array) $lrows as $lr ) {
+                $pid = (int) $lr['product_id'];
+                if ( ! isset( $stock[ $pid ] ) ) {
+                    $stock[ $pid ] = array( 'product_id' => $pid );
+                }
+                $stock[ $pid ]['lookup_quantity'] = $lr['stock_quantity'];
+                $stock[ $pid ]['lookup_status']   = $lr['stock_status'];
+            }
+        }
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
+
+        return array_values( $stock );
+    }
+
+    /**
+     * Apply the captured customers and stock to the live (restored) database:
+     * re-insert each customer the restore reverted away, preserving the original
+     * ID, and re-apply live stock for products that still exist. Returns the
+     * outcome counts for the dashboard.
+     *
+     * @param array  $sub_state Cursor.
+     * @param string $scratch   Per-task scratch directory (with trailing slash).
+     *
+     * @return array { customers_restored, customers_present, stock_applied, products_missing }
+     */
+    protected function merge_woo_state( $sub_state, $scratch ) {
+        global $wpdb;
+        $prefix  = $this->target_prefix();
+        $summary = array(
+            'customers_restored' => 0,
+            'customers_present'  => 0,
+            'stock_applied'      => 0,
+            'products_missing'   => 0,
+        );
+
+        $file = $scratch . ( isset( $sub_state['woo_capture']['file'] ) ? basename( (string) $sub_state['woo_capture']['file'] ) : 'woo-preserve.json' );
+        if ( ! is_file( $file ) ) {
+            return $summary;
+        }
+        $payload = json_decode( (string) file_get_contents( $file ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- local scratch read.
+        if ( ! is_array( $payload ) ) {
+            return $summary;
+        }
+
+        $users_tb = $prefix . 'users';
+        $meta_tb  = $prefix . 'usermeta';
+
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- raw writes by live prefix, post-swap, cache bypassed.
+        foreach ( (array) ( isset( $payload['users'] ) ? $payload['users'] : array() ) as $u ) {
+            $id     = (int) $u['ID'];
+            $exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM `' . $users_tb . '` WHERE ID = %d', $id ) );
+            if ( $exists > 0 ) {
+                ++$summary['customers_present'];
+                continue;
+            }
+            // A since-backup registrant holds an auto-increment ID above the
+            // backup's max, so the reverted table cannot already hold it;
+            // INSERT IGNORE is the belt-and-braces against a reused id.
+            $wpdb->query(
+                $wpdb->prepare(
+                    'INSERT IGNORE INTO `' . $users_tb . '` (ID, user_login, user_pass, user_nicename, user_email, user_url, user_registered, user_activation_key, user_status, display_name)'
+                    . ' VALUES (%d, %s, %s, %s, %s, %s, %s, %s, %d, %s)',
+                    $id,
+                    (string) $u['user_login'],
+                    (string) $u['user_pass'],
+                    (string) $u['user_nicename'],
+                    (string) $u['user_email'],
+                    (string) $u['user_url'],
+                    (string) $u['user_registered'],
+                    (string) $u['user_activation_key'],
+                    (int) $u['user_status'],
+                    (string) $u['display_name']
+                )
+            );
+            ++$summary['customers_restored'];
+        }
+
+        foreach ( (array) ( isset( $payload['usermeta'] ) ? $payload['usermeta'] : array() ) as $m ) {
+            $wpdb->query(
+                $wpdb->prepare(
+                    'INSERT IGNORE INTO `' . $meta_tb . '` (umeta_id, user_id, meta_key, meta_value) VALUES (%d, %d, %s, %s)',
+                    (int) $m['umeta_id'],
+                    (int) $m['user_id'],
+                    (string) $m['meta_key'],
+                    (string) $m['meta_value']
+                )
+            );
+        }
+
+        $postmeta   = $prefix . 'postmeta';
+        $lookup     = $prefix . 'wc_product_meta_lookup';
+        $has_lookup = $this->table_exists( $lookup );
+        foreach ( (array) ( isset( $payload['stock'] ) ? $payload['stock'] : array() ) as $s ) {
+            $pid    = (int) $s['product_id'];
+            $exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM `' . $postmeta . '` WHERE post_id = %d', $pid ) );
+            if ( 0 === $exists ) {
+                ++$summary['products_missing'];
+                continue;
+            }
+            foreach ( array( '_stock', '_stock_status', '_manage_stock' ) as $key ) {
+                if ( isset( $s[ $key ] ) ) {
+                    $wpdb->query( $wpdb->prepare( 'UPDATE `' . $postmeta . '` SET meta_value = %s WHERE post_id = %d AND meta_key = %s', (string) $s[ $key ], $pid, $key ) );
+                }
+            }
+            if ( $has_lookup && isset( $s['lookup_status'] ) ) {
+                $wpdb->query( $wpdb->prepare( 'UPDATE `' . $lookup . '` SET stock_quantity = %s, stock_status = %s WHERE product_id = %d', isset( $s['lookup_quantity'] ) ? (string) $s['lookup_quantity'] : '', (string) $s['lookup_status'], $pid ) );
+            }
+            ++$summary['stock_applied'];
+        }
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
+
+        return $summary;
+    }
+
+    /**
+     * Count kept orders whose customer the merge could not bring back. Should be
+     * zero after a clean merge; a nonzero count is surfaced, not hidden.
+     *
+     * @return array { orphan_customer_orders: int }
+     */
+    protected function scan_woo_orphans() {
+        global $wpdb;
+        $prefix  = $this->target_prefix();
+        $orders  = $prefix . 'wc_orders';
+        $users   = $prefix . 'users';
+        $sql     = 'SELECT COUNT(*) FROM `' . $orders . '` o LEFT JOIN `' . $users . '` u ON o.customer_id = u.ID WHERE o.customer_id > 0 AND u.ID IS NULL';
+        $orphans = (int) $wpdb->get_var( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- table names from the live prefix.
+        return array( 'orphan_customer_orders' => $orphans );
+    }
+
+    /**
+     * Whether a fully-qualified table exists.
+     *
+     * @param string $table Table name with prefix.
+     *
+     * @return bool
+     */
+    protected function table_exists( $table ) {
+        global $wpdb;
+        $found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- existence probe.
+        return (string) $found === (string) $table;
     }
 
     /**
@@ -1769,6 +2249,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             'url_rewrite_failed_updates' => isset( $sub_state['url_rewrite_failed_updates'] ) ? (int) $sub_state['url_rewrite_failed_updates'] : 0,
             'url_rewrite_error'          => isset( $sub_state['url_rewrite_error'] ) ? (string) $sub_state['url_rewrite_error'] : '',
         );
+
+        // A preserve restore keeps the live orders in place; surface how many
+        // still reference a customer the merge could not bring back so the
+        // dashboard flags a shortfall rather than hiding it. Advisory only.
+        if ( $this->should_preserve_woo( $sub_state ) ) {
+            $sub_state['verification']['woo_orphans'] = $this->scan_woo_orphans();
+        }
 
         // Verification passed: retire the rollback tables and staging.
         $engine->drop_old_tables( $sub_state['params']['restore_id'] );
@@ -2108,6 +2595,41 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         }
 
         return $pairs;
+    }
+
+    /**
+     * The WooCommerce HPOS order tables to leave untouched during a restore
+     * when the operator asked to preserve live orders.
+     *
+     * Returns an empty list for every restore that did not opt in, so a
+     * non-preserve restore replays exactly as before. The order, order-item,
+     * and order-derived analytics tables are dedicated HPOS tables, so skipping
+     * their stems keeps the live rows in place on both the swap path and the
+     * in-place foreign-key path. The customer accounts and product stock those
+     * orders reference live in shared tables (users, postmeta) and are handled
+     * by the preserve_woo and merge_woo phases instead, not here.
+     *
+     * @param array $sub_state Resume cursor, carrying params.preserve_orders.
+     *
+     * @return string[] Bare table stems, empty when not preserving.
+     */
+    protected function build_woo_skip_stems( $sub_state ) {
+        if ( empty( $sub_state['params']['preserve_orders'] ) ) {
+            return array();
+        }
+        return array(
+            'wc_orders',
+            'wc_orders_meta',
+            'wc_order_addresses',
+            'wc_order_operational_data',
+            'woocommerce_order_items',
+            'woocommerce_order_itemmeta',
+            'wc_order_product_lookup',
+            'wc_order_stats',
+            'wc_order_coupon_lookup',
+            'wc_order_tax_lookup',
+            'wc_customer_lookup',
+        );
     }
 
     /**

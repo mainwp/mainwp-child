@@ -389,6 +389,62 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 	}
 
 	/**
+	 * Expose the WooCommerce skip-stem builder for direct assertion.
+	 *
+	 * @param array $sub_state Resume cursor.
+	 *
+	 * @return string[] Stems.
+	 */
+	public function expose_woo_skip_stems( $sub_state ) {
+		return $this->build_woo_skip_stems( $sub_state );
+	}
+
+	/**
+	 * Expose the preserve gate for direct assertion.
+	 *
+	 * @param string[] $files         Dump files.
+	 * @param string   $source_prefix Source prefix.
+	 *
+	 * @return string|null Error code or null.
+	 */
+	public function expose_woo_preserve_gate( $files, $source_prefix ) {
+		return $this->woo_preserve_gate( $files, $source_prefix );
+	}
+
+	/**
+	 * Expose the capture step for direct assertion.
+	 *
+	 * @param array  $sub_state Resume cursor.
+	 * @param string $scratch   Scratch dir.
+	 *
+	 * @return array Capture summary.
+	 */
+	public function expose_capture_woo_state( $sub_state, $scratch ) {
+		return $this->capture_woo_state( $sub_state, $scratch );
+	}
+
+	/**
+	 * Expose the merge step for direct assertion.
+	 *
+	 * @param array  $sub_state Resume cursor.
+	 * @param string $scratch   Scratch dir.
+	 *
+	 * @return array Merge summary.
+	 */
+	public function expose_merge_woo_state( $sub_state, $scratch ) {
+		return $this->merge_woo_state( $sub_state, $scratch );
+	}
+
+	/**
+	 * Expose the orphan scan for direct assertion.
+	 *
+	 * @return array Orphan counts.
+	 */
+	public function expose_scan_woo_orphans() {
+		return $this->scan_woo_orphans();
+	}
+
+	/**
 	 * Stubbed sentinel.
 	 *
 	 * @param string $target_prefix Prefix.
@@ -634,6 +690,9 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		global $wpdb;
 		$wpdb->query( 'DELETE FROM ' . $this->spine->get_table_name() ); // phpcs:ignore WordPress.DB -- test cleanup.
 		$wpdb->query( 'DROP TABLE IF EXISTS `rt_items`' ); // phpcs:ignore WordPress.DB -- test cleanup.
+		foreach ( array( 'rt_options', 'rt_users', 'rt_usermeta', 'rt_postmeta', 'rt_wc_orders', 'rt_wc_product_meta_lookup' ) as $woo_table ) {
+			$wpdb->query( 'DROP TABLE IF EXISTS `' . $woo_table . '`' ); // phpcs:ignore WordPress.DB -- test cleanup.
+		}
 		$this->rrmdir( $this->dir );
 		parent::tear_down();
 	}
@@ -822,6 +881,372 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			++$guard;
 		}
 		return $task;
+	}
+
+	/**
+	 * With preserve_orders set, the WooCommerce HPOS order, order-item, and
+	 * order-derived analytics stems join the replay skip list so the live
+	 * order tables are left in place.
+	 */
+	public function test_preserve_orders_builds_woo_skip_stems() {
+		$stems = $this->runner->expose_woo_skip_stems(
+			array( 'params' => array( 'preserve_orders' => true ) )
+		);
+
+		foreach ( array( 'wc_orders', 'wc_orders_meta', 'wc_order_addresses', 'woocommerce_order_items', 'woocommerce_order_itemmeta', 'wc_customer_lookup' ) as $stem ) {
+			$this->assertContains( $stem, $stems );
+		}
+		// The shared product/postmeta tables are never skip-listed: they revert
+		// and the merge phase re-applies stock from the captured live values.
+		$this->assertNotContains( 'wc_product_meta_lookup', $stems );
+		$this->assertNotContains( 'posts', $stems );
+		$this->assertNotContains( 'users', $stems );
+	}
+
+	/**
+	 * A restore that did not opt in adds nothing, so its replay is byte for
+	 * byte the same as before the feature.
+	 */
+	public function test_no_preserve_orders_builds_empty_woo_skip_stems() {
+		$this->assertSame( array(), $this->runner->expose_woo_skip_stems( array( 'params' => array() ) ) );
+		$this->assertSame( array(), $this->runner->expose_woo_skip_stems( array( 'params' => array( 'preserve_orders' => false ) ) ) );
+	}
+
+	/**
+	 * A non-preserve db restore replays with only the spine table skip-listed,
+	 * proving the array_merge with an empty WooCommerce list is a no-op.
+	 */
+	public function test_non_preserve_restore_skips_only_the_spine_table() {
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame(
+			array( 'mainwp_child_backup_task' ),
+			$this->runner->fake_engine->last_replay_config['skip_stems']
+		);
+	}
+
+	/**
+	 * Create the rt_-prefixed WooCommerce fixture tables and seed a live store:
+	 * HPOS authoritative, sync off, a managed-stock product, and a customer
+	 * (ID 50) referenced by a live order. Option overrides drive the gate tests.
+	 *
+	 * @param array $options Option overrides keyed by option name.
+	 */
+	protected function seed_woo_tables( $options = array() ) {
+		global $wpdb;
+		$wpdb->query( 'CREATE TABLE IF NOT EXISTS `rt_options` (option_id BIGINT NOT NULL AUTO_INCREMENT, option_name VARCHAR(191) NOT NULL, option_value LONGTEXT, autoload VARCHAR(20) DEFAULT \'yes\', PRIMARY KEY (option_id), UNIQUE KEY option_name (option_name))' ); // phpcs:ignore WordPress.DB
+		$wpdb->query( 'CREATE TABLE IF NOT EXISTS `rt_users` (ID BIGINT NOT NULL AUTO_INCREMENT, user_login VARCHAR(60) DEFAULT \'\', user_pass VARCHAR(255) DEFAULT \'\', user_nicename VARCHAR(50) DEFAULT \'\', user_email VARCHAR(100) DEFAULT \'\', user_url VARCHAR(100) DEFAULT \'\', user_registered DATETIME DEFAULT \'2020-01-01 00:00:00\', user_activation_key VARCHAR(255) DEFAULT \'\', user_status INT DEFAULT 0, display_name VARCHAR(250) DEFAULT \'\', PRIMARY KEY (ID))' ); // phpcs:ignore WordPress.DB
+		$wpdb->query( 'CREATE TABLE IF NOT EXISTS `rt_usermeta` (umeta_id BIGINT NOT NULL AUTO_INCREMENT, user_id BIGINT NOT NULL DEFAULT 0, meta_key VARCHAR(255) DEFAULT NULL, meta_value LONGTEXT, PRIMARY KEY (umeta_id))' ); // phpcs:ignore WordPress.DB
+		$wpdb->query( 'CREATE TABLE IF NOT EXISTS `rt_postmeta` (meta_id BIGINT NOT NULL AUTO_INCREMENT, post_id BIGINT NOT NULL DEFAULT 0, meta_key VARCHAR(255) DEFAULT NULL, meta_value LONGTEXT, PRIMARY KEY (meta_id))' ); // phpcs:ignore WordPress.DB
+		$wpdb->query( 'CREATE TABLE IF NOT EXISTS `rt_wc_orders` (id BIGINT NOT NULL AUTO_INCREMENT, customer_id BIGINT NOT NULL DEFAULT 0, date_created_gmt DATETIME DEFAULT NULL, PRIMARY KEY (id))' ); // phpcs:ignore WordPress.DB
+		$wpdb->query( 'CREATE TABLE IF NOT EXISTS `rt_wc_product_meta_lookup` (product_id BIGINT NOT NULL, stock_quantity DOUBLE DEFAULT NULL, stock_status VARCHAR(100) DEFAULT \'instock\', PRIMARY KEY (product_id))' ); // phpcs:ignore WordPress.DB
+
+		$opts = array_merge(
+			array(
+				'woocommerce_custom_orders_table_enabled'           => 'yes',
+				'woocommerce_custom_orders_table_data_sync_enabled' => 'no',
+				'woocommerce_db_version'                            => '9.4.0',
+			),
+			$options
+		);
+		foreach ( $opts as $name => $value ) {
+			$wpdb->query( $wpdb->prepare( 'INSERT INTO `rt_options` (option_name, option_value) VALUES (%s, %s)', $name, $value ) ); // phpcs:ignore WordPress.DB
+		}
+
+		// Admin (old), a since-backup customer (50) referenced by a live order,
+		// and a guest order (customer 0, not a user).
+		$wpdb->query( "INSERT INTO `rt_users` (ID, user_login, user_email, user_registered, display_name) VALUES (1, 'admin', 'a@x.test', '2020-01-01 00:00:00', 'Admin'), (50, 'buyer', 'b@x.test', '2025-06-01 00:00:00', 'Buyer Fifty')" ); // phpcs:ignore WordPress.DB
+		$wpdb->query( "INSERT INTO `rt_usermeta` (user_id, meta_key, meta_value) VALUES (50, 'first_name', 'Buyer'), (50, 'billing_city', 'Townsville')" ); // phpcs:ignore WordPress.DB
+		$wpdb->query( "INSERT INTO `rt_wc_orders` (id, customer_id, date_created_gmt) VALUES (1001, 50, '2025-06-02 12:00:00'), (1002, 0, '2025-06-03 12:00:00')" ); // phpcs:ignore WordPress.DB
+		$wpdb->query( "INSERT INTO `rt_postmeta` (post_id, meta_key, meta_value) VALUES (100, '_manage_stock', 'yes'), (100, '_stock', '8'), (100, '_stock_status', 'instock')" ); // phpcs:ignore WordPress.DB
+		$wpdb->query( "INSERT INTO `rt_wc_product_meta_lookup` (product_id, stock_quantity, stock_status) VALUES (100, 8, 'instock')" ); // phpcs:ignore WordPress.DB
+	}
+
+	/**
+	 * Write a per-table dump file into the scratch dir and return its path.
+	 *
+	 * @param string $name Table name (source-prefixed).
+	 * @param string $body Statement body after the CREATE.
+	 *
+	 * @return string Dump file path.
+	 */
+	protected function write_woo_dump( $name, $body = '' ) {
+		$path = $this->dir . '/dbBackup-' . $name . '.sql.php';
+		$sql  = '<?php exit(); ?>' . "\n" . 'DROP TABLE IF EXISTS `' . $name . '`;' . "\n" . 'CREATE TABLE `' . $name . '` (id INT);' . "\n" . $body;
+		file_put_contents( $path, $sql ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- test fixture.
+		return $path;
+	}
+
+	/**
+	 * The standard supported-config dump file set: an options dump carrying the
+	 * given WooCommerce version and an HPOS wc_orders dump.
+	 *
+	 * @param string $db_version Backup's woocommerce_db_version.
+	 *
+	 * @return string[] Dump file paths.
+	 */
+	protected function woo_dump_files( $db_version = '9.4.0' ) {
+		return array(
+			$this->write_woo_dump( 'src_options', "INSERT INTO `src_options` (option_id, option_name, option_value, autoload) VALUES (1,'siteurl','http://x.test','yes'),(2,'woocommerce_db_version','" . $db_version . "','yes');\n" ),
+			$this->write_woo_dump( 'src_wc_orders', "INSERT INTO `src_wc_orders` (id) VALUES (1001);\n" ),
+		);
+	}
+
+	/**
+	 * Build an HPOS db.zip artifact: the banner-carrying items dump plus an
+	 * options dump (with the WooCommerce version) and a wc_orders dump, so the
+	 * preserve gate sees a supported backup.
+	 *
+	 * @param bool   $fk         Whether the banner declares foreign keys.
+	 * @param string $db_version Backup's woocommerce_db_version.
+	 *
+	 * @return array Artifact entry.
+	 */
+	protected function make_hpos_db_artifact( $fk = false, $db_version = '9.4.0' ) {
+		$banner = '-- mainwp-backup-info: {"site_url":"' . site_url() . '","home_url":"' . home_url() . '","table_prefix":"src_"}' . "\n"
+			. '-- mainwp-backup-meta: {"has_foreign_keys":' . ( $fk ? 'true' : 'false' ) . ',"tier":1}';
+		$items   = '<?php exit(); ?>' . "\n" . $banner . "\n\nDROP TABLE IF EXISTS `src_items`;\nCREATE TABLE `src_items` (id INT);\nINSERT INTO `src_items` (`id`) VALUES (1),(2);\n";
+		$options = '<?php exit(); ?>' . "\nDROP TABLE IF EXISTS `src_options`;\nCREATE TABLE `src_options` (option_id INT);\nINSERT INTO `src_options` (option_id, option_name, option_value, autoload) VALUES (1,'woocommerce_db_version','" . $db_version . "','yes');\n";
+		$orders  = '<?php exit(); ?>' . "\nDROP TABLE IF EXISTS `src_wc_orders`;\nCREATE TABLE `src_wc_orders` (id INT);\nINSERT INTO `src_wc_orders` (id) VALUES (1001);\n";
+
+		$zip_path = $this->dir . '/db.zip';
+		$zip      = new ZipArchive();
+		$zip->open( $zip_path, ZipArchive::CREATE );
+		$zip->addFromString( 'dbBackup-src_items.sql.php', $items );
+		$zip->addFromString( 'dbBackup-src_options.sql.php', $options );
+		$zip->addFromString( 'dbBackup-src_wc_orders.sql.php', $orders );
+		$zip->close();
+
+		return array(
+			'role'       => 'db',
+			'file'       => 'db.zip',
+			'size'       => (int) filesize( $zip_path ),
+			'sha256'     => hash_file( 'sha256', $zip_path ),
+			'adopt_only' => false,
+		);
+	}
+
+	/**
+	 * The gate passes for an HPOS-authoritative, sync-off store whose
+	 * WooCommerce version matches the backup.
+	 */
+	public function test_woo_gate_passes_for_supported_config() {
+		$this->seed_woo_tables();
+		$this->assertNull( $this->runner->expose_woo_preserve_gate( $this->woo_dump_files( '9.4.0' ), 'src_' ) );
+	}
+
+	/**
+	 * A backup with no wc_orders dump is legacy storage and aborts.
+	 */
+	public function test_woo_gate_aborts_for_legacy_backup() {
+		$this->seed_woo_tables();
+		$only_options = array( $this->write_woo_dump( 'src_options', "INSERT INTO `src_options` (option_id, option_name, option_value) VALUES (2,'woocommerce_db_version','9.4.0');\n" ) );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_WOO_LEGACY_ORDERS, $this->runner->expose_woo_preserve_gate( $only_options, 'src_' ) );
+	}
+
+	/**
+	 * A live store that does not use HPOS as the authoritative store aborts.
+	 */
+	public function test_woo_gate_aborts_when_live_not_hpos() {
+		$this->seed_woo_tables( array( 'woocommerce_custom_orders_table_enabled' => 'no' ) );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_WOO_LEGACY_ORDERS, $this->runner->expose_woo_preserve_gate( $this->woo_dump_files(), 'src_' ) );
+	}
+
+	/**
+	 * A live store still synchronizing orders to the posts table aborts.
+	 */
+	public function test_woo_gate_aborts_in_sync_mode() {
+		$this->seed_woo_tables( array( 'woocommerce_custom_orders_table_data_sync_enabled' => 'yes' ) );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_WOO_SYNC_MODE, $this->runner->expose_woo_preserve_gate( $this->woo_dump_files(), 'src_' ) );
+	}
+
+	/**
+	 * A WooCommerce version change between the backup and now aborts.
+	 */
+	public function test_woo_gate_aborts_on_version_skew() {
+		$this->seed_woo_tables( array( 'woocommerce_db_version' => '9.4.0' ) );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_WOO_VERSION_SKEW, $this->runner->expose_woo_preserve_gate( $this->woo_dump_files( '9.3.0' ), 'src_' ) );
+	}
+
+	/**
+	 * Capture records the customer and stock a kept order references; after a
+	 * simulated revert, merge re-inserts the absent customer (original ID) and
+	 * re-applies the live stock.
+	 */
+	public function test_woo_capture_then_merge_restores_customer_and_stock() {
+		global $wpdb;
+		$this->seed_woo_tables();
+		$scratch = $this->dir . '/scratch/';
+		mkdir( $scratch, 0777, true );
+		$sub_state = array( 'params' => array( 'preserve_orders' => true, 'woo_order_since' => 0 ) );
+
+		$summary = $this->runner->expose_capture_woo_state( $sub_state, $scratch );
+		$this->assertSame( 1, $summary['customers'] );
+		$this->assertSame( 1, $summary['stock'] );
+		$sub_state['woo_capture'] = array( 'file' => $summary['file'] );
+
+		// Simulate the restore reverting wp_users (drop the since-backup buyer)
+		// and product stock (back to the backup's higher count).
+		$wpdb->query( 'DELETE FROM `rt_users` WHERE ID = 50' ); // phpcs:ignore WordPress.DB
+		$wpdb->query( 'DELETE FROM `rt_usermeta` WHERE user_id = 50' ); // phpcs:ignore WordPress.DB
+		$wpdb->query( "UPDATE `rt_postmeta` SET meta_value = '20' WHERE post_id = 100 AND meta_key = '_stock'" ); // phpcs:ignore WordPress.DB
+
+		$merge = $this->runner->expose_merge_woo_state( $sub_state, $scratch );
+		$this->assertSame( 1, $merge['customers_restored'] );
+		$this->assertSame( 1, $merge['stock_applied'] );
+		$this->assertSame( 0, $merge['products_missing'] );
+
+		$this->assertSame( '50', $wpdb->get_var( 'SELECT ID FROM `rt_users` WHERE ID = 50' ) ); // phpcs:ignore WordPress.DB
+		$this->assertSame( 2, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM `rt_usermeta` WHERE user_id = 50' ) ); // phpcs:ignore WordPress.DB
+		$this->assertSame( '8', $wpdb->get_var( "SELECT meta_value FROM `rt_postmeta` WHERE post_id = 100 AND meta_key = '_stock'" ) ); // phpcs:ignore WordPress.DB
+	}
+
+	/**
+	 * Merge never duplicates a customer the backup already restored.
+	 */
+	public function test_woo_merge_skips_present_customer() {
+		$this->seed_woo_tables();
+		$scratch = $this->dir . '/scratch/';
+		mkdir( $scratch, 0777, true );
+		$sub_state = array( 'params' => array( 'preserve_orders' => true, 'woo_order_since' => 0 ) );
+		$summary   = $this->runner->expose_capture_woo_state( $sub_state, $scratch );
+		$sub_state['woo_capture'] = array( 'file' => $summary['file'] );
+
+		// User 50 is still present (no revert) at merge time.
+		$merge = $this->runner->expose_merge_woo_state( $sub_state, $scratch );
+		$this->assertSame( 0, $merge['customers_restored'] );
+		$this->assertSame( 1, $merge['customers_present'] );
+
+		global $wpdb;
+		$this->assertSame( 1, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM `rt_users` WHERE ID = 50' ) ); // phpcs:ignore WordPress.DB
+	}
+
+	/**
+	 * Stock for a product the restore deleted is skipped and counted, never
+	 * re-inserted as an orphan row.
+	 */
+	public function test_woo_merge_skips_deleted_product_stock() {
+		global $wpdb;
+		$this->seed_woo_tables();
+		$scratch = $this->dir . '/scratch/';
+		mkdir( $scratch, 0777, true );
+		$sub_state = array( 'params' => array( 'preserve_orders' => true, 'woo_order_since' => 0 ) );
+		$summary   = $this->runner->expose_capture_woo_state( $sub_state, $scratch );
+		$sub_state['woo_capture'] = array( 'file' => $summary['file'] );
+
+		// The restore removed product 100 entirely.
+		$wpdb->query( 'DELETE FROM `rt_postmeta` WHERE post_id = 100' ); // phpcs:ignore WordPress.DB
+
+		$merge = $this->runner->expose_merge_woo_state( $sub_state, $scratch );
+		$this->assertSame( 0, $merge['stock_applied'] );
+		$this->assertSame( 1, $merge['products_missing'] );
+	}
+
+	/**
+	 * The capture date bound excludes a customer who registered before the
+	 * backup (already in the backup, so the revert keeps them).
+	 */
+	public function test_woo_capture_excludes_pre_backup_customer() {
+		global $wpdb;
+		$this->seed_woo_tables();
+		// A customer who ordered but registered well before the backup.
+		$wpdb->query( "INSERT INTO `rt_users` (ID, user_login, user_email, user_registered, display_name) VALUES (52, 'old', 'o@x.test', '2019-01-01 00:00:00', 'Old Buyer')" ); // phpcs:ignore WordPress.DB
+		$wpdb->query( "INSERT INTO `rt_wc_orders` (id, customer_id, date_created_gmt) VALUES (1003, 52, '2025-06-04 12:00:00')" ); // phpcs:ignore WordPress.DB
+
+		$scratch = $this->dir . '/scratch/';
+		mkdir( $scratch, 0777, true );
+		// Bound to since-2025; user 50 (2025) is captured, user 52 (2019) is not.
+		$sub_state = array( 'params' => array( 'preserve_orders' => true, 'woo_order_since' => strtotime( '2025-05-01 00:00:00 UTC' ) ) );
+		$summary   = $this->runner->expose_capture_woo_state( $sub_state, $scratch );
+		$this->assertSame( 1, $summary['customers'] );
+
+		$payload = json_decode( (string) file_get_contents( $scratch . 'woo-preserve.json' ), true );
+		$ids     = array_map( 'intval', wp_list_pluck( $payload['users'], 'ID' ) );
+		$this->assertContains( 50, $ids );
+		$this->assertNotContains( 52, $ids );
+	}
+
+	/**
+	 * The orphan scan counts kept orders whose customer is missing, and reports
+	 * zero once the customer is present.
+	 */
+	public function test_woo_orphan_scan_counts_missing_customer() {
+		global $wpdb;
+		$this->seed_woo_tables();
+		$wpdb->query( 'DELETE FROM `rt_users` WHERE ID = 50' ); // phpcs:ignore WordPress.DB
+		$this->assertSame( 1, $this->runner->expose_scan_woo_orphans()['orphan_customer_orders'] );
+
+		$wpdb->query( "INSERT INTO `rt_users` (ID, user_login, user_email) VALUES (50, 'buyer', 'b@x.test')" ); // phpcs:ignore WordPress.DB
+		$this->assertSame( 0, $this->runner->expose_scan_woo_orphans()['orphan_customer_orders'] );
+	}
+
+	/**
+	 * A preserve restore on the swap path runs the gate, enters and leaves
+	 * maintenance, records the preserve outcome, and skips the order tables.
+	 */
+	public function test_preserve_pipeline_swap_path() {
+		$this->seed_woo_tables();
+		$task_id = $this->make_task( 'db', array( $this->make_hpos_db_artifact() ), array( 'preserve_orders' => true, 'woo_order_since' => 0 ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$calls = $this->runner->fake_engine->calls;
+		$this->assertContains( 'begin_maintenance', $calls );
+		$this->assertContains( 'exit_maintenance', $calls );
+		$this->assertContains( 'wc_orders', $this->runner->fake_engine->last_replay_config['skip_stems'] );
+
+		$sub_state = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertTrue( ! empty( $sub_state['woo_capture']['done'] ) );
+		$this->assertTrue( ! empty( $sub_state['woo_merge']['done'] ) );
+		$this->assertArrayHasKey( 'woo_preserve', $sub_state['progress'] );
+	}
+
+	/**
+	 * A preserve restore on the in-place foreign-key path still reaches the
+	 * merge phase, which the FK route would otherwise skip.
+	 */
+	public function test_preserve_pipeline_fk_path_reaches_merge() {
+		$this->seed_woo_tables();
+		$task_id = $this->make_task( 'db', array( $this->make_hpos_db_artifact( true ) ), array( 'preserve_orders' => true, 'woo_order_since' => 0, 'has_foreign_keys' => true ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$sub_state = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertTrue( ! empty( $sub_state['woo_merge']['done'] ) );
+		$this->assertArrayHasKey( 'woo_preserve', $sub_state['progress'] );
+	}
+
+	/**
+	 * An unsupported store aborts the preserve restore before any maintenance or
+	 * database change: sync mode leaves the site online and untouched.
+	 */
+	public function test_preserve_pipeline_aborts_in_sync_mode() {
+		$this->seed_woo_tables( array( 'woocommerce_custom_orders_table_data_sync_enabled' => 'yes' ) );
+		$task_id = $this->make_task( 'db', array( $this->make_hpos_db_artifact() ), array( 'preserve_orders' => true, 'woo_order_since' => 0 ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$payload = $this->spine->status_payload( $task, $this->dir );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_WOO_SYNC_MODE, $payload['error_code'] );
+		$this->assertNotContains( 'begin_maintenance', $this->runner->fake_engine->calls );
+	}
+
+	/**
+	 * Without preserve_orders an HPOS restore never enters the WooCommerce
+	 * phases and never touches maintenance on the swap path.
+	 */
+	public function test_no_preserve_skips_woo_phases() {
+		$this->seed_woo_tables();
+		$task_id = $this->make_task( 'db', array( $this->make_hpos_db_artifact() ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$sub_state = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertArrayNotHasKey( 'woo_capture', $sub_state );
+		$this->assertArrayNotHasKey( 'woo_merge', $sub_state );
+		$this->assertNotContains( 'begin_maintenance', $this->runner->fake_engine->calls );
 	}
 
 	/**
