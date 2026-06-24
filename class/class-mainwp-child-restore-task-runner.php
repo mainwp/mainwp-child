@@ -301,18 +301,15 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             return false;
         }
 
-        // Candidate IPs: the literal host when it is an IP, plus a resolved
-        // IPv4 when it is a name. A name that does not resolve (gethostbyname
-        // returns it unchanged) yields no IP and is treated as public.
+        // Candidate IPs: the literal host when it is an IP, otherwise every A
+        // and AAAA record the name resolves to. A name that resolves to
+        // nothing yields no IP and is treated as public (it cannot be reached
+        // anyway). Resolving both families closes the IPv6-only bypass.
         $literal = trim( $host, '[]' );
-        $ips     = array();
         if ( false !== filter_var( $literal, FILTER_VALIDATE_IP ) ) {
-            $ips[] = $literal;
+            $ips = array( $literal );
         } else {
-            $resolved = static::resolve_host_ip( $host );
-            if ( is_string( $resolved ) && false !== filter_var( $resolved, FILTER_VALIDATE_IP ) ) {
-                $ips[] = $resolved;
-            }
+            $ips = static::resolve_host_ips( $host );
         }
 
         foreach ( $ips as $ip ) {
@@ -362,16 +359,40 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     }
 
     /**
-     * Resolve a hostname to an IPv4 address, returning the host unchanged
-     * when resolution fails (the gethostbyname contract). Isolated so tests
-     * can script resolution without real DNS.
+     * Resolve a hostname to every IP it points at - both IPv4 (A) and IPv6
+     * (AAAA). Resolving only IPv4 would let an IPv6-only private or metadata
+     * host pass the guard as "public" while wp_remote_get still connects to
+     * it. Returns an empty array when nothing resolves. Isolated so tests can
+     * script resolution without real DNS.
      *
      * @param string $host Hostname.
      *
-     * @return string
+     * @return string[] Validated IP literals (may be empty).
      */
-    protected static function resolve_host_ip( $host ) {
-        return gethostbyname( $host );
+    protected static function resolve_host_ips( $host ) {
+        $ips = array();
+
+        $v4 = gethostbynamel( $host );
+        if ( is_array( $v4 ) ) {
+            foreach ( $v4 as $ip ) {
+                if ( false !== filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+                    $ips[] = $ip;
+                }
+            }
+        }
+
+        if ( function_exists( 'dns_get_record' ) ) {
+            $aaaa = @dns_get_record( $host, DNS_AAAA ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- a failed AAAA lookup is non-fatal; IPv4 still covers the host.
+            if ( is_array( $aaaa ) ) {
+                foreach ( $aaaa as $record ) {
+                    if ( isset( $record['ipv6'] ) && false !== filter_var( $record['ipv6'], FILTER_VALIDATE_IP ) ) {
+                        $ips[] = $record['ipv6'];
+                    }
+                }
+            }
+        }
+
+        return array_values( array_unique( $ips ) );
     }
 
     /**

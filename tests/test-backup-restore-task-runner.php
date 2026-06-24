@@ -622,14 +622,16 @@ class Ssrf_Resolver_Test_Restore_Runner extends MainWP_Child_Restore_Task_Runner
 	public static $resolved = array();
 
 	/**
-	 * Scripted resolution.
+	 * Scripted resolution: a mapped host yields its IP(s) (a string or an
+	 * array), an unmapped host yields none - matching the real resolver's
+	 * empty-on-failure contract.
 	 *
 	 * @param string $host Hostname.
 	 *
-	 * @return string
+	 * @return string[]
 	 */
-	protected static function resolve_host_ip( $host ) {
-		return isset( self::$resolved[ $host ] ) ? self::$resolved[ $host ] : $host;
+	protected static function resolve_host_ips( $host ) {
+		return isset( self::$resolved[ $host ] ) ? (array) self::$resolved[ $host ] : array();
 	}
 }
 
@@ -2831,6 +2833,49 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			Ssrf_Resolver_Test_Restore_Runner::sanitize_pull_manifest( $manifest, $artifacts ),
 			'A hostname that does not resolve to a private IP passes.'
 		);
+	}
+
+	/**
+	 * SSRF: an IPv6-only host that resolves to a private (ULA) or link-local
+	 * address is blocked. IPv4-only resolution would have yielded no IP and
+	 * let the URL through as "public" while wp_remote_get reaches the IPv6.
+	 */
+	public function test_sanitize_pull_manifest_blocks_ipv6_only_private_host() {
+		$sha       = str_repeat( 'a', 64 );
+		$artifacts = array( array( 'file' => 'db.zip', 'adopt_only' => false ) );
+		$manifest  = array(
+			'artifacts' => array(
+				array(
+					'file'   => 'db.zip',
+					'sha256' => $sha,
+					'size'   => 10,
+					'url'    => 'https://v6only.example.com/db.zip',
+				),
+			),
+		);
+
+		// ULA (fc00::/7) - caught by the private-range check.
+		Ssrf_Resolver_Test_Restore_Runner::$resolved = array( 'v6only.example.com' => array( 'fd00::1' ) );
+		$this->assertNull(
+			Ssrf_Resolver_Test_Restore_Runner::sanitize_pull_manifest( $manifest, $artifacts ),
+			'An IPv6 ULA host must be blocked.'
+		);
+
+		// Link-local (fe80::/10) - caught by the metadata/link-local check.
+		Ssrf_Resolver_Test_Restore_Runner::$resolved = array( 'v6only.example.com' => array( 'fe80::1' ) );
+		$this->assertNull(
+			Ssrf_Resolver_Test_Restore_Runner::sanitize_pull_manifest( $manifest, $artifacts ),
+			'An IPv6 link-local host must be blocked.'
+		);
+
+		// A public IPv6 still passes.
+		Ssrf_Resolver_Test_Restore_Runner::$resolved = array( 'v6only.example.com' => array( '2606:4700:4700::1111' ) );
+		$this->assertNotNull(
+			Ssrf_Resolver_Test_Restore_Runner::sanitize_pull_manifest( $manifest, $artifacts ),
+			'A public IPv6 host passes.'
+		);
+
+		Ssrf_Resolver_Test_Restore_Runner::$resolved = array();
 	}
 
 	/**
