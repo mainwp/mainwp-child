@@ -167,6 +167,17 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
     }
 
     /**
+     * Resolve mysqli client flags, honoring a host's MYSQL_CLIENT_FLAGS the
+     * same way wpdb does (e.g. forced SSL). Shared by the dump and restore
+     * connections so the two can never drift on SSL-required hosts.
+     *
+     * @return int Client-flags bitmask, 0 when none is defined.
+     */
+    public static function resolve_client_flags() {
+        return defined( 'MYSQL_CLIENT_FLAGS' ) ? (int) MYSQL_CLIENT_FLAGS : 0;
+    }
+
+    /**
      * Open the dedicated mysqli connection.
      *
      * @param array|null $params Connection parameter override (tests).
@@ -184,10 +195,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         $mysqli = mysqli_init();
         $mysqli->options( MYSQLI_OPT_CONNECT_TIMEOUT, 10 );
 
-        $flags = 0;
-        if ( defined( 'MYSQL_CLIENT_FLAGS' ) ) {
-            $flags = (int) MYSQL_CLIENT_FLAGS; // Honor host SSL requirements the same way wpdb does.
-        }
+        $flags = self::resolve_client_flags();
 
         $connected = @$mysqli->real_connect( // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failure converted to a coded, scrubbed exception below.
             $params['host'],
@@ -487,6 +495,14 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         $start = time();
 
         if ( null === $cursor || ! is_array( $cursor ) ) {
+            // A whole-DB Tier-2 dump reads $wpdb, which on a sharded/replicated
+            // topology routes to a single shard and would silently produce an
+            // incomplete backup. Refuse here the same way Tier-1 does, so the
+            // dedicated-connection fallback cannot bypass the topology guard.
+            // The FK-rollback aside dump seeds its own cursor and never enters
+            // this branch, so its targeted table list stays unaffected.
+            $this->assert_supported_topology();
+
             $tables = $wpdb->get_col( "SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'", 0 ); // phpcs:ignore -- table inventory.
             $cursor = array(
                 'tables'  => is_array( $tables ) ? $tables : array(),

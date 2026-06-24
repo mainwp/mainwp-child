@@ -144,6 +144,14 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
             $version = (int) $task->version;
 
             if ( (int) $task->resume_count >= (int) $task->max_resumes ) {
+                // A stalled, in-flight foreign-key replay must roll the
+                // half-applied live database back rather than fail outright,
+                // even at the resume cap - otherwise the live tables are left
+                // half-overwritten. The rollback gets fresh resume budget.
+                if ( $spine->reroute_fk_replay_to_rollback( $task, $version ) ) {
+                    continue;
+                }
+
                 // Out of resume attempts: record why so the Dashboard shows a
                 // reason and a code instead of a bare "failed".
                 $spine->checkpoint(

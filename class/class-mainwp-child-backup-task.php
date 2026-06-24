@@ -72,6 +72,14 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     const SLICE_BUDGET_SECONDS = 90;
 
     /**
+     * Wall-clock window granted at creation and refreshed on every real
+     * progress checkpoint. A task is failed only when it makes no progress for
+     * this long (the "cron never fires" stuck case), so a large backup that is
+     * actively advancing is never killed for simply taking a while.
+     */
+    const WALL_CLOCK_WINDOW_SECONDS = ( self::DEFAULT_MAX_RESUMES + 2 ) * self::SLICE_BUDGET_SECONDS * 4;
+
+    /**
      * Fresh wall-clock budget granted to a foreign-key rollback when a replay
      * is rerouted to it at its deadline, so the recovery has time to finish.
      */
@@ -246,7 +254,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
 
         $max_resumes = null === $max_resumes ? self::DEFAULT_MAX_RESUMES : (int) $max_resumes;
         $task_id     = 'task-' . time() . '-' . strtolower( wp_generate_password( 12, false ) );
-        $deadline    = null === $deadline_seconds ? ( self::DEFAULT_MAX_RESUMES + 2 ) * self::SLICE_BUDGET_SECONDS * 4 : (int) $deadline_seconds;
+        $deadline    = null === $deadline_seconds ? self::WALL_CLOCK_WINDOW_SECONDS : (int) $deadline_seconds;
 
         $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- dedicated spine table.
             $wpdb->prepare(
@@ -633,6 +641,48 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     }
 
     /**
+     * Reroute a stalled, in-flight foreign-key replay to its rollback instead
+     * of failing it outright, so a half-applied live database is rolled back to
+     * the aside snapshot rather than left broken.
+     *
+     * This mirrors the deadline-forced reroute in enforce_wall_clock_deadline()
+     * but is gated by the caller's owned version (the watchdog's compare-and-
+     * swap), not by the wall clock: the watchdog acts on the resume cap, which
+     * can be reached while the deadline is still in the future, so requiring an
+     * expired deadline here would skip the rollback. It resets resume_count and
+     * grants a fresh deadline so the bounded rollback has budget, and only wins
+     * on a free lease so it can never overlap a replay still writing the live
+     * tables.
+     *
+     * @param object $task    Stalled task row.
+     * @param int    $version Owned row version (compare-and-swap guard).
+     *
+     * @return bool True when the task was rerouted to rollback.
+     */
+    public function reroute_fk_replay_to_rollback( $task, $version ) {
+        global $wpdb;
+
+        if ( self::PHASE_REPLAYING_DB !== $task->phase || ! $this->is_fk_replay_in_progress( $task ) ) {
+            return false;
+        }
+
+        $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- compare-and-swap reroute write on the spine table.
+            $wpdb->prepare(
+                'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
+                ' SET phase = %s, max_wall_clock_at = DATE_ADD(NOW(), INTERVAL %d SECOND), resume_count = 0, last_progress_at = NOW(), version = version + 1
+                 WHERE task_id = %s AND version = %d AND phase = %s
+                   AND ( lease_owner IS NULL OR lease_expires_at < NOW() )',
+                self::PHASE_FK_ROLLBACK,
+                self::FK_ROLLBACK_DEADLINE_SECONDS,
+                $task->task_id,
+                (int) $version,
+                self::PHASE_REPLAYING_DB
+            )
+        );
+        return 1 === $result;
+    }
+
+    /**
      * Push a running task's wall-clock deadline out by a fixed amount.
      *
      * The foreign-key restore path adds an aside snapshot and a possible
@@ -662,6 +712,39 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                 " SET max_wall_clock_at = DATE_ADD(GREATEST(max_wall_clock_at, NOW()), INTERVAL %d SECOND)
                  WHERE task_id = %s AND phase NOT IN ('completed','failed')",
                 $extra,
+                $task_id
+            )
+        );
+        return 1 === $result;
+    }
+
+    /**
+     * Slide the wall-clock deadline forward on real progress: ensure the
+     * horizon is at least NOW + window, never shortening it (a far-future
+     * horizon from a larger upfront grant is left alone). Called on every
+     * progress checkpoint so an actively-advancing task is failed only when it
+     * makes no progress for a whole window, while a truly stuck task (no
+     * checkpoints) still goes terminal. Deadline-only, no version churn.
+     *
+     * @param string $task_id        Task id.
+     * @param int    $window_seconds Sliding window length in seconds.
+     *
+     * @return bool True when the row was updated.
+     */
+    public function refresh_wall_clock( $task_id, $window_seconds ) {
+        global $wpdb;
+
+        $window = (int) $window_seconds;
+        if ( $window <= 0 ) {
+            return false;
+        }
+
+        $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- deadline-only write on the spine table.
+            $wpdb->prepare(
+                'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
+                " SET max_wall_clock_at = GREATEST(max_wall_clock_at, DATE_ADD(NOW(), INTERVAL %d SECOND))
+                 WHERE task_id = %s AND phase NOT IN ('completed','failed')",
+                $window,
                 $task_id
             )
         );

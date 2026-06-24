@@ -948,6 +948,11 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             return $this->slice_result( $version, true, true );
         }
 
+        // Real progress just landed - slide the wall-clock horizon forward so a
+        // large backup that is actively advancing is never failed for taking a
+        // while. A genuinely stuck task stops checkpointing and still expires.
+        $spine->refresh_wall_clock( $task->task_id, MainWP_Child_Backup_Task::WALL_CLOCK_WINDOW_SECONDS );
+
         return $this->slice_result( $new_version, $then_yield );
     }
 

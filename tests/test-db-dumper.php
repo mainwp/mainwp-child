@@ -9,6 +9,30 @@ use MainWP\Child\MainWP_Backup_Db_Dumper;
 use MainWP\Child\MainWP_Backup_Budget_Exception;
 
 /**
+ * Dumper spy that records topology-guard calls and aborts immediately, so a
+ * test can assert the guard fires (or not) without touching the database.
+ */
+class Topology_Probing_Dumper extends MainWP_Backup_Db_Dumper {
+
+	/**
+	 * How many times the topology guard ran.
+	 *
+	 * @var int
+	 */
+	public $topology_calls = 0;
+
+	/**
+	 * Count the call and abort before any table read.
+	 *
+	 * @return void
+	 */
+	public function assert_supported_topology() {
+		++$this->topology_calls;
+		throw new \RuntimeException( 'topology-checked' );
+	}
+}
+
+/**
  * Tests for the consistent-snapshot DB dumper and its Tier-2 PK-seek
  * fallback for databases too large to dump in one bounded request.
  */
@@ -262,5 +286,68 @@ class DbDumperTest extends WP_UnitTestCase {
 		$content = file_get_contents( $fixture_file );
 		$this->assertStringStartsWith( '<?php exit(); ?>', $content );
 		$this->assertStringContainsString( 'INSERT INTO', $content );
+	}
+
+	/**
+	 * A whole-DB Tier-2 dump (null cursor) must run the topology guard before
+	 * reading $wpdb, so a sharded/replicated site cannot silently dump one
+	 * shard through the dedicated-connection fallback.
+	 *
+	 * @return void
+	 */
+	public function test_tier2_whole_db_runs_topology_guard() {
+		$dumper = new Topology_Probing_Dumper();
+
+		$threw = false;
+		try {
+			$dumper->dump_tier2_slice( $this->scratch . '/dbBackup', null, 0 );
+		} catch ( \RuntimeException $e ) {
+			$threw = true;
+		}
+
+		$this->assertTrue( $threw, 'The guard must abort the whole-DB Tier-2 dump.' );
+		$this->assertSame( 1, $dumper->topology_calls, 'Topology must be checked once before any table read.' );
+	}
+
+	/**
+	 * The FK-rollback aside dump seeds its own cursor and must NOT trip the
+	 * whole-DB topology guard - it dumps an explicit, already-known table list.
+	 *
+	 * @return void
+	 */
+	public function test_tier2_seeded_cursor_skips_topology_guard() {
+		$dumper = new Topology_Probing_Dumper();
+		$seeded = array(
+			'tables'  => array(),
+			'index'   => 0,
+			'started' => false,
+			'pk_col'  => null,
+			'last_id' => 0,
+			'offset'  => 0,
+			'files'   => array(),
+			'first'   => true,
+		);
+
+		$result = $dumper->dump_tier2_slice( $this->scratch . '/dbBackup', $seeded, 0 );
+
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( 0, $dumper->topology_calls, 'A pre-seeded cursor must skip the whole-DB topology guard.' );
+	}
+
+	/**
+	 * resolve_client_flags() honors MYSQL_CLIENT_FLAGS so the dump and the
+	 * restore connections negotiate SSL identically on hosts that require it;
+	 * without the constant it must default to 0 (no flags).
+	 *
+	 * @return void
+	 */
+	public function test_resolve_client_flags_honors_constant() {
+		$flags = MainWP_Backup_Db_Dumper::resolve_client_flags();
+		$this->assertIsInt( $flags );
+		if ( defined( 'MYSQL_CLIENT_FLAGS' ) ) {
+			$this->assertSame( (int) MYSQL_CLIENT_FLAGS, $flags );
+		} else {
+			$this->assertSame( 0, $flags );
+		}
 	}
 }

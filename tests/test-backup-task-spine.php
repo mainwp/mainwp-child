@@ -268,6 +268,42 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A stalled, in-flight foreign-key replay at the resume cap is rerouted to
+	 * the rollback instead of failed, so a half-applied live database is rolled
+	 * back to the aside snapshot. The rollback gets fresh resume budget.
+	 */
+	public function test_watchdog_cap_reroutes_in_flight_fk_replay() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'restore', array( 'db_replay' => array( 'fk_path' => true, 'snapshot_done' => true ) ) );
+
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET phase = %s, last_progress_at = DATE_SUB(NOW(), INTERVAL 600 SECOND), resume_count = max_resumes WHERE task_id = %s', MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $task_id ) ); // phpcs:ignore -- test fixture.
+
+		MainWP_Child_Backup_Watchdog::instance()->check_tasks( 0 );
+
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK, $task->phase, 'A capped in-flight FK replay must roll back, not fail.' );
+		$this->assertSame( 0, (int) $task->resume_count, 'The rerouted rollback must get fresh resume budget.' );
+	}
+
+	/**
+	 * A capped FK task whose aside snapshot is not yet taken still fails: the
+	 * live database has not been overwritten, so there is nothing to roll back
+	 * and the reroute must not fire (it is specific to the half-applied case).
+	 */
+	public function test_watchdog_cap_fails_fk_replay_without_snapshot() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'restore', array( 'db_replay' => array( 'fk_path' => true, 'snapshot_done' => false ) ) );
+
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET phase = %s, last_progress_at = DATE_SUB(NOW(), INTERVAL 600 SECOND), resume_count = max_resumes WHERE task_id = %s', MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $task_id ) ); // phpcs:ignore -- test fixture.
+
+		MainWP_Child_Backup_Watchdog::instance()->check_tasks( 0 );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $spine->get_task( $task_id )->phase, 'No aside snapshot yet means nothing to roll back, so it fails.' );
+	}
+
+	/**
 	 * The watchdog resumes a stalled task: increments resume_count and
 	 * re-enters under its own lease.
 	 */
@@ -502,6 +538,55 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 		$this->assertFalse( $spine->enforce_wall_clock_deadline( $task_id2 ) );
 		$task2 = $spine->get_task( $task_id2 );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $task2->phase );
+	}
+
+	/**
+	 * A progress refresh slides an expired horizon forward, so a large backup
+	 * that is actively advancing past its original wall clock is not failed -
+	 * only a task that stops checkpointing (truly stuck) still expires.
+	 */
+	public function test_refresh_wall_clock_revives_an_expired_horizon() {
+		global $wpdb;
+		$spine = MainWP_Child_Backup_Task::instance();
+
+		// Without a refresh, an expired horizon is failed (the existing guard).
+		$stuck = $spine->create_task( 'full' );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET max_wall_clock_at = DATE_SUB(NOW(), INTERVAL 120 SECOND) WHERE task_id = %s', $stuck ) ); // phpcs:ignore -- test fixture.
+		$this->assertTrue( $spine->enforce_wall_clock_deadline( $stuck ) );
+
+		// A progressing task whose original horizon has passed survives once a
+		// checkpoint refreshes the wall clock.
+		$advancing = $spine->create_task( 'full' );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET max_wall_clock_at = DATE_SUB(NOW(), INTERVAL 120 SECOND) WHERE task_id = %s', $advancing ) ); // phpcs:ignore -- test fixture.
+		$this->assertTrue( $spine->refresh_wall_clock( $advancing, MainWP_Child_Backup_Task::WALL_CLOCK_WINDOW_SECONDS ) );
+		$this->assertFalse( $spine->enforce_wall_clock_deadline( $advancing ), 'An advancing backup must survive past its original horizon.' );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $spine->get_task( $advancing )->phase );
+	}
+
+	/**
+	 * Refresh is a monotonic floor: it never shortens a horizon that is already
+	 * further out than NOW + window (e.g. a larger upfront grant).
+	 */
+	public function test_refresh_wall_clock_never_shortens() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full' );
+
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET max_wall_clock_at = DATE_ADD(NOW(), INTERVAL 999999 SECOND) WHERE task_id = %s', $task_id ) ); // phpcs:ignore -- test fixture.
+		$before = $spine->get_task( $task_id )->max_wall_clock_at;
+
+		$spine->refresh_wall_clock( $task_id, 60 );
+		$this->assertSame( $before, $spine->get_task( $task_id )->max_wall_clock_at, 'A small refresh must not shorten a far-future horizon.' );
+	}
+
+	/**
+	 * A non-positive window is a no-op, never zeroing or shortening the horizon.
+	 */
+	public function test_refresh_wall_clock_ignores_nonpositive_window() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full' );
+		$this->assertFalse( $spine->refresh_wall_clock( $task_id, 0 ) );
+		$this->assertFalse( $spine->refresh_wall_clock( $task_id, -5 ) );
 	}
 
 	/**

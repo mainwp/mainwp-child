@@ -695,7 +695,8 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
             $params['password'],
             $params['name'],
             null !== $params['port'] ? (int) $params['port'] : 0,
-            $params['socket']
+            null !== $params['socket'] ? $params['socket'] : '',
+            MainWP_Backup_Db_Dumper::resolve_client_flags() // Match the dump connection so SSL-required hosts restore too.
         );
         if ( ! $connected ) {
             return null;
