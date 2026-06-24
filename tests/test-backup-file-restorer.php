@@ -9,6 +9,31 @@ use MainWP\Child\MainWP_Child_Backup_File_Restorer;
 use MainWP\Child\MainWP_Backup_Error;
 
 /**
+ * Restorer that forces every .tar.gz decompression to hit the slice deadline,
+ * standing in for a stream too large to finish, without depending on wall-clock
+ * timing.
+ */
+class TimeoutDecompressRestorer extends MainWP_Child_Backup_File_Restorer {
+
+	/**
+	 * Force the timeout signal for compressed parts; plain tars pass through.
+	 *
+	 * @param string    $part      Archive path.
+	 * @param float|int $deadline  Decompression deadline.
+	 * @param bool      $timed_out Set true on a forced timeout (by reference).
+	 *
+	 * @return string|null Plain tar path, or null on the forced timeout.
+	 */
+	protected function plain_tar_for( $part, $deadline, &$timed_out ) {
+		if ( preg_match( '/\.tar\.gz$/i', $part ) ) {
+			$timed_out = true;
+			return null;
+		}
+		return parent::plain_tar_for( $part, $deadline, $timed_out );
+	}
+}
+
+/**
  * Tests for the chunked, hash-verified, zip-slip-guarded file restorer.
  *
  * Every archive verifies its sha256 against the expected hash before a
@@ -376,6 +401,81 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertTrue( $result['done'] );
 		$this->assertStringContainsString( 'CREATE TABLE', file_get_contents( $this->extract_to . '/dbBackup-wp_a.sql.php' ) );
 		$this->assertSame( 'nested-bytes', file_get_contents( $this->extract_to . '/sub/nested.txt' ) );
+	}
+
+	/**
+	 * A .tar.gz that cannot be decompressed within the slice budget is refused
+	 * with an actionable message instead of restarting from byte 0 every slice,
+	 * and the partial decompression is discarded.
+	 */
+	public function test_tar_gz_decompress_refused_when_over_budget() {
+		$tar  = $this->dir . '/big.tar';
+		$phar = new PharData( $tar );
+		$phar->addFromString( 'a.txt', str_repeat( 'a', 4096 ) );
+		$phar->compress( Phar::GZ );
+		unset( $phar );
+		Phar::unlinkArchive( $tar );
+
+		$gz = $tar . '.gz';
+
+		// A deadline already in the past forces the decompression loop to refuse
+		// on its first iteration, standing in for a stream too large to finish.
+		$result = $this->restorer->restore_slice( array(), $this->config( array( $gz ) ), microtime( true ) - 1 );
+
+		$this->assertFalse( $result['done'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertStringContainsString( 'uncompressed .tar', $result['error'] );
+		$this->assertFileDoesNotExist( $gz . '.plain.tar' );
+		$this->assertFileDoesNotExist( $gz . '.plain.tar.tmp' );
+	}
+
+	/**
+	 * When a .tar.gz decompression hits the deadline mid-stream after a prior
+	 * part already spent the slice, the restore yields for a fresh slice rather
+	 * than refusing - a compressed archive that would fit a full slice is never
+	 * falsely rejected.
+	 */
+	public function test_tar_gz_decompress_timeout_yields_after_prior_work() {
+		$restorer = new TimeoutDecompressRestorer();
+
+		$plain = $this->make_tar( 'first.tar', array( 'one.txt' => 'a' ) );
+
+		$gztar = $this->dir . '/second.tar';
+		$phar  = new PharData( $gztar );
+		$phar->addFromString( 'b.txt', 'b' );
+		$phar->compress( Phar::GZ );
+		unset( $phar );
+		Phar::unlinkArchive( $gztar );
+		$gz = $gztar . '.gz';
+
+		// A full future budget: the first part extracts, then the .tar.gz forces
+		// a mid-stream timeout with work already done this slice.
+		$result = $restorer->restore_slice( array(), $this->config( array( $plain, $gz ) ), microtime( true ) + 3600 );
+
+		$this->assertFalse( $result['done'] );
+		$this->assertNull( $result['error'], 'A mid-stream decompress timeout after prior work must yield, not refuse.' );
+	}
+
+	/**
+	 * A .tar.gz that times out on a fresh slice (a full budget was not enough)
+	 * is refused with the actionable message.
+	 */
+	public function test_tar_gz_decompress_timeout_refuses_on_full_slice() {
+		$restorer = new TimeoutDecompressRestorer();
+
+		$gztar = $this->dir . '/only.tar';
+		$phar  = new PharData( $gztar );
+		$phar->addFromString( 'b.txt', 'b' );
+		$phar->compress( Phar::GZ );
+		unset( $phar );
+		Phar::unlinkArchive( $gztar );
+		$gz = $gztar . '.gz';
+
+		$result = $restorer->restore_slice( array(), $this->config( array( $gz ) ), microtime( true ) + 3600 );
+
+		$this->assertFalse( $result['done'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertStringContainsString( 'uncompressed .tar', $result['error'] );
 	}
 
 	/**

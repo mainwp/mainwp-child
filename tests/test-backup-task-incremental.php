@@ -55,7 +55,8 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 				'file'     => 'backup-artifact.tar',
 				'filesize' => 2048,
 			),
-			'emit_manifest_sidecars'   => array(
+			'walk_manifest_slice'      => array(
+				'done'  => true,
 				'file'  => 'files.list',
 				'size'  => 123,
 				'count' => 2,
@@ -204,7 +205,7 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		$task    = $this->advance( $task_id );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
-		$this->assertContains( 'emit_manifest_sidecars', $this->runner->seam_names() );
+		$this->assertContains( 'walk_manifest_slice', $this->runner->seam_names() );
 		$this->assertContains( 'promote_manifest_sidecars', $this->runner->seam_names() );
 
 		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
@@ -235,7 +236,7 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		$task    = $this->advance( $task_id );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
-		$this->assertNotContains( 'emit_manifest_sidecars', $this->runner->seam_names() );
+		$this->assertNotContains( 'walk_manifest_slice', $this->runner->seam_names() );
 		$this->assertNotContains( 'promote_manifest_sidecars', $this->runner->seam_names() );
 
 		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
@@ -248,7 +249,7 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 	 * next incremental resolves by forcing a full.
 	 */
 	public function test_manifest_emission_failure_keeps_backup_completed() {
-		$this->runner->stubs['emit_manifest_sidecars'] = new \RuntimeException( 'walk failed' );
+		$this->runner->stubs['walk_manifest_slice'] = new \RuntimeException( 'walk failed' );
 
 		$task_id = $this->create_task( 'full', array( 'emit_manifest' => true ) );
 		$task    = $this->advance( $task_id );
@@ -258,6 +259,32 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
 		$this->assertSame( 'backup-artifact.tar', $payload['file'] );
 		$this->assertArrayNotHasKey( 'artifacts', $payload );
+	}
+
+	/**
+	 * While the manifest walk is mid-flight, the running scanned count from the
+	 * walk cursor surfaces in the status payload so the dashboard can render a
+	 * climbing number before the walk's totals are known.
+	 */
+	public function test_walk_scanned_count_surfaces_mid_walk() {
+		$this->runner->stubs['walk_manifest_slice'] = array(
+			'done'        => false,
+			'cursor'      => array(
+				'count' => 1234,
+				'phase' => 'enumerate',
+			),
+			'count'       => 1234,
+			'total_bytes' => 0,
+		);
+
+		$task_id = $this->create_task( 'incremental' );
+		$task    = $this->advance( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES, $task->phase, 'The walk yields while still scanning.' );
+
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+		$this->assertArrayHasKey( 'progress', $payload );
+		$this->assertSame( 1234, $payload['progress']['files_scanned'], 'The live scanned count must surface mid-walk.' );
 	}
 
 	// ---- incremental run fixtures -----------------------------------------
@@ -285,8 +312,8 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 
 		$site = $this->site;
 
-		$this->runner->stubs['emit_manifest_sidecars'] = function ( $params, $backup_dir ) use ( $site ) {
-			unset( $params );
+		$this->runner->stubs['walk_manifest_slice'] = function ( $params, $backup_dir, $cursor, $deadline ) use ( $site ) {
+			unset( $params, $cursor, $deadline );
 			$relpaths = array( 'added.php', 'carried.php', 'changed.php', 'wp-content/plugins/hello/hello.php' );
 			$lines    = '';
 			$cache    = '';
@@ -298,6 +325,7 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 			file_put_contents( $backup_dir . '/files.list.staged', $lines ); // phpcs:ignore -- test fixture.
 			file_put_contents( $backup_dir . '/paths.cache.staged', $cache ); // phpcs:ignore -- test fixture.
 			return array(
+				'done'  => true,
 				'file'  => 'files.list',
 				'size'  => (int) filesize( $backup_dir . '/files.list.staged' ),
 				'count' => count( $relpaths ),

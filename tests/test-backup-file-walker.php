@@ -54,6 +54,69 @@ class CorruptingTestWalker extends ChunkedTestWalker {
 	}
 }
 
+/**
+ * Chunked walker that yields after a fixed number of enumeration steps, so a
+ * small fixture exercises the resume path across many slices. The wrapper path
+ * (PHP_INT_MAX deadline) never yields, keeping emit_sidecars() one-shot.
+ */
+class SlicingTestWalker extends ChunkedTestWalker {
+
+	/**
+	 * Enumeration steps allowed before a slice yields.
+	 *
+	 * @var int
+	 */
+	public $steps_per_slice = 3;
+
+	/**
+	 * Steps taken in the current slice (resets per instance).
+	 *
+	 * @var int
+	 */
+	private $steps_taken = 0;
+
+	/**
+	 * Yield after steps_per_slice steps; never on the one-shot wrapper path.
+	 *
+	 * @param int $deadline Slice deadline.
+	 *
+	 * @return bool Whether to checkpoint and yield.
+	 */
+	protected function walk_budget_exhausted( $deadline ) {
+		if ( PHP_INT_MAX === $deadline ) {
+			return false;
+		}
+		if ( $this->steps_taken >= $this->steps_per_slice ) {
+			return true;
+		}
+		++$this->steps_taken;
+		return false;
+	}
+}
+
+/**
+ * Slicing walker that corrupts every run it writes on the first walk attempt
+ * only; the recovery re-walk (recover_count > 0) writes clean runs, so the
+ * merge meets a corrupt run once, recovers, and then succeeds.
+ */
+class CorruptOnceSlicingWalker extends SlicingTestWalker {
+
+	/**
+	 * Append a junk line on the first attempt so the merge fails once.
+	 *
+	 * @param array $buffer Sorted chunk entries.
+	 *
+	 * @return string Run file path.
+	 */
+	protected function write_run( array $buffer ) {
+		$path = parent::write_run( $buffer );
+		if ( 0 === $this->recover_count ) {
+			file_put_contents( $path, "malformed-run-line-without-tab-fields\n", FILE_APPEND ); // phpcs:ignore -- deliberate one-time corruption for the recovery test.
+		}
+		return $path;
+	}
+}
+
 class BackupFileWalkerTest extends WP_UnitTestCase {
 
 	/**
@@ -654,5 +717,147 @@ class BackupFileWalkerTest extends WP_UnitTestCase {
 		$result   = $walker->emit_sidecars( $this->backup_dir );
 		$expected = (int) ceil( ( (int) $result['count'] ) / 2 );
 		$this->assertSame( $expected, $calls, 'Heartbeat must fire once per spilled run.' );
+	}
+
+	/**
+	 * Drive a sliced walk to completion, building a fresh walker per slice (as a
+	 * real per-request runner would) and threading the cursor across slices.
+	 *
+	 * @param callable $factory Returns a fresh walker for each slice.
+	 *
+	 * @return array[] The per-slice results, last element done.
+	 */
+	private function drive_sliced( $factory ) {
+		$cursor  = null;
+		$results = array();
+		$guard   = 0;
+		do {
+			$walker    = $factory();
+			$out       = $walker->emit_sidecars_slice( $this->backup_dir, $cursor, time() + 1000 );
+			$cursor    = $out['cursor'];
+			$results[] = $out;
+		} while ( empty( $out['done'] ) && ++$guard < 10000 );
+		return $results;
+	}
+
+	/**
+	 * A walk interrupted and resumed across many slices produces a manifest
+	 * byte-identical to the one-shot walk - the 1A sorted-equivalence contract
+	 * holds across resume. Root and subdir dotfiles are present so the resume
+	 * re-derives the glob (root) and scandir (subdir) child lists.
+	 *
+	 * @return void
+	 */
+	public function test_resume_produces_byte_identical_manifest() {
+		file_put_contents( $this->root . '/.htaccess', 'root' ); // phpcs:ignore -- test fixture.
+		file_put_contents( $this->root . '/wp-content/.htaccess', 'sub' ); // phpcs:ignore -- test fixture.
+
+		$oneshot   = $this->chunked_walker()->emit_sidecars( $this->backup_dir );
+		$ref_files = file_get_contents( $this->backup_dir . '/files.list.staged' );
+		$ref_paths = file_get_contents( $this->backup_dir . '/paths.cache.staged' );
+
+		$results = $this->drive_sliced( fn() => new SlicingTestWalker( $this->root, array(), false, false, array( $this->backup_dir ) ) );
+		$last    = end( $results );
+
+		$this->assertTrue( $last['done'], 'The sliced walk must finish.' );
+		$this->assertGreaterThan( 1, count( $results ), 'The walk must actually span multiple slices.' );
+		$this->assertSame( $ref_files, file_get_contents( $this->backup_dir . '/files.list.staged' ), 'Resumed files.list must be byte-identical to the one-shot walk.' );
+		$this->assertSame( $ref_paths, file_get_contents( $this->backup_dir . '/paths.cache.staged' ), 'Resumed paths.cache must be byte-identical to the one-shot walk.' );
+		$this->assertSame( (int) $oneshot['count'], (int) $last['count'], 'Resumed count must match the one-shot count.' );
+		$this->assertSame( (int) $oneshot['total_bytes'], (int) $last['total_bytes'], 'Resumed total_bytes must match.' );
+	}
+
+	/**
+	 * Root-level dotfiles are skipped (glob) and subdir dotfiles are kept
+	 * (scandir), independent of resume - locking the asymmetry the original
+	 * walk_tree/walk_dir split had.
+	 *
+	 * @return void
+	 */
+	public function test_root_dotfiles_skipped_subdir_dotfiles_kept() {
+		file_put_contents( $this->root . '/.htaccess', 'root' ); // phpcs:ignore -- test fixture.
+		file_put_contents( $this->root . '/wp-content/.htaccess', 'sub' ); // phpcs:ignore -- test fixture.
+
+		$this->walker()->emit_sidecars( $this->backup_dir );
+
+		$relpaths = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
+		$this->assertNotContains( '.htaccess', $relpaths, 'Root-level dotfiles must be skipped, as glob did.' );
+		$this->assertContains( 'wp-content/.htaccess', $relpaths, 'Subdir dotfiles must be kept, as scandir did.' );
+	}
+
+	/**
+	 * The live scanned count never decreases across slices and reaches the
+	 * final manifest count - the signal the dashboard renders mid-walk.
+	 *
+	 * @return void
+	 */
+	public function test_live_count_climbs_across_slices() {
+		$results = $this->drive_sliced( fn() => new SlicingTestWalker( $this->root, array(), false, false, array( $this->backup_dir ) ) );
+
+		$prev = 0;
+		foreach ( $results as $out ) {
+			$this->assertGreaterThanOrEqual( $prev, (int) $out['count'], 'The scanned count must never go backwards.' );
+			$prev = (int) $out['count'];
+		}
+
+		$last     = end( $results );
+		$relpaths = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
+		$this->assertSame( count( $relpaths ), (int) $last['count'], 'The final count must equal the manifest line count.' );
+	}
+
+	/**
+	 * On resume the runs the cursor references survive and an orphan run a dead
+	 * slice spilled past the last checkpoint is swept, never bleeding into the
+	 * merge.
+	 *
+	 * @return void
+	 */
+	public function test_resume_keeps_runs_and_sweeps_orphans() {
+		// One slice, then inspect the cursor.
+		$first = ( new SlicingTestWalker( $this->root, array(), false, false, array( $this->backup_dir ) ) )
+			->emit_sidecars_slice( $this->backup_dir, null, time() + 1000 );
+
+		$this->assertFalse( $first['done'], 'The first slice should not finish the whole walk.' );
+		$kept = $first['cursor']['runs'];
+
+		// Plant an orphan run not referenced by the cursor.
+		$orphan = $this->backup_dir . '/walk-run-9999';
+		file_put_contents( $orphan, "ghost/file.php\t1\t1\tcore\n" ); // phpcs:ignore -- orphan from a dead slice.
+
+		// Resume to completion.
+		$cursor  = $first['cursor'];
+		$results = array();
+		$guard   = 0;
+		do {
+			$out       = ( new SlicingTestWalker( $this->root, array(), false, false, array( $this->backup_dir ) ) )
+				->emit_sidecars_slice( $this->backup_dir, $cursor, time() + 1000 );
+			$cursor    = $out['cursor'];
+			$results[] = $out;
+		} while ( empty( $out['done'] ) && ++$guard < 10000 );
+
+		$this->assertNotEmpty( $kept, 'The first slice should have spilled at least one run.' );
+		$this->assertFileDoesNotExist( $orphan, 'An orphan run must be swept on resume.' );
+		$relpaths = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
+		$this->assertNotContains( 'ghost/file.php', $relpaths, 'A swept orphan must never enter the manifest.' );
+		$this->assertContains( 'wp-content/uploads/photo.jpg', $relpaths, 'Real files must survive the resume.' );
+		$this->assertContains( 'index.php', $relpaths );
+	}
+
+	/**
+	 * A run that is unreadable on a resumed merge triggers one clean-slate
+	 * recovery, after which the walk completes with a correct manifest.
+	 *
+	 * @return void
+	 */
+	public function test_resume_recovers_from_corrupt_run_once() {
+		$this->chunked_walker()->emit_sidecars( $this->backup_dir );
+		$reference = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
+
+		$results = $this->drive_sliced( fn() => new CorruptOnceSlicingWalker( $this->root, array(), false, false, array( $this->backup_dir ) ) );
+		$last    = end( $results );
+
+		$this->assertTrue( $last['done'], 'The walk must recover from the one-time corrupt run and finish.' );
+		$relpaths = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
+		$this->assertSame( $reference, $relpaths, 'The recovered manifest must match the clean reference.' );
 	}
 }

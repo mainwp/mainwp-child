@@ -152,15 +152,17 @@ class Testable_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 	}
 
 	/**
-	 * Manifest sidecar emission stub.
+	 * Manifest walk slice stub.
 	 *
-	 * @param array  $params     Backup params.
-	 * @param string $backup_dir Scratch directory.
+	 * @param array      $params     Backup params.
+	 * @param string     $backup_dir Scratch directory.
+	 * @param array|null $cursor     Resume cursor.
+	 * @param int        $deadline   Slice deadline.
 	 *
-	 * @return array Emission result with file/size/count.
+	 * @return array Slice result with done/cursor and file/size/count when done.
 	 */
-	protected function emit_manifest_sidecars( $params, $backup_dir ) {
-		return $this->stub( 'emit_manifest_sidecars', array( $params, $backup_dir ) );
+	protected function walk_manifest_slice( $params, $backup_dir, $cursor, $deadline ) {
+		return $this->stub( 'walk_manifest_slice', array( $params, $backup_dir, $cursor, $deadline ) );
 	}
 
 	/**

@@ -157,11 +157,37 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @return array|null Slice result to propagate, or null.
      */
     private function extract_tar_part( $part, $extract_to, &$cursor, $deadline, &$did_work ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- bounded extraction loop with integrity gates.
+        // A part already worked this slice and the budget is gone: yield so a
+        // compressed part retries decompression next slice with a full budget
+        // instead of being refused for a slice a prior part nearly exhausted.
+        if ( $did_work && microtime( true ) >= $deadline ) {
+            return $this->result( false, $cursor, null, null );
+        }
+
         // Phar reads of compressed tars are unreliable across PHP builds
         // (8.4 returns empty entry streams), so compressed parts gunzip
         // to a plain .tar first; the plain-tar reader is solid everywhere.
-        $plain = $this->plain_tar_for( $part );
+        $timed_out = false;
+        $plain     = $this->plain_tar_for( $part, $deadline, $timed_out );
         if ( null === $plain ) {
+            if ( $timed_out ) {
+                if ( $did_work ) {
+                    // A prior part spent most of this slice; retry the
+                    // decompression next slice with a full budget before
+                    // judging the stream too large. The next slice reaches this
+                    // part first (did_work false), so it is never an endless
+                    // retry: a full slice that still cannot finish refuses below.
+                    return $this->result( false, $cursor, null, null );
+                }
+                // A full slice was not enough to decompress this stream and gzip
+                // cannot resume across requests, so refuse rather than loop.
+                return $this->result(
+                    false,
+                    $cursor,
+                    'The compressed archive ' . basename( $part ) . ' is too large to decompress within one restore slice on this host. Restore on a host with a higher PHP time limit, or re-create the backup in the uncompressed .tar format.',
+                    MainWP_Backup_Error::ERR_RESTORE_EXTRACT
+                );
+            }
             return $this->result( false, $cursor, 'Could not decompress archive: ' . basename( $part ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
 
@@ -221,15 +247,22 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     /**
      * Resolve a tar part to a plain (uncompressed) tar on disk.
      *
-     * A .tar passes through; .tar.gz streams through zlib into a
-     * sibling temp file that persists across slice yields and is
-     * removed when the part finishes.
+     * A .tar passes through; .tar.gz streams through zlib into a sibling temp
+     * file. The decompression is bounded by the slice deadline: gzip cannot be
+     * resumed across requests (the inflate state is not serializable), so a
+     * stream that cannot finish inside one slice is refused rather than
+     * restarted from byte 0 every slice. The refusal sets $timed_out so the
+     * caller can guide the operator to the uncompressed .tar format.
      *
-     * @param string $part Archive path.
+     * @param string    $part      Archive path.
+     * @param float|int $deadline  Absolute epoch the decompression must finish by.
+     * @param bool      $timed_out Set true when the decompression hit the deadline (by reference).
      *
-     * @return string|null Plain tar path, or null on failure.
+     * @return string|null Plain tar path, or null on failure or timeout.
      */
-    private function plain_tar_for( $part ) {
+    protected function plain_tar_for( $part, $deadline, &$timed_out ) {
+        $timed_out = false;
+
         if ( ! preg_match( '/\.tar\.gz$/i', $part ) ) {
             return $part;
         }
@@ -249,6 +282,15 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             return null;
         }
         while ( ! gzeof( $in ) ) {
+            if ( microtime( true ) >= $deadline ) {
+                // Out of slice mid-stream. gzip is not resumable, so discard
+                // the partial and refuse rather than loop forever from byte 0.
+                gzclose( $in );
+                fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+                wp_delete_file( $plain . '.tmp' );
+                $timed_out = true;
+                return null;
+            }
             $chunk = gzread( $in, 262144 );
             if ( false === $chunk || strlen( $chunk ) !== fwrite( $out, $chunk ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming decompression.
                 gzclose( $in );

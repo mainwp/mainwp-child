@@ -26,6 +26,18 @@
  * final names when the run that produced them completes, so the previous
  * snapshot's manifest survives a failed or interrupted run.
  *
+ * The walk is resumable across request slices. emit_sidecars_slice() does a
+ * budget-bounded amount of work and returns a serializable cursor: an explicit
+ * directory-cursor stack (each frame a directory plus its index into that
+ * directory's strcmp-sorted child list), the list of completed run files, the
+ * running counters, and the phase (enumerate or merge). A killed slice resumes
+ * from the cursor instead of restarting the walk from zero, so a very large
+ * tree no longer livelocks under a short slice budget. emit_sidecars() is the
+ * non-sliced wrapper that loops the engine to completion. The cursor's index is
+ * stable only for a tree that does not change between slices; a file added or
+ * removed at a sort position before the live index may be skipped or
+ * double-counted, the same snapshot inconsistency the single-pass walk accepts.
+ *
  * Only files are tracked. Directory entries carry no backup payload and
  * deletions are tracked per file; an empty directory does not survive an
  * incremental chain, which restore accepts.
@@ -73,6 +85,13 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
      * independent of the total file count.
      */
     const CHUNK_SIZE = 50000;
+
+    /**
+     * How many times a resumed walk may sweep its runs and restart from a
+     * clean slate after meeting an unreadable run (a partial survivor of a
+     * host crash) before the error is allowed to fail the backup.
+     */
+    const MAX_WALK_RECOVERIES = 1;
 
     /**
      * Walk root with a trailing slash.
@@ -155,6 +174,31 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
     protected $progress_callback = null;
 
     /**
+     * Enumeration stack: one frame per active directory on the DFS path, each
+     * holding its directory, its index into the strcmp-sorted child list, the
+     * is_root flag, and the in-memory children array (not serialized).
+     *
+     * @var array
+     */
+    protected $stack = array();
+
+    /**
+     * Walk phase for the current slice: 'enumerate' while the tree is being
+     * scanned into runs, then 'merge' while the runs are merged.
+     *
+     * @var string
+     */
+    protected $phase = 'enumerate';
+
+    /**
+     * How many times this walk has swept its runs and restarted after meeting
+     * an unreadable run, bounded by MAX_WALK_RECOVERIES.
+     *
+     * @var int
+     */
+    protected $recover_count = 0;
+
+    /**
      * Constructor.
      *
      * @param string|null $root         Walk root, null for ABSPATH.
@@ -189,11 +233,12 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
-     * Walk the tree and write the staged sidecars into the given directory.
+     * Walk the whole tree in one call and write the staged sidecars.
      *
-     * The tree is walked in bounded chunks: each chunk is sorted and spilled
-     * to a run file, then the runs are k-way merged into the sidecars in
-     * strcmp order.
+     * The non-sliced wrapper around emit_sidecars_slice(): it loops the engine
+     * with an unreachable deadline so the walk never yields, then cleans up the
+     * spilled runs the way a completed sliced walk does at task completion. The
+     * sliced callers in the task runner use emit_sidecars_slice() directly.
      *
      * @param string $backup_dir Output directory (the backup scratch dir).
      *
@@ -205,48 +250,257 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
      *               (sum of recorded file sizes).
      */
     public function emit_sidecars( $backup_dir ) {
-        $this->run_dir       = rtrim( $backup_dir, '/' ) . '/';
-        $this->buffer        = array();
-        $this->runs          = array();
-        $this->files_scanned = 0;
-        $this->total_bytes   = 0;
+        $cursor = null;
+        $guard  = 0;
+        do {
+            $out    = $this->emit_sidecars_slice( $backup_dir, $cursor, PHP_INT_MAX );
+            $cursor = $out['cursor'];
+        } while ( empty( $out['done'] ) && ++$guard < 100000 );
 
-        $files_list  = $this->run_dir . self::FILES_LIST . self::STAGED_SUFFIX;
-        $paths_cache = $this->run_dir . self::PATHS_CACHE . self::STAGED_SUFFIX;
+        // A completed walk's runs are consumed; the sliced path defers this to
+        // task completion, the one-shot path does it here.
+        $this->delete_runs( $this->runs );
 
-        // Clear any runs left by a prior killed slice so a re-walk never
-        // merges them into the fresh manifest.
-        $this->delete_runs( (array) glob( $this->run_dir . self::RUN_PREFIX . '*' ) );
+        return array(
+            'file'        => $out['file'],
+            'size'        => $out['size'],
+            'count'       => $out['count'],
+            'total_bytes' => $out['total_bytes'],
+        );
+    }
+
+    /**
+     * Do a budget-bounded slice of the walk and return a resumable cursor.
+     *
+     * A fresh start (null or empty cursor) wipes any leftover runs and seeds the
+     * stack at the root. A resume rehydrates the stack, run list, and counters
+     * from the cursor and sweeps only runs the cursor does not reference. Work
+     * proceeds until the deadline is near, then the current chunk spills and the
+     * cursor is returned with done = false; the caller persists it and yields.
+     * When the stack empties the merge runs; if it cannot finish in the slice it
+     * re-merges from scratch on the next call (the runs are immutable).
+     *
+     * @param string     $backup_dir Output directory (the backup scratch dir).
+     * @param array|null $cursor  Resume cursor from a prior slice, or null/empty to start.
+     * @param int        $deadline    Unix time the slice must yield by.
+     *
+     * @throws MainWP_Exception When a sidecar or run cannot be written, or a
+     *                          run stays corrupt past the recovery budget.
+     *
+     * @return array { done: bool, cursor: array|null, count: int,
+     *                 total_bytes: int, and file/size when done }.
+     */
+    public function emit_sidecars_slice( $backup_dir, $cursor, $deadline ) {
+        $this->run_dir = rtrim( $backup_dir, '/' ) . '/';
+        $files_list    = $this->run_dir . self::FILES_LIST . self::STAGED_SUFFIX;
+        $paths_cache   = $this->run_dir . self::PATHS_CACHE . self::STAGED_SUFFIX;
+
+        $resuming = is_array( $cursor ) && ! empty( $cursor );
+
+        if ( $resuming ) {
+            $this->hydrate_cursor( $cursor );
+            // Drop runs from a dead slice that spilled past the last checkpoint;
+            // the cursor's runs are kept and the cursor re-creates the rest.
+            $this->sweep_orphan_runs();
+        } else {
+            $this->buffer        = array();
+            $this->runs          = array();
+            $this->files_scanned = 0;
+            $this->total_bytes   = 0;
+            $this->recover_count = 0;
+            $this->phase         = 'enumerate';
+            $this->stack         = array( $this->root_frame() );
+
+            // Clear any runs left by a prior killed slice so a fresh walk never
+            // merges them into the new manifest.
+            $this->delete_runs( (array) glob( $this->run_dir . self::RUN_PREFIX . '*' ) );
+        }
+
+        if ( 'enumerate' === $this->phase ) {
+            while ( ! empty( $this->stack ) ) {
+                if ( $this->walk_budget_exhausted( $deadline ) ) {
+                    $this->flush_chunk();
+                    return $this->slice_progress( false );
+                }
+                $this->step_one();
+            }
+
+            $this->flush_chunk();
+            $this->phase = 'merge';
+
+            if ( $this->walk_budget_exhausted( $deadline ) ) {
+                return $this->slice_progress( false );
+            }
+        }
 
         try {
-            $this->walk_tree();
-            $this->flush_chunk();
             $this->merge_runs( $this->runs, $files_list, $paths_cache );
         } catch ( MainWP_Exception $e ) {
-            // Drop the partial runs and staged sidecars, then rethrow. Any
-            // non-MainWP_Exception is swept by the startup cleanup on the next
-            // emission instead.
+            if ( $resuming && $this->recover_count < self::MAX_WALK_RECOVERIES ) {
+                // A run referenced by the resumed cursor is unreadable (a
+                // partial survivor of a host crash). Sweep everything and
+                // restart the walk once instead of failing the backup.
+                $this->reset_for_recovery( $files_list, $paths_cache );
+                return $this->slice_progress( false );
+            }
+            // Drop the partial runs and staged sidecars, then rethrow - the
+            // same contract the one-shot walk has always had.
             $this->delete_runs( $this->runs );
             wp_delete_file( $files_list ); // NOSONAR .
             wp_delete_file( $paths_cache ); // NOSONAR .
             throw $e;
         }
 
-        // Runs are consumed once merged.
-        $this->delete_runs( $this->runs );
-
         // The sidecar was just streamed through fopen/fwrite/fclose, which
-        // leaves any earlier stat result for the path in PHP's stat cache
-        // on some runtimes; a stale read here would report the wrong
-        // manifest size.
+        // leaves any earlier stat result for the path in PHP's stat cache on
+        // some runtimes; a stale read here would report the wrong size.
         clearstatcache( true, $files_list );
 
         return array(
+            'done'        => true,
+            'cursor'      => null,
             'file'        => self::FILES_LIST,
             'size'        => (int) filesize( $files_list ),
             'count'       => (int) $this->files_scanned,
             'total_bytes' => (int) $this->total_bytes,
         );
+    }
+
+    /**
+     * Whether the slice deadline is near enough to spill and yield. Mirrors the
+     * pack phase's two-second guard so a checkpoint always lands before the
+     * request is killed.
+     *
+     * @param int $deadline Unix time the slice must yield by.
+     *
+     * @return bool True when the slice should checkpoint and yield.
+     */
+    protected function walk_budget_exhausted( $deadline ) {
+        return time() >= $deadline - 2;
+    }
+
+    /**
+     * Build the done = false slice result with the serialized cursor.
+     *
+     * @param bool $done Always false here; kept for call-site symmetry.
+     *
+     * @return array Slice result with the resume cursor and live counters.
+     */
+    protected function slice_progress( $done ) {
+        return array(
+            'done'        => (bool) $done,
+            'cursor'      => $this->serialize_cursor(),
+            'count'       => (int) $this->files_scanned,
+            'total_bytes' => (int) $this->total_bytes,
+        );
+    }
+
+    /**
+     * Serialize the walk state into a persistable cursor. Children arrays are
+     * not stored - they are re-derived on resume - and run paths are stored as
+     * basenames so the cursor survives a scratch-dir path change.
+     *
+     * @return array The resume cursor.
+     */
+    protected function serialize_cursor() {
+        $frames = array();
+        foreach ( $this->stack as $frame ) {
+            $frames[] = array(
+                'dir'     => $frame['dir'],
+                'index'   => (int) $frame['index'],
+                'is_root' => ! empty( $frame['is_root'] ),
+            );
+        }
+
+        $runs = array();
+        foreach ( $this->runs as $run ) {
+            $runs[] = basename( (string) $run );
+        }
+
+        return array(
+            'stack'         => $frames,
+            'runs'          => $runs,
+            'count'         => (int) $this->files_scanned,
+            'bytes'         => (int) $this->total_bytes,
+            'phase'         => 'merge' === $this->phase ? 'merge' : 'enumerate',
+            'recover_count' => (int) $this->recover_count,
+        );
+    }
+
+    /**
+     * Rehydrate the walk state from a resume cursor. Each stack frame's child
+     * list is re-derived from disk, tolerating a directory that vanished
+     * between slices (an empty list pops the frame on the next step).
+     *
+     * @param array $cursor Resume cursor from a prior slice.
+     */
+    protected function hydrate_cursor( $cursor ) {
+        $this->buffer        = array();
+        $this->files_scanned = isset( $cursor['count'] ) ? (int) $cursor['count'] : 0;
+        $this->total_bytes   = isset( $cursor['bytes'] ) ? (int) $cursor['bytes'] : 0;
+        $this->phase         = isset( $cursor['phase'] ) && 'merge' === $cursor['phase'] ? 'merge' : 'enumerate';
+        $this->recover_count = isset( $cursor['recover_count'] ) ? (int) $cursor['recover_count'] : 0;
+
+        $this->runs = array();
+        if ( isset( $cursor['runs'] ) && is_array( $cursor['runs'] ) ) {
+            foreach ( $cursor['runs'] as $base ) {
+                $this->runs[] = $this->run_dir . basename( (string) $base );
+            }
+        }
+
+        $this->stack = array();
+        if ( isset( $cursor['stack'] ) && is_array( $cursor['stack'] ) ) {
+            foreach ( $cursor['stack'] as $frame ) {
+                if ( ! isset( $frame['dir'] ) ) {
+                    continue;
+                }
+                $is_root       = ! empty( $frame['is_root'] );
+                $this->stack[] = array(
+                    'dir'      => (string) $frame['dir'],
+                    'index'    => isset( $frame['index'] ) ? (int) $frame['index'] : 0,
+                    'is_root'  => $is_root,
+                    'children' => $this->enumerate_children( (string) $frame['dir'], $is_root ),
+                );
+            }
+        }
+    }
+
+    /**
+     * Delete on-disk run files the cursor does not reference - orphans a dead
+     * slice spilled after the last checkpoint, which the resumed cursor will
+     * re-create from its enumeration position.
+     */
+    protected function sweep_orphan_runs() {
+        $keep = array();
+        foreach ( $this->runs as $run ) {
+            $keep[ basename( (string) $run ) ] = true;
+        }
+        foreach ( (array) glob( $this->run_dir . self::RUN_PREFIX . '*' ) as $path ) {
+            if ( ! isset( $keep[ basename( $path ) ] ) ) {
+                wp_delete_file( $path ); // NOSONAR .
+            }
+        }
+    }
+
+    /**
+     * Sweep every run and staged sidecar and reseed the walk at the root after
+     * a resumed run met an unreadable run file. Bounded by MAX_WALK_RECOVERIES.
+     *
+     * @param string $files_list  Staged files.list path.
+     * @param string $paths_cache Staged paths.cache path.
+     */
+    protected function reset_for_recovery( $files_list, $paths_cache ) {
+        $this->delete_runs( (array) glob( $this->run_dir . self::RUN_PREFIX . '*' ) );
+        wp_delete_file( $files_list ); // NOSONAR .
+        wp_delete_file( $paths_cache ); // NOSONAR .
+
+        $this->buffer        = array();
+        $this->runs          = array();
+        $this->files_scanned = 0;
+        $this->total_bytes   = 0;
+        $this->phase         = 'enumerate';
+        $this->stack         = array( $this->root_frame() );
+        ++$this->recover_count;
     }
 
     /**
@@ -292,64 +546,101 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
-     * Walk the tree, spilling sorted chunks to run files as the buffer fills.
-     * The final partial chunk is left in the buffer for the caller to flush.
+     * Seed the enumeration stack with the root frame. The root is enumerated
+     * with glob so leading-dot entries are skipped, matching the original walk.
+     *
+     * @return array The root stack frame.
      */
-    protected function walk_tree() {
-        foreach ( (array) glob( $this->root . '*' ) as $node ) {
-            if ( ! $this->is_walkable( $node ) ) {
-                continue;
-            }
-
-            $relpath = substr( $node, strlen( $this->root ) );
-
-            if ( $this->excludenonwp && is_dir( $node ) && ! in_array( $relpath, array( 'wp-content', 'wp-admin', 'wp-includes' ), true ) ) {
-                continue;
-            }
-
-            if ( MainWP_Helper::excluded_from_backup( $this->excludes, $relpath ) ) {
-                continue;
-            }
-
-            if ( is_dir( $node ) ) {
-                $this->walk_dir( $node );
-            } elseif ( is_file( $node ) ) {
-                $this->record_file( $node, $relpath );
-            }
-        }
+    protected function root_frame() {
+        return array(
+            'dir'      => $this->root,
+            'index'    => 0,
+            'is_root'  => true,
+            'children' => $this->enumerate_children( $this->root, true ),
+        );
     }
 
     /**
-     * Recursively walk one directory, recording included files.
+     * List a directory's child node paths in a resume-stable order.
      *
-     * @param string $dir Directory (absolute).
+     * The root uses glob (skips leading-dot entries, as the original root walk
+     * did); other directories use scandir (keeps dotfiles, drops . and ..). A
+     * vanished or unreadable directory yields an empty list, the same tolerance
+     * the original recursive walk had. The list is sorted by raw byte order so
+     * a frame's index resolves to the same child on resume regardless of the
+     * host locale; the merge re-sorts the manifest output anyway.
+     *
+     * @param string $dir     Directory (absolute, trailing slash for the root).
+     * @param bool   $is_root Whether this is the root frame.
+     *
+     * @return string[] Absolute child node paths, strcmp-sorted.
      */
-    protected function walk_dir( $dir ) {
-        $items = scandir( $dir );
-        if ( false === $items ) {
-            return; // Unreadable directory - skipped, same as the archive walk.
+    protected function enumerate_children( $dir, $is_root ) {
+        if ( $is_root ) {
+            $children = glob( $dir . '*' );
+            if ( false === $children ) {
+                $children = array();
+            }
+        } else {
+            $items = scandir( $dir, SCANDIR_SORT_NONE );
+            if ( false === $items ) {
+                return array();
+            }
+            $children = array();
+            foreach ( $items as $item ) {
+                if ( '.' === $item || '..' === $item ) {
+                    continue;
+                }
+                $children[] = rtrim( $dir, '/' ) . '/' . $item;
+            }
         }
 
-        foreach ( $items as $item ) {
-            if ( '.' === $item || '..' === $item ) {
-                continue;
-            }
+        usort( $children, 'strcmp' );
+        return $children;
+    }
 
-            $node = rtrim( $dir, '/' ) . '/' . $item;
-            if ( ! $this->is_walkable( $node ) ) {
-                continue;
-            }
+    /**
+     * Process one candidate from the top stack frame: record a file, descend
+     * into a directory, or pop an exhausted frame. The frame index advances
+     * before any descent so a checkpoint here resumes after this candidate. The
+     * filter order matches the original walk: containment, then the root-only
+     * non-wp gate, then the exclude list.
+     */
+    protected function step_one() {
+        $top = count( $this->stack ) - 1;
 
-            $relpath = substr( $node, strlen( $this->root ) );
-            if ( MainWP_Helper::excluded_from_backup( $this->excludes, $relpath ) ) {
-                continue;
-            }
+        if ( $this->stack[ $top ]['index'] >= count( $this->stack[ $top ]['children'] ) ) {
+            array_pop( $this->stack );
+            return;
+        }
 
-            if ( is_dir( $node ) ) {
-                $this->walk_dir( $node );
-            } elseif ( is_file( $node ) ) {
-                $this->record_file( $node, $relpath );
-            }
+        $node    = $this->stack[ $top ]['children'][ $this->stack[ $top ]['index'] ];
+        $is_root = $this->stack[ $top ]['is_root'];
+        ++$this->stack[ $top ]['index'];
+
+        if ( ! $this->is_walkable( $node ) ) {
+            return;
+        }
+
+        $relpath = substr( $node, strlen( $this->root ) );
+
+        if ( $is_root && $this->excludenonwp && is_dir( $node ) && ! in_array( $relpath, array( 'wp-content', 'wp-admin', 'wp-includes' ), true ) ) {
+            return;
+        }
+
+        if ( MainWP_Helper::excluded_from_backup( $this->excludes, $relpath ) ) {
+            return;
+        }
+
+        if ( is_dir( $node ) ) {
+            $this->stack[] = array(
+                'dir'      => $node,
+                'index'    => 0,
+                'is_root'  => false,
+                'children' => $this->enumerate_children( $node, false ),
+            );
+        } elseif ( is_file( $node ) ) {
+            $this->record_file( $node, $relpath );
         }
     }
 

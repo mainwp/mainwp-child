@@ -294,6 +294,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             );
             if ( false !== $new_version ) {
                 $version = $new_version;
+                $this->cleanup_walk_runs( $backup_dir );
                 $spine->delete_sidecar( $task_id, $backup_dir );
             }
         }
@@ -464,81 +465,98 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
 
         $params = isset( $sub_state['params'] ) && is_array( $sub_state['params'] ) ? $sub_state['params'] : array();
 
-        if ( empty( $sub_state['archive_file'] ) ) {
-            $name      = isset( $params['file'] ) && '' !== $params['file'] ? $params['file'] . '-' : '';
-            $extension = $this->resolve_archive_extension( isset( $params['ext'] ) ? $params['ext'] : 'zip' );
+        if ( empty( $sub_state['archive_done'] ) ) {
+            if ( empty( $sub_state['archive_file'] ) ) {
+                $name      = isset( $params['file'] ) && '' !== $params['file'] ? $params['file'] . '-' : '';
+                $extension = $this->resolve_archive_extension( isset( $params['ext'] ) ? $params['ext'] : 'zip' );
 
-            $sub_state['archive_file'] = 'backup-' . $name . time() . $extension;
-        }
-        $append = ! empty( $sub_state['archive_started'] );
+                $sub_state['archive_file'] = 'backup-' . $name . time() . $extension;
+            }
+            $append = ! empty( $sub_state['archive_started'] );
 
-        // Persist the archive name before any engine work, so a killed
-        // slice resumes the same file instead of starting a second one.
-        $sub_state['archive_started'] = true;
+            // Persist the archive name before any engine work, so a killed
+            // slice resumes the same file instead of starting a second one.
+            $sub_state['archive_started'] = true;
 
-        $result = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
-        if ( $result['abandon'] ) {
-            return $result;
-        }
-        $version = $result['version'];
+            $result = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
+            if ( $result['abandon'] ) {
+                return $result;
+            }
+            $version = $result['version'];
 
-        try {
-            $res = $this->run_file_archiver(
-                $params,
-                $sub_state['archive_file'],
-                $append,
-                $deadline,
-                isset( $sub_state['db_files'] ) ? $sub_state['db_files'] : array(),
-                'files' === $task->type
-            );
-        } catch ( MainWP_Backup_Budget_Exception $e ) {
-            unset( $e );
-            // Partial progress is in the archive itself - just yield.
-            return $this->slice_result( $version, true );
-        }
-
-        // The engine reads its own size right after closing the archive it
-        // has been statting all along; a stale stat-cache entry there would
-        // report a pre-close byte count. Re-read the size from disk.
-        $archive_path = rtrim( $backup_dir, '/' ) . '/' . $res['file'];
-        clearstatcache( true, $archive_path );
-        $archive_size = file_exists( $archive_path ) ? (int) filesize( $archive_path ) : (int) $res['filesize'];
-
-        $sub_state['artifact'] = array(
-            'file' => $res['file'],
-            'size' => $archive_size,
-        );
-        unset( $sub_state['db_files'] );
-
-        if ( ! empty( $params['emit_manifest'] ) ) {
-            // A manifest emission failure never fails the backup itself -
-            // the archive is intact; the chain base just lacks a manifest,
-            // which the next incremental resolves by forcing a full.
             try {
-                $manifest = $this->emit_manifest_sidecars( $params, $backup_dir );
+                $res = $this->run_file_archiver(
+                    $params,
+                    $sub_state['archive_file'],
+                    $append,
+                    $deadline,
+                    isset( $sub_state['db_files'] ) ? $sub_state['db_files'] : array(),
+                    'files' === $task->type
+                );
+            } catch ( MainWP_Backup_Budget_Exception $e ) {
+                unset( $e );
+                // Partial progress is in the archive itself - just yield.
+                return $this->slice_result( $version, true );
+            }
+
+            // The engine reads its own size right after closing the archive it
+            // has been statting all along; a stale stat-cache entry there would
+            // report a pre-close byte count. Re-read the size from disk.
+            $archive_path = rtrim( $backup_dir, '/' ) . '/' . $res['file'];
+            clearstatcache( true, $archive_path );
+            $archive_size = file_exists( $archive_path ) ? (int) filesize( $archive_path ) : (int) $res['filesize'];
+
+            $sub_state['artifact'] = array(
+                'file' => $res['file'],
+                'size' => $archive_size,
+            );
+            unset( $sub_state['db_files'] );
+
+            // Persist archive_done before the manifest walk so a walk that
+            // yields never re-enters the archiver - a zip would delete and
+            // rebuild the finished archive on re-entry.
+            $sub_state['archive_done'] = true;
+            $result                    = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
+            if ( $result['abandon'] ) {
+                return $result;
+            }
+            $version = $result['version'];
+        }
+
+        if ( ! empty( $params['emit_manifest'] ) && empty( $sub_state['walk_done'] ) ) {
+            // A manifest emission failure never fails the backup itself - the
+            // archive is intact; the chain base just lacks a manifest, which the
+            // next incremental resolves by forcing a full. The walk is sliced,
+            // so a tree larger than a slice resumes instead of re-walking.
+            try {
+                $walk = $this->walk_manifest_slice( $params, $backup_dir, isset( $sub_state['walk_cursor'] ) ? $sub_state['walk_cursor'] : null, $deadline );
             } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - manifest emission is best effort.
-                $manifest = null;
+                unset( $e );
+                unset( $sub_state['walk_cursor'] );
+                $sub_state['walk_done'] = true;
+                return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
             }
-            if ( is_array( $manifest ) && isset( $manifest['size'] ) ) {
-                $sub_state['manifest']  = array(
-                    'file'        => MainWP_Child_Backup_File_Walker::FILES_LIST,
-                    'size'        => (int) $manifest['size'],
-                    'total_files' => isset( $manifest['count'] ) ? (int) $manifest['count'] : 0,
-                    'total_bytes' => isset( $manifest['total_bytes'] ) ? (int) $manifest['total_bytes'] : 0,
-                );
-                $sub_state['artifacts'] = array(
-                    array(
-                        'file' => $res['file'],
-                        'size' => $archive_size,
-                        'role' => 'full',
-                    ),
-                    array(
-                        'file' => MainWP_Child_Backup_File_Walker::FILES_LIST,
-                        'size' => (int) $manifest['size'],
-                        'role' => 'manifest',
-                    ),
-                );
+
+            if ( empty( $walk['done'] ) ) {
+                $sub_state['walk_cursor'] = $walk['cursor'];
+                return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
             }
+
+            unset( $sub_state['walk_cursor'] );
+            $sub_state['walk_done'] = true;
+            $sub_state['manifest']  = $this->manifest_from_walk( $walk );
+            $sub_state['artifacts'] = array(
+                array(
+                    'file' => $sub_state['artifact']['file'],
+                    'size' => (int) $sub_state['artifact']['size'],
+                    'role' => 'full',
+                ),
+                array(
+                    'file' => MainWP_Child_Backup_File_Walker::FILES_LIST,
+                    'size' => (int) $sub_state['manifest']['size'],
+                    'role' => 'manifest',
+                ),
+            );
         }
 
         return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
@@ -571,10 +589,31 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         $params = isset( $sub_state['params'] ) && is_array( $sub_state['params'] ) ? $sub_state['params'] : array();
         $dir    = rtrim( $backup_dir, '/' ) . '/';
 
+        // The manifest walk is its own resumable sub-phase before the diff.
+        // A walk longer than a slice yields and resumes from its cursor instead
+        // of restarting from zero and starving the diff each slice.
+        if ( empty( $sub_state['walk_done'] ) ) {
+            $walk = $this->walk_manifest_slice( $params, $backup_dir, isset( $sub_state['walk_cursor'] ) ? $sub_state['walk_cursor'] : null, $deadline );
+
+            if ( empty( $walk['done'] ) ) {
+                $sub_state['walk_cursor'] = $walk['cursor'];
+                return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+            }
+
+            unset( $sub_state['walk_cursor'] );
+            $sub_state['walk_done'] = true;
+            $sub_state['manifest']  = $this->manifest_from_walk( $walk );
+
+            // Fall through to the diff in the same slice - do not checkpoint
+            // walk_done on its own. An internal checkpoint here would leave
+            // advance_one_slice holding a stale version if the diff then throws
+            // (base-missing), so the failure could not be recorded. A diff that
+            // dies mid-run simply resumes the walk from its last checkpoint, a
+            // bounded re-merge, never a full re-walk.
+        }
+
         if ( empty( $sub_state['diff_done'] ) ) {
             $parent_path = $this->resolve_parent_manifest( $sub_state, $backup_dir );
-
-            $manifest = $this->emit_manifest_sidecars( $params, $backup_dir );
 
             $diff = $this->run_incremental_diff(
                 $parent_path,
@@ -588,12 +627,6 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             }
 
             $sub_state['diff_done']        = true;
-            $sub_state['manifest']         = array(
-                'file'        => MainWP_Child_Backup_File_Walker::FILES_LIST,
-                'size'        => (int) $manifest['size'],
-                'total_files' => isset( $manifest['count'] ) ? (int) $manifest['count'] : 0,
-                'total_bytes' => isset( $manifest['total_bytes'] ) ? (int) $manifest['total_bytes'] : 0,
-            );
             $sub_state['changes_count']    = (int) $diff['changes'];
             $sub_state['tombstones_count'] = (int) $diff['tombstones'];
             $sub_state['pack_cursor']      = array(
@@ -969,6 +1002,9 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 // snapshot's manifest stays usable.
                 $this->promote_manifest_sidecars( $backup_dir );
             }
+            // The sliced walk keeps its run files until the task ends so a
+            // resumed merge can always re-read them; sweep them now.
+            $this->cleanup_walk_runs( $backup_dir );
             $spine->delete_sidecar( $task->task_id, $backup_dir );
         }
 
@@ -1067,6 +1103,13 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 if ( file_exists( $partial ) ) {
                     $progress['bytes_done'] = (int) filesize( $partial );
                 }
+            }
+
+            // While the manifest walk is mid-flight its cursor carries the
+            // running scanned count; surface it so the dashboard shows a
+            // climbing number before the walk's final totals are known.
+            if ( isset( $sub_state['walk_cursor']['count'] ) ) {
+                $progress['files_scanned'] = (int) $sub_state['walk_cursor']['count'];
             }
 
             // The manifest walk records the full file count and raw byte total;
@@ -1309,14 +1352,16 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
-     * Emit the manifest sidecars for the tree this backup covered.
+     * Build a manifest walker for the tree this backup covers, wired with the
+     * non-CAS heartbeat so a slow large-tree walk keeps last_progress_at fresh
+     * and the watchdog never mistakes it for a stalled task.
      *
      * @param array  $params     Backup params.
      * @param string $backup_dir Scratch directory.
      *
-     * @return array Emission result with file/size/count.
+     * @return MainWP_Child_Backup_File_Walker The walker.
      */
-    protected function emit_manifest_sidecars( $params, $backup_dir ) {
+    protected function make_walker( $params, $backup_dir ) {
         $walker = new MainWP_Child_Backup_File_Walker(
             null,
             isset( $params['excludes'] ) && is_array( $params['excludes'] ) ? $params['excludes'] : array(),
@@ -1325,9 +1370,6 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             array( $backup_dir )
         );
 
-        // Heartbeat the walk at each chunk boundary so a slow large-tree walk
-        // keeps last_progress_at fresh and the watchdog does not mistake it
-        // for a stalled task. touch_progress is non-CAS and self-throttles.
         $task_id = $this->current_task_id;
         if ( '' !== $task_id ) {
             $walker->set_progress_callback(
@@ -1337,7 +1379,54 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             );
         }
 
-        return $walker->emit_sidecars( $backup_dir );
+        return $walker;
+    }
+
+    /**
+     * Walk one budget-bounded slice of the manifest, returning the engine's
+     * resume cursor. The walk seam: a fresh walker is built per slice and the
+     * caller threads the cursor across slices.
+     *
+     * @param array      $params     Backup params.
+     * @param string     $backup_dir Scratch directory.
+     * @param array|null $cursor     Resume cursor from a prior slice, or null to start.
+     * @param int        $deadline   Slice deadline.
+     *
+     * @return array { done: bool, cursor: array|null, count: int,
+     *                 total_bytes: int, and file/size when done }.
+     */
+    protected function walk_manifest_slice( $params, $backup_dir, $cursor, $deadline ) {
+        return $this->make_walker( $params, $backup_dir )->emit_sidecars_slice( $backup_dir, $cursor, $deadline );
+    }
+
+    /**
+     * Build the sub_state manifest record from a completed walk slice result.
+     *
+     * @param array $walk Completed walk result (done = true).
+     *
+     * @return array Manifest record with file/size/total_files/total_bytes.
+     */
+    protected function manifest_from_walk( $walk ) {
+        return array(
+            'file'        => MainWP_Child_Backup_File_Walker::FILES_LIST,
+            'size'        => isset( $walk['size'] ) ? (int) $walk['size'] : 0,
+            'total_files' => isset( $walk['count'] ) ? (int) $walk['count'] : 0,
+            'total_bytes' => isset( $walk['total_bytes'] ) ? (int) $walk['total_bytes'] : 0,
+        );
+    }
+
+    /**
+     * Remove the manifest walk's spilled run files. The sliced walk keeps them
+     * until the task is terminal so a resumed merge can always re-read them;
+     * this sweeps them once the task finishes.
+     *
+     * @param string $backup_dir Scratch directory.
+     */
+    protected function cleanup_walk_runs( $backup_dir ) {
+        $dir = rtrim( $backup_dir, '/' ) . '/';
+        foreach ( (array) glob( $dir . MainWP_Child_Backup_File_Walker::RUN_PREFIX . '*' ) as $run ) {
+            wp_delete_file( $run ); // NOSONAR .
+        }
     }
 
     /**
