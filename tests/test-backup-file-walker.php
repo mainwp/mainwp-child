@@ -17,6 +17,43 @@ use MainWP\Child\MainWP_Child_Backup_File_Walker;
  * when a run completes, so the previous snapshot's sidecars survive a failed
  * run.
  */
+/**
+ * Walker with a tiny chunk size so the small fixture still crosses run
+ * boundaries and exercises the chunked-spill + k-way-merge path.
+ */
+class ChunkedTestWalker extends MainWP_Child_Backup_File_Walker {
+
+	/**
+	 * Force a 2-entry chunk so a handful of files spills several runs.
+	 *
+	 * @return int Chunk size.
+	 */
+	protected function chunk_size() {
+		return 2;
+	}
+}
+
+/**
+ * Chunked walker that appends a malformed line to every spilled run, so the
+ * k-way merge meets a corrupt run and must fail cleanly instead of silently
+ * misordering the manifest.
+ */
+class CorruptingTestWalker extends ChunkedTestWalker {
+
+	/**
+	 * Write the run as usual, then append a junk line with no tab fields.
+	 *
+	 * @param array $buffer Sorted chunk entries.
+	 *
+	 * @return string Run file path.
+	 */
+	protected function write_run( array $buffer ) {
+		$path = parent::write_run( $buffer );
+		file_put_contents( $path, "malformed-run-line-without-tab-fields\n", FILE_APPEND ); // phpcs:ignore -- deliberate corruption for the merge robustness test.
+		return $path;
+	}
+}
+
 class BackupFileWalkerTest extends WP_UnitTestCase {
 
 	/**
@@ -380,5 +417,242 @@ class BackupFileWalkerTest extends WP_UnitTestCase {
 
 		$this->assertFalse( MainWP_Child_Backup_File_Walker::promote_sidecars( $this->backup_dir ) );
 		$this->assertStringContainsString( 'old.php', file_get_contents( $this->backup_dir . '/files.list' ) );
+	}
+
+	/**
+	 * Walker forced to spill several runs over the fixture tree.
+	 *
+	 * @param array $excludes     Exclude list (relpaths).
+	 * @param bool  $excludezip   Skip .zip files.
+	 * @param bool  $excludenonwp Only walk wp dirs.
+	 *
+	 * @return ChunkedTestWalker
+	 */
+	private function chunked_walker( $excludes = array(), $excludezip = false, $excludenonwp = false ) {
+		return new ChunkedTestWalker( $this->root, $excludes, $excludezip, $excludenonwp, array( $this->backup_dir ) );
+	}
+
+	/**
+	 * Independent recursive scan of the fixture - the reference set the merged
+	 * manifest must match, computed without the walker so the test is not
+	 * circular.
+	 *
+	 * @param bool $excludezip Skip .zip files, matching the walk.
+	 *
+	 * @return string[] Site-relative paths of every regular (non-symlink) file.
+	 */
+	private function expected_files( $excludezip = false ) {
+		$root = rtrim( $this->root, '/' ) . '/';
+		$out  = array();
+		$it   = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $this->root, FilesystemIterator::SKIP_DOTS ) );
+		foreach ( $it as $file ) {
+			if ( ! $file->isFile() || $file->isLink() ) {
+				continue;
+			}
+			$abs = $file->getPathname();
+			if ( $excludezip && '.zip' === substr( $abs, -4 ) ) {
+				continue;
+			}
+			$out[] = substr( $abs, strlen( $root ) );
+		}
+		return $out;
+	}
+
+	/**
+	 * Glob the spilled run files in the output dir.
+	 *
+	 * @return array Run file paths.
+	 */
+	private function run_files() {
+		return (array) glob( $this->backup_dir . '/walk-run-*' );
+	}
+
+	/**
+	 * The streamed manifest equals an independently computed reference:
+	 * strictly ascending by strcmp, the same file set, correct size/mtime, a
+	 * line-aligned paths.cache, and an accurate total_bytes - proving the
+	 * chunked spill + k-way merge reproduces today's sorted output.
+	 *
+	 * @return void
+	 */
+	public function test_streamed_output_equals_independent_reference() {
+		$result = $this->chunked_walker()->emit_sidecars( $this->backup_dir );
+
+		$rows     = $this->parse_sidecar( $this->backup_dir . '/files.list.staged' );
+		$relpaths = array_column( $rows, 0 );
+
+		$count = count( $relpaths );
+		for ( $i = 1; $i < $count; $i++ ) {
+			$this->assertLessThan( 0, strcmp( $relpaths[ $i - 1 ], $relpaths[ $i ] ), 'files.list must be strictly ascending by strcmp.' );
+		}
+
+		$expected = $this->expected_files();
+		sort( $expected, SORT_STRING );
+		$got = $relpaths;
+		sort( $got, SORT_STRING );
+		$this->assertSame( $expected, $got, 'Streamed manifest must list exactly the walked files.' );
+
+		foreach ( $rows as $row ) {
+			$abs = rtrim( $this->root, '/' ) . '/' . $row[0];
+			$this->assertSame( (string) filesize( $abs ), $row[1], 'Size column must match the file on disk.' );
+			$this->assertSame( (string) filemtime( $abs ), $row[2], 'Mtime column must match the file on disk.' );
+		}
+
+		$pc = $this->parse_sidecar( $this->backup_dir . '/paths.cache.staged' );
+		$this->assertCount( count( $rows ), $pc, 'paths.cache must carry one line per files.list line.' );
+		foreach ( $pc as $i => $row ) {
+			$this->assertSame( $relpaths[ $i ], $row[1], 'paths.cache line must align with the files.list line.' );
+			$this->assertSame( MainWP_Child_Backup_File_Walker::classify_component( $row[1] ), $row[0], 'paths.cache component must match the relpath.' );
+		}
+
+		$sum = 0;
+		foreach ( $relpaths as $rp ) {
+			$sum += (int) filesize( rtrim( $this->root, '/' ) . '/' . $rp );
+		}
+		$this->assertSame( $sum, (int) $result['total_bytes'], 'total_bytes must be the raw sum of file sizes.' );
+		$this->assertSame( $count, (int) $result['count'], 'count must equal the number of emitted lines.' );
+
+		$this->assertSame( array(), $this->run_files(), 'walk-run-* files must be cleaned up after a successful emit.' );
+	}
+
+	/**
+	 * The merge orders by raw bytes, not case-insensitive collation: uppercase
+	 * Z (0x5A) sorts before lowercase a (0x61).
+	 *
+	 * @return void
+	 */
+	public function test_streamed_order_is_byte_order_not_collation() {
+		file_put_contents( $this->root . '/wp-content/uploads/Zebra.txt', 'z' ); // phpcs:ignore -- test fixture.
+		file_put_contents( $this->root . '/wp-content/uploads/apple.txt', 'a' ); // phpcs:ignore -- test fixture.
+
+		$this->chunked_walker()->emit_sidecars( $this->backup_dir );
+
+		$relpaths = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
+		$zi       = array_search( 'wp-content/uploads/Zebra.txt', $relpaths, true );
+		$ai       = array_search( 'wp-content/uploads/apple.txt', $relpaths, true );
+		$this->assertNotFalse( $zi );
+		$this->assertNotFalse( $ai );
+		$this->assertLessThan( $ai, $zi, 'Uppercase Z must sort before lowercase a - byte order, not collation.' );
+	}
+
+	/**
+	 * Files created across subtrees (so they land in different chunks) still
+	 * come out in one globally sorted stream after the k-way merge.
+	 *
+	 * @return void
+	 */
+	public function test_multi_run_merge_is_globally_sorted() {
+		file_put_contents( $this->root . '/wp-content/uploads/aaa.txt', '' ); // phpcs:ignore -- test fixture.
+		file_put_contents( $this->root . '/wp-content/uploads/mmm.txt', '' ); // phpcs:ignore -- test fixture.
+		file_put_contents( $this->root . '/wp-content/uploads/zzz.txt', '' ); // phpcs:ignore -- test fixture.
+		file_put_contents( $this->root . '/wp-content/themes/twenty/bbb.txt', '' ); // phpcs:ignore -- test fixture.
+		file_put_contents( $this->root . '/wp-content/themes/twenty/nnn.txt', '' ); // phpcs:ignore -- test fixture.
+
+		$this->chunked_walker()->emit_sidecars( $this->backup_dir );
+
+		$relpaths = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
+		$sorted   = $relpaths;
+		usort( $sorted, 'strcmp' );
+		$this->assertSame( $sorted, $relpaths, 'The merged manifest must be globally sorted by strcmp.' );
+	}
+
+	/**
+	 * An empty tree yields an empty manifest and leaves no run files.
+	 *
+	 * @return void
+	 */
+	public function test_empty_tree_yields_empty_manifest() {
+		$root = sys_get_temp_dir() . '/mainwp-walker-empty-' . uniqid();
+		$out  = sys_get_temp_dir() . '/mainwp-walker-empty-out-' . uniqid();
+		mkdir( $root );
+		mkdir( $out );
+
+		$result = ( new ChunkedTestWalker( $root, array(), false, false, array( $out ) ) )->emit_sidecars( $out );
+
+		$this->assertSame( 0, (int) $result['count'] );
+		$this->assertSame( 0, (int) $result['total_bytes'] );
+		$this->assertSame( '', trim( (string) file_get_contents( $out . '/files.list.staged' ) ) );
+		$this->assertSame( array(), (array) glob( $out . '/walk-run-*' ) );
+
+		$this->rrmdir( $root );
+		$this->rrmdir( $out );
+	}
+
+	/**
+	 * A single-file tree emits exactly one correctly formatted line.
+	 *
+	 * @return void
+	 */
+	public function test_single_file_tree() {
+		$root = sys_get_temp_dir() . '/mainwp-walker-one-' . uniqid();
+		$out  = sys_get_temp_dir() . '/mainwp-walker-one-out-' . uniqid();
+		mkdir( $root );
+		mkdir( $out );
+		file_put_contents( $root . '/only.php', 'x' ); // phpcs:ignore -- test fixture.
+
+		$result = ( new ChunkedTestWalker( $root, array(), false, false, array( $out ) ) )->emit_sidecars( $out );
+
+		$rows = $this->parse_sidecar( $out . '/files.list.staged' );
+		$this->assertSame( 1, (int) $result['count'] );
+		$this->assertCount( 1, $rows );
+		$this->assertSame( 'only.php', $rows[0][0] );
+
+		$this->rrmdir( $root );
+		$this->rrmdir( $out );
+	}
+
+	/**
+	 * A stale run file left by a killed slice is cleared before the walk and
+	 * never bleeds into the fresh manifest.
+	 *
+	 * @return void
+	 */
+	public function test_stale_run_files_are_cleared_before_walk() {
+		file_put_contents( $this->backup_dir . '/walk-run-0000', "ghost/file.php\t1\t1\tcore\n" ); // phpcs:ignore -- leftover from a prior killed slice.
+
+		$this->chunked_walker()->emit_sidecars( $this->backup_dir );
+
+		$relpaths = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
+		$this->assertNotContains( 'ghost/file.php', $relpaths, 'A stale run must never enter the fresh manifest.' );
+		$this->assertSame( array(), $this->run_files(), 'Stale runs must be cleared and new runs cleaned up.' );
+	}
+
+	/**
+	 * A malformed run line aborts the merge cleanly - no silent misordering,
+	 * no half-written staged manifest, no leftover runs.
+	 *
+	 * @return void
+	 */
+	public function test_corrupt_run_fails_cleanly() {
+		$threw = false;
+		try {
+			( new CorruptingTestWalker( $this->root, array(), false, false, array( $this->backup_dir ) ) )->emit_sidecars( $this->backup_dir );
+		} catch ( \Throwable $e ) {
+			$threw = true;
+		}
+
+		$this->assertTrue( $threw, 'A malformed run must abort the merge, not silently misorder.' );
+		$this->assertSame( array(), $this->run_files(), 'A failed merge must leave no run files.' );
+		$this->assertFileDoesNotExist( $this->backup_dir . '/files.list.staged', 'A failed merge must leave no staged manifest.' );
+	}
+
+	/**
+	 * The progress heartbeat fires once per spilled run (each chunk boundary),
+	 * so a long walk keeps the task alive instead of looking stalled.
+	 *
+	 * @return void
+	 */
+	public function test_heartbeat_callback_fires_per_chunk() {
+		$calls  = 0;
+		$walker = $this->chunked_walker();
+		$walker->set_progress_callback(
+			function () use ( &$calls ) {
+				++$calls;
+			}
+		);
+
+		$result   = $walker->emit_sidecars( $this->backup_dir );
+		$expected = (int) ceil( ( (int) $result['count'] ) / 2 );
+		$this->assertSame( $expected, $calls, 'Heartbeat must fire once per spilled run.' );
 	}
 }

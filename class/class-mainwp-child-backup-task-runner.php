@@ -485,8 +485,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             }
             if ( is_array( $manifest ) && isset( $manifest['size'] ) ) {
                 $sub_state['manifest']  = array(
-                    'file' => MainWP_Child_Backup_File_Walker::FILES_LIST,
-                    'size' => (int) $manifest['size'],
+                    'file'        => MainWP_Child_Backup_File_Walker::FILES_LIST,
+                    'size'        => (int) $manifest['size'],
+                    'total_files' => isset( $manifest['count'] ) ? (int) $manifest['count'] : 0,
+                    'total_bytes' => isset( $manifest['total_bytes'] ) ? (int) $manifest['total_bytes'] : 0,
                 );
                 $sub_state['artifacts'] = array(
                     array(
@@ -551,8 +553,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
 
             $sub_state['diff_done']        = true;
             $sub_state['manifest']         = array(
-                'file' => MainWP_Child_Backup_File_Walker::FILES_LIST,
-                'size' => (int) $manifest['size'],
+                'file'        => MainWP_Child_Backup_File_Walker::FILES_LIST,
+                'size'        => (int) $manifest['size'],
+                'total_files' => isset( $manifest['count'] ) ? (int) $manifest['count'] : 0,
+                'total_bytes' => isset( $manifest['total_bytes'] ) ? (int) $manifest['total_bytes'] : 0,
             );
             $sub_state['changes_count']    = (int) $diff['changes'];
             $sub_state['tombstones_count'] = (int) $diff['tombstones'];
@@ -1000,11 +1004,24 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             }
         }
 
-        if ( MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES === $task->phase && ! empty( $sub_state['archive_file'] ) ) {
-            $progress['current_file'] = (string) $sub_state['archive_file'];
-            $partial                  = rtrim( $backup_dir, '/' ) . '/' . $sub_state['archive_file'];
-            if ( file_exists( $partial ) ) {
-                $progress['bytes_done'] = (int) filesize( $partial );
+        if ( MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES === $task->phase ) {
+            if ( ! empty( $sub_state['archive_file'] ) ) {
+                $progress['current_file'] = (string) $sub_state['archive_file'];
+                $partial                  = rtrim( $backup_dir, '/' ) . '/' . $sub_state['archive_file'];
+                if ( file_exists( $partial ) ) {
+                    $progress['bytes_done'] = (int) filesize( $partial );
+                }
+            }
+
+            // The manifest walk records the full file count and raw byte total;
+            // surface them as the archiving denominator the dashboard reads.
+            // bytes_done above is the compressed archive size, so it is not a
+            // ratio with total_bytes - the dashboard decides how to present it.
+            if ( isset( $sub_state['manifest']['total_files'] ) ) {
+                $progress['files_total'] = (int) $sub_state['manifest']['total_files'];
+            }
+            if ( isset( $sub_state['manifest']['total_bytes'] ) ) {
+                $progress['total_bytes'] = (int) $sub_state['manifest']['total_bytes'];
             }
         }
 
@@ -1251,6 +1268,19 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             ! empty( $params['excludenonwp'] ),
             array( $backup_dir )
         );
+
+        // Heartbeat the walk at each chunk boundary so a slow large-tree walk
+        // keeps last_progress_at fresh and the watchdog does not mistake it
+        // for a stalled task. touch_progress is non-CAS and self-throttles.
+        $task_id = $this->current_task_id;
+        if ( '' !== $task_id ) {
+            $walker->set_progress_callback(
+                function () use ( $task_id ) {
+                    MainWP_Child_Backup_Task::instance()->touch_progress( $task_id );
+                }
+            );
+        }
+
         return $walker->emit_sidecars( $backup_dir );
     }
 
