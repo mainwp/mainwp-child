@@ -380,6 +380,56 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A pushed parent manifest is spilled to a scratch file at create time, so
+	 * a manifest large enough to bloat (or overflow) the task row never lands
+	 * in the sub_state column.
+	 */
+	public function test_large_parent_manifest_spills_out_of_the_task_row() {
+		$runner = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+		$spine  = MainWP_Child_Backup_Task::instance();
+
+		$manifest = str_repeat( "wp-content/uploads/photo.jpg\t1234\t5678\n", 50000 ); // ~2 MB files.list.
+		$b64      = base64_encode( $manifest );
+		$this->assertGreaterThan( 1000000, strlen( $b64 ), 'Fixture must be large enough to matter.' );
+
+		$task_id = $runner->create_task_for_params( 'incremental', array( 'ext' => 'zip', 'parent_manifest_b64' => $b64 ) );
+		$task    = $spine->get_task( $task_id );
+		$sub     = json_decode( $task->sub_state, true );
+
+		$this->assertArrayNotHasKey( 'parent_manifest_b64', $sub['params'], 'The base64 manifest must not stay in the row.' );
+		$this->assertArrayHasKey( 'parent_manifest_file', $sub['params'] );
+		$this->assertLessThan( 4000, strlen( (string) $task->sub_state ), 'The manifest must not bloat the task row.' );
+
+		$dir = rtrim( \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' )[0], '/' );
+		$this->assertSame( $manifest, file_get_contents( $dir . '/' . $sub['params']['parent_manifest_file'] ) );
+
+		unlink( $dir . '/' . $sub['params']['parent_manifest_file'] );
+	}
+
+	/**
+	 * resolve_parent_manifest consumes the spilled file: it becomes
+	 * parent-files.list and the scratch file is removed.
+	 */
+	public function test_resolve_parent_manifest_consumes_spilled_file() {
+		$runner     = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+		$backup_dir = rtrim( \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' )[0], '/' );
+		$name       = 'parent-manifest-testspill.list';
+		file_put_contents( $backup_dir . '/' . $name, "a.php\t1\t1\n" ); // phpcs:ignore -- test fixture.
+
+		$sub_state = array( 'params' => array( 'parent_manifest_file' => $name ) );
+		$method    = new ReflectionMethod( \MainWP\Child\MainWP_Child_Backup_Task_Runner::class, 'resolve_parent_manifest' );
+		$method->setAccessible( true );
+		$parent = $method->invokeArgs( $runner, array( &$sub_state, $backup_dir ) );
+
+		$this->assertSame( $backup_dir . '/parent-files.list', $parent );
+		$this->assertSame( "a.php\t1\t1\n", file_get_contents( $parent ) );
+		$this->assertFileDoesNotExist( $backup_dir . '/' . $name, 'The spilled file is consumed.' );
+		$this->assertArrayNotHasKey( 'parent_manifest_file', $sub_state['params'] );
+
+		unlink( $parent );
+	}
+
+	/**
 	 * An unknown backup type is rejected.
 	 */
 	public function test_create_task_for_params_rejects_invalid_type() {

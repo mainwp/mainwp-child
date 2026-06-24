@@ -129,6 +129,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         $params = $this->resolve_staged_manifest( $type, is_array( $params ) ? $params : array() );
+        $params = $this->spill_parent_manifest( $params );
 
         $spine = MainWP_Child_Backup_Task::instance();
         $spine->install();
@@ -177,6 +178,41 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         $params['parent_manifest_b64'] = $staged['b64'];
+        return $params;
+    }
+
+    /**
+     * Spill a pushed parent manifest to a scratch file instead of inlining its
+     * base64 into the task row. A manifest large enough to need chunking (or a
+     * multi-MiB inline push) would otherwise be written straight into the
+     * sub_state column at create time, bypassing the sidecar spill and risking
+     * MySQL's max_allowed_packet. The row then carries only a small basename
+     * reference, which resolve_parent_manifest() reads on the first slice.
+     *
+     * @param array $params Backup params (may carry parent_manifest_b64).
+     *
+     * @return array Params with the manifest spilled to a file reference.
+     */
+    protected function spill_parent_manifest( $params ) {
+        if ( empty( $params['parent_manifest_b64'] ) ) {
+            return $params;
+        }
+
+        $decoded = base64_decode( (string) $params['parent_manifest_b64'], true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- wire transport encoding for the pushed manifest, not code.
+        if ( false === $decoded || '' === $decoded ) {
+            // Unusable bytes: drop them so resolve_parent_manifest falls back
+            // to the local sidecar or forces a full backup.
+            unset( $params['parent_manifest_b64'] );
+            return $params;
+        }
+
+        $name = 'parent-manifest-' . strtolower( wp_generate_password( 12, false ) ) . '.list';
+        $path = rtrim( $this->backup_dir(), '/' ) . '/' . $name;
+        if ( false !== file_put_contents( $path, $decoded ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- scratch-dir write, mirrors resolve_parent_manifest().
+            $params['parent_manifest_file'] = $name;
+            unset( $params['parent_manifest_b64'] );
+        }
+        // If the write failed, the inline b64 stays and the old path is used.
         return $params;
     }
 
@@ -654,7 +690,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
 
         $writer = null;
         if ( '' !== $cursor['component'] && $cursor['part_index'] > 0 ) {
-            $writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, $cursor['component'] );
+            $writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, $cursor['component'], null, null, $this->current_task_id );
             if ( $cursor['part_entry_count'] > 0 && ! $writer->open_for_append( $cursor['part_index'], $cursor['part_entry_count'] ) ) {
                 // Torn part - rebuild it from its first file.
                 $cursor['line']             = $cursor['part_start_line'];
@@ -707,7 +743,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                     }
                 }
                 $index  = isset( $cursor['next_index'][ $component ] ) ? (int) $cursor['next_index'][ $component ] : 1;
-                $writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, $component );
+                $writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, $component, null, null, $this->current_task_id );
                 $writer->open_new_part( $index );
                 $cursor['component']        = $component;
                 $cursor['part_index']       = $index;
@@ -767,6 +803,21 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      */
     protected function resolve_parent_manifest( &$sub_state, $backup_dir ) {
         $dir = rtrim( $backup_dir, '/' ) . '/';
+
+        // Preferred: the manifest was spilled to a scratch file at create time
+        // (see spill_parent_manifest) so it never bloated the task row. Move it
+        // into place; basename() guards against any caller-supplied path.
+        $file = isset( $sub_state['params']['parent_manifest_file'] ) ? (string) $sub_state['params']['parent_manifest_file'] : '';
+        if ( '' !== $file ) {
+            unset( $sub_state['params']['parent_manifest_file'] );
+            $src = $dir . basename( $file );
+            if ( is_file( $src ) ) {
+                $parent = $dir . 'parent-files.list';
+                if ( rename( $src, $parent ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- same-dir move of the spilled manifest into place.
+                    return $parent;
+                }
+            }
+        }
 
         $b64 = isset( $sub_state['params']['parent_manifest_b64'] ) ? $sub_state['params']['parent_manifest_b64'] : '';
         if ( '' !== $b64 ) {

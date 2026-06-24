@@ -396,9 +396,11 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 			'Exactly the new and changed files are packed.'
 		);
 
+		// Parts are namespaced by task (component.<task-token>.part001.zip) so
+		// two tasks never collide on the same component+index.
 		$part_files = array_column( $roles['part'], 'file' );
-		$this->assertContains( 'core.part001.zip', $part_files );
-		$this->assertContains( 'plugins.part001.zip', $part_files );
+		$this->assertNotEmpty( preg_grep( '#^core\..+\.part001\.zip$#', $part_files ), 'A namespaced core part001 must be recorded.' );
+		$this->assertNotEmpty( preg_grep( '#^plugins\..+\.part001\.zip$#', $part_files ), 'A namespaced plugins part001 must be recorded.' );
 
 		$this->assertSame( "deleted.php\n", file_get_contents( $this->backup_dir . '/tombstones.list' ) );
 	}

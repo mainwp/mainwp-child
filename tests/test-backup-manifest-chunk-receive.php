@@ -278,10 +278,15 @@ class BackupManifestChunkReceiveTest extends WP_UnitTestCase {
 		$dirs      = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup', false );
 		$sub_state = $spine->read_sub_state( $task, $dirs[0] );
 
-		$this->assertSame( base64_encode( $content ), $sub_state['params']['parent_manifest_b64'] );
+		// The manifest is spilled to a scratch file, not inlined into the row.
+		$this->assertArrayNotHasKey( 'parent_manifest_b64', $sub_state['params'], 'The base64 manifest must not stay in the task row.' );
+		$this->assertArrayHasKey( 'parent_manifest_file', $sub_state['params'] );
+		$this->assertSame( $content, file_get_contents( $dirs[0] . '/' . $sub_state['params']['parent_manifest_file'] ) );
 		$this->assertArrayNotHasKey( 'parent_manifest_ref', $sub_state['params'], 'The consumed ref must not persist on the cursor.' );
 		$this->assertSame( array(), (array) glob( $this->dir . '/manifest-staged-*' ), 'The staged file is consumed.' );
 		$this->assertSame( array(), $this->staging_options() );
+
+		unlink( $dirs[0] . '/' . $sub_state['params']['parent_manifest_file'] );
 	}
 
 	/**

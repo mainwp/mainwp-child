@@ -52,13 +52,14 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
     const ERR_MANIFEST_CHUNK_WRONG_PHASE = 'mainwp_backup_manifest_chunk_wrong_phase';
     const ERR_MANIFEST_CHUNK_CORRUPT     = 'mainwp_backup_manifest_chunk_corrupt';
 
-    const ERR_RESTORE_DB_REPLAY   = 'mainwp_restore_db_replay';
-    const ERR_RESTORE_SWAP_FAILED = 'mainwp_restore_swap_failed';
-    const ERR_RESTORE_EXTRACT     = 'mainwp_restore_extract';
-    const ERR_RESTORE_MULTISITE   = 'mainwp_restore_multisite';
-    const ERR_RESTORE_WRONG_PHASE = 'mainwp_restore_wrong_phase';
-    const ERR_RESTORE_CANCELLED   = 'mainwp_restore_cancelled';
-    const ERR_RESTORE_DB_PERMS    = 'mainwp_restore_db_perms';
+    const ERR_RESTORE_DB_REPLAY       = 'mainwp_restore_db_replay';
+    const ERR_RESTORE_SWAP_FAILED     = 'mainwp_restore_swap_failed';
+    const ERR_RESTORE_EXTRACT         = 'mainwp_restore_extract';
+    const ERR_RESTORE_MULTISITE       = 'mainwp_restore_multisite';
+    const ERR_RESTORE_CROSS_PREFIX_FK = 'mainwp_restore_cross_prefix_fk';
+    const ERR_RESTORE_WRONG_PHASE     = 'mainwp_restore_wrong_phase';
+    const ERR_RESTORE_CANCELLED       = 'mainwp_restore_cancelled';
+    const ERR_RESTORE_DB_PERMS        = 'mainwp_restore_db_perms';
 
     const ERR_RESTORE_ROLLED_BACK     = 'mainwp_restore_rolled_back';
     const ERR_RESTORE_ROLLBACK_FAILED = 'mainwp_restore_rollback_failed';
@@ -237,6 +238,7 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
             self::ERR_RESTORE_SWAP_FAILED        => esc_html__( 'The restored tables could not be promoted to live. The previous tables are still in place. Check the child site error log and try the restore again.', 'mainwp-child' ),
             self::ERR_RESTORE_EXTRACT            => esc_html__( 'The backup archive could not be extracted safely. Extraction stopped before any unsafe path was written. Check the child site error log for the rejected entry.', 'mainwp-child' ),
             self::ERR_RESTORE_MULTISITE          => esc_html__( 'Restore is not available for multisite installations in this version.', 'mainwp-child' ),
+            self::ERR_RESTORE_CROSS_PREFIX_FK    => esc_html__( 'This backup uses a different database table prefix than this site and its database has foreign keys, which cannot be restored across prefixes. Restore it to a site that uses the same table prefix as the backup.', 'mainwp-child' ),
             self::ERR_RESTORE_WRONG_PHASE        => esc_html__( 'The restore task is not accepting artifact data in its current phase. Check the task status and retry the transfer if it is still receiving.', 'mainwp-child' ),
             self::ERR_RESTORE_CANCELLED          => esc_html__( 'The restore was cancelled from the dashboard. Any tables already replaced were kept aside for rollback.', 'mainwp-child' ),
             self::ERR_RESTORE_DB_PERMS           => esc_html__( 'The database user is missing a permission the restore needs to swap tables. The live database was not changed. Grant the database user the CREATE, DROP, and ALTER permissions, or ask your host, then try again.', 'mainwp-child' ),

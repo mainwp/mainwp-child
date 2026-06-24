@@ -70,6 +70,15 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
     protected $max_bytes;
 
     /**
+     * Per-task token folded into the part name so two tasks never collide on
+     * the same component+index in the shared backup dir. Empty for the legacy
+     * (un-namespaced) name.
+     *
+     * @var string
+     */
+    protected $task_token;
+
+    /**
      * Open archive, null when no part is open.
      *
      * @var \ZipArchive|null
@@ -104,24 +113,32 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
      * @param string   $component   Component name.
      * @param int|null $max_entries Entry threshold override (tests).
      * @param int|null $max_bytes   Byte threshold override (tests).
+     * @param string   $task_token  Per-task token folded into the part name.
      */
-    public function __construct( $backup_dir, $component, $max_entries = null, $max_bytes = null ) {
+    public function __construct( $backup_dir, $component, $max_entries = null, $max_bytes = null, $task_token = '' ) {
         $this->backup_dir  = rtrim( $backup_dir, '/' );
         $this->component   = $component;
         $this->max_entries = null === $max_entries ? self::MAX_PART_ENTRIES : (int) $max_entries;
         $this->max_bytes   = null === $max_bytes ? self::MAX_PART_BYTES : (int) $max_bytes;
+        $this->task_token  = (string) $task_token;
     }
 
     /**
-     * Part file name for a component and index.
+     * Part file name for a component and index, optionally namespaced by a
+     * per-task token so two tasks never collide on the same component+index.
      *
      * @param string $component Component name.
      * @param int    $index     Part index (1-based).
+     * @param string $token     Per-task token, sanitized to alphanumerics;
+     *                          empty for the legacy name.
      *
-     * @return string Part basename, e.g. plugins.part001.zip.
+     * @return string Part basename, e.g. plugins.part001.zip or
+     *                plugins.<token>.part001.zip.
      */
-    public static function part_basename( $component, $index ) {
-        return sprintf( '%s.part%03d.zip', $component, (int) $index );
+    public static function part_basename( $component, $index, $token = '' ) {
+        $token = preg_replace( '/[^A-Za-z0-9]/', '', (string) $token );
+        $stem  = '' !== $token ? $component . '.' . $token : $component;
+        return sprintf( '%s.part%03d.zip', $stem, (int) $index );
     }
 
     /**
@@ -269,7 +286,7 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
         clearstatcache( true, $path );
 
         return array(
-            'file'    => self::part_basename( $this->component, $index ),
+            'file'    => self::part_basename( $this->component, $index, $this->task_token ),
             'size'    => (int) filesize( $path ),
             'entries' => (int) $entries,
             'index'   => (int) $index,
@@ -311,6 +328,6 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
      * @return string Part path.
      */
     protected function part_path( $index ) {
-        return $this->backup_dir . '/' . self::part_basename( $this->component, $index );
+        return $this->backup_dir . '/' . self::part_basename( $this->component, $index, $this->task_token );
     }
 }

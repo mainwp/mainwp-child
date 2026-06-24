@@ -91,6 +91,39 @@ class BackupIncrementalZipWriterTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A task token namespaces the part name so two tasks never collide on the
+	 * same component+index; an empty token keeps the legacy format.
+	 */
+	public function test_part_basename_includes_task_token() {
+		$this->assertSame( 'plugins.taskaaa.part001.zip', MainWP_Child_Backup_Incremental_Zip_Writer::part_basename( 'plugins', 1, 'taskaaa' ) );
+		$this->assertSame( 'plugins.part001.zip', MainWP_Child_Backup_Incremental_Zip_Writer::part_basename( 'plugins', 1, '' ) );
+	}
+
+	/**
+	 * Two tasks packing the same component+index produce distinct files in the
+	 * shared dir, so one task's part never overwrites - or is pruned with -
+	 * another's.
+	 */
+	public function test_task_token_namespaces_part_files() {
+		$a = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'plugins', null, null, 'taskaaa' );
+		$a->open_new_part( 1 );
+		$a->add_file( $this->src . '/a.php', 'wp-content/plugins/x/a.php' );
+		$reca = $a->close_part();
+
+		$b = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'plugins', null, null, 'taskbbb' );
+		$b->open_new_part( 1 );
+		$b->add_file( $this->src . '/b.php', 'wp-content/plugins/x/b.php' );
+		$recb = $b->close_part();
+
+		$this->assertSame( 'plugins.taskaaa.part001.zip', $reca['file'] );
+		$this->assertSame( 'plugins.taskbbb.part001.zip', $recb['file'] );
+		$this->assertNotSame( $reca['file'], $recb['file'] );
+		$this->assertFileExists( $this->dir . '/' . $reca['file'] );
+		$this->assertFileExists( $this->dir . '/' . $recb['file'] );
+		$this->assertSame( array( 'wp-content/plugins/x/a.php' ), $this->part_entries( $reca['file'] ), 'Task A part must not be overwritten by task B.' );
+	}
+
+	/**
 	 * Files added to a fresh part land in a valid archive with the relpath
 	 * as the entry name.
 	 */

@@ -1012,19 +1012,19 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	 *
 	 * @return array Artifact entry.
 	 */
-	protected function make_hpos_db_artifact( $fk = false, $db_version = '9.4.0' ) {
-		$banner = '-- mainwp-backup-info: {"site_url":"' . site_url() . '","home_url":"' . home_url() . '","table_prefix":"src_"}' . "\n"
+	protected function make_hpos_db_artifact( $fk = false, $db_version = '9.4.0', $prefix = 'src_' ) {
+		$banner = '-- mainwp-backup-info: {"site_url":"' . site_url() . '","home_url":"' . home_url() . '","table_prefix":"' . $prefix . '"}' . "\n"
 			. '-- mainwp-backup-meta: {"has_foreign_keys":' . ( $fk ? 'true' : 'false' ) . ',"tier":1}';
-		$items   = '<?php exit(); ?>' . "\n" . $banner . "\n\nDROP TABLE IF EXISTS `src_items`;\nCREATE TABLE `src_items` (id INT);\nINSERT INTO `src_items` (`id`) VALUES (1),(2);\n";
-		$options = '<?php exit(); ?>' . "\nDROP TABLE IF EXISTS `src_options`;\nCREATE TABLE `src_options` (option_id INT);\nINSERT INTO `src_options` (option_id, option_name, option_value, autoload) VALUES (1,'woocommerce_db_version','" . $db_version . "','yes');\n";
-		$orders  = '<?php exit(); ?>' . "\nDROP TABLE IF EXISTS `src_wc_orders`;\nCREATE TABLE `src_wc_orders` (id INT);\nINSERT INTO `src_wc_orders` (id) VALUES (1001);\n";
+		$items   = '<?php exit(); ?>' . "\n" . $banner . "\n\nDROP TABLE IF EXISTS `" . $prefix . "items`;\nCREATE TABLE `" . $prefix . "items` (id INT);\nINSERT INTO `" . $prefix . "items` (`id`) VALUES (1),(2);\n";
+		$options = '<?php exit(); ?>' . "\nDROP TABLE IF EXISTS `" . $prefix . "options`;\nCREATE TABLE `" . $prefix . "options` (option_id INT);\nINSERT INTO `" . $prefix . "options` (option_id, option_name, option_value, autoload) VALUES (1,'woocommerce_db_version','" . $db_version . "','yes');\n";
+		$orders  = '<?php exit(); ?>' . "\nDROP TABLE IF EXISTS `" . $prefix . "wc_orders`;\nCREATE TABLE `" . $prefix . "wc_orders` (id INT);\nINSERT INTO `" . $prefix . "wc_orders` (id) VALUES (1001);\n";
 
 		$zip_path = $this->dir . '/db.zip';
 		$zip      = new ZipArchive();
 		$zip->open( $zip_path, ZipArchive::CREATE );
-		$zip->addFromString( 'dbBackup-src_items.sql.php', $items );
-		$zip->addFromString( 'dbBackup-src_options.sql.php', $options );
-		$zip->addFromString( 'dbBackup-src_wc_orders.sql.php', $orders );
+		$zip->addFromString( 'dbBackup-' . $prefix . 'items.sql.php', $items );
+		$zip->addFromString( 'dbBackup-' . $prefix . 'options.sql.php', $options );
+		$zip->addFromString( 'dbBackup-' . $prefix . 'wc_orders.sql.php', $orders );
 		$zip->close();
 
 		return array(
@@ -1264,7 +1264,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	 */
 	public function test_preserve_pipeline_fk_path_reaches_merge() {
 		$this->seed_woo_tables();
-		$task_id = $this->make_task( 'db', array( $this->make_hpos_db_artifact( true ) ), array( 'preserve_orders' => true, 'woo_order_since' => 0, 'has_foreign_keys' => true ) );
+		$task_id = $this->make_task( 'db', array( $this->make_hpos_db_artifact( true, '9.4.0', 'rt_' ) ), array( 'preserve_orders' => true, 'woo_order_since' => 0, 'has_foreign_keys' => true, 'source_prefix' => 'rt_' ) );
 		$task    = $this->drive( $task_id );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
@@ -1429,7 +1429,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	 * mode is exited on the way out.
 	 */
 	public function test_fk_dump_takes_in_place_route_and_skips_swap() {
-		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
 		$task    = $this->drive( $task_id );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
@@ -1447,7 +1447,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	 * replay touches them: the snapshot runs before replay_slice.
 	 */
 	public function test_fk_path_snapshots_before_replay() {
-		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
 		$task    = $this->drive( $task_id );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
@@ -1468,7 +1468,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	public function test_fk_replay_failure_rolls_back_and_reports_rolled_back() {
 		$this->runner->fake_engine->replay_error = 'Replay failed on table items: forced';
 
-		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
 		$task    = $this->drive( $task_id );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
@@ -1491,7 +1491,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->runner->fake_engine->replay_error   = 'Replay failed on table items: forced';
 		$this->runner->fake_engine->rollback_error = 'disk full during rollback';
 
-		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
 		$task    = $this->drive( $task_id );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
@@ -1512,7 +1512,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	public function test_fk_snapshot_failure_fails_before_any_replay() {
 		$this->runner->fake_engine->snapshot_error = 'could not write aside dump';
 
-		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
 		$task    = $this->drive( $task_id );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
@@ -1532,7 +1532,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->runner->fake_snapshot_bytes = 50 * 1024 * 1024; // The aside needs 50MB.
 		$this->runner->fake_free_space     = 1.0;              // One byte free: it cannot fit.
 
-		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
 		$task    = $this->drive( $task_id );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
@@ -1552,7 +1552,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	public function test_fk_snapshot_disk_preflight_allows_ample_space() {
 		$this->runner->fake_free_space = 1.0e12; // A terabyte free.
 
-		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
 		$task    = $this->drive( $task_id );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
@@ -1565,7 +1565,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	 * non-foreign-key restore keeps the budget it was created with.
 	 */
 	public function test_fk_detection_extends_wall_clock_budget() {
-		$fk_id      = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$fk_id      = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
 		$fk_created = $this->spine->get_task( $fk_id )->max_wall_clock_at;
 		$fk_task    = $this->drive( $fk_id );
 
@@ -1595,7 +1595,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	public function test_fk_thrown_replay_failure_rolls_back() {
 		$this->runner->fake_engine->replay_throw = true;
 
-		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
 		$task    = $this->drive( $task_id );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
@@ -1625,7 +1625,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	public function test_fk_post_replay_failure_does_not_roll_back() {
 		$this->runner->fake_engine->exit_maintenance_throw = true;
 
-		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
 		$task    = $this->drive( $task_id );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
@@ -1642,7 +1642,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	public function test_wall_clock_reroutes_fk_replay_to_rollback() {
 		$this->runner->fake_engine->replay_yield_once = true;
 
-		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
 
 		// Step until the first replay slice has yielded: snapshot done, paused
 		// in the replaying_db phase.
@@ -1676,7 +1676,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	public function test_wall_clock_does_not_reroute_while_lease_held() {
 		$this->runner->fake_engine->replay_yield_once = true;
 
-		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
 
 		$task  = $this->spine->get_task( $task_id );
 		$guard = 0;
@@ -1760,7 +1760,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	public function test_fk_verify_failure_rolls_back() {
 		$this->runner->fake_engine->verify_ok = false;
 
-		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ) );
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
 		$task    = $this->drive( $task_id );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
@@ -1837,6 +1837,90 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
 		$this->assertSame( 'rt_', $this->runner->fake_engine->last_replay_config['source_prefix'] );
+	}
+
+	/**
+	 * A cross-prefix restore of a dump that declares foreign keys is refused
+	 * before any write: the prefix rewriter does not rewrite REFERENCES
+	 * clauses, so replaying it would point constraints at the wrong table.
+	 */
+	public function test_cross_prefix_fk_restore_is_refused() {
+		$task_id = $this->make_task(
+			'db',
+			array( $this->make_db_artifact( true ) ),
+			array(
+				'source_prefix'    => 'other_',
+				'has_foreign_keys' => true,
+			)
+		);
+		$task = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_CROSS_PREFIX_FK, $this->spine->status_payload( $task )['error_code'] );
+		// The refusal happens in preparation - no replay is attempted.
+		$this->assertNotContains( 'replay_slice:fk', $this->runner->fake_engine->calls );
+	}
+
+	/**
+	 * A cross-prefix restore WITHOUT foreign keys proceeds - the refusal is
+	 * gated on foreign keys, not the prefix change alone.
+	 */
+	public function test_cross_prefix_without_fk_is_allowed() {
+		$task_id = $this->make_task(
+			'db',
+			array( $this->make_db_artifact( false ) ),
+			array(
+				'source_prefix'    => 'other_',
+				'has_foreign_keys' => false,
+			)
+		);
+		$task = $this->drive( $task_id );
+
+		$payload = $this->spine->status_payload( $task );
+		$code    = isset( $payload['error_code'] ) ? $payload['error_code'] : '';
+		$this->assertNotSame( MainWP_Backup_Error::ERR_RESTORE_CROSS_PREFIX_FK, $code, 'A cross-prefix non-FK restore must not be refused.' );
+	}
+
+	/**
+	 * A non-FK restore failed from outside the runner (wall-clock / watchdog)
+	 * still gets terminal cleanup: tmp tables dropped and maintenance lifted.
+	 */
+	public function test_cleanup_terminal_task_cleans_non_fk_restore() {
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( false ) ) );
+		$task    = $this->spine->get_task( $task_id );
+
+		$this->runner->cleanup_terminal_task( $task );
+
+		$this->assertContains( 'cleanup_tmp_tables', $this->runner->fake_engine->calls );
+		$this->assertContains( 'exit_maintenance', $this->runner->fake_engine->calls );
+	}
+
+	/**
+	 * A timed-out FK rollback keeps maintenance on by design - cleanup must
+	 * leave it alone so the possibly-inconsistent site is not served.
+	 */
+	public function test_cleanup_terminal_task_keeps_maintenance_for_fk_rollback() {
+		global $wpdb;
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET phase = %s WHERE task_id = %s', MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK, $task_id ) ); // phpcs:ignore -- test fixture.
+		$task = $this->spine->get_task( $task_id );
+
+		$this->runner->cleanup_terminal_task( $task );
+
+		$this->assertNotContains( 'exit_maintenance', $this->runner->fake_engine->calls, 'FK rollback must keep maintenance on.' );
+	}
+
+	/**
+	 * A backup task is not the restore runner's concern - cleanup is a no-op.
+	 */
+	public function test_cleanup_terminal_task_skips_backup_tasks() {
+		$task_id = $this->spine->create_task( 'full' );
+		$task    = $this->spine->get_task( $task_id );
+
+		$this->runner->cleanup_terminal_task( $task );
+
+		$this->assertNotContains( 'exit_maintenance', $this->runner->fake_engine->calls );
+		$this->assertNotContains( 'cleanup_tmp_tables', $this->runner->fake_engine->calls );
 	}
 
 	/**

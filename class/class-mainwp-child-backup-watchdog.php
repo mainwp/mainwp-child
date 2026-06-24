@@ -154,7 +154,7 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
 
                 // Out of resume attempts: record why so the Dashboard shows a
                 // reason and a code instead of a bare "failed".
-                $spine->checkpoint(
+                $capped = $spine->checkpoint(
                     $task->task_id,
                     $version,
                     array(
@@ -167,6 +167,14 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
                         ),
                     )
                 );
+
+                // A forced-terminal restore leaves tmp tables, the maintenance
+                // flag, and scratch behind (the runner never ran its catch);
+                // clean up using the pre-fail task. FK rollback keeps
+                // maintenance on - cleanup skips it.
+                if ( false !== $capped && MainWP_Child_Backup_Task::is_restore_type( $task->type ) ) {
+                    MainWP_Child_Restore_Task_Runner::instance()->cleanup_terminal_task( $task );
+                }
                 continue;
             }
 

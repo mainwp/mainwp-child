@@ -542,6 +542,19 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     }
 
     /**
+     * Whether a task type is one of the restore family. Restore tasks enter
+     * maintenance and create tmp tables, so a forced-terminal restore needs
+     * runner cleanup; backup tasks do not.
+     *
+     * @param string $type Task type.
+     *
+     * @return bool True for restore, restore_db, or restore_files.
+     */
+    public static function is_restore_type( $type ) {
+        return in_array( $type, array( 'restore', 'restore_db', 'restore_files' ), true );
+    }
+
+    /**
      * Mark a task failed when it is past its wall-clock deadline.
      *
      * Called by the Dashboard-driven status path on every poll - this closes
@@ -617,6 +630,16 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                 $task_id
             )
         );
+
+        // Only when this call actually failed the task: a forced-terminal
+        // restore left tmp tables, the .maintenance flag, and scratch behind
+        // (the runner never ran its catch). The fail write above overwrote the
+        // cursor, so cleanup reads restore_id from the pre-fail $task (its
+        // sidecar survives). FK rollback keeps maintenance on - cleanup skips it.
+        if ( 1 === $result && self::is_restore_type( $task->type ) ) {
+            MainWP_Child_Restore_Task_Runner::instance()->cleanup_terminal_task( $task );
+        }
+
         return 1 === $result;
     }
 
@@ -845,6 +868,11 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                         $files[] = (string) $entry['file'];
                     }
                 }
+            }
+            // A spilled parent manifest that was never consumed (the task died
+            // before its first incremental slice) would otherwise linger.
+            if ( ! empty( $sub_state['params']['parent_manifest_file'] ) ) {
+                $files[] = (string) $sub_state['params']['parent_manifest_file'];
             }
         }
 

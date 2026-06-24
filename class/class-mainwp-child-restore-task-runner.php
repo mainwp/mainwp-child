@@ -2501,6 +2501,17 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $fk = $engine->probe_fk( $files );
         }
 
+        // A cross-prefix restore rewrites only the CREATE TABLE name, not the
+        // REFERENCES clauses in foreign keys, so replaying a FK-bearing dump
+        // into a different prefix would point constraints at the wrong (or a
+        // missing) table. Refuse here - before any maintenance or write - so
+        // the operator restores to a same-prefix site rather than risk a
+        // silently broken database. Rewriting REFERENCES is intentionally not
+        // attempted - it could corrupt a production DB on a rare combination.
+        if ( $fk && $source_prefix !== $this->target_prefix() ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_CROSS_PREFIX_FK ) ), null, MainWP_Backup_Error::ERR_RESTORE_CROSS_PREFIX_FK ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+
         return array(
             'files'         => $files,
             'source_prefix' => $source_prefix,
@@ -2832,6 +2843,32 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 MainWP_Backup_Error::scrub_db_credentials( $cleanup_error->getMessage() )
             );
         }
+    }
+
+    /**
+     * Run terminal cleanup for a restore failed from OUTSIDE the runner - the
+     * wall-clock enforcer and the watchdog resume cap both write the terminal
+     * row directly and never reach run_phase()'s catch, so a non-FK restore
+     * would otherwise leave tmp tables, the .maintenance flag, and scratch
+     * behind. A timed-out FK rollback deliberately keeps maintenance on (its
+     * aside tables are the recovery), so it is left untouched.
+     *
+     * @param object $task Pre-fail task row. Its sub_state still carries the
+     *                     restore cursor (restore_id) the cleanup needs; the
+     *                     terminal write only overwrote the column and any
+     *                     sidecar survives.
+     */
+    public function cleanup_terminal_task( $task ) {
+        if ( ! MainWP_Child_Backup_Task::is_restore_type( $task->type ) ) {
+            return;
+        }
+        if ( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK === $task->phase ) {
+            return;
+        }
+
+        $backup_dir = $this->backup_dir();
+        $sub_state  = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $backup_dir );
+        $this->terminal_cleanup( $task, is_array( $sub_state ) ? $sub_state : array(), $backup_dir );
     }
 
     /**
