@@ -634,7 +634,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 'done'  => $done,
             );
 
-            $serialized = $spine->write_sub_state( $fresh->task_id, $sub_state, $backup_dir );
+            $serialized = $spine->write_sub_state( $fresh->task_id, $sub_state, $backup_dir, (int) $fresh->version );
             if ( false === $serialized ) {
                 $serialized = wp_json_encode( $sub_state );
             }
@@ -2592,7 +2592,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     protected function jump_phase( $task, $version, $sub_state, $backup_dir, $phase ) {
         $spine      = MainWP_Child_Backup_Task::instance();
         $sub_state  = $this->stamp_progress( $task, $sub_state, $backup_dir );
-        $serialized = $spine->write_sub_state( $task->task_id, $sub_state, $backup_dir );
+        $serialized = $spine->write_sub_state( $task->task_id, $sub_state, $backup_dir, $version );
         if ( false === $serialized ) {
             $serialized = wp_json_encode( $sub_state );
         }

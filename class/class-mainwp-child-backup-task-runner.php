@@ -977,7 +977,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
 
         $sub_state = $this->stamp_progress( $task, $sub_state, $backup_dir );
 
-        $serialized = $spine->write_sub_state( $task->task_id, $sub_state, $backup_dir );
+        $serialized = $spine->write_sub_state( $task->task_id, $sub_state, $backup_dir, $version );
         if ( false === $serialized ) {
             $serialized = wp_json_encode( $sub_state ); // Sidecar write failed - keep state inline as a best effort.
         }
@@ -1025,7 +1025,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     protected function checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, $then_yield ) {
         $spine      = MainWP_Child_Backup_Task::instance();
         $sub_state  = $this->stamp_progress( $task, $sub_state, $backup_dir );
-        $serialized = $spine->write_sub_state( $task->task_id, $sub_state, $backup_dir );
+        $serialized = $spine->write_sub_state( $task->task_id, $sub_state, $backup_dir, $version );
         if ( false === $serialized ) {
             $serialized = wp_json_encode( $sub_state );
         }
@@ -1422,7 +1422,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      *
      * @param string $backup_dir Scratch directory.
      */
-    protected function cleanup_walk_runs( $backup_dir ) {
+    public function cleanup_walk_runs( $backup_dir ) {
         $dir = rtrim( $backup_dir, '/' ) . '/';
         foreach ( (array) glob( $dir . MainWP_Child_Backup_File_Walker::RUN_PREFIX . '*' ) as $run ) {
             wp_delete_file( $run ); // NOSONAR .

@@ -66,7 +66,8 @@ class BackupTaskSidecarTest extends WP_UnitTestCase {
 		$task_id   = $spine->create_task( 'full' );
 		$sub_state = array( 'cursor' => 42 );
 
-		$serialized = $spine->write_sub_state( $task_id, $sub_state, $this->backup_dir );
+		$version    = (int) $spine->get_task( $task_id )->version;
+		$serialized = $spine->write_sub_state( $task_id, $sub_state, $this->backup_dir, $version );
 		$this->assertSame( wp_json_encode( $sub_state ), $serialized );
 		$this->assertCount( 0, (array) glob( $this->backup_dir . '/*' ), 'No sidecar file for a small cursor' );
 
@@ -86,11 +87,12 @@ class BackupTaskSidecarTest extends WP_UnitTestCase {
 		$task_id   = $spine->create_task( 'full' );
 		$sub_state = $this->oversized_sub_state();
 
-		$serialized = $spine->write_sub_state( $task_id, $sub_state, $this->backup_dir );
+		$version    = (int) $spine->get_task( $task_id )->version;
+		$serialized = $spine->write_sub_state( $task_id, $sub_state, $this->backup_dir, $version );
 
 		$pointer = json_decode( $serialized, true );
 		$this->assertTrue( $pointer['_sidecar'] );
-		$this->assertSame( 'task_substate-' . $task_id . '.json', $pointer['file'] );
+		$this->assertSame( 'task_substate-' . $task_id . '-v' . $version . '.json', $pointer['file'] );
 		$this->assertLessThan( 1024, strlen( $serialized ), 'Column value must be a small pointer' );
 
 		$sidecar = $this->backup_dir . '/' . $pointer['file'];
@@ -107,7 +109,8 @@ class BackupTaskSidecarTest extends WP_UnitTestCase {
 		$task_id   = $spine->create_task( 'full' );
 		$sub_state = $this->oversized_sub_state();
 
-		$serialized = $spine->write_sub_state( $task_id, $sub_state, $this->backup_dir );
+		$version    = (int) $spine->get_task( $task_id )->version;
+		$serialized = $spine->write_sub_state( $task_id, $sub_state, $this->backup_dir, $version );
 		$task       = $spine->get_task( $task_id );
 		$spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => $serialized ) );
 
@@ -123,11 +126,14 @@ class BackupTaskSidecarTest extends WP_UnitTestCase {
 		$spine   = MainWP_Child_Backup_Task::instance();
 		$task_id = $spine->create_task( 'full' );
 
-		$serialized = $spine->write_sub_state( $task_id, $this->oversized_sub_state(), $this->backup_dir );
+		$version    = (int) $spine->get_task( $task_id )->version;
+		$serialized = $spine->write_sub_state( $task_id, $this->oversized_sub_state(), $this->backup_dir, $version );
 		$task       = $spine->get_task( $task_id );
 		$spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => $serialized ) );
 
-		unlink( $this->backup_dir . '/task_substate-' . $task_id . '.json' );
+		// Remove the sidecar the column pointer references.
+		$pointer = json_decode( $serialized, true );
+		unlink( $this->backup_dir . '/' . $pointer['file'] );
 
 		$task = $spine->get_task( $task_id );
 		$this->assertNull( $spine->read_sub_state( $task, $this->backup_dir ) );
@@ -141,11 +147,13 @@ class BackupTaskSidecarTest extends WP_UnitTestCase {
 		$spine   = MainWP_Child_Backup_Task::instance();
 		$task_id = $spine->create_task( 'full' );
 
-		$spine->write_sub_state( $task_id, $this->oversized_sub_state(), $this->backup_dir );
-		$this->assertFileExists( $this->backup_dir . '/task_substate-' . $task_id . '.json' );
+		$version    = (int) $spine->get_task( $task_id )->version;
+		$serialized = $spine->write_sub_state( $task_id, $this->oversized_sub_state(), $this->backup_dir, $version );
+		$sidecar    = $this->backup_dir . '/' . json_decode( $serialized, true )['file'];
+		$this->assertFileExists( $sidecar );
 
 		$spine->delete_sidecar( $task_id, $this->backup_dir );
-		$this->assertFileDoesNotExist( $this->backup_dir . '/task_substate-' . $task_id . '.json' );
+		$this->assertFileDoesNotExist( $sidecar );
 
 		// Deleting again is a quiet no-op.
 		$spine->delete_sidecar( $task_id, $this->backup_dir );
@@ -164,5 +172,47 @@ class BackupTaskSidecarTest extends WP_UnitTestCase {
 
 		$task = $spine->get_task( $task_id );
 		$this->assertSame( array( 'cursor' => 7 ), $spine->read_sub_state( $task, $this->backup_dir ) );
+	}
+
+	/**
+	 * A slice that outran its lease must not clobber the cursor body a second
+	 * slice already committed. The two slices own distinct versions (lease
+	 * theft increments the version), so the sidecar filename is stamped with
+	 * the owned version and the stale write lands in a different file. The
+	 * winning row keeps pointing at the winner's intact body.
+	 */
+	public function test_stale_slice_does_not_clobber_winning_cursor() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full' );
+
+		$task = $spine->get_task( $task_id );
+		$base = (int) $task->version;
+
+		// The first slice takes the lease (version base -> base+1) but its
+		// lease is already expired, standing in for a slice that outran it.
+		$this->assertTrue( $spine->acquire_lease( $task_id, 'stale', $base, -5 ) );
+		// A second slice steals the expired lease (version base+1 -> base+2).
+		$this->assertTrue( $spine->acquire_lease( $task_id, 'winner', $base + 1, 120 ) );
+
+		$stale_version  = $base + 1;
+		$winner_version = $base + 2;
+
+		$winner_body        = $this->oversized_sub_state();
+		$winner_body['who'] = 'winner';
+		$stale_body         = $this->oversized_sub_state();
+		$stale_body['who']  = 'stale';
+
+		// The winner (owns base+2) writes its sidecar and wins the CAS.
+		$winner_ptr = $spine->write_sub_state( $task_id, $winner_body, $this->backup_dir, $winner_version );
+		$this->assertNotFalse( $spine->checkpoint( $task_id, $winner_version, array( 'sub_state' => $winner_ptr ) ) );
+
+		// The zombie stale slice (still owns base+1) writes last, then fails CAS.
+		$stale_ptr = $spine->write_sub_state( $task_id, $stale_body, $this->backup_dir, $stale_version );
+		$this->assertFalse( $spine->checkpoint( $task_id, $stale_version, array( 'sub_state' => $stale_ptr ) ) );
+
+		// The committed row must still resolve to the winner's cursor body.
+		$task     = $spine->get_task( $task_id );
+		$resolved = $spine->read_sub_state( $task, $this->backup_dir );
+		$this->assertSame( 'winner', $resolved['who'] );
 	}
 }

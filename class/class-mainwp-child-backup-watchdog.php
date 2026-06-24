@@ -175,6 +175,14 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
                 if ( false !== $capped && MainWP_Child_Backup_Task::is_restore_type( $task->type ) ) {
                     MainWP_Child_Restore_Task_Runner::instance()->cleanup_terminal_task( $task );
                 }
+
+                // A forced-terminal backup never runs the runner's terminal
+                // sweep, so its spilled walk-run files would linger until the
+                // next backup wipes the scratch dir; sweep them here.
+                if ( false !== $capped && ! MainWP_Child_Backup_Task::is_restore_type( $task->type ) ) {
+                    $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
+                    MainWP_Child_Backup_Task_Runner::instance()->cleanup_walk_runs( $dirs[0] );
+                }
                 continue;
             }
 

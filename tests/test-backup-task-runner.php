@@ -736,14 +736,14 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 			'pad'    => array_fill( 0, 4000, str_repeat( 'x', 20 ) ),
 		);
 		$task       = $spine->get_task( $task_id );
-		$serialized = $spine->write_sub_state( $task_id, $big, $this->backup_dir );
+		$serialized = $spine->write_sub_state( $task_id, $big, $this->backup_dir, (int) $task->version );
 		$spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => $serialized ) );
-		$this->assertFileExists( $this->backup_dir . '/task_substate-' . $task_id . '.json' );
+		$this->assertFileExists( $this->backup_dir . '/' . json_decode( $serialized, true )['file'] );
 
 		$task = $this->advance( $task_id );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
-		$this->assertFileDoesNotExist( $this->backup_dir . '/task_substate-' . $task_id . '.json' );
+		$this->assertCount( 0, (array) glob( $this->backup_dir . '/task_substate-' . $task_id . '-v*.json' ), 'No sidecar litter after completion' );
 	}
 
 	/**

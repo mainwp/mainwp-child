@@ -399,23 +399,26 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * Serialize a sub_state cursor for the column, spilling oversized
      * cursors to a sidecar file.
      *
-     * The full cursor goes to <backup_dir>/task_substate-<task_id>.json via
+     * The full cursor goes to
+     * <backup_dir>/task_substate-<task_id>-v<version>.json via
      * temp-file-then-rename (readers never see a half-written file) and the
-     * column gets only a small pointer.
+     * column gets only a small pointer. The version stamp keeps a stale slice
+     * from overwriting the cursor body a newer slice already committed.
      *
      * @param string $task_id    Task id.
      * @param array  $sub_state  Resume cursor.
      * @param string $backup_dir Scratch directory (the randomized backup dir).
+     * @param int    $version    Version the writing slice owns.
      *
      * @return string|false Column value (inline JSON or pointer JSON), false on write failure.
      */
-    public function write_sub_state( $task_id, $sub_state, $backup_dir ) {
+    public function write_sub_state( $task_id, $sub_state, $backup_dir, $version ) {
         $json = wp_json_encode( $sub_state );
         if ( strlen( $json ) <= self::SUB_STATE_INLINE_MAX ) {
             return $json;
         }
 
-        $sidecar = $this->get_sidecar_path( $task_id, $backup_dir );
+        $sidecar = $this->get_sidecar_path( $task_id, $backup_dir, $version );
         $temp    = $sidecar . '.tmp';
 
         if ( false === file_put_contents( $temp, $json ) || ! rename( $temp, $sidecar ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic temp-then-rename requires native file APIs.
@@ -424,6 +427,10 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             }
             return false;
         }
+
+        // Drop this task's superseded lower-version sidecars so only the
+        // current cursor stays on disk (the pre-version footprint was one file).
+        $this->prune_stale_sidecars( $task_id, $backup_dir, $version );
 
         return wp_json_encode(
             array(
@@ -463,29 +470,67 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     }
 
     /**
-     * Remove a task's sidecar file. Quiet no-op when none exists; terminal
-     * transitions call this so finished tasks leave no cursor litter.
+     * Remove a task's sidecar files. Quiet no-op when none exist; terminal
+     * transitions call this so finished tasks leave no cursor litter. Sweeps
+     * every version stamp for the task plus the legacy unversioned name a task
+     * that was mid-flight across the upgrade may still hold. The strict regex
+     * keeps a prefix-colliding task id from deleting another task's sidecar.
      *
      * @param string $task_id    Task id.
      * @param string $backup_dir Scratch directory.
      */
     public function delete_sidecar( $task_id, $backup_dir ) {
-        $sidecar = $this->get_sidecar_path( $task_id, $backup_dir );
-        if ( is_file( $sidecar ) ) {
-            unlink( $sidecar ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- scratch cleanup.
+        $name    = sanitize_file_name( $task_id );
+        $dir     = rtrim( $backup_dir, '/' ) . '/';
+        $pattern = '/^task_substate-' . preg_quote( $name, '/' ) . '-v(\d+)\.json$/';
+        foreach ( (array) glob( $dir . 'task_substate-' . $name . '-v*.json' ) as $file ) {
+            if ( preg_match( $pattern, basename( $file ) ) ) {
+                unlink( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- scratch cleanup.
+            }
+        }
+
+        $legacy = $dir . 'task_substate-' . $name . '.json';
+        if ( is_file( $legacy ) ) {
+            unlink( $legacy ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- scratch cleanup.
         }
     }
 
     /**
      * The per-task sidecar path inside the scratch directory.
      *
+     * The owned version is stamped into the filename so a slice that outran
+     * its lease (which owns a strictly lower version than the slice that stole
+     * it) writes to a different file and can never overwrite the live cursor.
+     *
      * @param string $task_id    Task id.
      * @param string $backup_dir Scratch directory.
+     * @param int    $version    Version the writing slice owns.
      *
      * @return string Sidecar file path.
      */
-    protected function get_sidecar_path( $task_id, $backup_dir ) {
-        return rtrim( $backup_dir, '/' ) . '/task_substate-' . sanitize_file_name( $task_id ) . '.json';
+    protected function get_sidecar_path( $task_id, $backup_dir, $version ) {
+        return rtrim( $backup_dir, '/' ) . '/task_substate-' . sanitize_file_name( $task_id ) . '-v' . (int) $version . '.json';
+    }
+
+    /**
+     * Remove this task's superseded lower-version sidecars, keeping only the
+     * cursor at or above the current version. Safe under a lease steal: a
+     * stale slice owns a lower version and so only ever prunes files below
+     * itself, never the winning slice's higher-version file.
+     *
+     * @param string $task_id    Task id.
+     * @param string $backup_dir Scratch directory.
+     * @param int    $version    Current owned version; files below it are swept.
+     */
+    protected function prune_stale_sidecars( $task_id, $backup_dir, $version ) {
+        $name    = sanitize_file_name( $task_id );
+        $dir     = rtrim( $backup_dir, '/' ) . '/';
+        $pattern = '/^task_substate-' . preg_quote( $name, '/' ) . '-v(\d+)\.json$/';
+        foreach ( (array) glob( $dir . 'task_substate-' . $name . '-v*.json' ) as $file ) {
+            if ( preg_match( $pattern, basename( $file ), $matches ) && (int) $matches[1] < (int) $version ) {
+                unlink( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- scratch cleanup.
+            }
+        }
     }
 
     /**
@@ -638,6 +683,14 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         // sidecar survives). FK rollback keeps maintenance on - cleanup skips it.
         if ( 1 === $result && self::is_restore_type( $task->type ) ) {
             MainWP_Child_Restore_Task_Runner::instance()->cleanup_terminal_task( $task );
+        }
+
+        // A forced-terminal backup never runs the runner's terminal sweep, so
+        // its spilled walk-run files would linger until the next backup wipes
+        // the scratch dir; sweep them here.
+        if ( 1 === $result && ! self::is_restore_type( $task->type ) ) {
+            $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
+            MainWP_Child_Backup_Task_Runner::instance()->cleanup_walk_runs( $dirs[0] );
         }
 
         return 1 === $result;

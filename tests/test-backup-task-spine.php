@@ -31,6 +31,13 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 	public function tear_down() {
 		global $wpdb;
 		$wpdb->query( 'DELETE FROM ' . MainWP_Child_Backup_Task::instance()->get_table_name() ); // phpcs:ignore -- test cleanup.
+
+		// Walk-run scratch files are not rolled back with the DB transaction;
+		// sweep any a test seeded so they cannot leak into another test.
+		$dirs = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' );
+		foreach ( (array) glob( rtrim( $dirs[0], '/' ) . '/' . \MainWP\Child\MainWP_Child_Backup_File_Walker::RUN_PREFIX . '*' ) as $run ) {
+			unlink( $run ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- test cleanup.
+		}
 		parent::tear_down();
 	}
 
@@ -588,6 +595,54 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 		$this->assertFalse( $spine->enforce_wall_clock_deadline( $task_id2 ) );
 		$task2 = $spine->get_task( $task_id2 );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $task2->phase );
+	}
+
+	/**
+	 * A backup forced terminal by the watchdog (resume cap) sweeps its spilled
+	 * walk-run files. The runner's own terminal branch cleans them, but a task
+	 * killed by the watchdog never runs the runner, so the watchdog must sweep.
+	 */
+	public function test_watchdog_terminal_sweeps_walk_runs() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full' );
+
+		$dirs       = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' );
+		$backup_dir = rtrim( $dirs[0], '/' ) . '/';
+		$prefix     = \MainWP\Child\MainWP_Child_Backup_File_Walker::RUN_PREFIX;
+		file_put_contents( $backup_dir . $prefix . '0', 'x' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- test fixture.
+		file_put_contents( $backup_dir . $prefix . '1', 'x' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- test fixture.
+
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET last_progress_at = DATE_SUB(NOW(), INTERVAL 600 SECOND), resume_count = max_resumes WHERE task_id = %s', $task_id ) ); // phpcs:ignore -- test fixture.
+
+		MainWP_Child_Backup_Watchdog::instance()->check_tasks( 0 );
+
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertCount( 0, (array) glob( $backup_dir . $prefix . '*' ), 'Watchdog terminal must sweep walk-run files' );
+	}
+
+	/**
+	 * A backup forced terminal by the wall-clock enforcer sweeps its spilled
+	 * walk-run files too, matching the runner's terminal disk hygiene.
+	 */
+	public function test_wall_clock_terminal_sweeps_walk_runs() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full' );
+
+		$dirs       = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' );
+		$backup_dir = rtrim( $dirs[0], '/' ) . '/';
+		$prefix     = \MainWP\Child\MainWP_Child_Backup_File_Walker::RUN_PREFIX;
+		file_put_contents( $backup_dir . $prefix . '0', 'x' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- test fixture.
+		file_put_contents( $backup_dir . $prefix . '1', 'x' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- test fixture.
+
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET max_wall_clock_at = DATE_SUB(NOW(), INTERVAL 60 SECOND) WHERE task_id = %s', $task_id ) ); // phpcs:ignore -- test fixture.
+
+		$this->assertTrue( $spine->enforce_wall_clock_deadline( $task_id ) );
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertCount( 0, (array) glob( $backup_dir . $prefix . '*' ), 'Wall-clock terminal must sweep walk-run files' );
 	}
 
 	/**
