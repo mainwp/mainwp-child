@@ -6,6 +6,30 @@
  */
 
 use MainWP\Child\MainWP_Child_Backup_Task;
+use MainWP\Child\MainWP_Backup_Db_Restore_Engine;
+
+/**
+ * Records the restore ids whose aside tables a prune asked to drop, without
+ * touching a database.
+ */
+class Stub_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
+
+	/**
+	 * Restore id sets passed to prune_aside_tables, newest last.
+	 *
+	 * @var array<int,string[]>
+	 */
+	public $pruned_id_sets = array();
+
+	/**
+	 * Record the prune instead of running it.
+	 *
+	 * @param string[] $restore_ids Restore ids.
+	 */
+	public function prune_aside_tables( array $restore_ids ) {
+		$this->pruned_id_sets[] = $restore_ids;
+	}
+}
 
 /**
  * Tests for the dashboard-driven prune action.
@@ -108,6 +132,57 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $this->backup_dir . '/' . $artifact );
 		$this->assertFileDoesNotExist( $this->backup_dir . '/' . $part );
 		$this->assertFileDoesNotExist( $this->backup_dir . '/task_substate-' . sanitize_file_name( $task_id ) . '.json' );
+	}
+
+	/**
+	 * Create a terminal restore-type task carrying a restore id in its params.
+	 *
+	 * @param string $restore_id Restore id.
+	 * @param string $phase      Terminal phase.
+	 *
+	 * @return string Task id.
+	 */
+	private function make_terminal_restore_task( $restore_id, $phase ) {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'restore_db', array( 'params' => array( 'restore_id' => $restore_id ) ) );
+		$spine->checkpoint(
+			$task_id,
+			0,
+			array(
+				'phase'     => $phase,
+				'sub_state' => array( 'params' => array( 'restore_id' => $restore_id ) ),
+			)
+		);
+		return $task_id;
+	}
+
+	/**
+	 * Pruning a terminal restore row drops its aside tables before the row is
+	 * deleted, so they can never be orphaned.
+	 */
+	public function test_prune_restore_task_drops_its_aside_tables() {
+		$task_id = $this->make_terminal_restore_task( 'prid01', MainWP_Child_Backup_Task::PHASE_FAILED );
+		$stub    = new Stub_Restore_Engine();
+
+		$spine  = MainWP_Child_Backup_Task::instance();
+		$result = $spine->prune_task( $task_id, $this->backup_dir, $stub );
+
+		$this->assertSame( 'pruned', $result );
+		$this->assertNull( $spine->get_task( $task_id ), 'the row is still deleted' );
+		$this->assertSame( array( array( 'prid01' ) ), $stub->pruned_id_sets );
+	}
+
+	/**
+	 * Pruning a non-restore (backup) task never asks the restore engine to
+	 * drop anything.
+	 */
+	public function test_prune_backup_task_skips_aside_table_drop() {
+		$task_id = $this->make_terminal_task( MainWP_Child_Backup_Task::PHASE_COMPLETED, array() );
+		$stub    = new Stub_Restore_Engine();
+
+		MainWP_Child_Backup_Task::instance()->prune_task( $task_id, $this->backup_dir, $stub );
+
+		$this->assertSame( array(), $stub->pruned_id_sets );
 	}
 
 	/**

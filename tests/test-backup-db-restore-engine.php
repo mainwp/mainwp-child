@@ -944,4 +944,43 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 
 		$this->assertEmpty( $wpdb->get_var( "SHOW TABLES LIKE '$orphan'" ) ); // phpcs:ignore WordPress.DB -- verification.
 	}
+
+	/**
+	 * prune_aside_tables drops the old/tmp leftovers of the given restore ids
+	 * in one pass and never touches a table outside that id set - not an
+	 * unrelated `old...`-named table, not a live table.
+	 */
+	public function test_prune_aside_tables_drops_only_the_given_restore_ids() {
+		global $wpdb;
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+		$this->real_tables = array( 'oldabc123_x', 'tmpabc123_x', 'olddef456_y', 'oldzz_keep', 'keepme_live' );
+		foreach ( $this->real_tables as $table ) {
+			$wpdb->query( "CREATE TABLE `$table` ( id INT )" ); // phpcs:ignore WordPress.DB -- test fixture.
+		}
+
+		( new MainWP_Backup_Db_Restore_Engine() )->prune_aside_tables( array( 'abc123', 'def456' ) );
+
+		$tables = $wpdb->get_col( 'SHOW TABLES' ); // phpcs:ignore WordPress.DB -- verification.
+		$this->assertNotContains( 'oldabc123_x', $tables, 'aside table for a swept id is dropped' );
+		$this->assertNotContains( 'tmpabc123_x', $tables, 'staging table for a swept id is dropped' );
+		$this->assertNotContains( 'olddef456_y', $tables, 'second swept id is dropped' );
+		$this->assertContains( 'oldzz_keep', $tables, 'an unrelated old-named table outside the id set survives' );
+		$this->assertContains( 'keepme_live', $tables, 'a live table is never matched' );
+	}
+
+	/**
+	 * An empty id set is a no-op: nothing is dropped.
+	 */
+	public function test_prune_aside_tables_empty_set_is_noop() {
+		global $wpdb;
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+		$this->real_tables = array( 'oldabc123_x' );
+		$wpdb->query( 'CREATE TABLE `oldabc123_x` ( id INT )' ); // phpcs:ignore WordPress.DB -- test fixture.
+
+		( new MainWP_Backup_Db_Restore_Engine() )->prune_aside_tables( array() );
+
+		$this->assertContains( 'oldabc123_x', $wpdb->get_col( 'SHOW TABLES' ) ); // phpcs:ignore WordPress.DB -- verification.
+	}
 }

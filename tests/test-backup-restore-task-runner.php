@@ -55,6 +55,13 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	public $replay_calls = 0;
 
 	/**
+	 * Restore id sets passed to prune_aside_tables, newest last.
+	 *
+	 * @var array<int,string[]>
+	 */
+	public $pruned_id_sets = array();
+
+	/**
 	 * Tables the replay reports.
 	 *
 	 * @var array
@@ -186,6 +193,16 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	 */
 	public function cleanup_tmp_tables( $restore_id ) {
 		$this->calls[] = 'cleanup_tmp_tables';
+	}
+
+	/**
+	 * Tracked aside-table prune.
+	 *
+	 * @param string[] $restore_ids Restore ids.
+	 */
+	public function prune_aside_tables( array $restore_ids ) {
+		$this->calls[]          = 'prune_aside_tables';
+		$this->pruned_id_sets[] = $restore_ids;
 	}
 
 	/**
@@ -2937,5 +2954,65 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
 		$this->assertSame( MainWP_Backup_Error::ERR_DISK_FULL, $this->spine->status_payload( $task )['error_code'] );
 		$this->assertSame( array(), $runner->pulled_urls, 'Nothing may download when disk space is insufficient.' );
+	}
+
+	/**
+	 * Insert a terminal restore-type task row carrying a known restore id.
+	 *
+	 * @param string $restore_id Restore id.
+	 *
+	 * @return string Task id.
+	 */
+	private function make_terminal_restore( $restore_id ) {
+		$task_id = $this->spine->create_task( 'restore_db', array( 'params' => array( 'restore_id' => $restore_id ) ) );
+		$this->spine->checkpoint(
+			$task_id,
+			0,
+			array(
+				'phase'     => MainWP_Child_Backup_Task::PHASE_FAILED,
+				'sub_state' => array( 'params' => array( 'restore_id' => $restore_id ) ),
+			)
+		);
+		return $task_id;
+	}
+
+	/**
+	 * Creating a restore sweeps the aside tables of every prior restore. The
+	 * single-active-task guard means those priors are all terminal, so their
+	 * old<id>_/tmp<id>_ tables are superseded litter.
+	 */
+	public function test_create_restore_task_prunes_prior_restore_aside_tables() {
+		$this->make_terminal_restore( 'prior01' );
+
+		$this->make_task( 'db', array(), array( 'restore_id' => 'newrid01' ) );
+
+		$this->assertContains( 'prune_aside_tables', $this->runner->fake_engine->calls );
+		$swept = end( $this->runner->fake_engine->pruned_id_sets );
+		$this->assertContains( 'prior01', $swept, 'a prior restore id is swept' );
+		$this->assertContains( 'newrid01', $swept, 'the new restore id is included (no-op on a fresh id)' );
+	}
+
+	/**
+	 * With no prior restores, the sweep targets only the just-created restore.
+	 */
+	public function test_create_restore_task_with_no_prior_sweeps_only_current() {
+		$this->make_task( 'db', array(), array( 'restore_id' => 'solo01' ) );
+
+		$swept = end( $this->runner->fake_engine->pruned_id_sets );
+		$this->assertSame( array( 'solo01' ), $swept );
+	}
+
+	/**
+	 * Multiple prior restores are all swept in one pass.
+	 */
+	public function test_create_restore_task_prunes_all_prior_restores() {
+		$this->make_terminal_restore( 'priora1' );
+		$this->make_terminal_restore( 'priorb2' );
+
+		$this->make_task( 'db', array(), array( 'restore_id' => 'newrid02' ) );
+
+		$swept = end( $this->runner->fake_engine->pruned_id_sets );
+		$this->assertContains( 'priora1', $swept );
+		$this->assertContains( 'priorb2', $swept );
 	}
 }

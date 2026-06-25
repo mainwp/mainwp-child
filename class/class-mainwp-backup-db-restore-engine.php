@@ -601,6 +601,42 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
+     * Drop the aside (`old<id>_`) and staging (`tmp<id>_`) tables left behind
+     * by a set of prior restores, in a single SHOW TABLES pass.
+     *
+     * Driven by restore ids the caller read from real task rows, so the
+     * prefix match only ever hits this engine's own aside/staging tables -
+     * an unrelated table such as `oldarchive_2024` is never matched because
+     * its id segment is not in the set. The trailing underscore on each
+     * prefix keeps one id from matching another's tables.
+     *
+     * @param string[] $restore_ids Restore ids whose leftovers to drop.
+     */
+    public function prune_aside_tables( array $restore_ids ) {
+        if ( empty( $restore_ids ) ) {
+            return;
+        }
+        $conn = $this->connect();
+        if ( ! is_object( $conn ) ) {
+            return;
+        }
+        $prefixes = array();
+        foreach ( array_unique( $restore_ids ) as $restore_id ) {
+            $prefixes[] = $this->old_prefix( $restore_id );
+            $prefixes[] = $this->tmp_prefix( $restore_id );
+        }
+        foreach ( $this->list_tables( $conn ) as $table ) {
+            foreach ( $prefixes as $prefix ) {
+                if ( 0 === strpos( $table, $prefix ) ) {
+                    $this->execute_statement( $conn, 'DROP TABLE IF EXISTS `' . $table . '`' );
+                    break;
+                }
+            }
+        }
+        $this->close_connection( $conn );
+    }
+
+    /**
      * Pull the bare table stem out of a rewritten statement.
      *
      * The rewriter normalizes the table token to backticks, so the

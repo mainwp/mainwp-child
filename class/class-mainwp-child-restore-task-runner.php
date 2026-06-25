@@ -141,6 +141,18 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         // most; clearing it here keeps the replay idempotent.
         $this->restore_engine()->cleanup_tmp_tables( $params['restore_id'] );
 
+        // The active-task guard above means no restore is in flight, so every
+        // old<id>_/tmp<id>_ table belongs to a terminal, superseded restore.
+        // Retire them now so failed-restore litter never accumulates. Includes
+        // this task's own id (a no-op on a fresh id; clears a same-id retry's
+        // collision). Best-effort: a housekeeping failure must not block the
+        // restore.
+        try {
+            $this->restore_engine()->prune_aside_tables( $spine->get_restore_ids( $this->backup_dir() ) );
+        } catch ( \Throwable $e ) {
+            MainWP_Helper::log_debug( 'aside-table prune skipped: ' . $e->getMessage() );
+        }
+
         return $task_id;
     }
 
@@ -3022,6 +3034,16 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      */
     protected function restore_engine() {
         return new MainWP_Backup_Db_Restore_Engine();
+    }
+
+    /**
+     * Public handle on the restore engine for callers outside this class
+     * (the spine's prune_task), without exposing the protected test seam.
+     *
+     * @return MainWP_Backup_Db_Restore_Engine
+     */
+    public function get_restore_engine() {
+        return $this->restore_engine();
     }
 
     /**

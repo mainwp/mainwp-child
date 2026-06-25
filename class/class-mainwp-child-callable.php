@@ -766,12 +766,15 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             'missing' => 0,
         );
 
+        // Passed to prune_task so a pruned restore row also drops its aside tables.
+        $restore_engine = MainWP_Child_Restore_Task_Runner::instance()->get_restore_engine();
+
         foreach ( $task_ids as $task_id ) {
             $task_id = sanitize_text_field( (string) $task_id );
             if ( '' === $task_id ) {
                 continue;
             }
-            $outcome = $spine->prune_task( $task_id, $backup_dir );
+            $outcome = $spine->prune_task( $task_id, $backup_dir, $restore_engine );
             if ( isset( $counts[ $outcome ] ) ) {
                 ++$counts[ $outcome ];
             }

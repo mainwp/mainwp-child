@@ -874,12 +874,13 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * refused, and a missing row counts as already pruned so the call is
      * idempotent.
      *
-     * @param string $task_id    Task id.
-     * @param string $backup_dir Backup directory holding the artifacts.
+     * @param string                               $task_id        Task id.
+     * @param string                               $backup_dir     Backup directory holding the artifacts.
+     * @param MainWP_Backup_Db_Restore_Engine|null $restore_engine Engine used to drop a restore's aside tables before the row goes; null skips that step.
      *
      * @return string One of 'pruned', 'active', 'missing'.
      */
-    public function prune_task( $task_id, $backup_dir ) {
+    public function prune_task( $task_id, $backup_dir, $restore_engine = null ) {
         $task = $this->get_task( $task_id );
         if ( null === $task ) {
             return 'missing';
@@ -918,6 +919,18 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         }
 
         $this->delete_sidecar( $task_id, $backup_dir );
+
+        // Deleting a restore row removes the only pointer back to its aside
+        // tables; drop them now so a prune can never orphan them. Best-effort -
+        // the row must be deleted regardless of a housekeeping failure.
+        if ( null !== $restore_engine && self::is_restore_type( $task->type )
+            && is_array( $sub_state ) && ! empty( $sub_state['params']['restore_id'] ) && is_string( $sub_state['params']['restore_id'] ) ) {
+            try {
+                $restore_engine->prune_aside_tables( array( (string) $sub_state['params']['restore_id'] ) );
+            } catch ( \Throwable $e ) {
+                MainWP_Helper::log_debug( 'prune aside-table drop skipped: ' . $e->getMessage() );
+            }
+        }
 
         global $wpdb;
         $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- dedicated spine table.
@@ -968,5 +981,34 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             'SELECT * FROM ' . $this->get_table_name() . " WHERE phase NOT IN ('completed','failed')" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper, no user input.
         );
         return is_array( $rows ) ? $rows : array();
+    }
+
+    /**
+     * Collect the restore ids of every restore-type task row, terminal or not,
+     * so a caller can drop the aside (`old<id>_`) and staging (`tmp<id>_`)
+     * tables those restores left behind.
+     *
+     * Rows whose sub_state cannot be decoded (a deleted sidecar) carry no
+     * readable id and are skipped - a missing id is always safe to ignore.
+     * No LIMIT: restore rows are few, and the caller's sweep clears the
+     * backlog each run.
+     *
+     * @param string $backup_dir Backup directory, for sidecar resolution.
+     *
+     * @return string[] Restore ids.
+     */
+    public function get_restore_ids( $backup_dir ) {
+        global $wpdb;
+        $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- dedicated spine table.
+            'SELECT task_id, type, sub_state FROM ' . $this->get_table_name() . " WHERE type IN ('restore','restore_db','restore_files')" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper, no user input.
+        );
+        $ids  = array();
+        foreach ( (array) $rows as $row ) {
+            $sub_state = $this->read_sub_state( $row, $backup_dir );
+            if ( is_array( $sub_state ) && ! empty( $sub_state['params']['restore_id'] ) && is_string( $sub_state['params']['restore_id'] ) ) {
+                $ids[] = (string) $sub_state['params']['restore_id'];
+            }
+        }
+        return $ids;
     }
 }
