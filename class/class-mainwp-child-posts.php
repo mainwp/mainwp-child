@@ -655,7 +655,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
                 $new_meta_values = array();
                 foreach ( $meta_values as $key_value => $meta_value ) {
                     if ( is_serialized( $meta_value ) ) {
-                        $meta_value = unserialize( $meta_value ); // phpcs:ignore --  safe internal value.
+                        $meta_value = unserialize( $meta_value, array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- restricted unserialize, no classes instantiated.
                     }
                     $new_meta_values[ $key_value ] = $meta_value;
                 }
@@ -738,7 +738,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
                 $new_meta_values = array();
                 foreach ( $meta_values as $key_value => $meta_value ) {
                     if ( is_serialized( $meta_value ) ) {
-                        $meta_value = unserialize( $meta_value ); // phpcs:ignore -- safe internal value.
+                        $meta_value = unserialize( $meta_value, array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- restricted unserialize, no classes instantiated.
                     }
                     $new_meta_values[ $key_value ] = $meta_value;
                 }

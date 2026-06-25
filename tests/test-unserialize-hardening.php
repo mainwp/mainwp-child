@@ -14,6 +14,7 @@
 
 use MainWP\Child\MainWP_Clone_Install;
 use MainWP\Child\MainWP_Backup_Url_Rewriter;
+use MainWP\Child\MainWP_Child_Posts;
 
 /**
  * Canary whose __wakeup() trips a static flag. If the flag is set after a
@@ -126,5 +127,78 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 
 		$this->assertFalse( MainWP_Unserialize_Canary::$woke, 'backup rewriter instantiated a live object via unserialize()' );
 		$this->assertSame( $payload, $out, 'untouched serialized object did not round-trip byte-identical' );
+	}
+
+	/**
+	 * The dashboard-fed post_custom import loop must not instantiate a live
+	 * object when a meta value carries a serialized object. This exercises the
+	 * private get_post_edit() path, which unserializes each serialized meta value
+	 * before handing it back to the dashboard.
+	 *
+	 * @return void
+	 */
+	public function test_post_custom_import_does_not_instantiate_object() {
+		global $wpdb;
+		$post_id = self::factory()->post->create();
+
+		// Plant a raw serialized object string directly in postmeta, bypassing
+		// add_post_meta()'s maybe_serialize() (which double-wraps and would only
+		// unserialize back to a string). get_post_custom() returns this raw string
+		// untouched, so the single unserialize() inside get_post_edit() is the only
+		// thing that could turn it into a live object.
+		$wpdb->insert(
+			$wpdb->postmeta,
+			array(
+				'post_id'    => $post_id,
+				'meta_key'   => 'mainwp_canary_meta',
+				'meta_value' => serialize( new MainWP_Unserialize_Canary() ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- hostile fixture.
+			)
+		); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- planting a raw serialized-object meta value for the test.
+		wp_cache_delete( $post_id, 'post_meta' );
+
+		MainWP_Unserialize_Canary::$woke = false;
+
+		$posts  = new MainWP_Child_Posts();
+		$method = new ReflectionMethod( MainWP_Child_Posts::class, 'get_post_edit' );
+		$method->setAccessible( true );
+		$method->invoke( $posts, $post_id );
+
+		$this->assertFalse( MainWP_Unserialize_Canary::$woke, 'post_custom import instantiated a live object via unserialize()' );
+	}
+
+	/**
+	 * Static guard: no bare unserialize() may survive anywhere in the child
+	 * class surface. Every call must pass allowed_classes => false. This covers
+	 * both post_custom import loops and the PageSpeed cpt_whitelist option, and
+	 * catches any future regression the behavioral tests would miss. Mirrors the
+	 * handoff verification grep.
+	 *
+	 * @return void
+	 */
+	public function test_no_bare_unserialize_remains_in_class_surface() {
+		$class_dir = dirname( __DIR__ ) . '/class';
+		$this->assertDirectoryExists( $class_dir, 'child class directory not found' );
+
+		$offenders = array();
+		$files     = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $class_dir, FilesystemIterator::SKIP_DOTS ) );
+		foreach ( $files as $file ) {
+			if ( 'php' !== strtolower( $file->getExtension() ) ) {
+				continue;
+			}
+			$lines = file( $file->getPathname() );
+			foreach ( $lines as $number => $line ) {
+				if ( false === strpos( $line, 'unserialize(' ) ) {
+					continue;
+				}
+				if ( false !== strpos( $line, 'maybe_unserialize' )
+					|| false !== strpos( $line, 'is_serialized' )
+					|| false !== strpos( $line, 'allowed_classes' ) ) {
+					continue;
+				}
+				$offenders[] = $file->getFilename() . ':' . ( $number + 1 ) . ' -> ' . trim( $line );
+			}
+		}
+
+		$this->assertSame( array(), $offenders, "bare unserialize() found in child class surface:\n" . implode( "\n", $offenders ) );
 	}
 }

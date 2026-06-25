@@ -647,7 +647,7 @@ class MainWP_Child_Pagespeed {
         if ( $gpi_options['cpt_whitelist'] && ( 'all' === $restrict_type || 'ignored' === $restrict_type || stristr( $restrict_type, 'gpi_custom_posts' ) ) ) {
             $cpt_whitelist_arr = false;
             if ( ! empty( $gpi_options['cpt_whitelist'] ) ) {
-                $cpt_whitelist_arr = unserialize( $gpi_options['cpt_whitelist'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- unserialize usage required to achieve desired results, pull request solutions appreciated.
+                $cpt_whitelist_arr = unserialize( $gpi_options['cpt_whitelist'], array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- restricted unserialize, no classes instantiated.
             }
             $args              = array(
                 'public'   => true,
