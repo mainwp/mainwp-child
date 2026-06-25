@@ -15,6 +15,7 @@
 use MainWP\Child\MainWP_Clone_Install;
 use MainWP\Child\MainWP_Backup_Url_Rewriter;
 use MainWP\Child\MainWP_Child_Posts;
+use MainWP\Child\MainWP_Custom_Post_Type;
 
 /**
  * Canary whose __wakeup() trips a static flag. If the flag is set after a
@@ -200,5 +201,149 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 		}
 
 		$this->assertSame( array(), $offenders, "bare unserialize() found in child class surface:\n" . implode( "\n", $offenders ) );
+	}
+
+	/**
+	 * The dashboard-fed custom-post-type import (insert_postmeta) must never
+	 * persist a serialized PHP object. A bare maybe_unserialize() instantiates
+	 * the object at import time (firing __wakeup); even a restricted unserialize
+	 * is not enough on its own, because add_post_meta() re-serializes the
+	 * __PHP_Incomplete_Class back to the ORIGINAL class string, which WordPress
+	 * core then re-instantiates on the next get_post_meta() read. The fix both
+	 * restricts unserialize AND skips storing any object payload, so the canary
+	 * is never woken at import and nothing reconstructable is left in the DB.
+	 *
+	 * @return void
+	 */
+	public function test_insert_postmeta_does_not_persist_object() {
+		$post_id = self::factory()->post->create();
+		$data    = array(
+			'postmeta' => array(
+				array(
+					'meta_key'   => 'mainwp_canary_meta',
+					'meta_value' => serialize( new MainWP_Unserialize_Canary() ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- hostile fixture.
+				),
+			),
+		);
+
+		MainWP_Unserialize_Canary::$woke = false;
+
+		$cpt    = MainWP_Custom_Post_Type::instance();
+		$method = new ReflectionMethod( MainWP_Custom_Post_Type::class, 'insert_postmeta' );
+		$method->setAccessible( true );
+		$method->invokeArgs( $cpt, array( $post_id, $data, false, false ) );
+
+		// No live object may be instantiated at import time.
+		$this->assertFalse( MainWP_Unserialize_Canary::$woke, 'insert_postmeta instantiated a live object via unserialize() at import time' );
+
+		// And nothing reconstructable may be persisted: reading the meta back
+		// (WordPress core runs maybe_unserialize on read) must not yield an object
+		// nor wake the canary.
+		$stored = get_post_meta( $post_id, 'mainwp_canary_meta', true );
+		$this->assertFalse( MainWP_Unserialize_Canary::$woke, 'a persisted object payload was re-instantiated on get_post_meta()' );
+		$this->assertNotInstanceOf( MainWP_Unserialize_Canary::class, $stored, 'insert_postmeta persisted a reconstructable object' );
+		$this->assertSame( '', $stored, 'object payload should be skipped, leaving no stored meta' );
+	}
+
+	/**
+	 * Regression: a legitimately serialized array must still round-trip through
+	 * insert_postmeta unchanged, so the object-payload guard does not break the
+	 * normal pass-through behaviour maybe_unserialize() provided.
+	 *
+	 * @return void
+	 */
+	public function test_insert_postmeta_preserves_serialized_array() {
+		$post_id  = self::factory()->post->create();
+		$expected = array(
+			'a' => 1,
+			'b' => array( 2, 3 ),
+		);
+		$data     = array(
+			'postmeta' => array(
+				array(
+					'meta_key'   => 'mainwp_array_meta',
+					'meta_value' => serialize( $expected ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- fixture.
+				),
+			),
+		);
+
+		$cpt    = MainWP_Custom_Post_Type::instance();
+		$method = new ReflectionMethod( MainWP_Custom_Post_Type::class, 'insert_postmeta' );
+		$method->setAccessible( true );
+		$method->invokeArgs( $cpt, array( $post_id, $data, false, false ) );
+
+		$this->assertSame( $expected, get_post_meta( $post_id, 'mainwp_array_meta', true ), 'serialized array did not round-trip through insert_postmeta' );
+	}
+
+	/**
+	 * A malformed string that still passes is_serialized() (here an array whose
+	 * declared element count overshoots its body) must not leak an unserialize()
+	 * warning into the response. WordPress core's maybe_unserialize() suppresses
+	 * this with @unserialize(); the fix keeps that. Under the suite's
+	 * convertWarningsToExceptions an unsuppressed warning would throw here.
+	 *
+	 * @return void
+	 */
+	public function test_insert_postmeta_tolerates_malformed_serialized_string() {
+		$post_id = self::factory()->post->create();
+		$data    = array(
+			'postmeta' => array(
+				array(
+					'meta_key'   => 'mainwp_malformed_meta',
+					'meta_value' => 'a:2:{i:0;i:1;}', // passes is_serialized() but unserialize() would warn.
+				),
+			),
+		);
+
+		MainWP_Unserialize_Canary::$woke = false;
+
+		$cpt    = MainWP_Custom_Post_Type::instance();
+		$method = new ReflectionMethod( MainWP_Custom_Post_Type::class, 'insert_postmeta' );
+		$method->setAccessible( true );
+		$result = $method->invokeArgs( $cpt, array( $post_id, $data, false, false ) );
+
+		$this->assertTrue( $result, 'insert_postmeta did not complete on a malformed serialized meta value' );
+		$this->assertFalse( MainWP_Unserialize_Canary::$woke, 'malformed payload still instantiated an object' );
+	}
+
+	/**
+	 * Static guard for the wrapper the bare-unserialize sweep missed.
+	 * maybe_unserialize() calls unserialize() WITHOUT allowed_classes, so a
+	 * dashboard-fed payload reaching one is PHP object injection. Every site in
+	 * the child class surface is counted and matched against a reviewed
+	 * allowlist; a NEW maybe_unserialize() (an unreviewed file, or an extra one
+	 * in a listed file) fails this test, so the next person hardens it like
+	 * insert_postmeta() or reviews it and adds it here with a rationale.
+	 *
+	 * @return void
+	 */
+	public function test_no_unreviewed_maybe_unserialize_in_class_surface() {
+		$class_dir = dirname( __DIR__ ) . '/class';
+		$this->assertDirectoryExists( $class_dir, 'child class directory not found' );
+
+		$actual = array();
+		$files  = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $class_dir, FilesystemIterator::SKIP_DOTS ) );
+		foreach ( $files as $file ) {
+			if ( 'php' !== strtolower( $file->getExtension() ) ) {
+				continue;
+			}
+			$count = substr_count( (string) file_get_contents( $file->getPathname() ), 'maybe_unserialize(' );
+			if ( $count > 0 ) {
+				$actual[ $file->getFilename() ] = $count;
+			}
+		}
+
+		$allowed = array(
+			'class-mainwp-child.php'               => 1, // local wp_options row; mirrors WP core; not dashboard-fed.
+			'class-mainwp-client-report-base.php'  => 1, // local activity-log author_meta; not dashboard-fed.
+			'class-mainwp-child-plugins-check.php' => 1, // third-party update-API body; needs the live object; external trust boundary.
+			'class-mainwp-child-themes-check.php'  => 1, // third-party update-API body; needs the live object; external trust boundary.
+			'class-mainwp-child-back-up-buddy.php' => 1, // BackupBuddy's own scan result; not dashboard-fed.
+		);
+
+		ksort( $actual );
+		ksort( $allowed );
+
+		$this->assertSame( $allowed, $actual, 'unreviewed maybe_unserialize() in child class surface — harden it like insert_postmeta() (dashboard-fed) or add the file to the reviewed allowlist with a rationale' );
 	}
 }
