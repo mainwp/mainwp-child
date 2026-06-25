@@ -22,12 +22,44 @@ class Chunk_Test_Restore_Runner extends MainWP_Child_Restore_Task_Runner {
 	public $test_backup_dir = '';
 
 	/**
+	 * Forced free-disk value in bytes; null uses the real probe.
+	 *
+	 * @var float|null
+	 */
+	public $forced_free = null;
+
+	/**
+	 * When true, free_disk_space reports the value as unknowable.
+	 *
+	 * @var bool
+	 */
+	public $force_free_null = false;
+
+	/**
 	 * Use the pinned dir.
 	 *
 	 * @return string
 	 */
 	protected function backup_dir() {
 		return $this->test_backup_dir;
+	}
+
+	/**
+	 * Stub the free-disk probe so the receive guard can be tested without
+	 * actually filling the disk.
+	 *
+	 * @param string $dir Directory.
+	 *
+	 * @return float|null
+	 */
+	protected function free_disk_space( $dir ) {
+		if ( $this->force_free_null ) {
+			return null;
+		}
+		if ( null !== $this->forced_free ) {
+			return (float) $this->forced_free;
+		}
+		return parent::free_disk_space( $dir );
 	}
 
 	/**
@@ -330,6 +362,52 @@ class BackupRestoreChunkReceiveTest extends WP_UnitTestCase {
 
 		$this->assertFileExists( $this->dir . '/restore-' . $task_id . '/db.zip' );
 		$this->assertFileDoesNotExist( $this->dir . '/db.zip' );
+	}
+
+	/**
+	 * A transfer the disk cannot hold is refused before the first byte is
+	 * written, with the disk-full code and no scratch file created.
+	 */
+	public function test_receive_refused_when_disk_too_small() {
+		$content                  = str_repeat( 'A', 100 );
+		$task_id                  = $this->make_task( $content );
+		$this->runner->forced_free = 10.0;
+
+		$out = $this->send( $task_id, $content, 0, true );
+
+		$this->assertSame( MainWP_Backup_Error::ERR_DISK_FULL, $out['error_code'] );
+		$path = $this->runner->scratch_dir( $task_id, $this->dir ) . 'db.zip';
+		$this->assertFileDoesNotExist( $path );
+	}
+
+	/**
+	 * The guard does not false-trip when free disk comfortably exceeds the
+	 * artifact bytes plus the working margin.
+	 */
+	public function test_receive_allowed_when_disk_sufficient() {
+		$content                  = str_repeat( 'A', 100 );
+		$task_id                  = $this->make_task( $content );
+		$this->runner->forced_free = 256.0 * 1024 * 1024;
+
+		$out = $this->send( $task_id, $content, 0, true );
+
+		$this->assertSame( 'ok', $out['result'] );
+		$path = $this->runner->scratch_dir( $task_id, $this->dir ) . 'db.zip';
+		$this->assertSame( $content, file_get_contents( $path ) );
+	}
+
+	/**
+	 * When free disk is unknowable the guard is skipped rather than
+	 * refusing the transfer, matching the cloud-pull check.
+	 */
+	public function test_receive_skips_guard_when_free_unknown() {
+		$content                      = str_repeat( 'A', 100 );
+		$task_id                      = $this->make_task( $content );
+		$this->runner->force_free_null = true;
+
+		$out = $this->send( $task_id, $content, 0, true );
+
+		$this->assertSame( 'ok', $out['result'] );
 	}
 
 	/**

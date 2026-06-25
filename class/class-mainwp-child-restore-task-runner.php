@@ -544,6 +544,18 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         if ( ! is_dir( $scratch ) ) {
             wp_mkdir_p( $scratch );
         }
+
+        // Refuse a transfer the disk cannot hold before the first byte is
+        // written. assert_pull_disk_space guards the cloud-pull path; the
+        // chunk path otherwise streamed the whole archive into scratch with
+        // no space check. Checked once at the start of the transfer:
+        // record_chunk_progress creates sub_state['receiving'] on the first
+        // write, so a started transfer skips this on every later chunk, and
+        // a transfer that never started re-checks on retry.
+        if ( empty( $sub_state['receiving'] ) && $this->receive_exceeds_disk( $artifacts, $scratch ) ) {
+            return $this->chunk_error( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ), MainWP_Backup_Error::ERR_DISK_FULL );
+        }
+
         $path = $scratch . $file;
         $size = file_exists( $path ) ? (int) filesize( $path ) : 0;
 
@@ -1050,6 +1062,34 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         if ( null !== $free && $free < $needed + 64 * 1024 * 1024 ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) ), null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
         }
+    }
+
+    /**
+     * Whether the artifacts still to receive cannot fit in free disk plus a
+     * working margin. The chunk-transfer path writes every artifact into
+     * scratch before applying, so this mirrors assert_pull_disk_space for
+     * the chunk path, which otherwise had no space check. Unknowable free
+     * space skips the guard rather than refusing the transfer.
+     *
+     * @param array  $artifacts Task artifact list.
+     * @param string $scratch   Scratch dir the chunks land in.
+     *
+     * @return bool True when the transfer would not fit.
+     */
+    protected function receive_exceeds_disk( $artifacts, $scratch ) {
+        $needed = 0;
+        foreach ( $artifacts as $artifact ) {
+            if ( ! empty( $artifact['adopt_only'] ) ) {
+                continue;
+            }
+            $needed += isset( $artifact['size'] ) ? (int) $artifact['size'] : 0;
+        }
+        if ( $needed <= 0 ) {
+            return false;
+        }
+
+        $free = $this->free_disk_space( $scratch );
+        return null !== $free && $free < $needed + 64 * 1024 * 1024;
     }
 
     /**
