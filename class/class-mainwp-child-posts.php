@@ -807,7 +807,7 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         if ( $edit_post_id ) {
             $user_id = wp_check_post_lock( $edit_post_id );
             if ( $user_id ) {
-                $user  = get_userdata( $user_id );
+                $user = get_userdata( $user_id );
                 // translators: %s: User display name.
                 $error = sprintf( esc_html__( 'This content is currently locked. %s is currently editing.', 'mainwp-child' ), $user->display_name );
                 return array( 'error' => $error );
