@@ -2330,6 +2330,18 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             unset( $expected['users'], $expected['usermeta'] );
         }
 
+        // WooCommerce's Action Scheduler writes to its log and action tables
+        // continuously through the async runner, which the restore's own
+        // loopback can wake mid-restore. Those transient bookkeeping rows are
+        // not restored content, so a count drift there is not a failed restore.
+        // Drop the actionscheduler_* tables on every path (a no-op on sites
+        // without them); the sentinel round trip remains the integrity gate.
+        foreach ( array_keys( $expected ) as $stem ) {
+            if ( 0 === strpos( (string) $stem, 'actionscheduler_' ) ) {
+                unset( $expected[ $stem ] );
+            }
+        }
+
         // On the foreign-key path the live tables were overwritten in place,
         // so a verification failure here is a wrong restore that must be undone
         // from the aside snapshot (still on disk until this phase passes), not

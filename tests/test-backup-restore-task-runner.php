@@ -700,7 +700,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		global $wpdb;
 		$wpdb->query( 'DELETE FROM ' . $this->spine->get_table_name() ); // phpcs:ignore WordPress.DB -- test cleanup.
 		$wpdb->query( 'DROP TABLE IF EXISTS `rt_items`' ); // phpcs:ignore WordPress.DB -- test cleanup.
-		foreach ( array( 'rt_options', 'rt_users', 'rt_usermeta', 'rt_postmeta', 'rt_wc_orders', 'rt_wc_product_meta_lookup' ) as $woo_table ) {
+		foreach ( array( 'rt_options', 'rt_users', 'rt_usermeta', 'rt_postmeta', 'rt_wc_orders', 'rt_wc_product_meta_lookup', 'rt_actionscheduler_logs', 'rt_actionscheduler_actions' ) as $woo_table ) {
 			$wpdb->query( 'DROP TABLE IF EXISTS `' . $woo_table . '`' ); // phpcs:ignore WordPress.DB -- test cleanup.
 		}
 		$this->rrmdir( $this->dir );
@@ -1258,6 +1258,33 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'items', $expected );
 		$this->assertArrayNotHasKey( 'users', $expected );
 		$this->assertArrayNotHasKey( 'usermeta', $expected );
+	}
+
+	/**
+	 * WooCommerce's Action Scheduler writes to its log and action tables
+	 * continuously through the async runner, which the restore's own loopback
+	 * can wake mid-restore. Those transient bookkeeping rows are not restored
+	 * content, so a strict count check would fail a correct restore. They are
+	 * dropped from the check on every path, not only the preserve path.
+	 */
+	public function test_verify_excludes_action_scheduler_tables() {
+		global $wpdb;
+		$wpdb->query( 'CREATE TABLE IF NOT EXISTS `rt_actionscheduler_logs` (log_id BIGINT NOT NULL AUTO_INCREMENT, action_id BIGINT NOT NULL DEFAULT 0, message LONGTEXT, PRIMARY KEY (log_id))' ); // phpcs:ignore WordPress.DB
+		$wpdb->query( 'CREATE TABLE IF NOT EXISTS `rt_actionscheduler_actions` (action_id BIGINT NOT NULL AUTO_INCREMENT, hook VARCHAR(191) DEFAULT \'\', status VARCHAR(20) DEFAULT \'\', PRIMARY KEY (action_id))' ); // phpcs:ignore WordPress.DB
+
+		$this->runner->fake_engine->tables = array(
+			'items'                   => array( 'status' => 'ok', 'rows' => 2 ),
+			'actionscheduler_logs'    => array( 'status' => 'ok', 'rows' => 17 ),
+			'actionscheduler_actions' => array( 'status' => 'ok', 'rows' => 5 ),
+		);
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$expected = $this->runner->fake_engine->last_verify_expected;
+		$this->assertArrayHasKey( 'items', $expected );
+		$this->assertArrayNotHasKey( 'actionscheduler_logs', $expected );
+		$this->assertArrayNotHasKey( 'actionscheduler_actions', $expected );
 	}
 
 	/**
