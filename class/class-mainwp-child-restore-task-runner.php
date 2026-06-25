@@ -545,14 +545,15 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             wp_mkdir_p( $scratch );
         }
 
-        // Refuse a transfer the disk cannot hold before the first byte is
-        // written. assert_pull_disk_space guards the cloud-pull path; the
-        // chunk path otherwise streamed the whole archive into scratch with
-        // no space check. Checked once at the start of the transfer:
-        // record_chunk_progress creates sub_state['receiving'] on the first
-        // write, so a started transfer skips this on every later chunk, and
-        // a transfer that never started re-checks on retry.
-        if ( empty( $sub_state['receiving'] ) && $this->receive_exceeds_disk( $artifacts, $scratch ) ) {
+        // Refuse a transfer the disk cannot hold before the first wire byte
+        // lands. assert_pull_disk_space guards the cloud-pull path; the chunk
+        // path otherwise streamed the whole archive into scratch with no
+        // space check. The guard keys off whether any non-adopt artifact has
+        // received bytes yet, NOT the presence of sub_state['receiving'] -
+        // run_receiving() seeds that cursor for adoption bookkeeping before
+        // the first chunk arrives, so an empty() check on it would skip the
+        // guard in the normal flow.
+        if ( ! $this->wire_bytes_started( $artifacts, $scratch ) && $this->receive_exceeds_disk( $artifacts, $scratch ) ) {
             return $this->chunk_error( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ), MainWP_Backup_Error::ERR_DISK_FULL );
         }
 
@@ -1090,6 +1091,32 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 
         $free = $this->free_disk_space( $scratch );
         return null !== $free && $free < $needed + 64 * 1024 * 1024;
+    }
+
+    /**
+     * Whether any non-adopt artifact has already received wire bytes into
+     * scratch. The disk guard keys off this rather than the presence of the
+     * receiving cursor: run_receiving() seeds sub_state['receiving'] for
+     * adoption bookkeeping before the first chunk lands, so an empty() check
+     * on the cursor would skip the guard. Adopt-only artifacts are ignored -
+     * they are on-disk rollback sources, not incoming wire data.
+     *
+     * @param array  $artifacts Task artifact list.
+     * @param string $scratch   Scratch dir the chunks land in.
+     *
+     * @return bool True once a non-adopt artifact has bytes on disk.
+     */
+    protected function wire_bytes_started( $artifacts, $scratch ) {
+        foreach ( $artifacts as $artifact ) {
+            if ( ! empty( $artifact['adopt_only'] ) || empty( $artifact['file'] ) ) {
+                continue;
+            }
+            $path = $scratch . $artifact['file'];
+            if ( file_exists( $path ) && filesize( $path ) > 0 ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

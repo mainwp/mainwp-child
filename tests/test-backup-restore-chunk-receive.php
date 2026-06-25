@@ -411,6 +411,36 @@ class BackupRestoreChunkReceiveTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The disk guard still fires when run_receiving() has already seeded
+	 * sub_state['receiving'] (adoption bookkeeping) before the first wire
+	 * chunk. The guard keys off bytes on disk, not the receiving cursor, so a
+	 * pre-seeded cursor must not let an oversized transfer through.
+	 */
+	public function test_receive_guard_fires_after_receiving_cursor_seeded() {
+		$content = str_repeat( 'A', 100 );
+		$task_id = $this->make_task( $content );
+
+		// Mimic run_receiving(): seed the receiving cursor before any chunk.
+		$task = $this->spine->get_task( $task_id );
+		$sub  = $this->spine->read_sub_state( $task, $this->dir );
+		$sub  = is_array( $sub ) ? $sub : array();
+		$sub['receiving'] = array(
+			'adoption_done' => true,
+			'files'         => array(),
+			'hashes'        => array(),
+		);
+		$serialized = $this->spine->write_sub_state( $task_id, $sub, $this->dir, (int) $task->version );
+		$this->spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => $serialized ) );
+
+		$this->runner->forced_free = 10.0;
+		$out                       = $this->send( $task_id, $content, 0, true );
+
+		$this->assertSame( MainWP_Backup_Error::ERR_DISK_FULL, $out['error_code'] );
+		$path = $this->runner->scratch_dir( $task_id, $this->dir ) . 'db.zip';
+		$this->assertFileDoesNotExist( $path );
+	}
+
+	/**
 	 * The restore callables are dashboard-callable.
 	 */
 	public function test_restore_callables_registered() {
