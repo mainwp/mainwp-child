@@ -160,6 +160,26 @@ class BackupTaskSidecarTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Superseded sidecars are not pruned in-flight (a pre-CAS delete could drop
+	 * a file the row still references), so a spilling backup can leave several
+	 * version-stamped sidecars. delete_sidecar sweeps every one at terminal, so
+	 * nothing accumulates past the task.
+	 */
+	public function test_delete_sidecar_sweeps_all_accumulated_versions() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full' );
+
+		foreach ( array( 1, 2, 3 ) as $v ) {
+			$spine->write_sub_state( $task_id, $this->oversized_sub_state(), $this->backup_dir, $v );
+		}
+		$pattern = $this->backup_dir . '/task_substate-' . $task_id . '-v*.json';
+		$this->assertCount( 3, (array) glob( $pattern ), 'Three accumulated versions on disk (no in-flight prune)' );
+
+		$spine->delete_sidecar( $task_id, $this->backup_dir );
+		$this->assertCount( 0, (array) glob( $pattern ), 'delete_sidecar sweeps every accumulated version at terminal' );
+	}
+
+	/**
 	 * checkpoint() still accepts an array sub_state - existing callers like
 	 * the watchdog do not pre-serialize.
 	 */

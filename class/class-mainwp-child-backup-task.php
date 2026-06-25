@@ -405,6 +405,12 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * column gets only a small pointer. The version stamp keeps a stale slice
      * from overwriting the cursor body a newer slice already committed.
      *
+     * Superseded lower-version sidecars are NOT pruned here: a deletion before
+     * the caller's compare-and-swap commits could drop a file the row still
+     * references (a winner advances its version, then loses the next CAS to a
+     * lease steal, leaving the row pointed at the just-deleted file). They are
+     * cheap scratch and delete_sidecar() sweeps every version at terminal.
+     *
      * @param string $task_id    Task id.
      * @param array  $sub_state  Resume cursor.
      * @param string $backup_dir Scratch directory (the randomized backup dir).
@@ -427,10 +433,6 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             }
             return false;
         }
-
-        // Drop this task's superseded lower-version sidecars so only the
-        // current cursor stays on disk (the pre-version footprint was one file).
-        $this->prune_stale_sidecars( $task_id, $backup_dir, $version );
 
         return wp_json_encode(
             array(
@@ -510,27 +512,6 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      */
     protected function get_sidecar_path( $task_id, $backup_dir, $version ) {
         return rtrim( $backup_dir, '/' ) . '/task_substate-' . sanitize_file_name( $task_id ) . '-v' . (int) $version . '.json';
-    }
-
-    /**
-     * Remove this task's superseded lower-version sidecars, keeping only the
-     * cursor at or above the current version. Safe under a lease steal: a
-     * stale slice owns a lower version and so only ever prunes files below
-     * itself, never the winning slice's higher-version file.
-     *
-     * @param string $task_id    Task id.
-     * @param string $backup_dir Scratch directory.
-     * @param int    $version    Current owned version; files below it are swept.
-     */
-    protected function prune_stale_sidecars( $task_id, $backup_dir, $version ) {
-        $name    = sanitize_file_name( $task_id );
-        $dir     = rtrim( $backup_dir, '/' ) . '/';
-        $pattern = '/^task_substate-' . preg_quote( $name, '/' ) . '-v(\d+)\.json$/';
-        foreach ( (array) glob( $dir . 'task_substate-' . $name . '-v*.json' ) as $file ) {
-            if ( preg_match( $pattern, basename( $file ), $matches ) && (int) $matches[1] < (int) $version ) {
-                unlink( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- scratch cleanup.
-            }
-        }
     }
 
     /**
