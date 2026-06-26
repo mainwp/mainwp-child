@@ -983,4 +983,32 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 
 		$this->assertContains( 'oldabc123_x', $wpdb->get_col( 'SHOW TABLES' ) ); // phpcs:ignore WordPress.DB -- verification.
 	}
+
+	/**
+	 * A blank restore id collapses old<id>_/tmp<id>_ to the bare prefixes
+	 * old_/tmp_, which would match unrelated user tables. The guard must skip
+	 * blank ids so a stray empty value (e.g. an unset restore_id param reaching
+	 * the caller as (string) null) cannot drop tables outside this engine's own
+	 * aside/staging namespace.
+	 */
+	public function test_prune_aside_tables_skips_blank_restore_ids() {
+		global $wpdb;
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+		$this->real_tables = array( 'oldabc123_x', 'tmpabc123_x', 'old_collateral', 'tmp_collateral', 'keepme_live' );
+		foreach ( $this->real_tables as $table ) {
+			$wpdb->query( "CREATE TABLE `$table` ( id INT )" ); // phpcs:ignore WordPress.DB -- test fixture.
+		}
+
+		// A blank id alongside a valid one: the blank must be skipped while the
+		// valid id is still pruned.
+		( new MainWP_Backup_Db_Restore_Engine() )->prune_aside_tables( array( '', 'abc123' ) );
+
+		$tables = $wpdb->get_col( 'SHOW TABLES' ); // phpcs:ignore WordPress.DB -- verification.
+		$this->assertNotContains( 'oldabc123_x', $tables, 'the valid id is still pruned when a blank id is also present' );
+		$this->assertNotContains( 'tmpabc123_x', $tables, 'the valid id is still pruned when a blank id is also present' );
+		$this->assertContains( 'old_collateral', $tables, 'a blank id must not collapse the prefix to old_ and drop an unrelated table' );
+		$this->assertContains( 'tmp_collateral', $tables, 'a blank id must not collapse the prefix to tmp_ and drop an unrelated table' );
+		$this->assertContains( 'keepme_live', $tables, 'a live table is never matched' );
+	}
 }

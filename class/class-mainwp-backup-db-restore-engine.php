@@ -621,9 +621,16 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
             return;
         }
         $prefixes = array();
-        foreach ( array_unique( $restore_ids ) as $restore_id ) {
+        foreach ( array_unique( array_map( 'strval', $restore_ids ) ) as $restore_id ) {
+            if ( '' === $restore_id ) {
+                continue; // A blank id collapses old<id>_/tmp<id>_ to old_/tmp_, which would match unrelated tables.
+            }
             $prefixes[] = $this->old_prefix( $restore_id );
             $prefixes[] = $this->tmp_prefix( $restore_id );
+        }
+        if ( empty( $prefixes ) ) {
+            $this->close_connection( $conn );
+            return;
         }
         foreach ( $this->list_tables( $conn ) as $table ) {
             foreach ( $prefixes as $prefix ) {
