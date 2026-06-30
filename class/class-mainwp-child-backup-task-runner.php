@@ -134,6 +134,13 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         $spine = MainWP_Child_Backup_Task::instance();
         $spine->install();
 
+        // Self-heal before enforcing the single-backup invariant: a new backup
+        // reclaims any task already past its wall-clock deadline. On an idle
+        // child the watchdog cron may never fire to clear an interrupted task,
+        // so without this the orphaned non-terminal row would block every future
+        // backup. Reclaim only clears deadline-expired tasks, never a live one.
+        $spine->reclaim_expired_tasks();
+
         if ( ! empty( $spine->get_active_tasks() ) ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
         }
@@ -144,6 +151,133 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         return $task_id;
+    }
+
+    /**
+     * Cancel a backup task cleanly, the Dashboard-driven escape hatch for a
+     * stuck backup that no longer self-heals on its own.
+     *
+     * With no task id the single active backup is resolved and cancelled - the
+     * orphan case where the Dashboard no longer holds the child task id. The
+     * cancel respects the lease (a runner mid-slice owns the state, so the
+     * cancel reports busy and the caller retries), sweeps the spilled walk-run
+     * scratch the terminal sweep would have cleared, and lands the task
+     * terminal failed with the cancelled code. Restore tasks are never touched
+     * here - they have their own cancel.
+     *
+     * @param string $task_id Task id, or '' to cancel the active backup.
+     *
+     * @return array { result: ok|busy|already_terminal|no_active, phase? } or
+     *               { error, error_code } when a named task is not a backup.
+     */
+    public function cancel_backup_task( $task_id = '' ) {
+        $spine = MainWP_Child_Backup_Task::instance();
+        $spine->install();
+
+        $task_id = (string) $task_id;
+        if ( '' === $task_id ) {
+            // No id from the Dashboard: cancel the one active backup. The
+            // single-backup invariant means there is at most one; a restore in
+            // flight is left for restore_task_cancel.
+            foreach ( $spine->get_active_tasks() as $active ) {
+                if ( ! MainWP_Child_Backup_Task::is_restore_type( $active->type ) ) {
+                    $task_id = $active->task_id;
+                    break;
+                }
+            }
+            if ( '' === $task_id ) {
+                return array( 'result' => 'no_active' );
+            }
+        }
+
+        $task = $spine->get_task( $task_id );
+        if ( null === $task || MainWP_Child_Backup_Task::is_restore_type( $task->type ) ) {
+            return array(
+                'error'      => esc_html__( 'Backup task not found. It may have been cleaned up or was never created on this site.', 'mainwp-child' ),
+                'error_code' => '',
+            );
+        }
+
+        if ( MainWP_Child_Backup_Task::is_terminal_phase( $task->phase ) ) {
+            return array(
+                'result' => 'already_terminal',
+                'phase'  => $task->phase,
+            );
+        }
+
+        $version = (int) $task->version;
+        if ( ! $spine->acquire_lease( $task_id, 'cancel', $version ) ) {
+            return array(
+                'result' => 'busy',
+                'phase'  => $task->phase,
+            );
+        }
+        ++$version;
+
+        $backup_dir = $this->backup_dir();
+
+        // A cancelled backup never runs the runner's terminal sweep, so its
+        // spilled walk-run files would linger; sweep them here, the same cleanup
+        // the wall-clock enforcer does for a forced-terminal backup.
+        $this->cleanup_walk_runs( $backup_dir );
+
+        // checkpoint() overwrites sub_state, so carry forward the file
+        // references retention's prune_task() reads (the produced artifact and
+        // any spilled, unconsumed parent manifest); otherwise a late cancel
+        // orphans those leftover files on disk.
+        $cancelled_state = array(
+            'error' => array(
+                'message' => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_BACKUP_CANCELLED ),
+                'code'    => MainWP_Backup_Error::ERR_BACKUP_CANCELLED,
+            ),
+        );
+        $existing_state  = $spine->read_sub_state( $task, $backup_dir );
+        if ( is_array( $existing_state ) ) {
+            foreach ( array( 'artifact', 'artifacts' ) as $key ) {
+                if ( isset( $existing_state[ $key ] ) ) {
+                    $cancelled_state[ $key ] = $existing_state[ $key ];
+                }
+            }
+            if ( ! empty( $existing_state['params']['parent_manifest_file'] ) ) {
+                $cancelled_state['params']['parent_manifest_file'] = $existing_state['params']['parent_manifest_file'];
+            }
+        }
+
+        $new_version = $spine->checkpoint(
+            $task_id,
+            $version,
+            array(
+                'phase'     => MainWP_Child_Backup_Task::PHASE_FAILED,
+                'sub_state' => $cancelled_state,
+            )
+        );
+        if ( false === $new_version ) {
+            // Something else wrote the row between the acquire and the
+            // checkpoint (the wall-clock enforcer ignores leases). Report what
+            // the row actually holds instead of claiming a cancel that never
+            // landed.
+            $spine->release_lease( $task_id, 'cancel', $version );
+            $fresh = $spine->get_task( $task_id );
+            $phase = null !== $fresh ? $fresh->phase : '';
+            if ( MainWP_Child_Backup_Task::is_terminal_phase( $phase ) ) {
+                return array(
+                    'result' => 'already_terminal',
+                    'phase'  => $phase,
+                );
+            }
+            return array(
+                'result' => 'busy',
+                'phase'  => $phase,
+            );
+        }
+
+        $spine->delete_sidecar( $task_id, $backup_dir );
+        $spine->release_lease( $task_id, 'cancel', $new_version );
+
+        return array(
+            'result' => 'ok',
+            'phase'  => MainWP_Child_Backup_Task::PHASE_FAILED,
+        );
     }
 
     /**

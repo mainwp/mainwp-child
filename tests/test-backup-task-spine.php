@@ -476,6 +476,175 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A new backup reclaims an orphan that is already past its wall-clock
+	 * deadline. On a low/no-traffic child the watchdog cron may never fire to
+	 * clear an interrupted task, so the new request self-heals the blocking row
+	 * itself instead of failing forever with ERR_ALREADY_RUNNING.
+	 */
+	public function test_create_task_for_params_reclaims_expired_orphan() {
+		global $wpdb;
+		$spine  = MainWP_Child_Backup_Task::instance();
+		$runner = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+
+		// An interrupted task left non-terminal, backdated past its deadline.
+		$orphan = $spine->create_task( 'full', array( 'params' => array( 'ext' => 'tar' ) ) );
+		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.NotPrepared -- test fixture: backdate the deadline.
+			$wpdb->prepare(
+				'UPDATE ' . $spine->get_table_name() . ' SET max_wall_clock_at = DATE_SUB(NOW(), INTERVAL 60 SECOND) WHERE task_id = %s',
+				$orphan
+			)
+		);
+
+		// The new request must succeed, not throw the single-backup guard.
+		$new_id = $runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
+		$this->assertNotEmpty( $new_id );
+		$this->assertNotSame( $orphan, $new_id );
+
+		// The orphan was driven terminal failed; only the new task is active.
+		$this->assertSame( 'failed', $spine->get_task( $orphan )->phase );
+		$active = $spine->get_active_tasks();
+		$this->assertCount( 1, $active );
+		$this->assertSame( $new_id, $active[0]->task_id );
+	}
+
+	/**
+	 * An active task still inside its wall-clock deadline is NOT reclaimed: a
+	 * legitimately running backup keeps blocking a second one. Reclaim only
+	 * clears deadline-expired orphans, never a live operation.
+	 */
+	public function test_create_task_for_params_keeps_active_within_deadline() {
+		$runner = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+		$runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) ); // Fresh deadline ~48 min out.
+
+		try {
+			$runner->create_task_for_params( 'full', array( 'ext' => 'tar' ) );
+			$this->fail( 'A non-expired active task must still be rejected' );
+		} catch ( \MainWP\Child\MainWP_Exception $e ) {
+			$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+		}
+	}
+
+	/**
+	 * Cancel drives the single active backup terminal even when the Dashboard
+	 * sends no task id (the orphan case): it resolves the one active backup,
+	 * lands it failed with the cancel code, and clears the active set.
+	 */
+	public function test_cancel_backup_task_drives_active_terminal() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$runner  = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+		$task_id = $runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
+
+		$outcome = $runner->cancel_backup_task();
+
+		$this->assertSame( 'ok', $outcome['result'] );
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( 'failed', $task->phase );
+		$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_BACKUP_CANCELLED, $spine->status_payload( $task )['error_code'] );
+		$this->assertEmpty( $spine->get_active_tasks() );
+	}
+
+	/**
+	 * Cancel by explicit task id lands that task failed with the cancel code.
+	 */
+	public function test_cancel_backup_task_by_explicit_id() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$runner  = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+		$task_id = $runner->create_task_for_params( 'full', array( 'ext' => 'tar' ) );
+
+		$outcome = $runner->cancel_backup_task( $task_id );
+
+		$this->assertSame( 'ok', $outcome['result'] );
+		$this->assertSame( 'failed', $spine->get_task( $task_id )->phase );
+	}
+
+	/**
+	 * Cancel with nothing running reports no_active rather than erroring.
+	 */
+	public function test_cancel_backup_task_no_active_task() {
+		$outcome = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance()->cancel_backup_task();
+		$this->assertSame( 'no_active', $outcome['result'] );
+	}
+
+	/**
+	 * Cancelling a finished backup is a no-op that reports the terminal phase
+	 * instead of failing a completed backup.
+	 */
+	public function test_cancel_backup_task_already_terminal() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$runner  = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+		$task_id = $runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
+		$task    = $spine->get_task( $task_id );
+		$spine->checkpoint( $task_id, (int) $task->version, array( 'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED ) );
+
+		$outcome = $runner->cancel_backup_task( $task_id );
+
+		$this->assertSame( 'already_terminal', $outcome['result'] );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $spine->get_task( $task_id )->phase );
+	}
+
+	/**
+	 * Cancel never breaks a live lease: while another runner owns the task the
+	 * cancel reports busy and changes nothing.
+	 */
+	public function test_cancel_backup_task_while_lease_held_returns_busy() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$runner  = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+		$task_id = $runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
+		$task    = $spine->get_task( $task_id );
+		$this->assertTrue( $spine->acquire_lease( $task_id, 'other-runner', (int) $task->version ) );
+
+		$outcome = $runner->cancel_backup_task( $task_id );
+
+		$this->assertSame( 'busy', $outcome['result'] );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $spine->get_task( $task_id )->phase );
+	}
+
+	/**
+	 * A late cancel keeps the artifact and spilled-manifest references in
+	 * sub_state so the retention prune can still delete those leftover files.
+	 * checkpoint() overwrites sub_state, so the cancel must carry them forward.
+	 */
+	public function test_cancel_backup_task_preserves_artifact_references_for_prune() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$runner  = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+		$task_id = $runner->create_task_for_params( 'incremental', array( 'ext' => 'zip' ) );
+
+		// A backup that has produced an artifact and spilled a parent manifest.
+		$task = $spine->get_task( $task_id );
+		$spine->checkpoint(
+			$task_id,
+			(int) $task->version,
+			array(
+				'sub_state' => array(
+					'artifact' => array( 'file' => 'snapshot-123.zip' ),
+					'params'   => array( 'parent_manifest_file' => 'parent-manifest-abc.list' ),
+				),
+			)
+		);
+
+		$this->assertSame( 'ok', $runner->cancel_backup_task( $task_id )['result'] );
+
+		$sub = json_decode( $spine->get_task( $task_id )->sub_state, true );
+		$this->assertSame( 'snapshot-123.zip', $sub['artifact']['file'], 'prune_task needs the artifact file reference.' );
+		$this->assertSame( 'parent-manifest-abc.list', $sub['params']['parent_manifest_file'], 'prune_task needs the spilled manifest reference.' );
+		$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_BACKUP_CANCELLED, $sub['error']['code'] );
+	}
+
+	/**
+	 * The backup cancel endpoint never touches a restore task - restores have
+	 * their own cancel. An active restore reads as no backup to cancel.
+	 */
+	public function test_cancel_backup_task_ignores_restore() {
+		$spine  = MainWP_Child_Backup_Task::instance();
+		$runner = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+		$restore_id = $spine->create_task( 'restore', array( 'params' => array() ) );
+
+		$this->assertSame( 'no_active', $runner->cancel_backup_task()['result'] );
+		$this->assertArrayHasKey( 'error', $runner->cancel_backup_task( $restore_id ) );
+		$this->assertNotSame( 'failed', $spine->get_task( $restore_id )->phase );
+	}
+
+	/**
 	 * The status payload surfaces the artifact top-level on completion and
 	 * the error on failure - what the Dashboard consumes.
 	 */

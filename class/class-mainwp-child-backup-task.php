@@ -984,6 +984,30 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     }
 
     /**
+     * Drive every active task already past its wall-clock deadline terminal.
+     *
+     * The single-backup guard refuses a new backup while any non-terminal row
+     * exists. On a low/no-traffic child the watchdog cron may never fire to
+     * clear an interrupted task, so without this a new backup request would be
+     * blocked forever behind the orphaned row. Reclaiming each deadline-expired
+     * task here lets the next backup request self-heal with no cron dependency;
+     * the work reuses enforce_wall_clock_deadline(), so it only ever clears a
+     * task whose deadline has actually passed - a legitimately running backup,
+     * still inside its window, is left untouched.
+     *
+     * @return int Number of tasks driven terminal by this call.
+     */
+    public function reclaim_expired_tasks() {
+        $reclaimed = 0;
+        foreach ( $this->get_active_tasks() as $task ) {
+            if ( $this->enforce_wall_clock_deadline( $task->task_id ) ) {
+                ++$reclaimed;
+            }
+        }
+        return $reclaimed;
+    }
+
+    /**
      * Collect the restore ids of every restore-type task row, terminal or not,
      * so a caller can drop the aside (`old<id>_`) and staging (`tmp<id>_`)
      * tables those restores left behind.

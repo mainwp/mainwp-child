@@ -51,6 +51,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         'backup_task_status'       => 'backup_task_status',
         'backup_task_create'       => 'backup_task_create',
         'backup_task_run'          => 'backup_task_run',
+        'backup_task_cancel'       => 'backup_task_cancel',
         'backup_task_prune'        => 'backup_task_prune',
         'backup_download_token'    => 'backup_download_token',
         'backup_manifest_chunk'    => 'backup_manifest_chunk',
@@ -730,6 +731,30 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         $task = MainWP_Child_Backup_Task_Runner::instance()->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
 
         MainWP_Helper::write( $spine->status_payload( $task ) );
+    }
+
+    /**
+     * Method backup_task_cancel()
+     *
+     * Cancel a stuck or unwanted backup from the Dashboard. With no task id the
+     * single active backup is cancelled - the orphan case where the Dashboard no
+     * longer holds the child task id. While a runner holds the lease the response
+     * reports busy and the Dashboard retries; otherwise the task lands terminal
+     * failed with the cancelled code after the same cleanup a phase failure runs.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Backup_Task_Runner::cancel_backup_task()
+     */
+    public function backup_task_cancel() {
+        $task_id = isset( $_POST['task_id'] ) ? sanitize_text_field( wp_unslash( $_POST['task_id'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification -- authenticated MainWP request.
+
+        $outcome = MainWP_Child_Backup_Task_Runner::instance()->cancel_backup_task( $task_id );
+
+        if ( isset( $outcome['error'] ) ) {
+            MainWP_Helper::instance()->error( $outcome['error'], isset( $outcome['error_code'] ) ? $outcome['error_code'] : null );
+            return;
+        }
+
+        MainWP_Helper::write( $outcome );
     }
 
     /**
