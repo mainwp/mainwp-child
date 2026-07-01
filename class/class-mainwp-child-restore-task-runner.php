@@ -1742,6 +1742,14 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     /**
      * Swap phase: one atomic RENAME promotes the loaded tmp tables.
      *
+     * Maintenance mode is entered immediately before the rename and exited
+     * immediately after, so live traffic is never served a transitional
+     * schema. The window starts here, not earlier: the loaded tables are tmp
+     * tables until this rename, so live traffic during loading is harmless.
+     * A failure here is covered by the runner's existing terminal cleanup,
+     * which unconditionally exits maintenance - no extra handling is needed
+     * for the failure path.
+     *
      * @param object $task       Task row.
      * @param int    $version    Owned version.
      * @param array  $sub_state  Cursor.
@@ -1755,6 +1763,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $engine = $this->restore_engine();
         $stems  = $this->loaded_stems( $sub_state );
 
+        $engine->begin_maintenance();
+
         $outcome = $engine->swap_tables(
             $stems,
             array(
@@ -1765,6 +1775,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         if ( ! $outcome['done'] ) {
             throw new MainWP_Exception( esc_html( $outcome['error'] ), null, $outcome['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
         }
+
+        $engine->exit_maintenance();
 
         $sub_state['old_tables'] = $outcome['old_tables'];
         $this->flush_caches();

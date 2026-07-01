@@ -135,6 +135,13 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	}
 
 	/**
+	 * Error the swap should report, or null.
+	 *
+	 * @var string|null
+	 */
+	public $swap_error = null;
+
+	/**
 	 * Scripted swap.
 	 *
 	 * @param array $stems  Stems.
@@ -144,6 +151,15 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	 */
 	public function swap_tables( $stems, $config ) {
 		$this->calls[] = 'swap_tables:' . implode( ',', $stems );
+		if ( null !== $this->swap_error ) {
+			return array(
+				'done'       => false,
+				'old_tables' => array(),
+				'rename_sql' => null,
+				'error'      => $this->swap_error,
+				'error_code' => MainWP_Backup_Error::ERR_RESTORE_SWAP_FAILED,
+			);
+		}
 		return array(
 			'done'       => true,
 			'old_tables' => array( 'old' . $config['restore_id'] . '_items' ),
@@ -1234,9 +1250,9 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 
 	/**
 	 * A preserve restore on the swap path runs the gate, records the preserve
-	 * outcome, and skips the order tables - WITHOUT entering maintenance mode,
-	 * since the dashboard-polled restore cannot reach a child held offline by a
-	 * WordPress maintenance 503.
+	 * outcome, and skips the order tables. The swap itself enters and exits
+	 * maintenance mode around the atomic rename, same as any swap-path
+	 * restore (see run_swapping_db).
 	 */
 	public function test_preserve_pipeline_swap_path() {
 		$this->seed_woo_tables();
@@ -1245,7 +1261,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
 		$calls = $this->runner->fake_engine->calls;
-		$this->assertNotContains( 'begin_maintenance', $calls );
+		$this->assertContains( 'begin_maintenance', $calls );
+		$this->assertContains( 'exit_maintenance', $calls );
 		$this->assertContains( 'wc_orders', $this->runner->fake_engine->last_replay_config['skip_stems'] );
 
 		$sub_state = $this->spine->read_sub_state( $task, $this->dir );
@@ -1336,7 +1353,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 
 	/**
 	 * Without preserve_orders an HPOS restore never enters the WooCommerce
-	 * phases and never touches maintenance on the swap path.
+	 * phases. The swap itself still enters/exits maintenance mode around the
+	 * atomic rename, same as any swap-path restore.
 	 */
 	public function test_no_preserve_skips_woo_phases() {
 		$this->seed_woo_tables();
@@ -1347,7 +1365,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$sub_state = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertArrayNotHasKey( 'woo_capture', $sub_state );
 		$this->assertArrayNotHasKey( 'woo_merge', $sub_state );
-		$this->assertNotContains( 'begin_maintenance', $this->runner->fake_engine->calls );
+		$this->assertContains( 'begin_maintenance', $this->runner->fake_engine->calls );
+		$this->assertContains( 'exit_maintenance', $this->runner->fake_engine->calls );
 	}
 
 	/**
@@ -1371,6 +1390,65 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 
 		// Scratch staging is gone after a verified restore.
 		$this->assertDirectoryDoesNotExist( $this->dir . '/restore-' . $task_id );
+	}
+
+	/**
+	 * The swap path enters maintenance immediately before the atomic RENAME
+	 * and exits immediately after, so live traffic is never served a
+	 * transitional schema. Live tables are never touched before the swap
+	 * (loading happens into isolated tmp tables), so the window starts right
+	 * at the swap, not earlier.
+	 */
+	public function test_swap_path_enters_and_exits_maintenance_around_swap() {
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+
+		$calls          = $this->runner->fake_engine->calls;
+		$begin_index    = array_search( 'begin_maintenance', $calls, true );
+		$swap_index     = array_search( 'swap_tables:items', $calls, true );
+		$exit_index     = array_search( 'exit_maintenance', $calls, true );
+
+		$this->assertNotFalse( $begin_index, 'begin_maintenance must be called.' );
+		$this->assertNotFalse( $exit_index, 'exit_maintenance must be called.' );
+		$this->assertLessThan( $swap_index, $begin_index, 'maintenance must begin before the swap.' );
+		$this->assertGreaterThan( $swap_index, $exit_index, 'maintenance must exit after the swap.' );
+	}
+
+	/**
+	 * A swap failure still leaves the site out of maintenance: the runner's
+	 * terminal cleanup unconditionally exits maintenance on any thrown
+	 * failure, so a forced-terminal swap is not left stuck offline.
+	 */
+	public function test_swap_path_exits_maintenance_on_swap_failure() {
+		$this->runner->fake_engine->swap_error = 'swap exploded';
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertContains( 'exit_maintenance', $this->runner->fake_engine->calls );
+	}
+
+	/**
+	 * Maintenance is entered and exited exactly once across a completed swap
+	 * path restore - it is never re-entered for the multi-slice URL-rewrite
+	 * phase that follows the swap, matching the existing foreign-key path's
+	 * precedent (it also exits maintenance before URL rewriting begins).
+	 * Combined with the ordering proven in
+	 * test_swap_path_enters_and_exits_maintenance_around_swap, this confirms
+	 * the window is scoped to the swap alone.
+	 */
+	public function test_swap_path_maintenance_does_not_cover_rewrite_phase() {
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+
+		$calls = $this->runner->fake_engine->calls;
+		$this->assertSame( 1, count( array_keys( $calls, 'begin_maintenance', true ) ) );
+		$this->assertSame( 1, count( array_keys( $calls, 'exit_maintenance', true ) ) );
 	}
 
 	/**
