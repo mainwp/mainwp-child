@@ -7,6 +7,7 @@
 
 use MainWP\Child\MainWP_Child_Backup_Task;
 use MainWP\Child\MainWP_Child_Backup_Watchdog;
+use MainWP\Child\MainWP_Child_Stats;
 
 /**
  * Tests for the minimal child backup task spine.
@@ -522,6 +523,72 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 		} catch ( \MainWP\Child\MainWP_Exception $e ) {
 			$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
 		}
+	}
+
+	/**
+	 * A plain dashboard sync reclaims an orphan past its wall-clock deadline.
+	 * The sync runs far more often than a backup attempt, so an idle child with
+	 * no cron traffic self-heals the blocking row on the next sync instead of
+	 * staying stuck until someone starts another backup.
+	 */
+	public function test_site_stats_reclaims_expired_orphan() {
+		global $wpdb;
+		$spine = MainWP_Child_Backup_Task::instance();
+
+		$orphan = $spine->create_task( 'full', array( 'params' => array( 'ext' => 'tar' ) ) );
+		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.NotPrepared -- test fixture: backdate the deadline.
+			$wpdb->prepare(
+				'UPDATE ' . $spine->get_table_name() . ' SET max_wall_clock_at = DATE_SUB(NOW(), INTERVAL 60 SECOND) WHERE task_id = %s',
+				$orphan
+			)
+		);
+
+		MainWP_Child_Stats::get_instance()->reclaim_expired_backup_tasks();
+
+		$this->assertSame( 'failed', $spine->get_task( $orphan )->phase );
+		$this->assertEmpty( $spine->get_active_tasks() );
+	}
+
+	/**
+	 * A sync does NOT reclaim a backup still inside its wall-clock deadline: a
+	 * legitimately running backup keeps its task across syncs. Reclaim only
+	 * clears deadline-expired orphans, never a live operation.
+	 */
+	public function test_site_stats_does_not_reclaim_active_within_deadline() {
+		$spine  = MainWP_Child_Backup_Task::instance();
+		$active = $spine->create_task( 'full', array( 'params' => array( 'ext' => 'tar' ) ) ); // Fresh deadline ~48 min out.
+
+		MainWP_Child_Stats::get_instance()->reclaim_expired_backup_tasks();
+
+		$this->assertNotSame( 'failed', $spine->get_task( $active )->phase );
+		$this->assertCount( 1, $spine->get_active_tasks() );
+	}
+
+	/**
+	 * On a site that never activated native backups the spine version option is
+	 * absent, so the gate skips the reclaim entirely - a sync must not query a
+	 * table that may not exist. The gate firing leaves even an expired orphan
+	 * untouched, which is how the test observes that no reclaim ran.
+	 */
+	public function test_site_stats_reclaim_is_no_op_without_table() {
+		global $wpdb;
+		$spine = MainWP_Child_Backup_Task::instance();
+
+		$orphan = $spine->create_task( 'full', array( 'params' => array( 'ext' => 'tar' ) ) );
+		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.NotPrepared -- test fixture: backdate the deadline.
+			$wpdb->prepare(
+				'UPDATE ' . $spine->get_table_name() . ' SET max_wall_clock_at = DATE_SUB(NOW(), INTERVAL 60 SECOND) WHERE task_id = %s',
+				$orphan
+			)
+		);
+
+		// Simulate native backups never installed on this site: drop the version
+		// option so the gate short-circuits before touching the table.
+		delete_option( MainWP_Child_Backup_Task::DB_VERSION_OPTION );
+
+		MainWP_Child_Stats::get_instance()->reclaim_expired_backup_tasks();
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $spine->get_task( $orphan )->phase );
 	}
 
 	/**
