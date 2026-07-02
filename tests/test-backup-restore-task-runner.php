@@ -1470,6 +1470,140 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Build a zip artifact with arbitrary entries in the backup dir.
+	 *
+	 * @param string $name    Archive file name.
+	 * @param array  $entries relpath => content map.
+	 * @param string $role    Artifact role ('full' or 'part').
+	 *
+	 * @return array Artifact entry.
+	 */
+	protected function make_named_zip_artifact( $name, $entries, $role = 'part' ) {
+		$zip_path = $this->dir . '/' . $name;
+		$zip      = new ZipArchive();
+		$zip->open( $zip_path, ZipArchive::CREATE );
+		foreach ( $entries as $relpath => $content ) {
+			$zip->addFromString( $relpath, $content );
+		}
+		$zip->close();
+
+		return array(
+			'role'       => $role,
+			'file'       => $name,
+			'size'       => (int) filesize( $zip_path ),
+			'sha256'     => hash_file( 'sha256', $zip_path ),
+			'adopt_only' => false,
+		);
+	}
+
+	/**
+	 * Build a named tombstones artifact in the backup dir.
+	 *
+	 * @param string $name     List file name.
+	 * @param string $contents One relpath per line.
+	 *
+	 * @return array Artifact entry.
+	 */
+	protected function make_named_tombstones_artifact( $name, $contents ) {
+		$path = $this->dir . '/' . $name;
+		file_put_contents( $path, $contents ); // phpcs:ignore -- fixture.
+		return array(
+			'role'       => 'tombstones',
+			'file'       => $name,
+			'size'       => (int) filesize( $path ),
+			'sha256'     => hash_file( 'sha256', $path ),
+			'adopt_only' => false,
+		);
+	}
+
+	/**
+	 * A three-link incremental chain restores to the tip's exact state: the
+	 * base full extracts first, then each increment applies its tombstones
+	 * before its parts in chain order, and the chain-newest separate db
+	 * artifact replays instead of the base full's embedded dump.
+	 *
+	 * Artifact names carry the dashboard's s<snapshot_id>- staging prefix:
+	 * every increment emits the same sidecar basenames (tombstones.list,
+	 * <component>.part001.zip), so the plan namespaces them per snapshot.
+	 */
+	public function test_incremental_chain_restore_applies_links_in_order() {
+		// Live-site state the chain must correct: a post-snapshot edit to a
+		// tracked file, and an untracked file no snapshot knows about.
+		file_put_contents( $this->site . '/a.txt', 'post-snapshot-edit' ); // phpcs:ignore -- fixture.
+		file_put_contents( $this->site . '/unknown.txt', 'survives' ); // phpcs:ignore -- fixture.
+
+		$base = $this->make_named_zip_artifact(
+			's1-full001.zip',
+			array(
+				'a.txt'                                => 'a-v1',
+				'b.txt'                                => 'carried',
+				'c.txt'                                => 'c-v1',
+				'dir/x.txt'                            => 'x-v1',
+				// A real base full embeds its dump inside the site archive;
+				// the chain's separate db artifact must win over it.
+				'wp-content/dbBackup-bn_items.sql.php' => '<?php exit(); ?>' . "\nDROP TABLE IF EXISTS `bn_items`;\nCREATE TABLE `bn_items` (id INT);\n",
+				'wp-content/dbBackup.sql'              => '',
+			),
+			'full'
+		);
+
+		// Increment 1: a.txt changed, d.txt added; c.txt and dir/x.txt deleted.
+		$inc1_tombstones = $this->make_named_tombstones_artifact( 's2-tombstones.list', "c.txt\ndir/x.txt\n" );
+		$inc1_part       = $this->make_named_zip_artifact(
+			's2-plugins.part001.zip',
+			array(
+				'a.txt' => 'a-v2',
+				'd.txt' => 'd-v1',
+			)
+		);
+
+		// Increment 2: d.txt (added in increment 1) deleted; c.txt deleted
+		// then recreated in the SAME increment - its tombstone must apply
+		// before its part; e.txt added.
+		$inc2_tombstones = $this->make_named_tombstones_artifact( 's3-tombstones.list', "d.txt\nc.txt\n" );
+		$inc2_part       = $this->make_named_zip_artifact(
+			's3-plugins.part001.zip',
+			array(
+				'e.txt' => 'e-v1',
+				'c.txt' => 'c-v2',
+			)
+		);
+
+		// The dashboard plan order: base full, each increment's tombstones
+		// then parts in chain order, the chain-newest db dump last.
+		$task_id = $this->make_task(
+			'full',
+			array( $base, $inc1_tombstones, $inc1_part, $inc2_tombstones, $inc2_part, $this->make_db_artifact() )
+		);
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+
+		// Tip-state files.
+		$this->assertSame( 'a-v2', file_get_contents( $this->site . '/a.txt' ), 'The later part must win over the base and the post-snapshot edit.' );
+		$this->assertSame( 'carried', file_get_contents( $this->site . '/b.txt' ), 'A file untouched since the base carries through.' );
+		$this->assertSame( 'c-v2', file_get_contents( $this->site . '/c.txt' ), 'A same-increment delete+recreate must end at the recreated content.' );
+		$this->assertSame( 'e-v1', file_get_contents( $this->site . '/e.txt' ) );
+
+		// Chain deletions.
+		$this->assertFileDoesNotExist( $this->site . '/d.txt', 'A file added in increment 1 and tombstoned in increment 2 must be gone.' );
+		$this->assertFileDoesNotExist( $this->site . '/dir/x.txt' );
+
+		// Overlay semantics: a chain restore never deletes files it has no
+		// tombstone for.
+		$this->assertSame( 'survives', file_get_contents( $this->site . '/unknown.txt' ) );
+
+		// The chain-newest separate db artifact replayed - not the base
+		// full's embedded dump - and the embedded dump litter was swept.
+		$config = $this->runner->fake_engine->last_replay_config;
+		$this->assertSame( 'src_', $config['source_prefix'], 'The separate chain-newest db artifact must replay, not the embedded base dump.' );
+		$this->assertCount( 1, $config['files'] );
+		$this->assertStringContainsString( 'dbBackup-src_items.sql.php', $config['files'][0] );
+		$this->assertFileDoesNotExist( $this->site . '/wp-content/dbBackup-bn_items.sql.php' );
+		$this->assertFileDoesNotExist( $this->site . '/wp-content/dbBackup.sql' );
+	}
+
+	/**
 	 * A replay failure lands terminal failed with tmp tables cleaned,
 	 * maintenance lifted, scratch removed - and old tables NOT dropped.
 	 */
