@@ -853,6 +853,14 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             $payload['artifacts'] = $sub_state['artifacts'];
         }
 
+        // Woo order-storage facts captured at dump time. Optional on the
+        // wire: files-only runs and older runners never record them. The
+        // dashboard stamps them onto the snapshot so a preserve-orders
+        // restore can be refused at initiate time.
+        if ( self::PHASE_COMPLETED === $task->phase && ! empty( $sub_state['woo_meta'] ) && is_array( $sub_state['woo_meta'] ) ) {
+            $payload['woo'] = $sub_state['woo_meta'];
+        }
+
         if ( self::PHASE_FAILED === $task->phase && isset( $sub_state['error']['message'] ) ) {
             $payload['error']      = $sub_state['error']['message'];
             $payload['error_code'] = isset( $sub_state['error']['code'] ) ? $sub_state['error']['code'] : '';

@@ -1992,6 +1992,23 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     }
 
     /**
+     * The live Woo order-storage answers for the dashboard's initiate-time
+     * preserve-orders check: the same option reads the apply-phase
+     * woo_preserve_gate makes, exposed before any transfer so a certain
+     * refusal happens before the restore job is even created. The
+     * apply-phase gate stays in place as the authoritative backstop.
+     *
+     * @return array { woo_hpos_enabled: bool, woo_sync_enabled: bool }
+     */
+    public function live_woo_preflight() {
+        return array(
+            'woo_hpos_enabled' => 'yes' === $this->woo_live_option( 'woocommerce_custom_orders_table_enabled' ),
+            'woo_sync_enabled' => 'yes' === $this->woo_live_option( 'woocommerce_custom_orders_table_data_sync_enabled' ),
+            'woo_db_version'   => $this->woo_live_option( 'woocommerce_db_version' ),
+        );
+    }
+
+    /**
      * Read one option value straight from the live options table by the target
      * prefix, bypassing the object cache (the restore is mid-flight, pre-swap).
      *

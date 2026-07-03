@@ -547,6 +547,12 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             unset( $sub_state['db_cursor'] );
             $sub_state['db_files'] = $this->finalize_dump_files( $files, $prefix );
 
+            // Stamp the Woo order-storage facts while the dump is fresh. The
+            // dashboard persists them on the snapshot, so a preserve-orders
+            // restore that is certain to fail the apply-phase gate can be
+            // refused at initiate time instead of after the whole transfer.
+            $sub_state['woo_meta'] = $this->woo_backup_meta();
+
             // Persist dump completion before the artifact step - a kill
             // between the two must not repeat the dump.
             $result = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
@@ -1392,6 +1398,23 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         fclose( fopen( $prefix . '.sql', 'w' ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- empty marker file, legacy format.
         $files[] = $prefix . '.sql';
         return $files;
+    }
+
+    /**
+     * The site's Woo order-storage facts at dump time: whether the live
+     * table set includes wc_orders (so the dump carries it) and the
+     * woocommerce_db_version the dump captured. These are the two
+     * backup-side answers the restore's preserve-orders gate needs.
+     *
+     * @return array { has_wc_orders: bool, woocommerce_db_version: string }
+     */
+    protected function woo_backup_meta() {
+        global $wpdb;
+        $found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $wpdb->prefix . 'wc_orders' ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- schema probe at dump time.
+        return array(
+            'has_wc_orders'          => null !== $found,
+            'woocommerce_db_version' => (string) get_option( 'woocommerce_db_version', '' ),
+        );
     }
 
     /**

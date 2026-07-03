@@ -55,6 +55,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         'backup_task_prune'        => 'backup_task_prune',
         'backup_download_token'    => 'backup_download_token',
         'backup_manifest_chunk'    => 'backup_manifest_chunk',
+        'restore_preflight'        => 'restore_preflight',
         'restore_task_create'      => 'restore_task_create',
         'restore_task_run'         => 'restore_task_run',
         'restore_task_status'      => 'restore_task_status',
@@ -845,6 +846,21 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         MainWP_Helper::write( $result );
+    }
+
+    /**
+     * Method restore_preflight()
+     *
+     * Answer the dashboard's cheap pre-restore questions before any job
+     * exists: the live WooCommerce order-storage options the
+     * preserve-orders gate reads in the apply phase. Letting the
+     * dashboard read them at initiate time turns a refusal after a full
+     * transfer into a refusal before the restore job is created.
+     *
+     * @uses \MainWP\Child\MainWP_Child_Restore_Task_Runner::live_woo_preflight()
+     */
+    public function restore_preflight() {
+        MainWP_Helper::write( MainWP_Child_Restore_Task_Runner::instance()->live_woo_preflight() );
     }
 
     /**

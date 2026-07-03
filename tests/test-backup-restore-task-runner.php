@@ -9,6 +9,7 @@ use MainWP\Child\MainWP_Backup_Db_Restore_Engine;
 use MainWP\Child\MainWP_Backup_Error;
 use MainWP\Child\MainWP_Child_Backup_Task;
 use MainWP\Child\MainWP_Child_Backup_Task_Runner;
+use MainWP\Child\MainWP_Child_Callable;
 use MainWP\Child\MainWP_Child_Restore_Task_Runner;
 use MainWP\Child\MainWP_Exception;
 
@@ -1111,6 +1112,45 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	public function test_woo_gate_aborts_on_version_skew() {
 		$this->seed_woo_tables( array( 'woocommerce_db_version' => '9.4.0' ) );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_WOO_VERSION_SKEW, $this->runner->expose_woo_preserve_gate( $this->woo_dump_files( '9.3.0' ), 'src_' ) );
+	}
+
+	/**
+	 * The live Woo preflight reports the same order-storage options the
+	 * preserve gate reads in the apply phase, so the dashboard can refuse
+	 * a doomed preserve-orders restore at initiate time instead of after
+	 * the whole transfer.
+	 */
+	public function test_restore_preflight_returns_live_woo_options() {
+		$this->seed_woo_tables();
+		$this->assertSame(
+			array(
+				'woo_hpos_enabled' => true,
+				'woo_sync_enabled' => false,
+				'woo_db_version'   => '9.4.0',
+			),
+			$this->runner->live_woo_preflight()
+		);
+	}
+
+	/**
+	 * A store still synchronizing orders to the posts table reads back
+	 * exactly as the apply-phase gate would judge it.
+	 */
+	public function test_restore_preflight_reflects_sync_mode_store() {
+		$this->seed_woo_tables( array( 'woocommerce_custom_orders_table_data_sync_enabled' => 'yes' ) );
+
+		$preflight = $this->runner->live_woo_preflight();
+
+		$this->assertTrue( $preflight['woo_hpos_enabled'] );
+		$this->assertTrue( $preflight['woo_sync_enabled'] );
+	}
+
+	/**
+	 * The dashboard reaches the live preflight through a registered
+	 * callable.
+	 */
+	public function test_restore_preflight_callable_registered() {
+		$this->assertTrue( MainWP_Child_Callable::get_instance()->is_callable_function( 'restore_preflight' ) );
 	}
 
 	/**

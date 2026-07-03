@@ -226,6 +226,18 @@ class Testable_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 	}
 
 	/**
+	 * Woo backup-meta seam: stubbed when set, otherwise the real reads.
+	 *
+	 * @return array Woo meta.
+	 */
+	protected function woo_backup_meta() {
+		if ( isset( $this->stubs['woo_backup_meta'] ) ) {
+			return $this->stub( 'woo_backup_meta', array() );
+		}
+		return parent::woo_backup_meta();
+	}
+
+	/**
 	 * Upload stub work.
 	 *
 	 * @param array $sub_state Cursor.
@@ -852,5 +864,42 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$payload = $spine->status_payload( $task, $this->backup_dir );
 
 		$this->assertArrayNotHasKey( 'progress', $payload );
+	}
+
+	/**
+	 * A completed database-bearing backup surfaces the Woo order-storage
+	 * facts captured at dump time, so the dashboard can stamp them onto
+	 * the snapshot and refuse a doomed preserve-orders restore at
+	 * initiate time instead of after the whole transfer.
+	 */
+	public function test_completed_db_backup_payload_carries_woo_meta() {
+		$this->runner->stubs['woo_backup_meta'] = array(
+			'has_wc_orders'          => true,
+			'woocommerce_db_version' => '9.4.0',
+		);
+
+		$task_id = $this->create_task( 'db' );
+		$task    = $this->advance( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+		$this->assertArrayHasKey( 'woo', $payload );
+		$this->assertTrue( $payload['woo']['has_wc_orders'] );
+		$this->assertSame( '9.4.0', $payload['woo']['woocommerce_db_version'] );
+	}
+
+	/**
+	 * A files-only backup dumps no database, so its payload carries no
+	 * Woo block - preserve-orders never applies to it.
+	 */
+	public function test_files_backup_payload_omits_woo_meta() {
+		$task_id = $this->create_task( 'files' );
+		$task    = $this->advance( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+		$this->assertArrayNotHasKey( 'woo', $payload );
 	}
 }
