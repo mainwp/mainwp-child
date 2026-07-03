@@ -734,7 +734,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		global $wpdb;
 		$wpdb->query( 'DELETE FROM ' . $this->spine->get_table_name() ); // phpcs:ignore WordPress.DB -- test cleanup.
 		$wpdb->query( 'DROP TABLE IF EXISTS `rt_items`' ); // phpcs:ignore WordPress.DB -- test cleanup.
-		foreach ( array( 'rt_options', 'rt_users', 'rt_usermeta', 'rt_postmeta', 'rt_wc_orders', 'rt_wc_product_meta_lookup', 'rt_actionscheduler_logs', 'rt_actionscheduler_actions' ) as $woo_table ) {
+		foreach ( array( 'rt_options', 'rt_users', 'rt_usermeta', 'rt_postmeta', 'rt_wc_orders', 'rt_wc_product_meta_lookup', 'rt_actionscheduler_logs', 'rt_actionscheduler_actions', 'rt_wc_order_product_lookup', 'rt_wc_order_stats', 'rt_wc_order_tax_lookup', 'rt_wc_order_coupon_lookup', 'rt_wc_customer_lookup' ) as $woo_table ) {
 			$wpdb->query( 'DROP TABLE IF EXISTS `' . $woo_table . '`' ); // phpcs:ignore WordPress.DB -- test cleanup.
 		}
 		$this->rrmdir( $this->dir );
@@ -1359,6 +1359,42 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'items', $expected );
 		$this->assertArrayNotHasKey( 'actionscheduler_logs', $expected );
 		$this->assertArrayNotHasKey( 'actionscheduler_actions', $expected );
+	}
+
+	/**
+	 * WooCommerce's analytics lookup tables are regenerated continuously by
+	 * Action Scheduler jobs on a live store, so their counts drift between
+	 * the dump and the post-swap check the same way the actionscheduler_*
+	 * tables do. A drift there is not a failed restore; the real order
+	 * tables stay under the strict check.
+	 */
+	public function test_verify_excludes_woo_analytics_tables() {
+		global $wpdb;
+		foreach ( array( 'rt_wc_orders', 'rt_wc_order_product_lookup', 'rt_wc_order_stats', 'rt_wc_order_tax_lookup', 'rt_wc_order_coupon_lookup', 'rt_wc_customer_lookup' ) as $analytics_table ) {
+			$wpdb->query( 'CREATE TABLE IF NOT EXISTS `' . $analytics_table . '` (id BIGINT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id))' ); // phpcs:ignore WordPress.DB -- test fixture.
+		}
+
+		$this->runner->fake_engine->tables = array(
+			'items'                    => array( 'status' => 'ok', 'rows' => 2 ),
+			'wc_orders'                => array( 'status' => 'ok', 'rows' => 3 ),
+			'wc_order_product_lookup'  => array( 'status' => 'ok', 'rows' => 15 ),
+			'wc_order_stats'           => array( 'status' => 'ok', 'rows' => 4 ),
+			'wc_order_tax_lookup'      => array( 'status' => 'ok', 'rows' => 6 ),
+			'wc_order_coupon_lookup'   => array( 'status' => 'ok', 'rows' => 1 ),
+			'wc_customer_lookup'       => array( 'status' => 'ok', 'rows' => 8 ),
+		);
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$expected = $this->runner->fake_engine->last_verify_expected;
+		$this->assertArrayHasKey( 'items', $expected, 'Ordinary tables stay under the strict check.' );
+		$this->assertArrayHasKey( 'wc_orders', $expected, 'Real order tables stay under the strict check.' );
+		$this->assertArrayNotHasKey( 'wc_order_product_lookup', $expected );
+		$this->assertArrayNotHasKey( 'wc_order_stats', $expected );
+		$this->assertArrayNotHasKey( 'wc_order_tax_lookup', $expected );
+		$this->assertArrayNotHasKey( 'wc_order_coupon_lookup', $expected );
+		$this->assertArrayNotHasKey( 'wc_customer_lookup', $expected );
 	}
 
 	/**

@@ -2383,6 +2383,16 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
         }
 
+        // The Woo analytics lookup tables drift the same way: Action
+        // Scheduler regenerates them from the order tables on any live
+        // store, so their counts move between the dump and this check after
+        // a fully successful replay and swap. They are derived data, not
+        // restored content. The real order tables are not in this list and
+        // stay under the strict check.
+        foreach ( array( 'wc_order_product_lookup', 'wc_order_stats', 'wc_order_tax_lookup', 'wc_order_coupon_lookup', 'wc_customer_lookup' ) as $stem ) {
+            unset( $expected[ $stem ] );
+        }
+
         // On the foreign-key path the live tables were overwritten in place,
         // so a verification failure here is a wrong restore that must be undone
         // from the aside snapshot (still on disk until this phase passes), not
