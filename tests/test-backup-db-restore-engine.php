@@ -61,11 +61,41 @@ class Testable_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	public $maintenance_calls = array();
 
 	/**
+	 * Substring that forces a transient (gone-away) execution error while
+	 * $fail_transient_remaining is above zero.
+	 *
+	 * @var string|null
+	 */
+	public $transient_fail_on = null;
+
+	/**
+	 * Remaining transient failures to inject for $transient_fail_on.
+	 *
+	 * @var int
+	 */
+	public $fail_transient_remaining = 0;
+
+	/**
+	 * Error number reported for the most recent statement.
+	 *
+	 * @var int
+	 */
+	public $last_errno = 0;
+
+	/**
+	 * Number of connect() calls.
+	 *
+	 * @var int
+	 */
+	public $connect_calls = 0;
+
+	/**
 	 * Connection stand-in.
 	 *
 	 * @return object
 	 */
 	protected function connect() {
+		++$this->connect_calls;
 		return new stdClass();
 	}
 
@@ -85,12 +115,30 @@ class Testable_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	 *
 	 * @return int|string Affected rows or error text.
 	 */
-	protected function execute_statement( $conn, $sql ) {
+	protected function run_statement( $conn, $sql ) {
 		$this->executed[] = $sql;
+		if ( null !== $this->transient_fail_on && $this->fail_transient_remaining > 0 && strpos( $sql, $this->transient_fail_on ) !== false ) {
+			--$this->fail_transient_remaining;
+			$this->last_errno = 2006;
+			return 'MySQL server has gone away';
+		}
 		if ( null !== $this->fail_on && strpos( $sql, $this->fail_on ) !== false ) {
+			$this->last_errno = 0;
 			return 'forced failure for test';
 		}
+		$this->last_errno = 0;
 		return 1;
+	}
+
+	/**
+	 * Report the injected error number (the fake connection is a stdClass).
+	 *
+	 * @param object $conn Connection.
+	 *
+	 * @return int
+	 */
+	protected function connection_errno( $conn ) {
+		return $this->last_errno;
 	}
 
 	/**
@@ -314,6 +362,11 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'ALLOW_INVALID_DATES', $this->engine->executed[0] );
 		$this->assertStringContainsString( 'FOREIGN_KEY_CHECKS=0', $this->engine->executed[1] );
 		$this->assertStringContainsString( 'UNIQUE_CHECKS=0', $this->engine->executed[2] );
+
+		// The best-effort timeout tuning runs after the mandatory three.
+		$this->assertStringContainsString( 'wait_timeout', $this->engine->executed[3] );
+		$this->assertStringContainsString( 'net_read_timeout', $this->engine->executed[4] );
+		$this->assertStringContainsString( 'net_write_timeout', $this->engine->executed[5] );
 	}
 
 	/**
@@ -437,6 +490,134 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 		// Nothing from the second file ran.
 		$joined = implode( "\n", $this->engine->executed );
 		$this->assertStringNotContainsString( 'tmpabc123_b', $joined );
+	}
+
+	/**
+	 * A transient gone-away error mid-replay reconnects, re-applies the
+	 * session, re-executes the failed statement, and completes.
+	 */
+	public function test_reconnects_and_retries_on_transient_gone_away_error() {
+		$files = array(
+			$this->write_dump( 'dbBackup-wp_a.sql.php', "CREATE TABLE `wp_a` (id INT);\nINSERT INTO `wp_a` (`id`) VALUES (1);\n" ),
+		);
+
+		$this->engine->transient_fail_on        = 'INSERT INTO `tmpabc123_a`';
+		$this->engine->fail_transient_remaining = 1;
+
+		$result = $this->engine->replay_slice( array(), $this->config( $files ), $this->no_deadline() );
+
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( 'ok', $result['cursor']['tables']['a']['status'] );
+		$this->assertSame( 2, $this->engine->connect_calls );
+
+		$insert_runs  = 0;
+		$session_runs = 0;
+		foreach ( $this->engine->executed as $sql ) {
+			if ( false !== strpos( $sql, 'INSERT INTO `tmpabc123_a`' ) ) {
+				++$insert_runs;
+			}
+			if ( false !== strpos( $sql, 'ALLOW_INVALID_DATES' ) ) {
+				++$session_runs;
+			}
+		}
+		$this->assertSame( 2, $insert_runs, 'The failed statement must run exactly twice: fail, then retry.' );
+		$this->assertSame( 2, $session_runs, 'The permissive session must be re-applied on the new connection.' );
+	}
+
+	/**
+	 * A persistently failing connection exhausts the bounded reconnect
+	 * budget and surfaces the original replay failure.
+	 */
+	public function test_gives_up_after_max_reconnect_attempts_and_marks_table_failed() {
+		$files = array(
+			$this->write_dump( 'dbBackup-wp_a.sql.php', "CREATE TABLE `wp_a` (id INT);\nINSERT INTO `wp_a` (`id`) VALUES (1);\n" ),
+		);
+
+		$this->engine->transient_fail_on        = 'INSERT INTO `tmpabc123_a`';
+		$this->engine->fail_transient_remaining = PHP_INT_MAX;
+
+		$result = $this->engine->replay_slice( array(), $this->config( $files ), $this->no_deadline() );
+
+		$this->assertFalse( $result['done'] );
+		$this->assertStringContainsString( 'gone away', $result['error'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $result['error_code'] );
+		$this->assertSame( 'failed', $result['cursor']['tables']['a']['status'] );
+
+		$max          = MainWP_Backup_Db_Restore_Engine::MAX_RECONNECT_ATTEMPTS;
+		$insert_runs  = 0;
+		foreach ( $this->engine->executed as $sql ) {
+			if ( false !== strpos( $sql, 'INSERT INTO `tmpabc123_a`' ) ) {
+				++$insert_runs;
+			}
+		}
+		$this->assertSame( $max + 1, $insert_runs, 'Attempts must be bounded: the initial run plus one per reconnect.' );
+		$this->assertSame( $max + 1, $this->engine->connect_calls, 'One initial connect plus one per reconnect.' );
+	}
+
+	/**
+	 * A non-transient statement error aborts without any reconnect.
+	 */
+	public function test_non_transient_error_never_triggers_reconnect() {
+		$files = array(
+			$this->write_dump( 'dbBackup-wp_a.sql.php', "CREATE TABLE `wp_a` (id INT);\nINSERT INTO `wp_a` (`id`) VALUES (1);\n" ),
+		);
+
+		$this->engine->fail_on = 'INSERT INTO `tmpabc123_a`';
+		$result                = $this->engine->replay_slice( array(), $this->config( $files ), $this->no_deadline() );
+
+		$this->assertFalse( $result['done'] );
+		$this->assertNotNull( $result['error'] );
+		$this->assertSame( 1, $this->engine->connect_calls, 'A plain SQL error must not reconnect.' );
+
+		$insert_runs = 0;
+		foreach ( $this->engine->executed as $sql ) {
+			if ( false !== strpos( $sql, 'INSERT INTO `tmpabc123_a`' ) ) {
+				++$insert_runs;
+			}
+		}
+		$this->assertSame( 1, $insert_runs );
+	}
+
+	/**
+	 * The atomic swap RENAME is never retried, even on a transient-looking
+	 * connection error: a re-executed RENAME after an ambiguous ack loss
+	 * would misreport a swap that actually landed.
+	 */
+	public function test_swap_statement_failure_is_never_retried() {
+		$this->engine->live_tables              = array( 'wp_a' );
+		$this->engine->transient_fail_on        = 'RENAME TABLE';
+		$this->engine->fail_transient_remaining = PHP_INT_MAX;
+
+		$result = $this->engine->swap_tables( array( 'a' ), $this->config( array() ) );
+
+		$this->assertFalse( $result['done'] );
+		$this->assertStringContainsString( 'gone away', $result['error'] );
+		$this->assertSame( 1, $this->engine->connect_calls, 'The swap must stay one-shot.' );
+
+		$renames = 0;
+		foreach ( $this->engine->executed as $sql ) {
+			if ( 0 === strpos( $sql, 'RENAME TABLE' ) ) {
+				++$renames;
+			}
+		}
+		$this->assertSame( 1, $renames, 'The RENAME must execute exactly once.' );
+	}
+
+	/**
+	 * The session timeout tuning is best-effort: a host that refuses the
+	 * SET must not abort the replay.
+	 */
+	public function test_session_timeout_tuning_is_best_effort() {
+		$files = array(
+			$this->write_dump( 'dbBackup-wp_a.sql.php', "CREATE TABLE `wp_a` (id INT);\n" ),
+		);
+
+		$this->engine->fail_on = 'wait_timeout';
+		$result                = $this->engine->replay_slice( array(), $this->config( $files ), $this->no_deadline() );
+
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
 	}
 
 	/**

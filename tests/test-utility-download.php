@@ -301,4 +301,88 @@ class UtilityDownloadTest extends WP_UnitTestCase {
 		$headers = MainWP_Utility::instance()->get_download_headers( basename( $this->fixture ), $size, $range );
 		$this->assertContains( 'Content-Range: bytes */' . $size, $headers );
 	}
+
+	/**
+	 * A missing artifact is "not servable yet", not an empty success: 503
+	 * with a Retry-After so the dashboard's download retry budget can wait
+	 * out the child's post-completion settle window.
+	 */
+	public function test_resolve_download_availability_missing_file_is_503_with_retry_after() {
+		$availability = MainWP_Utility::instance()->resolve_download_availability( $this->fixture . '.does-not-exist' );
+		$this->assertFalse( $availability['ok'] );
+		$this->assertSame( 503, $availability['status'] );
+		$this->assertSame( 5, $availability['retry_after'] );
+	}
+
+	/**
+	 * A present-but-empty artifact is the same not-ready race, not a valid
+	 * zero-byte download.
+	 */
+	public function test_resolve_download_availability_zero_byte_file_is_503() {
+		$empty = tempnam( sys_get_temp_dir(), 'mwp-dl-empty-' );
+		file_put_contents( $empty, '' );
+
+		$availability = MainWP_Utility::instance()->resolve_download_availability( $empty );
+		unlink( $empty );
+
+		$this->assertFalse( $availability['ok'] );
+		$this->assertSame( 503, $availability['status'] );
+		$this->assertSame( 5, $availability['retry_after'] );
+	}
+
+	/**
+	 * The wp-config guard is a security refusal, not a transient state: 403
+	 * and no retry invitation.
+	 */
+	public function test_resolve_download_availability_wp_config_path_is_403() {
+		$availability = MainWP_Utility::instance()->resolve_download_availability( ABSPATH . 'wp-config.php' );
+		$this->assertFalse( $availability['ok'] );
+		$this->assertSame( 403, $availability['status'] );
+		$this->assertNull( $availability['retry_after'] );
+	}
+
+	/**
+	 * An existing non-empty file is servable.
+	 */
+	public function test_resolve_download_availability_existing_nonempty_file_is_ok() {
+		$availability = MainWP_Utility::instance()->resolve_download_availability( $this->fixture );
+		$this->assertTrue( $availability['ok'] );
+		$this->assertSame( 200, $availability['status'] );
+		$this->assertNull( $availability['retry_after'] );
+	}
+
+	/**
+	 * upload_file_backup() must propagate the refusal as a hard false and
+	 * stream nothing for a not-ready (here: zero-byte) artifact. Regression
+	 * for the dropped return value that let a vanished artifact stream as
+	 * an empty HTTP 200.
+	 */
+	public function test_upload_file_backup_returns_false_and_does_not_stream_when_file_not_ready() {
+		$upload_dir = wp_upload_dir();
+		$backup_dir = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'mainwp' . DIRECTORY_SEPARATOR . 'backup' . DIRECTORY_SEPARATOR;
+		wp_mkdir_p( $backup_dir );
+		$name = 'mwp-dl-test-notready-' . wp_rand() . '.zip';
+		file_put_contents( $backup_dir . $name, '' );
+
+		ob_start();
+		$result = MainWP_Utility::instance()->upload_file_backup( $name );
+		$output = ob_get_clean();
+
+		unlink( $backup_dir . $name );
+
+		$this->assertFalse( $result );
+		$this->assertSame( '', $output );
+	}
+
+	/**
+	 * upload_file_backup() still refuses a file that does not exist at all.
+	 */
+	public function test_upload_file_backup_returns_false_when_file_missing() {
+		ob_start();
+		$result = MainWP_Utility::instance()->upload_file_backup( 'mwp-dl-test-never-existed-' . wp_rand() . '.zip' );
+		$output = ob_get_clean();
+
+		$this->assertFalse( $result );
+		$this->assertSame( '', $output );
+	}
 }

@@ -304,7 +304,8 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             return $is_valid_pwd ? true : false;
         }
 
-        $is_dash_version_older_than_ver53 = empty( $_POST['mainwpver'] ) || version_compare( $_POST['mainwpver'], '5.3', '<' ) ? true : false;
+        $dash_ver                         = isset( $_POST['mainwpver'] ) ? sanitize_text_field( wp_unslash( $_POST['mainwpver'] ) ) : '';
+        $is_dash_version_older_than_ver53 = empty( $dash_ver ) || version_compare( $dash_ver, '5.3', '<' ) ? true : false;
 
         if ( empty( $reg_verify ) && $is_dash_version_older_than_ver53 ) {
             MainWP_Helper::instance()->error( esc_html__( 'Your current MainWP Dashboard version is not compatible with the new connection protocol. To add a site using Password Authentication, please update the MainWP Dashboard to the latest version.', 'mainwp-child' ), 'REG_ERROR10' );
@@ -363,7 +364,8 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      */
     private function may_be_generate_register_verify() { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
         //phpcs:disable WordPress.Security.NonceVerification
-        $is_dash_version_older_than_ver53 = empty( $_POST['mainwpver'] ) || version_compare( $_POST['mainwpver'], '5.3', '<' ) ? true : false;
+        $dash_ver                         = isset( $_POST['mainwpver'] ) ? sanitize_text_field( wp_unslash( $_POST['mainwpver'] ) ) : '';
+        $is_dash_version_older_than_ver53 = empty( $dash_ver ) || version_compare( $dash_ver, '5.3', '<' ) ? true : false;
 
         if ( $is_dash_version_older_than_ver53 ) {
             return false; // not genereate verify registers for dashboard version before 5.2.
@@ -953,7 +955,8 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
                     }
                     exit;
                 }
-                MainWP_Utility::instance()->upload_file( basename( $auth['full_path'] ), dirname( $auth['full_path'] ) . DIRECTORY_SEPARATOR, $foffset );
+                $served = MainWP_Utility::instance()->upload_file( basename( $auth['full_path'] ), dirname( $auth['full_path'] ) . DIRECTORY_SEPARATOR, $foffset );
+                $this->refuse_unserved_download( $served );
                 exit;
             }
 
@@ -968,7 +971,8 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
                 }
                 exit;
             }
-            MainWP_Utility::instance()->upload_file_backup( $fdl, $foffset );
+            $served = MainWP_Utility::instance()->upload_file_backup( $fdl, $foffset );
+            $this->refuse_unserved_download( $served );
             exit;
         }
 
@@ -979,6 +983,25 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         }
         // phpcs:enable
         $this->where_authed_redirect();
+    }
+
+    /**
+     * Method refuse_unserved_download()
+     *
+     * Turn an unserved backup download into an explicit retryable refusal.
+     * Without this, a bail-out before streaming exits with PHP's default
+     * empty 200 - the dashboard then records a zero-byte "success" during
+     * the child's post-completion settle window. Only fires while the
+     * response is still the untouched default, so a status the streamer
+     * already set (e.g. 416 on a bad range) is preserved.
+     *
+     * @param bool $served Whether the file streamed.
+     */
+    private function refuse_unserved_download( $served ) {
+        if ( true !== $served && ! headers_sent() && 200 === http_response_code() ) {
+            http_response_code( 503 );
+            header( 'Retry-After: 5' );
+        }
     }
 
     /**

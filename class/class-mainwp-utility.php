@@ -221,7 +221,41 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         if ( false === $fullpath ) {
             return false;
         }
-        $this->upload_file( basename( $fullpath ), dirname( $fullpath ) . DIRECTORY_SEPARATOR, $offset );
+        return $this->upload_file( basename( $fullpath ), dirname( $fullpath ) . DIRECTORY_SEPARATOR, $offset );
+    }
+
+    /**
+     * Method resolve_download_availability()
+     *
+     * Decide whether a resolved backup file path is ready to stream. A file
+     * that is missing or still empty is the child's post-completion settle
+     * window, so the refusal invites a retry; a wp-config path is a security
+     * refusal and does not.
+     *
+     * @param string $fullpath Resolved path.
+     *
+     * @return array { ok: bool, status: int, retry_after: int|null }
+     */
+    public function resolve_download_availability( $fullpath ) {
+        if ( false !== stripos( $fullpath, 'wp-config.php' ) ) {
+            return array(
+                'ok'          => false,
+                'status'      => 403,
+                'retry_after' => null,
+            );
+        }
+        if ( ! file_exists( $fullpath ) || 0 === (int) filesize( $fullpath ) ) {
+            return array(
+                'ok'          => false,
+                'status'      => 503,
+                'retry_after' => 5,
+            );
+        }
+        return array(
+            'ok'          => true,
+            'status'      => 200,
+            'retry_after' => null,
+        );
     }
 
     /**
@@ -248,7 +282,8 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             $fullpath = $dir . $file;
         }
 
-        if ( false !== stripos( $fullpath, 'wp-config.php' ) || ! file_exists( $fullpath ) ) {
+        $availability = $this->resolve_download_availability( $fullpath );
+        if ( ! $availability['ok'] ) {
             return false;
         }
 

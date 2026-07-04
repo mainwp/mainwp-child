@@ -68,6 +68,29 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
     const PACKET_OVERHEAD = 1024;
 
     /**
+     * Errno for "MySQL server has gone away".
+     */
+    const ERRNO_SERVER_GONE = 2006;
+
+    /**
+     * Errno for a lost connection during query.
+     */
+    const ERRNO_SERVER_LOST = 2013;
+
+    /**
+     * Reconnect budget per replay statement. Attempts are fast and finish
+     * out even near the slice deadline: the cursor advances per chunk, not
+     * per statement, so yielding mid-statement would skip the rest of the
+     * chunk on resume.
+     */
+    const MAX_RECONNECT_ATTEMPTS = 2;
+
+    /**
+     * Microseconds to back off before a reconnect attempt.
+     */
+    const RECONNECT_BACKOFF_USEC = 250000;
+
+    /**
      * Replay one bounded slice of the dump.
      *
      * @param array     $cursor   Resume cursor (empty array on first call).
@@ -142,7 +165,7 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
      *
      * @return array|null Slice result to propagate, or null to continue.
      */
-    private function replay_file( $conn, &$cursor, $files, $rewriter, $insert_split, $replacement, $packet_budget, $deadline, &$did_work ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- streaming loop.
+    private function replay_file( &$conn, &$cursor, $files, $rewriter, $insert_split, $replacement, $packet_budget, $deadline, &$did_work ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- streaming loop.
         $file = $files[ $cursor['file_index'] ];
 
         $fh = fopen( $file, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming read of a large dump.
@@ -214,7 +237,7 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
      *
      * @return string|null Error text, or null on success.
      */
-    private function process_statement( $conn, $statement, &$cursor, $rewriter, $insert_split, $replacement, $packet_budget ) {
+    private function process_statement( &$conn, $statement, &$cursor, $rewriter, $insert_split, $replacement, $packet_budget ) {
         $rewritten = $rewriter->rewrite( $statement );
         if ( null === $rewritten ) {
             ++$cursor['dropped'];
@@ -244,7 +267,7 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
         $is_insert = (bool) preg_match( '/^\s*(INSERT|REPLACE)\s+INTO/i', $rewritten );
 
         foreach ( $parts as $part ) {
-            $affected = $this->execute_statement( $conn, $part );
+            $affected = $this->execute_replay_statement( $conn, $part );
             if ( is_string( $affected ) ) {
                 if ( null !== $stem ) {
                     $cursor['tables'][ $stem ]['status'] = 'failed';
@@ -546,6 +569,21 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
                 return 'Could not apply the restore session: ' . $outcome;
             }
         }
+
+        // Best-effort timeout tuning: long replays on managed hosts die to
+        // idle/net timeouts mid-slice; a host that refuses these SETs must
+        // not abort the replay. Runs through the one-shot path on purpose -
+        // apply_session() is re-run by reconnect_mid_replay(), and routing
+        // these through the retrying path would nest reconnects.
+        $tuning = array(
+            'SET SESSION wait_timeout = 28800',
+            'SET SESSION net_read_timeout = 120',
+            'SET SESSION net_write_timeout = 120',
+        );
+        foreach ( $tuning as $sql ) {
+            $this->execute_statement( $conn, $sql );
+        }
+
         return null;
     }
 
@@ -997,7 +1035,12 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
-     * Execute one statement on the dedicated connection.
+     * Execute one statement on the dedicated connection, one shot.
+     *
+     * Non-replay callers (the atomic swap, aside pruning, grant probing)
+     * use this directly: their statements are not safely re-executable
+     * after an ambiguous connection loss, so a transient error here is
+     * surfaced as-is rather than retried.
      *
      * @param object $conn Connection.
      * @param string $sql  Statement.
@@ -1005,6 +1048,18 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
      * @return int|string Affected row count, or error text on failure.
      */
     protected function execute_statement( $conn, $sql ) {
+        return $this->run_statement( $conn, $sql );
+    }
+
+    /**
+     * Run one statement on the connection (the raw query seam).
+     *
+     * @param object $conn Connection.
+     * @param string $sql  Statement.
+     *
+     * @return int|string Affected row count, or error text on failure.
+     */
+    protected function run_statement( $conn, $sql ) {
         //phpcs:disable WordPress.DB -- raw mysqli replay on the dedicated connection.
         $result = $conn->query( $sql );
         if ( false === $result ) {
@@ -1016,6 +1071,85 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
         $affected = (int) $conn->affected_rows;
         //phpcs:enable WordPress.DB
         return $affected >= 0 ? $affected : 0;
+    }
+
+    /**
+     * Read the connection's last error number.
+     *
+     * @param object $conn Connection.
+     *
+     * @return int Error number, 0 when unavailable.
+     */
+    protected function connection_errno( $conn ) {
+        return ( $conn instanceof \mysqli ) ? (int) $conn->errno : 0;
+    }
+
+    /**
+     * Execute one replay statement with a bounded reconnect-and-retry on
+     * transient connection loss.
+     *
+     * Only the streamed replay uses this: its statements land in the
+     * tmp-prefixed (or aside) tables under autocommit, so re-executing a
+     * statement whose connection died is safe - InnoDB rolls the in-flight
+     * statement back server-side. The swap RENAME and the other one-shot
+     * callers must NOT route through here (see execute_statement()).
+     *
+     * @param object $conn Connection (by reference: replaced on reconnect).
+     * @param string $sql  Statement.
+     *
+     * @return int|string Affected row count, or error text on failure.
+     */
+    protected function execute_replay_statement( &$conn, $sql ) {
+        $attempts = 0;
+        while ( true ) {
+            $outcome = $this->run_statement( $conn, $sql );
+            if ( ! is_string( $outcome ) ) {
+                return $outcome;
+            }
+            $errno = $this->connection_errno( $conn );
+            if ( $attempts >= self::MAX_RECONNECT_ATTEMPTS || ! $this->is_transient_errno( $errno ) ) {
+                return $outcome;
+            }
+            ++$attempts;
+            MainWP_Helper::log_debug( 'restore replay: transient db error (errno ' . $errno . '), reconnect attempt ' . $attempts . '/' . self::MAX_RECONNECT_ATTEMPTS );
+            usleep( self::RECONNECT_BACKOFF_USEC );
+            if ( ! $this->reconnect_mid_replay( $conn ) ) {
+                return $outcome;
+            }
+        }
+    }
+
+    /**
+     * Whether the errno signals a retryable connection loss.
+     *
+     * @param int $errno mysqli error number.
+     *
+     * @return bool
+     */
+    private function is_transient_errno( $errno ) {
+        return in_array( (int) $errno, array( self::ERRNO_SERVER_GONE, self::ERRNO_SERVER_LOST ), true );
+    }
+
+    /**
+     * Replace a dead replay connection with a fresh, session-applied one.
+     *
+     * @param object $conn Connection (by reference).
+     *
+     * @return bool True when the new connection is ready.
+     */
+    private function reconnect_mid_replay( &$conn ) {
+        $this->close_connection( $conn );
+        $fresh = $this->connect();
+        if ( ! is_object( $fresh ) ) {
+            return false;
+        }
+        $conn  = $fresh;
+        $error = $this->apply_session( $conn );
+        if ( null !== $error ) {
+            $this->close_connection( $conn );
+            return false;
+        }
+        return true;
     }
 
     /**
