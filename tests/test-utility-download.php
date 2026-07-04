@@ -8,6 +8,30 @@
 use MainWP\Child\MainWP_Utility;
 
 /**
+ * Utility double that records refusal emissions instead of touching the
+ * process-global response state (the WP test bootstrap has already sent
+ * output, so http_response_code() cannot be exercised directly in tests).
+ */
+class Recording_Refusal_Utility extends MainWP_Utility {
+
+	/**
+	 * Availability verdicts routed to emission.
+	 *
+	 * @var array[]
+	 */
+	public $refusals = array();
+
+	/**
+	 * Record instead of emitting.
+	 *
+	 * @param array $availability Availability verdict.
+	 */
+	protected function emit_download_refusal( $availability ) {
+		$this->refusals[] = $availability;
+	}
+}
+
+/**
  * Tests for backup download streaming: readfile_chunked() and download headers.
  *
  * Covers the resumed-download corruption bug: Content-Length must account for
@@ -384,5 +408,74 @@ class UtilityDownloadTest extends WP_UnitTestCase {
 
 		$this->assertFalse( $result );
 		$this->assertSame( '', $output );
+	}
+
+	/**
+	 * The wp-config security refusal must route its 403 verdict to emission
+	 * on the live refusal path, not collapse into the generic retryable 503
+	 * that refuse_unserved_download() stamps on an untouched response.
+	 */
+	public function test_upload_file_routes_403_to_emission_for_wp_config() {
+		$utility = new Recording_Refusal_Utility();
+
+		ob_start();
+		$result = $utility->upload_file( ABSPATH . 'wp-config.php' );
+		$output = ob_get_clean();
+
+		$this->assertFalse( $result );
+		$this->assertSame( '', $output );
+		$this->assertCount( 1, $utility->refusals );
+		$this->assertSame( 403, $utility->refusals[0]['status'] );
+		$this->assertNull( $utility->refusals[0]['retry_after'] );
+	}
+
+	/**
+	 * The not-ready settle window must route its 503 + Retry-After verdict
+	 * to emission on the live refusal path.
+	 */
+	public function test_upload_file_backup_routes_503_to_emission_when_not_ready() {
+		$upload_dir = wp_upload_dir();
+		$backup_dir = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'mainwp' . DIRECTORY_SEPARATOR . 'backup' . DIRECTORY_SEPARATOR;
+		wp_mkdir_p( $backup_dir );
+		$name = 'mwp-dl-test-notready-' . wp_rand() . '.zip';
+		file_put_contents( $backup_dir . $name, '' );
+
+		$utility = new Recording_Refusal_Utility();
+
+		ob_start();
+		$result = $utility->upload_file_backup( $name );
+		$output = ob_get_clean();
+
+		unlink( $backup_dir . $name );
+
+		$this->assertFalse( $result );
+		$this->assertSame( '', $output );
+		$this->assertCount( 1, $utility->refusals );
+		$this->assertSame( 503, $utility->refusals[0]['status'] );
+		$this->assertSame( 5, $utility->refusals[0]['retry_after'] );
+	}
+
+	/**
+	 * The refusal header lines mirror the availability verdict: a retryable
+	 * refusal carries Retry-After, a security refusal carries nothing.
+	 */
+	public function test_get_refusal_headers_mirror_the_availability_verdict() {
+		$retryable = MainWP_Utility::instance()->get_refusal_headers(
+			array(
+				'ok'          => false,
+				'status'      => 503,
+				'retry_after' => 5,
+			)
+		);
+		$this->assertSame( array( 'Retry-After: 5' ), $retryable );
+
+		$security = MainWP_Utility::instance()->get_refusal_headers(
+			array(
+				'ok'          => false,
+				'status'      => 403,
+				'retry_after' => null,
+			)
+		);
+		$this->assertSame( array(), $security );
 	}
 }

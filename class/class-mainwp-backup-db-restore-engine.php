@@ -1108,13 +1108,16 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
             }
             $errno = $this->connection_errno( $conn );
             if ( $attempts >= self::MAX_RECONNECT_ATTEMPTS || ! $this->is_transient_errno( $errno ) ) {
+                if ( $attempts > 0 ) {
+                    return $outcome . ' (after ' . $attempts . ' reconnect ' . ( 1 === $attempts ? 'attempt' : 'attempts' ) . ')';
+                }
                 return $outcome;
             }
             ++$attempts;
             MainWP_Helper::log_debug( 'restore replay: transient db error (errno ' . $errno . '), reconnect attempt ' . $attempts . '/' . self::MAX_RECONNECT_ATTEMPTS );
             usleep( self::RECONNECT_BACKOFF_USEC );
             if ( ! $this->reconnect_mid_replay( $conn ) ) {
-                return $outcome;
+                return $outcome . ' (reconnect attempt ' . $attempts . ' failed)';
             }
         }
     }

@@ -90,12 +90,22 @@ class Testable_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	public $connect_calls = 0;
 
 	/**
+	 * Connect attempts beyond this count fail (null = never fail).
+	 *
+	 * @var int|null
+	 */
+	public $fail_connect_after = null;
+
+	/**
 	 * Connection stand-in.
 	 *
-	 * @return object
+	 * @return object|false
 	 */
 	protected function connect() {
 		++$this->connect_calls;
+		if ( null !== $this->fail_connect_after && $this->connect_calls > $this->fail_connect_after ) {
+			return false;
+		}
 		return new stdClass();
 	}
 
@@ -541,6 +551,11 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 
 		$this->assertFalse( $result['done'] );
 		$this->assertStringContainsString( 'gone away', $result['error'] );
+		$this->assertStringContainsString(
+			'after ' . MainWP_Backup_Db_Restore_Engine::MAX_RECONNECT_ATTEMPTS . ' reconnect attempts',
+			$result['error'],
+			'An exhausted reconnect budget must be named in the surfaced error, or a repeat failure is indistinguishable from never retrying.'
+		);
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $result['error_code'] );
 		$this->assertSame( 'failed', $result['cursor']['tables']['a']['status'] );
 
@@ -556,6 +571,27 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A dead reconnect is named in the surfaced error so the dashboard can
+	 * tell "retried and the server stayed gone" from "never reached retry".
+	 */
+	public function test_failed_reconnect_is_named_in_the_replay_error() {
+		$files = array(
+			$this->write_dump( 'dbBackup-wp_a.sql.php', "CREATE TABLE `wp_a` (id INT);\nINSERT INTO `wp_a` (`id`) VALUES (1);\n" ),
+		);
+
+		$this->engine->transient_fail_on        = 'INSERT INTO `tmpabc123_a`';
+		$this->engine->fail_transient_remaining = PHP_INT_MAX;
+		$this->engine->fail_connect_after       = 1;
+
+		$result = $this->engine->replay_slice( array(), $this->config( $files ), $this->no_deadline() );
+
+		$this->assertFalse( $result['done'] );
+		$this->assertStringContainsString( 'gone away', $result['error'] );
+		$this->assertStringContainsString( 'reconnect attempt 1 failed', $result['error'] );
+		$this->assertSame( 'failed', $result['cursor']['tables']['a']['status'] );
+	}
+
+	/**
 	 * A non-transient statement error aborts without any reconnect.
 	 */
 	public function test_non_transient_error_never_triggers_reconnect() {
@@ -568,6 +604,7 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 
 		$this->assertFalse( $result['done'] );
 		$this->assertNotNull( $result['error'] );
+		$this->assertStringNotContainsString( 'reconnect', $result['error'], 'An error that never retried must not claim reconnect attempts.' );
 		$this->assertSame( 1, $this->engine->connect_calls, 'A plain SQL error must not reconnect.' );
 
 		$insert_runs = 0;

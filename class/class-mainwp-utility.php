@@ -259,6 +259,45 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
     }
 
     /**
+     * Method emit_download_refusal()
+     *
+     * Stamp the availability verdict on the response so the wire carries
+     * the real refusal: 403 for a security refusal, 503 + Retry-After for
+     * the not-ready settle window. Without this the bail-out falls through
+     * to refuse_unserved_download()'s blanket 503 and a security refusal
+     * reads as retryable.
+     *
+     * @param array $availability Verdict from resolve_download_availability().
+     */
+    protected function emit_download_refusal( $availability ) {
+        if ( headers_sent() ) {
+            return;
+        }
+        http_response_code( (int) $availability['status'] );
+        foreach ( $this->get_refusal_headers( $availability ) as $header_line ) {
+            header( $header_line );
+        }
+    }
+
+    /**
+     * Method get_refusal_headers()
+     *
+     * Header lines for a download refusal: a retryable verdict carries its
+     * Retry-After invitation, a security refusal carries nothing.
+     *
+     * @param array $availability Verdict from resolve_download_availability().
+     *
+     * @return string[] Header lines.
+     */
+    public function get_refusal_headers( $availability ) {
+        $headers = array();
+        if ( ! empty( $availability['retry_after'] ) ) {
+            $headers[] = 'Retry-After: ' . (int) $availability['retry_after'];
+        }
+        return $headers;
+    }
+
+    /**
      * Method upload_file()
      *
      * Upload bacup fils to execute clone or restore proces.
@@ -284,6 +323,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
 
         $availability = $this->resolve_download_availability( $fullpath );
         if ( ! $availability['ok'] ) {
+            $this->emit_download_refusal( $availability );
             return false;
         }
 
