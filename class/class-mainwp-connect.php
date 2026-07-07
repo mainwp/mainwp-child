@@ -878,7 +878,13 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         if ( ! is_user_logged_in() || $username !== $current_user->user_login ) {
+            // The signature already validated, so these requests provably
+            // come from the paired dashboard: a failure here must die with
+            // a reason, never fall through to the front page as if the
+            // jump had worked. Signature failures above stay silent - an
+            // arbitrary probe learns nothing it cannot already see.
             if ( ! $this->login( $username ) ) {
+                $this->login_required_bail( esc_html__( 'The dashboard could not log in: the requested account was not found on this child site.', 'mainwp-child' ) );
                 return false;
             }
 
@@ -887,6 +893,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             if ( ! MainWP_Helper::is_admin() && ! $alter_login_required ) {
                 // log out if connected admin is not admin level 10.
                 $this->destroy_user_session();
+                $this->login_required_bail( esc_html__( 'The dashboard could not log in: the requested account is not an administrator on this child site.', 'mainwp-child' ) );
 
                 return false;
             }
@@ -901,6 +908,19 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         do_action( 'mainwp_child_login_required_authed', $username );
         $this->check_redirects();
         return true;
+    }
+
+    /**
+     * Method login_required_bail()
+     *
+     * Stop a signature-valid login_required request with a visible
+     * reason. Only reachable after auth() succeeded, so the message goes
+     * to the dashboard user who initiated the jump, not to a probe.
+     *
+     * @param string $message Escaped failure reason.
+     */
+    protected function login_required_bail( $message ) {
+        wp_die( $message, esc_html__( 'Dashboard login failed', 'mainwp-child' ), array( 'response' => 403 ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- callers pass escaped text.
     }
 
     /**
@@ -1296,6 +1316,12 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         $user = get_user_by( 'login', $username );
+        if ( ! $user && is_email( $username ) ) {
+            // WP core login accepts an email address in place of the login
+            // name; a dashboard connected with an email-style admin username
+            // signs its jumps with that email, so resolve it the same way.
+            $user = get_user_by( 'email', $username );
+        }
         if ( $user ) {
             wp_set_current_user( $user->ID );
             wp_set_auth_cookie( $user->ID );
@@ -1303,7 +1329,10 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
                 do_action( 'wp_login', $user->user_login );
             }
 
-            $logged_in = ( is_user_logged_in() && $current_user->user_login === $username );
+            // Compare against the resolved account's login name: for an
+            // email-resolved user the raw $username is the email and would
+            // never match, reporting failure for a login that just happened.
+            $logged_in = ( is_user_logged_in() && $current_user->user_login === $user->user_login );
 
             if ( $logged_in ) {
                 $this->check_compatible_connect_info();
