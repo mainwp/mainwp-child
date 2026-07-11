@@ -268,4 +268,50 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'backup_task_prune', $map );
 		$this->assertTrue( method_exists( $callable, 'backup_task_prune' ) );
 	}
+
+	/**
+	 * The by-name deletion helper removes every file the cursor names -
+	 * including the mid-flight db fragments and partial archive prune_task
+	 * never covered - and nothing the cursor does not name.
+	 */
+	public function test_delete_artifact_files_removes_named_partials_only() {
+		$spine = MainWP_Child_Backup_Task::instance();
+
+		$artifact = $this->backup_dir . '/backup-done.tar';
+		$part     = $this->backup_dir . '/plugins.part001.zip';
+		$dump     = $this->backup_dir . '/dbBackup-run-part1.sql';
+		$marker   = $this->backup_dir . '/dbBackup-run.sql';
+		$partial  = $this->backup_dir . '/backup-partial.tar';
+		$manifest = $this->backup_dir . '/parent-manifest-abc123def456.list';
+		$chain    = $this->backup_dir . '/files.list';
+		$keep     = $this->backup_dir . '/backup-keep.tar';
+		foreach ( array( $artifact, $part, $dump, $marker, $partial, $manifest, $chain, $keep ) as $file ) {
+			file_put_contents( $file, 'x' );
+		}
+
+		$spine->delete_artifact_files(
+			array(
+				'artifact'     => array(
+					'file' => 'backup-done.tar',
+					'size' => 1,
+				),
+				'artifacts'    => array(
+					array( 'file' => 'plugins.part001.zip' ),
+				),
+				'db_files'     => array( $dump, $marker ),
+				'archive_file' => 'backup-partial.tar',
+				'params'       => array( 'parent_manifest_file' => 'parent-manifest-abc123def456.list' ),
+			),
+			$this->backup_dir
+		);
+
+		$this->assertFileDoesNotExist( $artifact );
+		$this->assertFileDoesNotExist( $part );
+		$this->assertFileDoesNotExist( $dump );
+		$this->assertFileDoesNotExist( $marker );
+		$this->assertFileDoesNotExist( $partial );
+		$this->assertFileDoesNotExist( $manifest );
+		$this->assertFileExists( $chain, 'The promoted chain base is never named by a cursor and must survive' );
+		$this->assertFileExists( $keep, 'Files the cursor does not name must survive' );
+	}
 }

@@ -902,4 +902,58 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
 		$this->assertArrayNotHasKey( 'woo', $payload );
 	}
+
+	/**
+	 * An engine failure deletes the partial artifacts the task produced -
+	 * the cursor-named files, its token-named incremental parts, and staged
+	 * scratch - while the promoted chain base and files it never produced
+	 * survive. The recorded error must survive the cleanup.
+	 */
+	public function test_engine_failure_deletes_partial_artifacts() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->create_task( 'db' );
+		$token   = preg_replace( '/[^A-Za-z0-9]/', '', $task_id );
+
+		$artifact = $this->backup_dir . '/backup-failing.tar';
+		$dump     = $this->backup_dir . '/dbBackup-failing-part1.sql';
+		$part     = $this->backup_dir . '/plugins.' . $token . '.part001.zip';
+		$staged   = $this->backup_dir . '/files.list.staged';
+		$changes  = $this->backup_dir . '/changes.list';
+		$chain    = $this->backup_dir . '/files.list';
+		foreach ( array( $artifact, $dump, $part, $staged, $changes, $chain ) as $file ) {
+			file_put_contents( $file, 'x' ); // phpcs:ignore -- test fixture.
+		}
+
+		$task = $spine->get_task( $task_id );
+		$spine->checkpoint(
+			$task_id,
+			(int) $task->version,
+			array(
+				'phase'     => MainWP_Child_Backup_Task::PHASE_UPLOADING,
+				'sub_state' => array(
+					'params'   => array( 'ext' => 'tar' ),
+					'artifact' => array(
+						'file' => 'backup-failing.tar',
+						'size' => 1,
+					),
+					'db_files' => array( $dump ),
+				),
+			)
+		);
+		$this->runner->stubs['perform_upload'] = new MainWP_Exception( 'upload exploded', null, 'mainwp_backup_upload_failed' );
+
+		$task = $this->advance( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$sub_state = $spine->read_sub_state( $task, $this->backup_dir );
+		$this->assertSame( 'upload exploded', $sub_state['error']['message'], 'The recorded error must survive the cleanup' );
+
+		$this->assertFileDoesNotExist( $artifact );
+		$this->assertFileDoesNotExist( $dump );
+		$this->assertFileDoesNotExist( $part, 'Token-named incremental parts belong to the failed task' );
+		$this->assertFileDoesNotExist( $staged, 'Unpromoted staged manifests belong to the failed run' );
+		$this->assertFileDoesNotExist( $changes );
+		$this->assertFileExists( $chain, 'The promoted chain base must survive' );
+		$this->assertFileExists( $this->backup_dir . '/backup-artifact.tar', 'Files the failed task never produced must survive' );
+	}
 }

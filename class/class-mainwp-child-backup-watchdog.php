@@ -177,11 +177,14 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
                 }
 
                 // A forced-terminal backup never runs the runner's terminal
-                // sweep, so its spilled walk-run files would linger until the
-                // next backup wipes the scratch dir; sweep them here.
+                // sweep. Delete the partial artifacts its cursor names - the
+                // capped checkpoint above overwrote the row, so cleanup reads
+                // the pre-fail $task (its sidecar survives until the delete
+                // below) - plus the walk-run scratch and the sidecar.
                 if ( false !== $capped && ! MainWP_Child_Backup_Task::is_restore_type( $task->type ) ) {
                     $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
-                    MainWP_Child_Backup_Task_Runner::instance()->cleanup_walk_runs( $dirs[0] );
+                    MainWP_Child_Backup_Task_Runner::instance()->cleanup_failed_task_artifacts( $task->task_id, $spine->read_sub_state( $task, $dirs[0] ), $dirs[0] );
+                    $spine->delete_sidecar( $task->task_id, $dirs[0] );
                 }
                 continue;
             }

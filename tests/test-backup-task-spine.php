@@ -952,4 +952,111 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 		$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_STALLED, $payload['error_code'] );
 		$this->assertNotEmpty( $payload['error'] );
 	}
+
+	/**
+	 * A wall-clock forced failure deletes the partial artifacts the task's
+	 * own cursor names, plus its sidecar, while still recording the error.
+	 * Files the cursor does not name survive.
+	 */
+	public function test_wall_clock_failure_deletes_partial_artifacts() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$dirs    = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' );
+		$dir     = rtrim( $dirs[0], '/' );
+		$task_id = $spine->create_task( 'full' );
+
+		$partial  = $dir . '/backup-wallclock-partial.tar';
+		$dump     = $dir . '/dbBackup-wallclock-part1.sql';
+		$survivor = $dir . '/files.list';
+		$sidecar  = $dir . '/task_substate-' . $task_id . '-v1.json';
+		foreach ( array( $partial, $dump, $survivor, $sidecar ) as $file ) {
+			file_put_contents( $file, 'x' ); // phpcs:ignore -- test fixture.
+		}
+
+		try {
+			$spine->checkpoint(
+				$task_id,
+				0,
+				array(
+					'phase'     => MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES,
+					'sub_state' => array(
+						'archive_file' => 'backup-wallclock-partial.tar',
+						'db_files'     => array( $dump ),
+					),
+				)
+			);
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET max_wall_clock_at = DATE_SUB(NOW(), INTERVAL 60 SECOND) WHERE task_id = %s', $task_id ) ); // phpcs:ignore -- test fixture.
+
+			$this->assertTrue( $spine->enforce_wall_clock_deadline( $task_id ) );
+
+			$task = $spine->get_task( $task_id );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+
+			$payload = $spine->status_payload( $task );
+			$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_WALL_CLOCK, $payload['error_code'], 'The recorded reason must survive the cleanup' );
+
+			$this->assertFileDoesNotExist( $partial );
+			$this->assertFileDoesNotExist( $dump );
+			$this->assertFileDoesNotExist( $sidecar, 'The wall-clock path must sweep the sidecar like every other terminal transition' );
+			$this->assertFileExists( $survivor, 'The promoted chain base must survive a forced failure' );
+		} finally {
+			foreach ( array( $partial, $dump, $survivor, $sidecar ) as $file ) {
+				if ( is_file( $file ) ) {
+					unlink( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- test cleanup.
+				}
+			}
+		}
+	}
+
+	/**
+	 * The watchdog's resume-cap forced failure deletes the partial artifacts
+	 * the task's own cursor names and its sidecar, like every other path to
+	 * a failed backup.
+	 */
+	public function test_watchdog_cap_failure_deletes_partial_artifacts() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$dirs    = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' );
+		$dir     = rtrim( $dirs[0], '/' );
+		$task_id = $spine->create_task( 'full' );
+
+		$partial  = $dir . '/backup-capped-partial.tar';
+		$dump     = $dir . '/dbBackup-capped-part1.sql';
+		$survivor = $dir . '/files.list';
+		$sidecar  = $dir . '/task_substate-' . $task_id . '-v1.json';
+		foreach ( array( $partial, $dump, $survivor, $sidecar ) as $file ) {
+			file_put_contents( $file, 'x' ); // phpcs:ignore -- test fixture.
+		}
+
+		try {
+			$spine->checkpoint(
+				$task_id,
+				0,
+				array(
+					'phase'     => MainWP_Child_Backup_Task::PHASE_DUMPING_DB,
+					'sub_state' => array(
+						'archive_file' => 'backup-capped-partial.tar',
+						'db_files'     => array( $dump ),
+					),
+				)
+			);
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET resume_count = max_resumes, last_progress_at = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE task_id = %s', $task_id ) ); // phpcs:ignore -- test fixture.
+
+			\MainWP\Child\MainWP_Child_Backup_Watchdog::instance()->check_tasks( 1 );
+
+			$task = $spine->get_task( $task_id );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+
+			$this->assertFileDoesNotExist( $partial );
+			$this->assertFileDoesNotExist( $dump );
+			$this->assertFileDoesNotExist( $sidecar );
+			$this->assertFileExists( $survivor );
+		} finally {
+			foreach ( array( $partial, $dump, $survivor, $sidecar ) as $file ) {
+				if ( is_file( $file ) ) {
+					unlink( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- test cleanup.
+				}
+			}
+		}
+	}
 }

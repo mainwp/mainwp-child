@@ -412,7 +412,18 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 }
             }
         } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - any engine failure must reach a terminal phase.
-            $code        = ( $e instanceof MainWP_Exception ) ? $e->get_message_error_code() : '';
+            $code = ( $e instanceof MainWP_Exception ) ? $e->get_message_error_code() : '';
+
+            // Capture the cursor BEFORE the failure checkpoint replaces it
+            // with the error: it holds the only record of which files this
+            // task produced. The fresh row read beats the loop's local copy
+            // because a phase may checkpoint progress and then throw.
+            $failed_row = $spine->get_task( $task_id );
+            $pre_fail   = null !== $failed_row ? $spine->read_sub_state( $failed_row, $backup_dir ) : null;
+            if ( ! is_array( $pre_fail ) && isset( $sub_state ) && is_array( $sub_state ) ) {
+                $pre_fail = $sub_state;
+            }
+
             $new_version = $spine->checkpoint(
                 $task_id,
                 $version,
@@ -428,7 +439,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             );
             if ( false !== $new_version ) {
                 $version = $new_version;
-                $this->cleanup_walk_runs( $backup_dir );
+                $this->cleanup_failed_task_artifacts( $task_id, $pre_fail, $backup_dir );
                 $spine->delete_sidecar( $task_id, $backup_dir );
             }
         }
@@ -1584,6 +1595,55 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         foreach ( (array) glob( $dir . MainWP_Child_Backup_File_Walker::RUN_PREFIX . '*' ) as $run ) {
             wp_delete_file( $run ); // NOSONAR .
         }
+    }
+
+    /**
+     * Delete a failed backup task's own leftovers from the backup directory:
+     * every file its pre-fail cursor names, its token-named incremental zip
+     * parts, the staged/diff scratch only a live run consumes, and the
+     * walk-run spill files. The promoted files.list/paths.cache pair is the
+     * incremental chain base from the last completed run and is never
+     * touched. Callers pass the cursor captured BEFORE the failure
+     * checkpoint - the checkpoint overwrites the row with the error, which
+     * is exactly how these files used to become undeletable.
+     *
+     * @param string     $task_id    Task id.
+     * @param array|null $sub_state  Pre-fail cursor, null when unrecoverable.
+     * @param string     $backup_dir Backup directory.
+     */
+    public function cleanup_failed_task_artifacts( $task_id, $sub_state, $backup_dir ) {
+        MainWP_Child_Backup_Task::instance()->delete_artifact_files( $sub_state, $backup_dir );
+
+        $dir = rtrim( $backup_dir, '/' ) . '/';
+
+        // Incremental zip parts fold the task token into their name - the
+        // one archive shape safely globbable per task.
+        $token = preg_replace( '/[^A-Za-z0-9]/', '', (string) $task_id );
+        if ( '' !== $token ) {
+            foreach ( (array) glob( $dir . '*.' . $token . '.part*.zip' ) as $part ) {
+                if ( is_file( $part ) ) {
+                    wp_delete_file( $part );
+                }
+            }
+        }
+
+        // Fixed-name scratch only the failed run itself could own (the
+        // single-task invariant): unpromoted staged manifests and the diff
+        // sidecars. Promotion to files.list/paths.cache happens only on
+        // completion, so the promoted names stay.
+        $scratch = array(
+            MainWP_Child_Backup_File_Walker::FILES_LIST . MainWP_Child_Backup_File_Walker::STAGED_SUFFIX,
+            MainWP_Child_Backup_File_Walker::PATHS_CACHE . MainWP_Child_Backup_File_Walker::STAGED_SUFFIX,
+            MainWP_Child_Backup_Incremental_Diff::CHANGES_LIST,
+            MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST,
+        );
+        foreach ( $scratch as $name ) {
+            if ( is_file( $dir . $name ) ) {
+                wp_delete_file( $dir . $name );
+            }
+        }
+
+        $this->cleanup_walk_runs( $backup_dir );
     }
 
     /**

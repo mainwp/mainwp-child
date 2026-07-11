@@ -666,12 +666,15 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             MainWP_Child_Restore_Task_Runner::instance()->cleanup_terminal_task( $task );
         }
 
-        // A forced-terminal backup never runs the runner's terminal sweep, so
-        // its spilled walk-run files would linger until the next backup wipes
-        // the scratch dir; sweep them here.
+        // A forced-terminal backup never runs the runner's terminal sweep.
+        // Delete the partial artifacts its cursor names - the fail write
+        // above overwrote the row, so cleanup reads the pre-fail $task (its
+        // sidecar survives until the delete below) - plus the walk-run
+        // scratch and the sidecar this path used to leave behind.
         if ( 1 === $result && ! self::is_restore_type( $task->type ) ) {
             $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
-            MainWP_Child_Backup_Task_Runner::instance()->cleanup_walk_runs( $dirs[0] );
+            MainWP_Child_Backup_Task_Runner::instance()->cleanup_failed_task_artifacts( $task_id, $this->read_sub_state( $task, $dirs[0] ), $dirs[0] );
+            $this->delete_sidecar( $task_id, $dirs[0] );
         }
 
         return 1 === $result;
@@ -899,32 +902,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         }
 
         $sub_state = $this->read_sub_state( $task, $backup_dir );
-        $files     = array();
-
-        if ( is_array( $sub_state ) ) {
-            if ( isset( $sub_state['artifact']['file'] ) ) {
-                $files[] = (string) $sub_state['artifact']['file'];
-            }
-            if ( ! empty( $sub_state['artifacts'] ) && is_array( $sub_state['artifacts'] ) ) {
-                foreach ( $sub_state['artifacts'] as $entry ) {
-                    if ( ! empty( $entry['file'] ) ) {
-                        $files[] = (string) $entry['file'];
-                    }
-                }
-            }
-            // A spilled parent manifest that was never consumed (the task died
-            // before its first incremental slice) would otherwise linger.
-            if ( ! empty( $sub_state['params']['parent_manifest_file'] ) ) {
-                $files[] = (string) $sub_state['params']['parent_manifest_file'];
-            }
-        }
-
-        foreach ( array_unique( $files ) as $file ) {
-            $path = rtrim( $backup_dir, '/' ) . '/' . basename( $file );
-            if ( is_file( $path ) ) {
-                wp_delete_file( $path );
-            }
-        }
+        $this->delete_artifact_files( $sub_state, $backup_dir );
 
         $this->delete_sidecar( $task_id, $backup_dir );
 
@@ -949,6 +927,60 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         );
 
         return 'pruned';
+    }
+
+    /**
+     * Delete every backup-directory file a task's cursor names: the produced
+     * artifact(s), mid-flight db dump fragments and partial archive a failed
+     * task leaves behind, and a spilled parent manifest that was never
+     * consumed. Deletion is only ever by name from the task's own cursor -
+     * never by pattern - so another run's files cannot be touched. Quiet
+     * no-op on an unreadable cursor.
+     *
+     * @param array|null $sub_state  Task cursor.
+     * @param string     $backup_dir Backup directory holding the artifacts.
+     */
+    public function delete_artifact_files( $sub_state, $backup_dir ) {
+        if ( ! is_array( $sub_state ) ) {
+            return;
+        }
+
+        $files = array();
+        if ( isset( $sub_state['artifact']['file'] ) ) {
+            $files[] = (string) $sub_state['artifact']['file'];
+        }
+        if ( ! empty( $sub_state['artifacts'] ) && is_array( $sub_state['artifacts'] ) ) {
+            foreach ( $sub_state['artifacts'] as $entry ) {
+                if ( ! empty( $entry['file'] ) ) {
+                    $files[] = (string) $entry['file'];
+                }
+            }
+        }
+        // Mid-flight names only a task that never completed still carries:
+        // dump fragments not yet folded into the artifact and the partial
+        // archive still being appended to.
+        if ( ! empty( $sub_state['db_files'] ) && is_array( $sub_state['db_files'] ) ) {
+            foreach ( $sub_state['db_files'] as $db_file ) {
+                if ( is_string( $db_file ) && '' !== $db_file ) {
+                    $files[] = $db_file;
+                }
+            }
+        }
+        if ( ! empty( $sub_state['archive_file'] ) && is_string( $sub_state['archive_file'] ) ) {
+            $files[] = $sub_state['archive_file'];
+        }
+        // A spilled parent manifest that was never consumed (the task died
+        // before its first incremental slice) would otherwise linger.
+        if ( ! empty( $sub_state['params']['parent_manifest_file'] ) ) {
+            $files[] = (string) $sub_state['params']['parent_manifest_file'];
+        }
+
+        foreach ( array_unique( $files ) as $file ) {
+            $path = rtrim( $backup_dir, '/' ) . '/' . basename( $file );
+            if ( is_file( $path ) ) {
+                wp_delete_file( $path );
+            }
+        }
     }
 
     /**
