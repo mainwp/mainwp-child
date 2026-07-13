@@ -145,6 +145,14 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
         }
 
+        // The other half of the single-backup invariant: a legacy Run Now
+        // holds no spine row, only a *.pid file, so a fresh one must block a
+        // new task the same way an active spine task blocks a legacy Run Now
+        // (see MainWP_Backup::assert_no_active_spine_task()).
+        if ( MainWP_Backup::is_pid_lock_fresh( $this->backup_dir() ) ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+
         $task_id = $spine->create_task( $type, array( 'params' => is_array( $params ) ? $params : array() ) );
         if ( false === $task_id ) {
             throw new MainWP_Exception( 'The backup task could not be created on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.

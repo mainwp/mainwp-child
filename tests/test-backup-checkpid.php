@@ -91,4 +91,47 @@ class BackupCheckpidTest extends WP_UnitTestCase {
 		$this->assertSame( 'busy', $backup->get_checkpid_status( $now - 299, $this->scratch, $now ) );
 		$this->assertSame( 'stalled', $backup->get_checkpid_status( $now - 300, $this->scratch, $now ) );
 	}
+
+	/**
+	 * A fresh pid file (mtime under the 160s window) is a held lock.
+	 */
+	public function test_is_pid_lock_fresh_detects_recent_pid_file() {
+		$pid_file = $this->scratch . '/backup-123.pid';
+		file_put_contents( $pid_file, 'legacy' );
+		touch( $pid_file, time() );
+
+		$this->assertTrue( MainWP_Backup::is_pid_lock_fresh( $this->scratch ) );
+	}
+
+	/**
+	 * A pid file older than the 160s window is not treated as a live lock -
+	 * the same freshness boundary create_full_backup() uses.
+	 */
+	public function test_is_pid_lock_fresh_ignores_stale_pid_file() {
+		$pid_file = $this->scratch . '/backup-123.pid';
+		file_put_contents( $pid_file, 'legacy' );
+		touch( $pid_file, time() - 161 );
+
+		$this->assertFalse( MainWP_Backup::is_pid_lock_fresh( $this->scratch ) );
+	}
+
+	/**
+	 * A caller's own pid file (the $except_pid_path it will itself write) is
+	 * never counted against it, matching create_full_backup()'s original
+	 * basename-skip behavior.
+	 */
+	public function test_is_pid_lock_fresh_skips_the_callers_own_pid_file() {
+		$own_pid = $this->scratch . '/backup-999.pid';
+		file_put_contents( $own_pid, 'self' );
+		touch( $own_pid, time() );
+
+		$this->assertFalse( MainWP_Backup::is_pid_lock_fresh( $this->scratch, $own_pid ) );
+	}
+
+	/**
+	 * No pid files at all is not a held lock.
+	 */
+	public function test_is_pid_lock_fresh_false_when_no_pid_files() {
+		$this->assertFalse( MainWP_Backup::is_pid_lock_fresh( $this->scratch ) );
+	}
 }

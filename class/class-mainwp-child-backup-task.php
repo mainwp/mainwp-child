@@ -80,6 +80,16 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     const WALL_CLOCK_WINDOW_SECONDS = ( self::DEFAULT_MAX_RESUMES + 2 ) * self::SLICE_BUDGET_SECONDS * 4;
 
     /**
+     * Reclaim window for a task that is still queued - it has never advanced
+     * its first slice, so resume_count is not a reliable staleness signal.
+     * The dashboard's continue cron drives the first slice within ~5
+     * minutes; 15 minutes leaves 3 cycles of margin before a never-started
+     * task is treated as abandoned, well short of the full wall-clock window
+     * granted to a task that has actually made progress.
+     */
+    const QUEUED_STALL_WINDOW_SECONDS = 15 * MINUTE_IN_SECONDS;
+
+    /**
      * Fresh wall-clock budget granted to a foreign-key rollback when a replay
      * is rerouted to it at its deadline, so the recovery has time to finish.
      */
@@ -647,13 +657,20 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             )
         );
 
+        // A still-queued task is failed once it has sat untouched past the
+        // shorter stall window, even while its full wall-clock deadline is
+        // still in the future - see QUEUED_STALL_WINDOW_SECONDS.
         $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- conditional terminal write on the spine table.
             $wpdb->prepare(
                 'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
                 " SET phase = 'failed', sub_state = %s, version = version + 1
-                 WHERE task_id = %s AND phase NOT IN ('completed','failed') AND max_wall_clock_at < NOW()",
+                 WHERE task_id = %s AND phase NOT IN ('completed','failed')
+                   AND ( max_wall_clock_at < NOW()
+                         OR ( phase = %s AND started_at < DATE_SUB( NOW(), INTERVAL %d SECOND ) ) )",
                 $sub_state,
-                $task_id
+                $task_id,
+                self::PHASE_QUEUED,
+                self::QUEUED_STALL_WINDOW_SECONDS
             )
         );
 

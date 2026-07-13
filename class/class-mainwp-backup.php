@@ -283,15 +283,8 @@ class MainWP_Backup {
         }
 
         // Verify if another backup is running, if so, return an error.
-        $files = glob( $backupdir . '*.pid' );
-        foreach ( $files as $file ) {
-            if ( basename( $file ) === basename( $pid ) ) {
-                continue;
-            }
-
-            if ( ( time() - filemtime( $file ) ) < 160 ) {
-                MainWP_Helper::instance()->error( esc_html__( 'Another backup process is running. Please, try again later.', 'mainwp-child' ) );
-            }
+        if ( self::is_pid_lock_fresh( $backupdir, $pid ) ) {
+            MainWP_Helper::instance()->error( esc_html__( 'Another backup process is running. Please, try again later.', 'mainwp-child' ), MainWP_Backup_Error::ERR_ALREADY_RUNNING );
         }
 
         $timestamp = time();
@@ -357,6 +350,38 @@ class MainWP_Backup {
             'file'      => $fileurl,
             'filesize'  => filesize( $filepath ), // NOSONAR .
         ) : false;
+    }
+
+    /**
+     * Whether a legacy pid lock is currently held: a `*.pid` file in the
+     * backup directory fresher than the window create_full_backup() treats
+     * as a live process.
+     *
+     * Extracted from create_full_backup()'s inline glob so a caller with no
+     * pid of its own (the task spine, before it creates a task) can check
+     * the same lock. The task spine's get_active_tasks() and this pid lock
+     * are two independent single-backup invariants that do not see each
+     * other on their own.
+     *
+     * @param string      $backupdir       Backup directory (glob'd for `*.pid`).
+     * @param string|bool $except_pid_path The caller's own pid file path (skipped), or false for none.
+     *
+     * @return bool True when a fresh pid lock is held by another process.
+     */
+    public static function is_pid_lock_fresh( $backupdir, $except_pid_path = false ) {
+        $files = glob( trailingslashit( $backupdir ) . '*.pid' );
+        if ( ! is_array( $files ) ) {
+            return false;
+        }
+        foreach ( $files as $file ) {
+            if ( basename( $file ) === basename( $except_pid_path ) ) {
+                continue;
+            }
+            if ( ( time() - filemtime( $file ) ) < 160 ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -591,6 +616,34 @@ class MainWP_Backup {
     }
 
     /**
+     * Refuse a legacy Run Now while a task-spine backup is active.
+     *
+     * The task spine's get_active_tasks() and this engine's pid-file lock
+     * (is_pid_lock_fresh()) are two independent single-backup invariants
+     * that do not see each other: a legacy Run Now could otherwise start
+     * while a spine task is mid-slice, and the spine's next slice would then
+     * die on the pid lock instead of reporting a coded refusal up front.
+     * Expired orphans are reclaimed first, so a stale non-terminal row left
+     * by a crashed slice never blocks a legitimate legacy request forever.
+     * Gated on the spine table actually being installed - a site that has
+     * never run a native backup has nothing to check.
+     *
+     * @throws MainWP_Exception When a spine task is active.
+     */
+    public function assert_no_active_spine_task() {
+        if ( MainWP_Child_Backup_Task::DB_VERSION !== get_option( MainWP_Child_Backup_Task::DB_VERSION_OPTION ) ) {
+            return;
+        }
+
+        $spine = MainWP_Child_Backup_Task::instance();
+        $spine->reclaim_expired_tasks();
+
+        if ( ! empty( $spine->get_active_tasks() ) ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+    }
+
+    /**
      * Perform a backup.
      *
      * @param bool $write Whether or not to execute MainWP_Helper::write(), Default: true.
@@ -613,6 +666,7 @@ class MainWP_Backup {
     public function backup( $write = true ) {
 
         try {
+            $this->assert_no_active_spine_task();
             $this->check_backup_readiness();
         } catch ( MainWP_Exception $e ) {
             MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );

@@ -462,6 +462,73 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The legacy Run Now entry point refuses to start while a spine task is
+	 * active - the two single-backup invariants (spine active-task, legacy
+	 * pid lock) do not see each other on their own, so the legacy engine
+	 * must check the spine explicitly instead of only its own pid file.
+	 */
+	public function test_backup_refuses_when_spine_task_active() {
+		\MainWP\Child\MainWP_Child_Backup_Task_Runner::instance()->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
+
+		try {
+			\MainWP\Child\MainWP_Backup::get()->assert_no_active_spine_task();
+			$this->fail( 'A legacy Run Now must be refused while a spine task is active' );
+		} catch ( \MainWP\Child\MainWP_Exception $e ) {
+			$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+		}
+	}
+
+	/**
+	 * With no spine task active, the legacy entry point's guard is a no-op.
+	 */
+	public function test_backup_allows_when_no_spine_task_active() {
+		$this->expectNotToPerformAssertions();
+		\MainWP\Child\MainWP_Backup::get()->assert_no_active_spine_task();
+	}
+
+	/**
+	 * A fresh legacy pid lock blocks a new spine task the same way an
+	 * active spine task blocks a legacy Run Now - the other half of the
+	 * single-backup invariant. No task row is left behind by the refusal.
+	 */
+	public function test_create_task_for_params_rejects_fresh_pid_lock() {
+		$runner     = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+		$backup_dir = rtrim( \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' )[0], '/' );
+		$pid_file   = $backup_dir . '/backup-live999.pid';
+		file_put_contents( $pid_file, 'legacy' ); // phpcs:ignore -- test fixture.
+		touch( $pid_file, time() );
+
+		try {
+			$runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
+			$this->fail( 'A fresh legacy pid lock must block a new spine task' );
+		} catch ( \MainWP\Child\MainWP_Exception $e ) {
+			$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+		} finally {
+			unlink( $pid_file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- test cleanup.
+		}
+
+		$this->assertEmpty( MainWP_Child_Backup_Task::instance()->get_active_tasks() );
+	}
+
+	/**
+	 * A pid file past the 160s freshness window is a stale lock and does not
+	 * block a new spine task.
+	 */
+	public function test_create_task_for_params_allows_stale_pid_lock() {
+		$runner     = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+		$backup_dir = rtrim( \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' )[0], '/' );
+		$pid_file   = $backup_dir . '/backup-stale999.pid';
+		file_put_contents( $pid_file, 'legacy' ); // phpcs:ignore -- test fixture.
+		touch( $pid_file, time() - 161 );
+
+		try {
+			$this->assertNotEmpty( $runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) ) );
+		} finally {
+			unlink( $pid_file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- test cleanup.
+		}
+	}
+
+	/**
 	 * A terminal task can be created over - finished work never blocks the
 	 * next backup.
 	 */
@@ -831,6 +898,58 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 		$this->assertFalse( $spine->enforce_wall_clock_deadline( $task_id2 ) );
 		$task2 = $spine->get_task( $task_id2 );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $task2->phase );
+	}
+
+	/**
+	 * A task that has never left the queued phase is reclaimed after the
+	 * shorter 15-minute stall window, even though its full wall-clock
+	 * deadline (~48 min) has not expired - resume_count is not a reliable
+	 * staleness signal for a task that never advanced its first slice.
+	 */
+	public function test_enforce_wall_clock_deadline_reclaims_stale_queued_task() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full' );
+
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET started_at = DATE_SUB(NOW(), INTERVAL 901 SECOND) WHERE task_id = %s', $task_id ) ); // phpcs:ignore -- test fixture.
+
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $task->phase );
+
+		// Compared DB-side to avoid a PHP/MySQL timezone mismatch skewing a
+		// PHP-side strtotime() comparison against the stored datetime.
+		$still_future = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT max_wall_clock_at > NOW() FROM ' . $spine->get_table_name() . ' WHERE task_id = %s', $task_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper, test assertion query.
+		$this->assertSame( 1, $still_future, 'The full wall-clock deadline must still be in the future.' );
+
+		$this->assertTrue( $spine->enforce_wall_clock_deadline( $task_id ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $spine->get_task( $task_id )->phase );
+	}
+
+	/**
+	 * A queued task younger than the 15-minute stall window is left alone.
+	 */
+	public function test_enforce_wall_clock_deadline_keeps_fresh_queued_task() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full' );
+
+		$this->assertFalse( $spine->enforce_wall_clock_deadline( $task_id ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $spine->get_task( $task_id )->phase );
+	}
+
+	/**
+	 * The 15-minute queued stall window only shortens the deadline for a
+	 * task still in the queued phase - a task that has actually started work
+	 * keeps its full wall-clock window.
+	 */
+	public function test_enforce_wall_clock_deadline_does_not_shorten_started_task() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full' );
+
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . " SET phase = 'dumping_db', started_at = DATE_SUB(NOW(), INTERVAL 901 SECOND) WHERE task_id = %s", $task_id ) ); // phpcs:ignore -- test fixture.
+
+		$this->assertFalse( $spine->enforce_wall_clock_deadline( $task_id ), 'A started task must not be reclaimed by the queued stall window.' );
+		$this->assertSame( 'dumping_db', $spine->get_task( $task_id )->phase );
 	}
 
 	/**
