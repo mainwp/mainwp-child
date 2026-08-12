@@ -86,8 +86,8 @@ class MainWP_Child_WooCommerce_Status {
         if ( ! empty( $mwp_action ) ) {
             switch ( $mwp_action ) {
                 case 'sync_data':
-                    $include_last_7_days_sales = '1' === MainWP_System::instance()->validate_params( 'include_last_7_days_sales', '0' );
-                    $information               = ! $is_ver220 ? $this->sync_data( $include_last_7_days_sales ) : $this->sync_data_two( $include_last_7_days_sales );
+                    $include_weekly_sales = '1' === MainWP_System::instance()->validate_params( 'include_last_7_days_sales', '0' );
+                    $information          = ! $is_ver220 ? $this->sync_data( $include_weekly_sales ) : $this->sync_data_two( $include_weekly_sales );
                     break;
                 case 'report_data':
                     $information = ! $is_ver220 ? $this->report_data() : $this->report_data_two();
@@ -122,6 +122,9 @@ class MainWP_Child_WooCommerce_Status {
      * @param bool $include_last_7_days_sales Whether to include sales from the last seven days.
      *
      * @return array $information Woocommerce data grabed.
+     *
+     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
+     * @SuppressWarnings(PHPMD.LongVariable)
      */
     public function sync_data( $include_last_7_days_sales = false ) {
 
@@ -418,6 +421,8 @@ class MainWP_Child_WooCommerce_Status {
      * Sync Woocommerce data for current month.
      *
      * @param bool $include_last_7_days_sales Whether to include sales from the last seven days.
+     *
+     * @SuppressWarnings(PHPMD.LongVariable)
      */
     public function sync_data_two( $include_last_7_days_sales = false ) {
         $start_date = date( 'Y-m-01 00:00:00', time() ); // phpcs:ignore -- local time.
@@ -919,6 +924,9 @@ class MainWP_Child_WooCommerce_Status {
      * @param bool   $use_wordpress_timezone Whether to format the range in the WordPress timezone.
      *
      * @return int $total_sales Total sales.
+     *
+     * @SuppressWarnings(PHPMD.LongVariable)
+     * @SuppressWarnings(PHPMD.Superglobals)
      */
     public function get_total_sales( $start_date, $end_date, $use_wordpress_timezone = false ) {
 
