@@ -659,7 +659,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      * @param bool   $exit_error Wether exit error.
      * @param bool   $check_login_required Wether check login requires request.
      *
-     * @return void
+     * @return string|void Error message when $exit_error is false, exits otherwise.
      */
     public static function handle_signature_error( $error_code, $exit_error = true, $check_login_required = true ) {
         $err_msg = '';
@@ -1395,7 +1395,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * Check if authentication is valid.
      *
-     * @param  string $key Contains the authentication key to check.
+     * @param  string $signature Contains the authentication signature to check.
      *
      * @return bool true|false If valid authentication, return true, if not, return false.
      */

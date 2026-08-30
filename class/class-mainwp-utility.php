@@ -904,7 +904,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
      * Close connection.
      *
      * @param array $val Array containing connection information.
-     * @param bool $http2 http connection close.
+     * @param bool  $http2 http connection close.
      */
     public static function close_connection( $val = null, $http2 = false ) {
 
