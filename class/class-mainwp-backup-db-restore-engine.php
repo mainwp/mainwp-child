@@ -604,14 +604,21 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
     /**
      * List current table names.
      *
+     * Returns null when the enumeration query itself fails, so callers can tell
+     * a genuinely empty database from a connection that could not answer - the
+     * two look identical once query_rows() has coerced a failure to no rows.
+     *
      * @param object $conn Connection.
      *
-     * @return string[] Table names.
+     * @return string[]|null Table names, or null when SHOW TABLES failed.
      */
     private function list_tables( $conn ) {
-        $rows   = $this->query_rows( $conn, 'SHOW TABLES' );
+        $rows = $this->query_rows( $conn, 'SHOW TABLES' );
+        if ( null === $rows ) {
+            return null;
+        }
         $tables = array();
-        foreach ( (array) $rows as $row ) {
+        foreach ( $rows as $row ) {
             $values = array_values( (array) $row );
             if ( isset( $values[0] ) ) {
                 $tables[] = (string) $values[0];
@@ -630,7 +637,7 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
         if ( ! is_object( $conn ) ) {
             return;
         }
-        foreach ( $this->list_tables( $conn ) as $table ) {
+        foreach ( (array) $this->list_tables( $conn ) as $table ) {
             if ( 0 === strpos( $table, $prefix ) ) {
                 $this->execute_statement( $conn, 'DROP TABLE IF EXISTS ' . $this->quote_ident( $table ) );
             }
@@ -670,7 +677,7 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
             $this->close_connection( $conn );
             return;
         }
-        foreach ( $this->list_tables( $conn ) as $table ) {
+        foreach ( (array) $this->list_tables( $conn ) as $table ) {
             foreach ( $prefixes as $prefix ) {
                 if ( 0 === strpos( $table, $prefix ) ) {
                     $this->execute_statement( $conn, 'DROP TABLE IF EXISTS ' . $this->quote_ident( $table ) );
@@ -905,13 +912,25 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
      * @param string   $target_prefix Live table prefix.
      * @param string[] $skip_stems    Bare stems never replayed.
      *
+     * @throws MainWP_Exception When the live tables cannot be enumerated (a
+     *                          failed connect or SHOW TABLES). An enumeration
+     *                          failure must not read as an empty live set: the
+     *                          caller would treat it as a fresh install with
+     *                          nothing to snapshot and replay in place with no
+     *                          rollback source, losing the live tables on a
+     *                          replay failure.
+     *
      * @return array { existing: string[] live table names, new_stems: string[] bare stems }
      */
     public function list_dump_live_tables( $files, $source_prefix, $target_prefix, $skip_stems = array() ) {
         $conn = $this->connect();
-        $live = is_object( $conn ) ? $this->list_tables( $conn ) : array();
-        if ( is_object( $conn ) ) {
-            $this->close_connection( $conn );
+        if ( ! is_object( $conn ) ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED ) ), null, MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+        }
+        $live = $this->list_tables( $conn );
+        $this->close_connection( $conn );
+        if ( null === $live ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED ) ), null, MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
         }
 
         $existing = array();

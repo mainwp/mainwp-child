@@ -140,7 +140,6 @@ class MainWP_Child_CLI_Restore_Runner {
             'source_prefix'    => '',
             'artifacts'        => $this->build_artifacts( $path, $archive, $sub_type ),
             'has_foreign_keys' => null,
-            'file_rollback'    => false,
         );
 
         try {

@@ -907,7 +907,6 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             'source_prefix'    => $source_prefix,
             'artifacts'        => $artifacts,
             'has_foreign_keys' => isset( $options['has_foreign_keys'] ) ? $options['has_foreign_keys'] : null,
-            'file_rollback'    => ! empty( $options['file_rollback'] ),
             // WooCommerce order preservation: keep the live order tables and
             // re-merge the customers and stock they reference. woo_order_since
             // is the backup's created time, used only to bound the customer

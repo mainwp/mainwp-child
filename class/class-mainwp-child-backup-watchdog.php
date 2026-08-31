@@ -92,12 +92,23 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
 
     /**
      * Disarm the watchdog event (no active tasks left).
+     *
+     * Re-reads the active tasks immediately before unscheduling. A task created
+     * between run()'s empty-check and this call would arm() to a no-op (the
+     * event is still scheduled) and then be left unguarded by an unconditional
+     * unschedule. This shrinks - but cannot fully close - the WP-cron TOCTOU
+     * window; the task's wall-clock deadline reclaim self-heals the residual
+     * case where a row lands after this final read.
      */
     public function disarm() {
         $timestamp = wp_next_scheduled( self::CRON_HOOK );
-        if ( false !== $timestamp ) {
-            wp_unschedule_event( $timestamp, self::CRON_HOOK );
+        if ( false === $timestamp ) {
+            return;
         }
+        if ( ! empty( MainWP_Child_Backup_Task::instance()->get_active_tasks() ) ) {
+            return;
+        }
+        wp_unschedule_event( $timestamp, self::CRON_HOOK );
     }
 
     /**

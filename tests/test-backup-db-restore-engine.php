@@ -7,6 +7,7 @@
 
 use MainWP\Child\MainWP_Backup_Db_Restore_Engine;
 use MainWP\Child\MainWP_Backup_Error;
+use MainWP\Child\MainWP_Exception;
 
 /**
  * Testable engine: every database and filesystem side effect is a seam.
@@ -152,6 +153,14 @@ class Testable_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	}
 
 	/**
+	 * Whether a SHOW TABLES query reports a failure (null), modelling a
+	 * connection that cannot enumerate the live tables.
+	 *
+	 * @var bool
+	 */
+	public $fail_show_tables = false;
+
+	/**
 	 * Canned query results.
 	 *
 	 * @param object $conn Connection.
@@ -164,6 +173,9 @@ class Testable_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 			return array( array( 'map' => $this->packet ) );
 		}
 		if ( false !== stripos( $sql, 'SHOW TABLES' ) ) {
+			if ( $this->fail_show_tables ) {
+				return null;
+			}
 			$rows = array();
 			foreach ( $this->live_tables as $table ) {
 				$rows[] = array( 'name' => $table );
@@ -1013,6 +1025,62 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 
 		$this->assertSame( array( 'live_a' ), $result['existing'] );
 		$this->assertSame( array( 'b' ), $result['new_stems'] );
+	}
+
+	/**
+	 * A failed connection must not read as an empty live database. If it did,
+	 * every dump table would classify as new, the snapshot would be skipped as
+	 * a fresh install, and the in-place replay would run with no rollback
+	 * source. The enumeration failure aborts the snapshot with a coded error.
+	 */
+	public function test_list_dump_live_tables_throws_on_connect_failure() {
+		$this->engine->fail_connect_after = 0;
+		$files                            = array(
+			$this->write_dump( 'dbBackup-wp_a.sql.php', "CREATE TABLE `wp_a` (id INT);\n" ),
+		);
+
+		try {
+			$this->engine->list_dump_live_tables( $files, 'wp_', 'wp_', array() );
+			$this->fail( 'A failed connect must abort with a snapshot error, not report an empty live set.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED, $e->get_message_error_code() );
+		}
+	}
+
+	/**
+	 * A SHOW TABLES that fails on an open connection is likewise an enumeration
+	 * failure, not an empty database, so it aborts with the same coded error
+	 * rather than treating the target as a fresh install.
+	 */
+	public function test_list_dump_live_tables_throws_on_enumeration_failure() {
+		$this->engine->fail_show_tables = true;
+		$files                          = array(
+			$this->write_dump( 'dbBackup-wp_a.sql.php', "CREATE TABLE `wp_a` (id INT);\n" ),
+		);
+
+		try {
+			$this->engine->list_dump_live_tables( $files, 'wp_', 'wp_', array() );
+			$this->fail( 'A failed SHOW TABLES must abort with a snapshot error, not report an empty live set.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED, $e->get_message_error_code() );
+		}
+	}
+
+	/**
+	 * A genuinely empty live database (SHOW TABLES succeeds, returns no rows)
+	 * is not an error: every dump table classifies as new and the split is
+	 * empty-existing, so the fresh-install path stays available.
+	 */
+	public function test_list_dump_live_tables_empty_live_is_not_a_failure() {
+		$this->engine->live_tables = array();
+		$files                     = array(
+			$this->write_dump( 'dbBackup-wp_a.sql.php', "CREATE TABLE `wp_a` (id INT);\n" ),
+		);
+
+		$result = $this->engine->list_dump_live_tables( $files, 'wp_', 'wp_', array() );
+
+		$this->assertSame( array(), $result['existing'] );
+		$this->assertSame( array( 'a' ), $result['new_stems'] );
 	}
 
 	/**

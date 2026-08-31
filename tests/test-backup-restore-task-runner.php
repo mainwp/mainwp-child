@@ -286,6 +286,14 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	}
 
 	/**
+	 * Whether the dump-table split should throw a snapshot-failed error, to
+	 * model a live-table enumeration failure.
+	 *
+	 * @var bool
+	 */
+	public $list_dump_throw = false;
+
+	/**
 	 * Scripted dump-table split.
 	 *
 	 * @param string[] $files         Dump files.
@@ -297,6 +305,9 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	 */
 	public function list_dump_live_tables( $files, $source_prefix, $target_prefix, $skip_stems = array() ) {
 		$this->calls[] = 'list_dump_live_tables';
+		if ( $this->list_dump_throw ) {
+			throw new MainWP_Exception( 'could not enumerate live tables', null, MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- test fixture message.
+		}
 		return array(
 			'existing'  => $this->fk_existing,
 			'new_stems' => $this->fk_new_stems,
@@ -1858,6 +1869,30 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A live-table enumeration failure during the snapshot phase aborts the
+	 * restore before it touches the live database: the snapshot is never taken,
+	 * snapshot_done is never set, no in-place replay runs, and the snapshot-
+	 * failed code is reported. Without this an enumeration failure would read as
+	 * an empty live set and drive an unprotected in-place replay.
+	 */
+	public function test_fk_enumeration_failure_aborts_before_replay() {
+		$this->runner->fake_engine->list_dump_throw = true;
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
+		$task    = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED, $this->spine->status_payload( $task )['error_code'] );
+
+		$calls = $this->runner->fake_engine->calls;
+		$this->assertNotContains( 'snapshot_tables_slice', $calls, 'No aside copy may be written when enumeration fails.' );
+		$this->assertNotContains( 'replay_slice:fk', $calls, 'The in-place replay must not run when enumeration fails.' );
+
+		$sub_state = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertTrue( empty( $sub_state['db_replay']['snapshot_done'] ), 'snapshot_done must not be set on an enumeration failure.' );
+	}
+
+	/**
 	 * The foreign-key snapshot needs room for the aside copy. When free disk
 	 * space is below the estimate the restore fails before the site goes
 	 * offline - the live database is untouched and no replay runs.
@@ -2333,6 +2368,63 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertContains( 'exit_maintenance', $calls );
 		$this->assertNotContains( 'drop_old_tables', $calls );
 		$this->assertDirectoryDoesNotExist( $this->dir . '/restore-' . $task_id );
+	}
+
+	/**
+	 * Cancelling a foreign-key restore caught mid in-place replay must not
+	 * delete the aside snapshot dumps: they are the only rollback source and
+	 * the live tables may be half-overwritten. The cancel reroutes to the
+	 * rollback phase, keeps the scratch dir, and the runner then replays the
+	 * aside dumps back to the pre-restore state.
+	 */
+	public function test_cancel_mid_fk_replay_reroutes_to_rollback_and_keeps_aside() {
+		$this->runner->fake_engine->replay_yield_once = true;
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
+
+		// Step until the aside snapshot is taken and the first replay slice has
+		// yielded: paused in replaying_db with the live tables mid-overwrite.
+		$task  = $this->spine->get_task( $task_id );
+		$guard = 0;
+		while ( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB !== $task->phase && $guard < 20 ) {
+			$task = $this->runner->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
+			++$guard;
+		}
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $task->phase );
+		$this->assertDirectoryExists( $this->dir . '/restore-' . $task_id . '/aside' );
+
+		$outcome = $this->runner->cancel_restore_task( $task_id );
+
+		$this->assertSame( 'rolling_back', $outcome['result'], 'A mid-replay FK cancel must roll back, not clean-cancel.' );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK, $outcome['phase'] );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK, $this->spine->get_task( $task_id )->phase );
+		$this->assertDirectoryExists( $this->dir . '/restore-' . $task_id, 'The aside dumps must survive a cancel mid-replay.' );
+
+		$task = $this->drive( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_ROLLED_BACK, $this->spine->status_payload( $task )['error_code'] );
+		$this->assertContains( 'rollback_aside_slice', $this->runner->fake_engine->calls, 'The cancel must replay the aside dumps back.' );
+	}
+
+	/**
+	 * A foreign-key restore cancelled while it is already rolling back must not
+	 * have its aside dumps deleted out from under the in-progress rollback: the
+	 * cancel leaves the row rolling back rather than running terminal cleanup.
+	 */
+	public function test_cancel_during_fk_rollback_preserves_rollback() {
+		$task_id = $this->spine->create_task( 'restore_db', array( 'db_replay' => array( 'fk_path' => true, 'snapshot_done' => true ) ), 20, 3600 );
+		$version = (int) $this->spine->get_task( $task_id )->version;
+		$this->spine->checkpoint( $task_id, $version, array( 'phase' => MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK ) );
+
+		// Seed the scratch dir the rollback needs so its survival can be asserted.
+		mkdir( $this->dir . '/restore-' . $task_id . '/aside', 0777, true );
+
+		$outcome = $this->runner->cancel_restore_task( $task_id );
+
+		$this->assertSame( 'rolling_back', $outcome['result'] );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK, $this->spine->get_task( $task_id )->phase );
+		$this->assertDirectoryExists( $this->dir . '/restore-' . $task_id . '/aside', 'A cancel during rollback must not delete the aside dumps.' );
+		$this->assertNotContains( 'exit_maintenance', $this->runner->fake_engine->calls, 'A cancel during rollback must not run terminal cleanup.' );
 	}
 
 	/**

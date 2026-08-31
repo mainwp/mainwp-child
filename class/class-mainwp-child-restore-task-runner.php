@@ -98,7 +98,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @param string $sub_type 'full', 'db', or 'files'.
      * @param array  $params   Restore params persisted into the cursor:
      *                         { restore_id, source_prefix, artifacts,
-     *                         has_foreign_keys, file_rollback }.
+     *                         has_foreign_keys }.
      *
      * @throws MainWP_Exception On multisite, an already-active task, or a
      *                          failed insert.
@@ -420,7 +420,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      *
      * @param string $task_id Task id.
      *
-     * @return array { result: ok|busy|already_terminal, phase } or
+     * @return array { result: ok|rolling_back|busy|already_terminal, phase } or
      *               { error, error_code } when the task is unknown.
      */
     public function cancel_restore_task( $task_id ) {
@@ -454,6 +454,81 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $backup_dir = $this->backup_dir();
         $sub_state  = $spine->read_sub_state( $task, $backup_dir );
         $sub_state  = is_array( $sub_state ) ? $sub_state : array();
+
+        // On the foreign-key in-place path the aside snapshot dumps under the
+        // scratch dir are the only rollback source, and the in-place replay may
+        // have already half-overwritten the live tables. terminal_cleanup()
+        // removes the scratch dir, which would destroy that rollback source, so
+        // a cancel caught mid-replay reroutes to the rollback phase instead -
+        // mirroring reroute_fk_replay_to_rollback() - and lets the runner or
+        // watchdog replay the aside dumps back before any scratch removal.
+        $db                = isset( $sub_state['db_replay'] ) && is_array( $sub_state['db_replay'] ) ? $sub_state['db_replay'] : array();
+        $fk_snapshot_taken = ! empty( $db['fk_path'] ) && ! empty( $db['snapshot_done'] );
+
+        // Already rolling back: the aside dumps are being replayed back right
+        // now. Leave the row in place and let the rollback finish rather than
+        // deleting its recovery source.
+        if ( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK === $task->phase ) {
+            $spine->release_lease( $task_id, 'cancel', $version );
+            return array(
+                'result' => 'rolling_back',
+                'phase'  => MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK,
+            );
+        }
+
+        // In-flight in-place replay: reroute to the rollback carrying the
+        // cancelled reason, with a fresh rollback deadline and reset resume
+        // budget so the bounded rollback has room to finish.
+        if ( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB === $task->phase && $fk_snapshot_taken ) {
+            $sub_state['fk_rollback'] = array(
+                'original_error'      => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_CANCELLED ),
+                'original_error_code' => MainWP_Backup_Error::ERR_RESTORE_CANCELLED,
+                'cursor'              => array(),
+                'seen_resumes'        => (int) $task->resume_count,
+            );
+
+            $serialized = $spine->write_sub_state( $task_id, $sub_state, $backup_dir, $version );
+            if ( false === $serialized ) {
+                $serialized = wp_json_encode( $sub_state );
+            }
+
+            $spine->extend_wall_clock( $task_id, MainWP_Child_Backup_Task::FK_ROLLBACK_DEADLINE_SECONDS );
+            $rolled_version = $spine->checkpoint(
+                $task_id,
+                $version,
+                array(
+                    'phase'        => MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK,
+                    'sub_state'    => $serialized,
+                    'resume_count' => 0,
+                )
+            );
+            if ( false === $rolled_version ) {
+                // Lost the compare-and-swap to another writer (the wall-clock
+                // enforcer is the only one that ignores leases); report what the
+                // row now holds instead of claiming a reroute that never landed.
+                $spine->release_lease( $task_id, 'cancel', $version );
+                $fresh = $spine->get_task( $task_id );
+                $phase = null !== $fresh ? $fresh->phase : '';
+                if ( MainWP_Child_Backup_Task::is_terminal_phase( $phase ) ) {
+                    return array(
+                        'result' => 'already_terminal',
+                        'phase'  => $phase,
+                    );
+                }
+                return array(
+                    'result' => 'busy',
+                    'phase'  => $phase,
+                );
+            }
+
+            // The aside dumps and cursor sidecar must survive for the rollback,
+            // so neither terminal_cleanup() nor delete_sidecar() runs here.
+            $spine->release_lease( $task_id, 'cancel', $rolled_version );
+            return array(
+                'result' => 'rolling_back',
+                'phase'  => MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK,
+            );
+        }
 
         $this->terminal_cleanup( $task, $sub_state, $backup_dir );
 

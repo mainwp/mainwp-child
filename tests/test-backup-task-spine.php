@@ -330,6 +330,44 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * disarm() must not unschedule the shared cron event while an active task
+	 * exists. A task created between run()'s empty-check and the unschedule
+	 * would arm() to a no-op (the event is still scheduled) and then be left
+	 * unguarded; the re-read before unscheduling closes that.
+	 */
+	public function test_disarm_aborts_when_a_task_exists() {
+		// The custom interval is registered by the watchdog's init() at plugin
+		// load; register it here so wp_schedule_event() accepts the recurrence.
+		add_filter( 'cron_schedules', array( MainWP_Child_Backup_Watchdog::instance(), 'register_schedule' ) );
+		wp_clear_scheduled_hook( MainWP_Child_Backup_Watchdog::CRON_HOOK );
+
+		// create_task() arms the watchdog and leaves an active row behind.
+		MainWP_Child_Backup_Task::instance()->create_task( 'full' );
+		$this->assertNotFalse( wp_next_scheduled( MainWP_Child_Backup_Watchdog::CRON_HOOK ) );
+
+		MainWP_Child_Backup_Watchdog::instance()->disarm();
+
+		$this->assertNotFalse( wp_next_scheduled( MainWP_Child_Backup_Watchdog::CRON_HOOK ), 'disarm must not unschedule while an active task exists.' );
+
+		wp_clear_scheduled_hook( MainWP_Child_Backup_Watchdog::CRON_HOOK );
+	}
+
+	/**
+	 * With no active tasks, disarm() still unschedules the event as before.
+	 */
+	public function test_disarm_unschedules_when_no_active_tasks() {
+		add_filter( 'cron_schedules', array( MainWP_Child_Backup_Watchdog::instance(), 'register_schedule' ) );
+		wp_clear_scheduled_hook( MainWP_Child_Backup_Watchdog::CRON_HOOK );
+
+		MainWP_Child_Backup_Watchdog::instance()->arm();
+		$this->assertNotFalse( wp_next_scheduled( MainWP_Child_Backup_Watchdog::CRON_HOOK ) );
+
+		MainWP_Child_Backup_Watchdog::instance()->disarm();
+
+		$this->assertFalse( wp_next_scheduled( MainWP_Child_Backup_Watchdog::CRON_HOOK ), 'disarm must unschedule when no task is active.' );
+	}
+
+	/**
 	 * The backup_task_status action is registered in the callable router so
 	 * the Dashboard can poll task state.
 	 */
