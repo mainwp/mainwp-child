@@ -1067,6 +1067,25 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The non-FK swap path enumerates live tables too; a failed SHOW TABLES
+	 * there would turn its in_array() guards into a no-op and let the swap
+	 * skip live tables it must rename aside, so it aborts with a coded swap
+	 * failure instead of a silent partial swap.
+	 */
+	public function test_swap_tables_aborts_on_enumeration_failure() {
+		$this->engine->fail_show_tables = true;
+
+		$result = $this->engine->swap_tables(
+			array( 'a' ),
+			array( 'restore_id' => 'abc123', 'target_prefix' => 'wp_' )
+		);
+
+		$this->assertFalse( $result['done'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_SWAP_FAILED, $result['error_code'] );
+		$this->assertSame( array(), $result['old_tables'] );
+	}
+
+	/**
 	 * A genuinely empty live database (SHOW TABLES succeeds, returns no rows)
 	 * is not an error: every dump table classifies as new and the split is
 	 * empty-existing, so the fresh-install path stays available.

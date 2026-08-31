@@ -308,7 +308,21 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
             );
         }
 
-        $live   = $this->list_tables( $conn );
+        $live = $this->list_tables( $conn );
+        if ( null === $live ) {
+            // Enumeration failed; a null live set would turn the in_array()
+            // guards below into a no-op and let the swap skip live tables it
+            // must rename aside. Abort with a coded failure, same as the
+            // snapshot path, rather than replay unprotected.
+            $this->close_connection( $conn );
+            return array(
+                'done'       => false,
+                'old_tables' => array(),
+                'rename_sql' => '',
+                'error'      => 'Could not enumerate live tables for the swap.',
+                'error_code' => MainWP_Backup_Error::ERR_RESTORE_SWAP_FAILED,
+            );
+        }
         $packet = $this->read_packet_budget( $conn );
         $sql    = $this->build_rename_sql( $stems, $config['restore_id'], $config['target_prefix'], $live, $packet );
 
