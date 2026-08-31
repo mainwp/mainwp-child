@@ -236,6 +236,33 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A dump fragment an active task still owns survives the sweep even when
+	 * it is older than the age cutoff - a long dump on a big site outlives the
+	 * window - while a genuinely orphaned old fragment no live task references
+	 * is still deleted.
+	 */
+	public function test_sweep_spares_active_task_dump_fragments() {
+		$old   = time() - 4 * 3600;
+		$spine = MainWP_Child_Backup_Task::instance();
+
+		$db_prefix = $this->backup_dir . '/dbBackup-runtask' . time();
+		$spine->create_task( 'full', array( 'db_prefix' => $db_prefix ) );
+
+		$running_fragment = $db_prefix . '-wp_posts.sql.php';
+		$orphan_fragment  = $this->backup_dir . '/dbBackup-orphan-999.sql.php';
+
+		foreach ( array( $running_fragment, $orphan_fragment ) as $file ) {
+			file_put_contents( $file, 'x' );
+			touch( $file, $old );
+		}
+
+		$spine->sweep_stale_markers( $this->backup_dir );
+
+		$this->assertFileExists( $running_fragment, 'A fragment a running task still owns must survive the sweep.' );
+		$this->assertFileDoesNotExist( $orphan_fragment );
+	}
+
+	/**
 	 * An orphaned staged manifest (its task-create never arrived) is
 	 * swept once stale; a fresh one may belong to a transfer in flight.
 	 */

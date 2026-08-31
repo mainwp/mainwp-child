@@ -65,11 +65,14 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 
 	/**
 	 * A serialized object string fed to the legacy clone replacer must not
-	 * instantiate the class, and the untouched object round-trips unchanged.
+	 * instantiate the class, and the object payload must be dropped rather than
+	 * re-serialized back into the row. Round-tripping the __PHP_Incomplete_Class
+	 * would re-emit the original class string for a later get_option() read to
+	 * rehydrate into a gadget, so the whole value is neutralized to empty.
 	 *
 	 * @return void
 	 */
-	public function test_clone_replacer_does_not_instantiate_object() {
+	public function test_clone_replacer_drops_object_payload() {
 		$payload = serialize( new MainWP_Unserialize_Canary() ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- building a hostile fixture.
 
 		MainWP_Unserialize_Canary::$woke = false;
@@ -77,16 +80,18 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 		$out                             = $clone->recursive_unserialize_replace( 'http://old.example', 'http://new.example', $payload );
 
 		$this->assertFalse( MainWP_Unserialize_Canary::$woke, 'clone replacer instantiated a live object via unserialize()' );
-		$this->assertSame( $payload, $out, 'untouched serialized object did not round-trip byte-identical' );
+		$this->assertSame( '', $out, 'a clone-source object payload must be dropped, not round-tripped back into the row' );
+		$this->assertFalse( is_serialized( $out ), 'the neutralized value must carry no serialized payload a later unserialize() could rehydrate' );
 	}
 
 	/**
 	 * The same protection must hold when the object is nested inside a
-	 * serialized array (the common shape of wp_options / postmeta rows).
+	 * serialized array (the common shape of wp_options / postmeta rows): the
+	 * whole cell is dropped so no forged class string survives the rewrite.
 	 *
 	 * @return void
 	 */
-	public function test_clone_replacer_handles_object_nested_in_array() {
+	public function test_clone_replacer_drops_object_nested_in_array() {
 		$payload = serialize( array( 'canary' => new MainWP_Unserialize_Canary() ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- building a hostile fixture.
 
 		MainWP_Unserialize_Canary::$woke = false;
@@ -94,7 +99,25 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 		$out                             = $clone->recursive_unserialize_replace( 'http://old.example', 'http://new.example', $payload );
 
 		$this->assertFalse( MainWP_Unserialize_Canary::$woke, 'nested object was instantiated via unserialize()' );
-		$this->assertSame( $payload, $out, 'nested untouched object did not round-trip byte-identical' );
+		$this->assertSame( '', $out, 'a nested object payload must be dropped, not round-tripped back into the row' );
+		$this->assertFalse( is_serialized( $out ), 'the neutralized value must carry no serialized payload a later unserialize() could rehydrate' );
+	}
+
+	/**
+	 * A legitimately serialized array of scalars must still round-trip through
+	 * the clone replacer with its replacement applied, so the object-drop guard
+	 * does not regress the normal array rewrite path.
+	 *
+	 * @return void
+	 */
+	public function test_clone_replacer_still_rewrites_serialized_array() {
+		$payload  = serialize( array( 'link' => 'http://old.example/page' ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- fixture.
+		$expected = serialize( array( 'link' => 'http://new.example/page' ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- fixture.
+
+		$clone = new MainWP_Clone_Install();
+		$out   = $clone->recursive_unserialize_replace( 'http://old.example', 'http://new.example', $payload );
+
+		$this->assertSame( $expected, $out, 'serialized array of scalars was not rewritten' );
 	}
 
 	/**

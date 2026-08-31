@@ -922,11 +922,6 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
                 continue;
             }
             $stem = substr( $name, strlen( $source_prefix ) );
-            // The dumper names each file with sanitize_filename( $table ), so a
-            // stem that sanitizing would alter never came from a file it wrote.
-            if ( MainWP_Helper::sanitize_filename( $stem ) !== $stem ) {
-                continue;
-            }
             if ( in_array( $stem, (array) $skip_stems, true ) ) {
                 continue;
             }

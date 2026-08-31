@@ -1014,17 +1014,81 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         $patterns = array( 'backup-*.pid', 'backup-*.done', 'dbBackup-*.sql*', 'manifest-staged-*.list' );
         $cutoff   = time() - $age_seconds;
 
+        // A long dump (>3h on a big site) leaves fragments older than the age
+        // cutoff while its task is still running, and age alone cannot tell
+        // those apart from a dead run's litter. Protect every file an active
+        // task's cursor still depends on so the sweep never deletes fragments
+        // out from under a running backup.
+        $guard         = $this->active_task_sweep_guard( $backup_dir );
+        $safe_names    = $guard['names'];
+        $safe_prefixes = $guard['prefixes'];
+
         foreach ( $patterns as $pattern ) {
             $matches = glob( rtrim( $backup_dir, '/' ) . '/' . $pattern );
             if ( ! is_array( $matches ) ) {
                 continue;
             }
             foreach ( $matches as $file ) {
+                $base = basename( $file );
+                if ( isset( $safe_names[ $base ] ) ) {
+                    continue;
+                }
+                foreach ( $safe_prefixes as $prefix ) {
+                    if ( '' !== $prefix && 0 === strpos( $base, $prefix ) ) {
+                        continue 2;
+                    }
+                }
                 if ( is_file( $file ) && filemtime( $file ) < $cutoff ) {
                     wp_delete_file( $file );
                 }
             }
         }
+    }
+
+    /**
+     * Files and dump prefixes the stale sweep must never delete: everything an
+     * active (non-terminal) task's cursor still depends on.
+     *
+     * Dump fragments are keyed by the task's dump prefix, not by recorded name:
+     * a tier-2 dump writes fragments across many slices and only records their
+     * names in db_files once the whole dump finishes, so a fragment from a dump
+     * still in progress is not yet named anywhere but shares the task's stable
+     * db_prefix. Explicitly named cursor files (a finished dump's fragments, an
+     * unconsumed parent manifest) are matched by basename.
+     *
+     * @param string $backup_dir Backup directory (resolves sidecar cursors).
+     *
+     * @return array { names: array<string,true> basename set, prefixes: string[] basename prefixes }
+     */
+    private function active_task_sweep_guard( $backup_dir ) {
+        $names    = array();
+        $prefixes = array();
+
+        foreach ( $this->get_active_tasks() as $task ) {
+            $sub_state = $this->read_sub_state( $task, $backup_dir );
+            if ( ! is_array( $sub_state ) ) {
+                continue;
+            }
+
+            if ( ! empty( $sub_state['db_prefix'] ) && is_string( $sub_state['db_prefix'] ) ) {
+                $prefixes[] = basename( $sub_state['db_prefix'] );
+            }
+            if ( ! empty( $sub_state['db_files'] ) && is_array( $sub_state['db_files'] ) ) {
+                foreach ( $sub_state['db_files'] as $db_file ) {
+                    if ( is_string( $db_file ) && '' !== $db_file ) {
+                        $names[ basename( $db_file ) ] = true;
+                    }
+                }
+            }
+            if ( ! empty( $sub_state['params']['parent_manifest_file'] ) && is_string( $sub_state['params']['parent_manifest_file'] ) ) {
+                $names[ basename( $sub_state['params']['parent_manifest_file'] ) ] = true;
+            }
+        }
+
+        return array(
+            'names'    => $names,
+            'prefixes' => array_values( array_unique( $prefixes ) ),
+        );
     }
 
     /**

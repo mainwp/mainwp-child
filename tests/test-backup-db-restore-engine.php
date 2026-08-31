@@ -948,18 +948,20 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A stem the dumper's own file naming would have altered is skipped: no
-	 * file this dumper wrote can carry it, so it can only be archive-supplied.
+	 * A SQL-legal table name that sanitize_filename() would alter (here a
+	 * space) still names a real live table the replay overwrites in place, so
+	 * it must be snapshotted, not skipped: the peek reads the name from the
+	 * DDL content, quote_ident() makes every downstream use inert, and a
+	 * dropped entry would leave that table unrollbackable on a replay failure.
 	 */
-	public function test_list_dump_live_tables_skips_unsanitizable_stem() {
-		$this->engine->live_tables = array( 'wp_a' );
+	public function test_list_dump_live_tables_snapshots_filename_altering_stem() {
+		$this->engine->live_tables = array( 'wp_a b' );
 		$files                     = array(
-			$this->write_dump( 'dbBackup-wp_a.sql.php', "DROP TABLE IF EXISTS `wp_a`;\n" ),
-			$this->write_dump( 'dbBackup-wp_evil.sql.php', "DROP TABLE IF EXISTS `wp_ev*il`;\n" ),
+			$this->write_dump( 'dbBackup-wp_ab.sql.php', "DROP TABLE IF EXISTS `wp_a b`;\n" ),
 		);
 
 		$split = $this->engine->list_dump_live_tables( $files, 'wp_', 'wp_' );
-		$this->assertSame( array( 'wp_a' ), $split['existing'] );
+		$this->assertSame( array( 'wp_a b' ), $split['existing'] );
 		$this->assertSame( array(), $split['new_stems'] );
 	}
 

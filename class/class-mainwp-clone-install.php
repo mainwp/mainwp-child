@@ -789,6 +789,33 @@ class MainWP_Clone_Install {
     }
 
     /**
+     * Report whether a value is, or contains anywhere within it, a PHP object.
+     *
+     * After a restricted unserialize() ( allowed_classes => false ) any object
+     * in the clone-source payload arrives as an __PHP_Incomplete_Class, both at
+     * the top level and nested inside arrays. Such a value must never be
+     * re-serialized: serialize() re-emits the original class string, which a
+     * later option or meta read would rehydrate into a live object.
+     *
+     * @param mixed $value Value to inspect.
+     *
+     * @return bool True if the value is an object or contains a nested object.
+     */
+    private function value_contains_object( $value ) {
+        if ( is_object( $value ) ) {
+            return true;
+        }
+        if ( is_array( $value ) ) {
+            foreach ( $value as $item ) {
+                if ( $this->value_contains_object( $item ) ) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * Take a serialised array and un-serialize it replacing elements as needed and
      * un-serializing any subordinate arrays and performing the replace on those too.
      *
@@ -805,7 +832,17 @@ class MainWP_Clone_Install {
         try {
             $unserialized = ( is_string( $data ) && is_serialized( $data ) ) ? unserialize( $data, array( 'allowed_classes' => false ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- restricted unserialize of clone-source row data, no classes instantiated.
             if ( is_string( $data ) && is_serialized( $data ) && ! is_serialized_string( $data ) && false !== $unserialized ) {
-                $data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
+                if ( $this->value_contains_object( $unserialized ) ) {
+                    // A clone-source cell carrying a serialized PHP object (at any
+                    // depth) arrives here as an __PHP_Incomplete_Class under
+                    // allowed_classes => false. Re-serializing it would re-emit the
+                    // forged class name for a later get_option()/get_post_meta() to
+                    // rehydrate into a gadget, so drop the whole value rather than
+                    // round-trip it.
+                    $data = '';
+                } else {
+                    $data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
+                }
             } elseif ( is_array( $data ) ) {
                 $_tmp = array();
                 foreach ( $data as $key => $value ) {
