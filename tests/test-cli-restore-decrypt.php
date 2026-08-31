@@ -543,6 +543,76 @@ class CLIRestoreDecryptTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A bundle with no manifest.json.hmac fails closed. The writer emits the
+	 * sidecar for every encrypted bundle, so a missing one is a removal, and
+	 * skipping the check would let a stripped sidecar disable it.
+	 */
+	public function test_missing_manifest_hmac_fails_closed() {
+		$b    = $this->build_bundle( array( 'with_hmac' => false ) );
+		$dest = $this->dest_dir();
+
+		try {
+			( new MainWP_Child_Backup_Decryptor() )->decrypt_to_plaintext( $b['dir'], $b['file'], 'correct horse battery staple', $dest );
+			$this->fail( 'A bundle with no manifest HMAC must be refused.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DECRYPT, $e->get_message_error_code() );
+		}
+	}
+
+	/**
+	 * An artifact key that would climb out of the bundle is refused before the
+	 * file is read.
+	 */
+	public function test_artifact_key_traversal_is_rejected() {
+		$b    = $this->build_bundle();
+		$dest = $this->dest_dir();
+
+		$data                             = json_decode( file_get_contents( $b['dir'] . '/manifest.json' ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- test read.
+		$data['artifacts'][0]['key']      = '../../etc/passwd';
+		$raw                              = wp_json_encode( $data );
+		file_put_contents( $b['dir'] . '/manifest.json', $raw ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- test fixture.
+		file_put_contents( $b['dir'] . '/manifest.json.hmac', hash_hmac( 'sha256', $raw, $b['kek'] ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- test fixture.
+
+		try {
+			( new MainWP_Child_Backup_Decryptor() )->decrypt_to_plaintext( $b['dir'], $b['file'], 'correct horse battery staple', $dest );
+			$this->fail( 'A traversal artifact key must be rejected.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_ARTIFACT_UNKNOWN, $e->get_message_error_code() );
+		}
+	}
+
+	/**
+	 * The driver-shaped encryption block the dashboard builds - the four key
+	 * fields plus the enc flag - reads as encrypted. The offsite writer omits
+	 * enc today, so this pins the shape the child needs once that is fixed.
+	 */
+	public function test_meta_is_encrypted_accepts_driver_shaped_meta() {
+		$meta = array(
+			'enc'            => 1,
+			'cipher'         => 'aes-256-gcm',
+			'overhead'       => MainWP_Child_Backup_Archive_Cipher::overhead(),
+			'wrapped_dek'    => base64_encode( 'not-a-real-dek' ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- test fixture.
+			'kek_version_id' => 'deadbeefdeadbeef',
+		);
+
+		$this->assertTrue( MainWP_Child_Backup_Decryptor::meta_is_encrypted( $meta ) );
+
+		// Without the flag the same block reads as plaintext - the dashboard
+		// bug this covers.
+		unset( $meta['enc'] );
+		$this->assertFalse( MainWP_Child_Backup_Decryptor::meta_is_encrypted( $meta ) );
+	}
+
+	/**
+	 * The support probe answers on what decryption actually needs, so a build
+	 * carrying the bundled cipher reports supported.
+	 */
+	public function test_cipher_support_probe_reflects_real_primitives() {
+		$this->assertTrue( MainWP_Child_Backup_Archive_Cipher::supported() );
+		$this->assertTrue( class_exists( 'phpseclib3\\Crypt\\AES' ) );
+	}
+
+	/**
 	 * A task row stub matching the runner's expectations.
 	 *
 	 * @param string $phase   Phase.

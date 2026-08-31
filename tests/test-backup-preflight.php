@@ -136,7 +136,9 @@ class BackupPreflightTest extends WP_UnitTestCase {
 	 */
 	public function test_check_backup_readiness_reports_disk_space() {
 		$report = MainWP_Backup::get()->check_backup_readiness();
-		if ( function_exists( 'disk_free_space' ) ) {
+		// disk_free_space() existing is not enough: it returns false on
+		// restricted or network storage, and the report passes that through.
+		if ( function_exists( 'disk_free_space' ) && false !== $report['disk_free'] ) {
 			$this->assertIsNumeric( $report['disk_free'] );
 			$this->assertGreaterThan( 0, $report['disk_free'] );
 		} else {

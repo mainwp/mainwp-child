@@ -374,9 +374,9 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
         foreach ( $stems as $stem ) {
             $target = $target_prefix . $stem;
             if ( in_array( $target, $live_tables, true ) ) {
-                $pairs[] = '`' . $target . '` TO `' . $this->old_prefix( $restore_id ) . $stem . '`';
+                $pairs[] = $this->quote_ident( $target ) . ' TO ' . $this->quote_ident( $this->old_prefix( $restore_id ) . $stem );
             }
-            $pairs[] = '`' . $this->tmp_prefix( $restore_id ) . $stem . '` TO `' . $target . '`';
+            $pairs[] = $this->quote_ident( $this->tmp_prefix( $restore_id ) . $stem ) . ' TO ' . $this->quote_ident( $target );
         }
 
         $sql = 'RENAME TABLE ' . implode( ', ', $pairs );
@@ -405,7 +405,7 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
 
         $mismatches = array();
         foreach ( $expected as $stem => $rows ) {
-            $result = $this->query_rows( $conn, 'SELECT COUNT(*) AS c FROM `' . $target_prefix . $stem . '`' );
+            $result = $this->query_rows( $conn, 'SELECT COUNT(*) AS c FROM ' . $this->quote_ident( $target_prefix . $stem ) );
             $actual = ( is_array( $result ) && isset( $result[0]['c'] ) ) ? (int) $result[0]['c'] : -1;
             if ( $actual !== (int) $rows ) {
                 $mismatches[ $stem ] = array(
@@ -632,7 +632,7 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
         }
         foreach ( $this->list_tables( $conn ) as $table ) {
             if ( 0 === strpos( $table, $prefix ) ) {
-                $this->execute_statement( $conn, 'DROP TABLE IF EXISTS `' . $table . '`' );
+                $this->execute_statement( $conn, 'DROP TABLE IF EXISTS ' . $this->quote_ident( $table ) );
             }
         }
         $this->close_connection( $conn );
@@ -673,7 +673,7 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
         foreach ( $this->list_tables( $conn ) as $table ) {
             foreach ( $prefixes as $prefix ) {
                 if ( 0 === strpos( $table, $prefix ) ) {
-                    $this->execute_statement( $conn, 'DROP TABLE IF EXISTS `' . $table . '`' );
+                    $this->execute_statement( $conn, 'DROP TABLE IF EXISTS ' . $this->quote_ident( $table ) );
                     break;
                 }
             }
@@ -869,7 +869,25 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
         if ( ! preg_match( '/(?:DROP\s+TABLE(?:\s+IF\s+EXISTS)?|CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?)\s+`((?:[^`]|``)+)`/i', $head, $m ) ) {
             return null;
         }
-        return str_replace( '``', '`', $m[1] );
+        $name = str_replace( '``', '`', $m[1] );
+        // Nothing this project's dumper writes leaves a backtick in the decoded
+        // name. One that survives came from a hostile archive trying to close
+        // the identifier and append its own SQL, so skip the file entirely.
+        if ( false !== strpos( $name, '`' ) ) {
+            return null;
+        }
+        return $name;
+    }
+
+    /**
+     * Quote a table name for use in an identifier position.
+     *
+     * @param string $name Bare table name.
+     *
+     * @return string Backticked name with inner backticks doubled.
+     */
+    private function quote_ident( $name ) {
+        return '`' . str_replace( '`', '``', (string) $name ) . '`';
     }
 
     /**
@@ -904,6 +922,11 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
                 continue;
             }
             $stem = substr( $name, strlen( $source_prefix ) );
+            // The dumper names each file with sanitize_filename( $table ), so a
+            // stem that sanitizing would alter never came from a file it wrote.
+            if ( MainWP_Helper::sanitize_filename( $stem ) !== $stem ) {
+                continue;
+            }
             if ( in_array( $stem, (array) $skip_stems, true ) ) {
                 continue;
             }
@@ -998,7 +1021,7 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
             }
             $this->execute_statement( $conn, 'SET FOREIGN_KEY_CHECKS=0' );
             foreach ( (array) $config['drop_tables'] as $table ) {
-                $outcome = $this->execute_statement( $conn, 'DROP TABLE IF EXISTS `' . $table . '`' );
+                $outcome = $this->execute_statement( $conn, 'DROP TABLE IF EXISTS ' . $this->quote_ident( $table ) );
                 if ( is_string( $outcome ) ) {
                     $this->close_connection( $conn );
                     return array(

@@ -793,6 +793,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 'component'        => '',
                 'part_index'       => 0,
                 'part_entry_count' => 0,
+                'part_byte_count'  => 0,
                 'part_start_line'  => 0,
                 'next_index'       => array(),
             );
@@ -882,11 +883,13 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
 
         $writer = null;
         if ( '' !== $cursor['component'] && $cursor['part_index'] > 0 ) {
-            $writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, $cursor['component'], null, null, $this->current_task_id );
-            if ( $cursor['part_entry_count'] > 0 && ! $writer->open_for_append( $cursor['part_index'], $cursor['part_entry_count'] ) ) {
+            $writer    = new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, $cursor['component'], null, null, $this->current_task_id );
+            $accounted = isset( $cursor['part_byte_count'] ) ? (int) $cursor['part_byte_count'] : 0;
+            if ( $cursor['part_entry_count'] > 0 && ! $writer->open_for_append( $cursor['part_index'], $cursor['part_entry_count'], $accounted ) ) {
                 // Torn part - rebuild it from its first file.
                 $cursor['line']             = $cursor['part_start_line'];
                 $cursor['part_entry_count'] = 0;
+                $cursor['part_byte_count']  = 0;
                 $writer->open_new_part( $cursor['part_index'] );
             } elseif ( 0 === (int) $cursor['part_entry_count'] ) {
                 $writer->open_new_part( $cursor['part_index'] );
@@ -905,6 +908,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                     // Close the part so the checkpointed entry count has a
                     // central directory behind it; the next slice appends.
                     $cursor['part_entry_count'] = $writer->current_entries();
+                    $cursor['part_byte_count']  = $writer->current_bytes();
                     $writer->close_part();
                 }
                 $done = false;
@@ -941,6 +945,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 $cursor['part_index']       = $index;
                 $cursor['part_start_line']  = $line_no;
                 $cursor['part_entry_count'] = 0;
+                $cursor['part_byte_count']  = 0;
             }
 
             $added = $writer->add_file( $this->site_root() . $relpath, $relpath );
@@ -950,6 +955,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 $cursor['part_index']                         = $writer->current_index();
                 $cursor['part_start_line']                    = $line_no;
                 $cursor['part_entry_count']                   = 0;
+                $cursor['part_byte_count']                    = 0;
             }
 
             ++$line_no;
@@ -968,6 +974,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             $cursor['component']        = '';
             $cursor['part_index']       = 0;
             $cursor['part_entry_count'] = 0;
+            $cursor['part_byte_count']  = 0;
         }
 
         $sub_state['pack_cursor']     = $cursor;

@@ -153,6 +153,10 @@ class ArchiveCorrectnessTest extends WP_UnitTestCase {
 	 * target directory, instead of silently producing an empty copy (A1).
 	 */
 	public function test_copy_dir_mkdir_failure_throws() {
+		if ( function_exists( 'posix_geteuid' ) && 0 === posix_geteuid() ) {
+			$this->markTestSkipped( 'Root ignores directory permissions, so the mkdir under test would succeed.' );
+		}
+
 		$backup   = MainWP_Backup::get();
 		$readonly = $this->scratch . '/readonly';
 		mkdir( $readonly, 0555 );

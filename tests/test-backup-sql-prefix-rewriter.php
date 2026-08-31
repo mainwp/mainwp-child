@@ -61,6 +61,16 @@ class BackupSqlPrefixRewriterTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A table name carrying a doubled backtick is re-emitted doubled. The
+	 * token parser decodes `` to `, so re-emitting it raw would close the
+	 * identifier and hand the replay the archive's own trailing statement.
+	 */
+	public function test_backtick_in_table_name_is_re_doubled() {
+		$out = $this->rewriter->rewrite( 'DROP TABLE IF EXISTS `wp_a``; DROP TABLE wp_users; -- `' );
+		$this->assertSame( 'DROP TABLE IF EXISTS `tmp1234_a``; DROP TABLE wp_users; -- `', $out );
+	}
+
+	/**
 	 * A multi-table DROP is dropped wholesale: rewriting only the first
 	 * token would pass the remaining (live) tables through to a real DROP.
 	 */

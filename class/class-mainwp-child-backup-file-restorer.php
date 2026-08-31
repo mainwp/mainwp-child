@@ -233,6 +233,10 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                     fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
                 }
             } catch ( \Exception $e ) {
+                // The success path below discards the decompressed sibling;
+                // the error path must too, or a rejected archive leaves a
+                // full-size plain tar behind in the backup directory.
+                $this->discard_plain_tar( $part, $plain );
                 return $this->result( false, $cursor, $e->getMessage(), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
             }
 
@@ -537,9 +541,21 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         }
 
         // Resolve and verify path stays within extraction directory.
-        $target_path  = rtrim( $extract_to, '/' ) . '/' . $entry_name;
+        $target_path = rtrim( $extract_to, '/' ) . '/' . $entry_name;
+
+        // An unresolvable root makes the containment compare below a tautology
+        // (every absolute path starts with '/'), so resolve it first and fail
+        // closed rather than let the check pass on a false.
         $real_extract = realpath( $extract_to );
-        $real_target  = realpath( dirname( $target_path ) );
+        if ( false === $real_extract ) {
+            wp_mkdir_p( $extract_to );
+            $real_extract = realpath( $extract_to );
+        }
+        if ( false === $real_extract ) {
+            throw new \Exception( 'Extraction root could not be resolved. Extraction aborted.' );
+        }
+
+        $real_target = realpath( dirname( $target_path ) );
 
         if ( false === $real_target ) {
             wp_mkdir_p( dirname( $target_path ) );

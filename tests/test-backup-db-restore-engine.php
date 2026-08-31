@@ -938,6 +938,32 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A dump name whose decoded form still holds a backtick is refused: the
+	 * doubled-backtick form is how a hostile archive would close the
+	 * identifier and append its own statement to the DROP the rollback runs.
+	 */
+	public function test_peek_table_name_rejects_backtick_in_decoded_name() {
+		$file = $this->write_dump( 'dbBackup-evil.sql.php', "DROP TABLE IF EXISTS `wp_a``; DROP TABLE wp_users; -- `;\n" );
+		$this->assertNull( $this->engine->peek_table_name( $file ) );
+	}
+
+	/**
+	 * A stem the dumper's own file naming would have altered is skipped: no
+	 * file this dumper wrote can carry it, so it can only be archive-supplied.
+	 */
+	public function test_list_dump_live_tables_skips_unsanitizable_stem() {
+		$this->engine->live_tables = array( 'wp_a' );
+		$files                     = array(
+			$this->write_dump( 'dbBackup-wp_a.sql.php', "DROP TABLE IF EXISTS `wp_a`;\n" ),
+			$this->write_dump( 'dbBackup-wp_evil.sql.php', "DROP TABLE IF EXISTS `wp_ev*il`;\n" ),
+		);
+
+		$split = $this->engine->list_dump_live_tables( $files, 'wp_', 'wp_' );
+		$this->assertSame( array( 'wp_a' ), $split['existing'] );
+		$this->assertSame( array(), $split['new_stems'] );
+	}
+
+	/**
 	 * The dump's tables split into live tables that exist and stems the
 	 * dump would create fresh; the live names use the target prefix.
 	 */

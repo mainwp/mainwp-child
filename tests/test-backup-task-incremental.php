@@ -5,6 +5,7 @@
  * @package Mainwp_Child
  */
 
+use MainWP\Child\MainWP_Child_Backup_Incremental_Zip_Writer;
 use MainWP\Child\MainWP_Child_Backup_Task;
 use MainWP\Child\MainWP_Exception;
 
@@ -536,7 +537,12 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		$task = $this->advance( $task_id ); // Packs one file, checkpoints.
 
 		// Tear the checkpointed part: a kill mid-write leaves no central directory.
-		file_put_contents( $this->backup_dir . '/core.part001.zip', 'PK torn mid-write' ); // phpcs:ignore -- test fixture.
+		// The name carries the per-task token, so derive it from the cursor
+		// rather than the legacy core.part001.zip the writer no longer uses.
+		$cursor = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $this->backup_dir )['pack_cursor'];
+		$part   = MainWP_Child_Backup_Incremental_Zip_Writer::part_basename( $cursor['component'], (int) $cursor['part_index'], $task_id );
+		$this->assertFileExists( $this->backup_dir . '/' . $part );
+		file_put_contents( $this->backup_dir . '/' . $part, 'PK torn mid-write' ); // phpcs:ignore -- test fixture.
 
 		unset( $this->runner->stubs['pack_budget_exhausted'] );
 

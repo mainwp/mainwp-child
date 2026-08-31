@@ -151,7 +151,7 @@ class MainWP_Backup_Sql_Prefix_Rewriter { // phpcs:ignore Generic.Classes.Openin
             return null;
         }
 
-        return substr( $statement, 0, $token['start'] ) . '`' . $rewritten . '`' . substr( $statement, $token['end'] );
+        return substr( $statement, 0, $token['start'] ) . $this->quote_ident( $rewritten ) . substr( $statement, $token['end'] );
     }
 
     /**
@@ -185,8 +185,8 @@ class MainWP_Backup_Sql_Prefix_Rewriter { // phpcs:ignore Generic.Classes.Openin
                 return null;
             }
 
-            $out .= substr( $statement, $pos, $from['start'] - $pos ) . '`' . $from_name . '`';
-            $out .= substr( $statement, $from['end'], $to['start'] - $from['end'] ) . '`' . $to_name . '`';
+            $out .= substr( $statement, $pos, $from['start'] - $pos ) . $this->quote_ident( $from_name );
+            $out .= substr( $statement, $from['end'], $to['start'] - $from['end'] ) . $this->quote_ident( $to_name );
             $pos  = $to['end'];
 
             if ( preg_match( '/\G\s*,/A', $statement, $m, 0, $pos ) ) {
@@ -197,6 +197,21 @@ class MainWP_Backup_Sql_Prefix_Rewriter { // phpcs:ignore Generic.Classes.Openin
         }
 
         return $out . substr( $statement, $pos );
+    }
+
+    /**
+     * Quote a table name for re-emission in an identifier position.
+     *
+     * The token parser decodes doubled backticks, so re-emitting the name raw
+     * would let an archive-supplied name close the identifier and append its
+     * own statement to the replayed dump.
+     *
+     * @param string $name Bare table name.
+     *
+     * @return string Backticked name with inner backticks doubled.
+     */
+    private function quote_ident( $name ) {
+        return '`' . str_replace( '`', '``', (string) $name ) . '`';
     }
 
     /**

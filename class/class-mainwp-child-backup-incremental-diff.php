@@ -176,7 +176,7 @@ class MainWP_Child_Backup_Incremental_Diff { // phpcs:ignore Generic.Classes.Ope
                 continue;
             }
 
-            fwrite( $changes, $fields[0] . "\t" . $fields[1] . "\t" . $fields[2] . "\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list write.
+            $this->write_line( $changes, $fields[0] . "\t" . $fields[1] . "\t" . $fields[2] . "\n" );
             ++$counts['changes'];
         }
 
@@ -244,17 +244,17 @@ class MainWP_Child_Backup_Incremental_Diff { // phpcs:ignore Generic.Classes.Ope
                 if ( $p[1] === $c[1] && $p[2] === $c[2] ) {
                     ++$result['carried'];
                 } else {
-                    fwrite( $changes, $c[0] . "\t" . $c[1] . "\t" . $c[2] . "\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list write.
+                    $this->write_line( $changes, $c[0] . "\t" . $c[1] . "\t" . $c[2] . "\n" );
                     ++$result['changes'];
                 }
                 $p = $this->next_entry( $parent, $corrupt );
                 $c = $this->next_entry( $current );
             } elseif ( $cmp < 0 ) {
-                fwrite( $tombs, $p[0] . "\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list write.
+                $this->write_line( $tombs, $p[0] . "\n" );
                 ++$result['tombstones'];
                 $p = $this->next_entry( $parent, $corrupt );
             } else {
-                fwrite( $changes, $c[0] . "\t" . $c[1] . "\t" . $c[2] . "\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list write.
+                $this->write_line( $changes, $c[0] . "\t" . $c[1] . "\t" . $c[2] . "\n" );
                 ++$result['changes'];
                 $c = $this->next_entry( $current );
             }
@@ -273,6 +273,27 @@ class MainWP_Child_Backup_Incremental_Diff { // phpcs:ignore Generic.Classes.Ope
 
         $result['valid'] = true;
         return $result;
+    }
+
+    /**
+     * Write one sidecar line, refusing a short or failed write.
+     *
+     * A full disk truncates changes.list or tombstones.list without an error,
+     * and the run would still report success with a chain that silently drops
+     * those files. Fail the diff instead.
+     *
+     * @param resource $handle Open write handle.
+     * @param string   $line   Line to write (newline included).
+     *
+     * @throws MainWP_Exception When the write is short or fails.
+     *
+     * @return void
+     */
+    protected function write_line( $handle, $line ) {
+        $written = fwrite( $handle, $line ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list write.
+        if ( false === $written || strlen( $line ) !== $written ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) ), null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
     }
 
     /**
@@ -310,7 +331,7 @@ class MainWP_Child_Backup_Incremental_Diff { // phpcs:ignore Generic.Classes.Ope
 
         $count = 0;
         foreach ( $relpaths as $relpath ) {
-            fwrite( $handle, $relpath . "\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list write.
+            $this->write_line( $handle, $relpath . "\n" );
             ++$count;
         }
 

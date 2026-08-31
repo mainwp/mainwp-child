@@ -128,7 +128,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
 
         //phpcs:disable WordPress.DB -- direct paging reads over restored tables; names come from the restore config, not user input.
         $rows = $wpdb->get_results(
-            'SELECT * FROM `' . $table . '`' . $order_sql . ' LIMIT ' . (int) $offset . ', ' . (int) $this->page_size(),
+            'SELECT * FROM ' . $this->quote_ident( $table ) . $order_sql . ' LIMIT ' . (int) $offset . ', ' . (int) $this->page_size(),
             ARRAY_A
         );
         //phpcs:enable WordPress.DB
@@ -279,6 +279,21 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
     }
 
     /**
+     * Quote a table name for use in an identifier position.
+     *
+     * The names reach here from the restore config, which carries what the
+     * replayed dump named; doubling keeps a backtick inside one from closing
+     * the identifier.
+     *
+     * @param string $name Bare table name.
+     *
+     * @return string Backticked name with inner backticks doubled.
+     */
+    protected function quote_ident( $name ) {
+        return '`' . str_replace( '`', '``', (string) $name ) . '`';
+    }
+
+    /**
      * Primary key column names for a table.
      *
      * @param string $table Table name.
@@ -289,7 +304,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
         global $wpdb;
 
         //phpcs:disable WordPress.DB -- schema introspection on a restored table; the name comes from the restore config.
-        $rows = $wpdb->get_results( 'SHOW KEYS FROM `' . $table . "` WHERE Key_name = 'PRIMARY'", ARRAY_A );
+        $rows = $wpdb->get_results( 'SHOW KEYS FROM ' . $this->quote_ident( $table ) . " WHERE Key_name = 'PRIMARY'", ARRAY_A );
         //phpcs:enable WordPress.DB
 
         $columns = array();

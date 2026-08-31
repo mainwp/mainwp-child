@@ -196,6 +196,14 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
             ++$version; // acquire_lease incremented it.
             $version = $spine->checkpoint( $task->task_id, $version, array( 'resume_count' => (int) $task->resume_count + 1 ) );
             if ( false === $version ) {
+                // The lease is held and $version is stale by definition (the
+                // checkpoint failed its own CAS), so re-read the row for a
+                // version the release can match. Skipping the release would
+                // wedge the task until the lease expires.
+                $fresh = $spine->get_task( $task->task_id );
+                if ( null !== $fresh ) {
+                    $spine->release_lease( $task->task_id, 'watchdog', (int) $fresh->version );
+                }
                 continue;
             }
 

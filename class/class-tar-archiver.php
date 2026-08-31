@@ -726,11 +726,11 @@ class Tar_Archiver {
             }
             fflush( $this->archive );
         } elseif ( 'tar.bz2' === $this->type ) {
-            if ( false === bzwrite( $this->archive, $this->chunk, strlen( $len ) ) ) {
+            if ( false === bzwrite( $this->archive, $this->chunk, $len ) ) {
                 $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
         } else {
-            if ( false === fwrite( $this->archive, $len, strlen( $len ) ) ) {
+            if ( false === fwrite( $this->archive, $this->chunk, $len ) ) {
                 $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
             fflush( $this->archive );

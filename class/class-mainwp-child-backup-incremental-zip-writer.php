@@ -151,11 +151,12 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
      *
      * @param int $index            Part index to resume.
      * @param int $expected_entries Entries the cursor recorded for it.
+     * @param int $accounted_bytes  Source bytes the cursor accounted to it.
      *
      * @return bool True when intact and open; false when the caller must
      *              discard the part and rewind to its first file.
      */
-    public function open_for_append( $index, $expected_entries ) {
+    public function open_for_append( $index, $expected_entries, $accounted_bytes = 0 ) {
         $path = $this->part_path( $index );
         if ( ! file_exists( $path ) ) {
             return false;
@@ -174,7 +175,10 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
         $this->zip         = $zip;
         $this->part_index  = (int) $index;
         $this->entry_count = (int) $expected_entries;
-        $this->byte_count  = (int) filesize( $path );
+        // The threshold counts SOURCE bytes, so resume from the total the
+        // cursor accumulated. filesize() here is the COMPRESSED part, which
+        // would mix metrics and let a resumed part run past max_bytes.
+        $this->byte_count = (int) $accounted_bytes;
 
         return true;
     }
@@ -309,6 +313,15 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
      */
     public function current_entries() {
         return $this->entry_count;
+    }
+
+    /**
+     * Source bytes accounted to the open part, for the resume cursor.
+     *
+     * @return int
+     */
+    public function current_bytes() {
+        return $this->byte_count;
     }
 
     /**

@@ -2136,6 +2136,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
             throw new MainWP_Exception( 'Could not write the WooCommerce order-preservation capture file.', null, MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
         }
+        // The capture carries user_pass hashes, so keep it owner-only rather
+        // than whatever the umask gave it.
+        @chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_chmod -- best effort on a local scratch file; some hosts disallow chmod.
 
         return array(
             'file'      => 'woo-preserve.json',
@@ -2252,7 +2255,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                     (string) $u['user_email'],
                     (string) $u['user_url'],
                     (string) $u['user_registered'],
-                    (string) $u['user_activation_key'],
+                    '', // A captured reset token is a live credential; the customer row does not need it back.
                     (int) $u['user_status'],
                     (string) $u['display_name']
                 )

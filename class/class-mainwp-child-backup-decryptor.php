@@ -131,13 +131,13 @@ class MainWP_Child_Backup_Decryptor { // phpcs:ignore Generic.Classes.OpeningBra
 
         // With the right KEK in hand, the manifest HMAC proves the manifest
         // itself was not altered. A mismatch here means tampering, not a wrong
-        // passphrase (that already failed above).
+        // passphrase (that already failed above). The writer emits the sidecar
+        // for every encrypted bundle, so an absent one is a removal and counts
+        // the same as a wrong one.
         $hmac_path = rtrim( (string) $bundle_dir, '/\\' ) . DIRECTORY_SEPARATOR . 'manifest.json.hmac';
-        if ( is_file( $hmac_path ) ) {
-            $hmac = $this->read_file_bytes( $hmac_path );
-            if ( false === $hmac || ! $this->verify_manifest_hmac( $manifest['raw'], trim( (string) $hmac ), $kek ) ) {
-                throw new MainWP_Exception( 'The manifest failed its integrity check; the bundle may be tampered or incomplete.', null, MainWP_Backup_Error::ERR_RESTORE_DECRYPT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal CLI message.
-            }
+        $hmac      = is_file( $hmac_path ) ? $this->read_file_bytes( $hmac_path ) : false;
+        if ( false === $hmac || ! $this->verify_manifest_hmac( $manifest['raw'], trim( (string) $hmac ), $kek ) ) {
+            throw new MainWP_Exception( 'The manifest failed its integrity check; the bundle may be tampered or incomplete.', null, MainWP_Backup_Error::ERR_RESTORE_DECRYPT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal CLI message.
         }
 
         $artifact = $this->find_artifact( $data, $archive );
@@ -293,7 +293,12 @@ class MainWP_Child_Backup_Decryptor { // phpcs:ignore Generic.Classes.OpeningBra
      * @throws MainWP_Exception When the sealed file is missing or unreadable.
      */
     protected function open_whole( $out, $artifact, $archive, $root, $dek, $snapshot_id ) {
-        $key  = isset( $artifact['key'] ) ? (string) $artifact['key'] : ( 'files/' . $archive );
+        $key = isset( $artifact['key'] ) ? (string) $artifact['key'] : ( 'files/' . $archive );
+        // The key is manifest-supplied and lands in a filesystem path, so it
+        // must stay a relative path inside the bundle.
+        if ( '' === $key || false !== strpos( $key, '..' ) || 0 === strpos( $key, '/' ) || 0 === strpos( $key, '\\' ) ) {
+            throw new MainWP_Exception( 'The manifest names a sealed file outside the bundle: ' . esc_html( $key ), null, MainWP_Backup_Error::ERR_ARTIFACT_UNKNOWN ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal CLI message; key escaped inline.
+        }
         $path = $root . str_replace( '/', DIRECTORY_SEPARATOR, $key );
         $blob = $this->read_file_bytes( $path );
         if ( false === $blob ) {
@@ -364,7 +369,7 @@ class MainWP_Child_Backup_Decryptor { // phpcs:ignore Generic.Classes.OpeningBra
      * @return bool
      */
     protected function phpseclib3_supported() {
-        return is_callable( 'php_uname' );
+        return MainWP_Child_Backup_Archive_Cipher::supported();
     }
 
     /**

@@ -74,6 +74,18 @@ class MainWP_Child_Backup_Archive_Cipher { // phpcs:ignore Generic.Classes.Openi
     }
 
     /**
+     * Whether this runtime can actually seal and open a unit: the bundled
+     * phpseclib AES class plus the hash primitives the key wrapping needs.
+     * Decryption has no fallback, so an unsupported build must fail closed.
+     *
+     * @return bool
+     */
+    public static function supported() {
+        static::auto_load_files();
+        return class_exists( 'phpseclib3\\Crypt\\AES' ) && function_exists( 'hash_pbkdf2' ) && function_exists( 'hash_hmac' );
+    }
+
+    /**
      * Make sure the bundled phpseclib autoloader is available.
      *
      * @return void

@@ -10,6 +10,25 @@ use MainWP\Child\MainWP_Backup_Budget_Exception;
 use MainWP\Child\Tar_Archiver;
 
 /**
+ * A chunk-buffering archiver: the buffered write path only runs with debug
+ * on, so the plain and bzip2 branches of write_chunk() have no other cover.
+ */
+class Chunked_Tar_Archiver extends Tar_Archiver {
+
+	/**
+	 * Buffer through write_chunk() with a small chunk so several flushes run.
+	 *
+	 * @param object $backup MainWP_Backup instance.
+	 * @param string $type   Archive type.
+	 */
+	public function __construct( $backup, $type = 'tar' ) {
+		parent::__construct( $backup, $type );
+		$this->debug     = true;
+		$this->chunkSize = 1024;
+	}
+}
+
+/**
  * Tests for the tar archiver slice time budget.
  *
  * A bounded continuation slice needs the file traversal to stop near its
@@ -103,6 +122,31 @@ class TarArchiverBudgetTest extends WP_UnitTestCase {
 		}
 		fclose( $fh );
 		return $entries;
+	}
+
+	/**
+	 * The buffered (chunked) write path emits the chunk bytes, not the byte
+	 * count: the plain branch used to write the decimal digits of the length
+	 * instead of the buffer, producing an unreadable archive that still
+	 * reported success.
+	 */
+	public function test_chunked_writes_emit_the_buffer_not_its_length() {
+		$archiver = new Chunked_Tar_Archiver( MainWP_Backup::get(), 'tar' );
+		$archiver->create( $this->archive_path );
+		$archiver->add_dir( $this->fixture_dir, array() );
+		$archiver->close();
+
+		$entries = $this->list_tar_entries( $this->archive_path );
+		foreach ( $this->fixture_files as $name ) {
+			$this->assertContains( str_replace( ABSPATH, '', $this->fixture_dir ) . '/' . $name, $entries );
+		}
+
+		$reader = new Tar_Archiver( MainWP_Backup::get(), 'tar' );
+		$reader->read( $this->archive_path );
+		$content = $reader->get_from_name( str_replace( ABSPATH, '', $this->fixture_dir ) . '/file-2.txt' );
+		$reader->close();
+
+		$this->assertSame( str_repeat( "content-2\n", 50 ), $content );
 	}
 
 	/**

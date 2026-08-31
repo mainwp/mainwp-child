@@ -730,6 +730,10 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         MainWP_Helper::set_limit( 2 * MainWP_Child_Backup_Task_Runner::SLICE_BUDGET_SECONDS, '512M' );
 
         $task = MainWP_Child_Backup_Task_Runner::instance()->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
+        if ( null === $task ) {
+            MainWP_Helper::instance()->error( esc_html__( 'Backup task not found. It may have been cleaned up or was never created on this site.', 'mainwp-child' ) );
+            return;
+        }
 
         MainWP_Helper::write( $spine->status_payload( $task ) );
     }
@@ -966,6 +970,10 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         MainWP_Helper::set_limit( 2 * MainWP_Child_Backup_Task_Runner::SLICE_BUDGET_SECONDS, '512M' );
 
         $task = MainWP_Child_Restore_Task_Runner::instance()->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
+        if ( null === $task ) {
+            MainWP_Helper::instance()->error( esc_html__( 'Restore task not found. It may have been cleaned up or was never created on this site.', 'mainwp-child' ) );
+            return;
+        }
 
         MainWP_Helper::write( MainWP_Child_Backup_Task::instance()->status_payload( $task ) );
     }
@@ -1583,14 +1591,17 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Helper::write()
      */
     public function delete_backup() {
-        $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
-        $backupdir = $dirs[0];
         // phpcs:disable WordPress.Security.NonceVerification
         $file = isset( $_REQUEST['del'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['del'] ) ) : '';
         // phpcs:enable
 
-        if ( file_exists( $backupdir . $file ) ) {
-            wp_delete_file( $backupdir . $file );  // NOSONAR .
+        // Resolve through the same lookup the download path uses: it rejects a
+        // name carrying a separator, and it also finds an archive still sitting
+        // in the pre-hash legacy directory, which a hashed-dir-only delete
+        // silently failed to remove while still reporting ok.
+        $path = MainWP_Helper::locate_backup_file( $file );
+        if ( false !== $path ) {
+            wp_delete_file( $path );  // NOSONAR .
         }
 
         MainWP_Helper::write( array( 'result' => 'ok' ) );
