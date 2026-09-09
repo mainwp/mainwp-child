@@ -115,6 +115,16 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 
 == Changelog ==
 
+= 6.2 - 9-9-2026 =
+
+* Added: Version 2 capabilities and operations across backups, staging, security, vulnerability scanning, SEO, branding, maintenance, WooCommerce, caching, and other integrations.
+* Added: Safer file deployment, plugin and theme installation, artifact delivery, page management, comment moderation, custom post importing, and database optimization.
+* Added: Previews, status tracking, pagination, rollback, cancellation, and replay-safe operation handling for MainWP Abilities.
+* Added: System Monitor for WordPress cron health, including scheduled checks, fallback execution, and manual triggering.
+* Added: Support for pCloud remote storage settings in the UpdraftPlus integration.
+* Added: Optional signed request payload authentication with expiration and one-time-use validation.
+* Updated: Improved compatibility with older WordPress and plugin versions.
+
 = 6.1.8 - 8-25-2026 =
 
 * Fixed: "Download" and "Hide" buttons in the System Report are now clickable.
