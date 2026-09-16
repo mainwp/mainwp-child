@@ -191,7 +191,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             return $this->result( false, $cursor, 'Could not decompress archive: ' . basename( $part ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
 
-        if ( ! class_exists( '\PharData' ) ) {
+        if ( ! $this->phar_available() ) {
             $this->discard_plain_tar( $part, $plain );
             return $this->result( false, $cursor, "This site's PHP has the phar extension disabled, which the restore needs to read .tar archives.", MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
@@ -315,6 +315,19 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             return null;
         }
         return $plain;
+    }
+
+    /**
+     * Whether this host can read .tar archives at all.
+     *
+     * Hosts that disable the phar extension are the case this reports by
+     * name; the check is its own method so a test can reach the branch
+     * without unloading an extension.
+     *
+     * @return bool True when PharData is available.
+     */
+    protected function phar_available() {
+        return class_exists( '\PharData' );
     }
 
     /**

@@ -67,6 +67,21 @@ class InvalidTarDecompressRestorer extends MainWP_Child_Backup_File_Restorer {
 }
 
 /**
+ * Stand in for a host whose PHP has the phar extension disabled.
+ */
+class PharlessRestorer extends InvalidTarDecompressRestorer {
+
+	/**
+	 * Report phar as unavailable.
+	 *
+	 * @return bool Always false.
+	 */
+	protected function phar_available() {
+		return false;
+	}
+}
+
+/**
  * Tests for the chunked, hash-verified, zip-slip-guarded file restorer.
  *
  * Every archive verifies its sha256 against the expected hash before a
@@ -459,6 +474,23 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertStringStartsWith( 'Could not open archive: ', $result['error'] );
 		$this->assertStringContainsString( $exception_class, $result['error'] );
 		$this->assertStringNotContainsString( $this->dir, $result['error'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertFileDoesNotExist( $plain );
+	}
+
+	/**
+	 * A host without the phar extension must be told so, not handed a parse error.
+	 */
+	public function test_missing_phar_extension_is_reported_by_name() {
+		$part  = $this->dir . '/pharless.tar.gz';
+		$plain = $part . '.plain.tar';
+		file_put_contents( $part, 'compressed-part-placeholder' );
+		file_put_contents( $plain, random_bytes( 64 ) );
+
+		$this->restorer = new PharlessRestorer();
+		$result         = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertFalse( $result['done'] );
+		$this->assertStringContainsString( 'phar extension disabled', $result['error'] );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
 		$this->assertFileDoesNotExist( $plain );
 	}
