@@ -201,11 +201,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             $entries = $this->tar_entry_names( $phar );
         } catch ( \Throwable $e ) {
             $this->discard_plain_tar( $part, $plain );
-            $message = preg_replace( '/[\x00-\x1F\x7F]/', '', $e->getMessage() );
-            $message = str_replace( array( $plain, $part ), array( basename( $plain ), basename( $part ) ), $message );
-            $message = preg_replace( '~/(?:[^\s/"\'<>()[\]{}]+/)+([^\s/"\'<>()[\]{}]+)~', '$1', $message );
-            $message = substr( $message, 0, 300 );
-            return $this->result( false, $cursor, 'Could not open archive: ' . basename( $part ) . ' (' . get_class( $e ) . ': ' . $message . ')', MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+            return $this->result( false, $cursor, $this->archive_open_error( $e, $part, $plain ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
 
         $entry_count = count( $entries );
@@ -319,6 +315,36 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             return null;
         }
         return $plain;
+    }
+
+    /**
+     * Report why an archive could not be opened, keeping the cause.
+     *
+     * The dashboard only ever saw "Could not open archive: <name>", which
+     * names the file and nothing about the failure. The exception class and
+     * message carry the cause, so they stay - reduced to basenames, because
+     * the reader is another site's operator and the message crosses the wire.
+     *
+     * @param \Throwable $e     Archive-open failure.
+     * @param string     $part  Original archive path.
+     * @param string     $plain Plain tar path that failed to open.
+     *
+     * @return string Result text.
+     */
+    protected function archive_open_error( $e, $part, $plain ) {
+        $message = preg_replace( '/[\x00-\x1F\x7F]/', '', $e->getMessage() );
+        $message = str_replace( array( $plain, $part ), array( basename( $plain ), basename( $part ) ), $message );
+        $message = preg_replace( '~/(?:[^\s/"\'<>()[\]{}]+/)+([^\s/"\'<>()[\]{}]+)~', '$1', $message );
+        // Backslash paths take a second pass: a Windows or UNC path reported by
+        // PHP survives the forward-slash collapse above and would carry the host
+        // directory tree and the OS user name to the dashboard.
+        $message = preg_replace( '~(?:[A-Za-z]:)?\\\\(?:[^\s\\\\"\'<>()[\]{}]+\\\\)+([^\s\\\\"\'<>()[\]{}]+)~', '$1', $message );
+        // Byte truncation can split a multi-byte sequence, and esc_html() renders
+        // invalid UTF-8 as the empty string - which would hide the very cause
+        // this message exists to report.
+        $message = mb_substr( (string) $message, 0, 300 );
+
+        return 'Could not open archive: ' . basename( $part ) . ' (' . get_class( $e ) . ': ' . $message . ')';
     }
 
     /**

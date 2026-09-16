@@ -51,6 +51,19 @@ class InvalidTarDecompressRestorer extends MainWP_Child_Backup_File_Restorer {
 		$timed_out = false;
 		return $part . '.plain.tar';
 	}
+
+	/**
+	 * Reach the archive-open message builder with a crafted exception.
+	 *
+	 * @param \Throwable $e     Archive-open failure.
+	 * @param string     $part  Original archive path.
+	 * @param string     $plain Plain tar path.
+	 *
+	 * @return string Result text.
+	 */
+	public function public_archive_open_error( $e, $part, $plain ) {
+		return $this->archive_open_error( $e, $part, $plain );
+	}
 }
 
 /**
@@ -448,6 +461,34 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( $this->dir, $result['error'] );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
 		$this->assertFileDoesNotExist( $plain );
+	}
+
+	/**
+	 * Host paths and over-long messages must not survive into the dashboard's copy.
+	 */
+	public function test_archive_open_error_reduces_paths_and_keeps_text_readable() {
+		$restorer = new InvalidTarDecompressRestorer();
+		$part     = '/var/www/site/wp-content/backups/part001.tar.gz';
+		$plain    = $part . '.plain.tar';
+
+		$windows = $restorer->public_archive_open_error(
+			new \RuntimeException( 'cannot open C:\\Users\\dennis\\sites\\demo\\wp-content\\backups\\other.tar or \\\\fileserver\\share\\other.tar' ),
+			$part,
+			$plain
+		);
+		$this->assertStringNotContainsString( 'C:\\Users', $windows );
+		$this->assertStringNotContainsString( 'fileserver', $windows );
+		$this->assertStringContainsString( 'other.tar', $windows );
+
+		// A cut inside a multi-byte sequence makes esc_html() render the whole
+		// message as the empty string, which is the failure this guards.
+		$long = $restorer->public_archive_open_error(
+			new \RuntimeException( str_repeat( 'é', 400 ) ),
+			$part,
+			$plain
+		);
+		$this->assertSame( $long, wp_check_invalid_utf8( $long ) );
+		$this->assertStringContainsString( str_repeat( 'é', 300 ), $long );
 	}
 
 	/**
