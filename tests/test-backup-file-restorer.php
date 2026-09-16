@@ -34,6 +34,26 @@ class TimeoutDecompressRestorer extends MainWP_Child_Backup_File_Restorer {
 }
 
 /**
+ * Bypass decompression so malformed tar bytes reach PharData directly.
+ */
+class InvalidTarDecompressRestorer extends MainWP_Child_Backup_File_Restorer {
+
+	/**
+	 * Use the malformed fixture to isolate archive-open failures.
+	 *
+	 * @param string    $part      Archive path.
+	 * @param float|int $deadline  Decompression deadline.
+	 * @param bool      $timed_out Timeout signal (by reference).
+	 *
+	 * @return string Plain tar fixture path.
+	 */
+	protected function plain_tar_for( $part, $deadline, &$timed_out ) {
+		$timed_out = false;
+		return $part . '.plain.tar';
+	}
+}
+
+/**
  * Tests for the chunked, hash-verified, zip-slip-guarded file restorer.
  *
  * Every archive verifies its sha256 against the expected hash before a
@@ -401,6 +421,33 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertTrue( $result['done'] );
 		$this->assertStringContainsString( 'CREATE TABLE', file_get_contents( $this->extract_to . '/dbBackup-wp_a.sql.php' ) );
 		$this->assertSame( 'nested-bytes', file_get_contents( $this->extract_to . '/sub/nested.txt' ) );
+	}
+
+	/**
+	 * Archive-open failures retain their cause without exposing host directories.
+	 */
+	public function test_invalid_tar_reports_exception_without_directory() {
+		$part  = $this->dir . '/invalid.tar.gz';
+		$plain = $part . '.plain.tar';
+		file_put_contents( $part, 'compressed-part-placeholder' );
+		file_put_contents( $plain, random_bytes( 64 ) );
+
+		$exception_class = null;
+		try {
+			new PharData( $plain );
+		} catch ( Throwable $e ) {
+			$exception_class = get_class( $e );
+		}
+		$this->assertNotNull( $exception_class, 'The invalid tar fixture must be rejected by PharData.' );
+
+		$this->restorer = new InvalidTarDecompressRestorer();
+		$result         = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertFalse( $result['done'] );
+		$this->assertStringStartsWith( 'Could not open archive: ', $result['error'] );
+		$this->assertStringContainsString( $exception_class, $result['error'] );
+		$this->assertStringNotContainsString( $this->dir, $result['error'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertFileDoesNotExist( $plain );
 	}
 
 	/**

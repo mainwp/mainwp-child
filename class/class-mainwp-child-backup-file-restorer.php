@@ -191,12 +191,21 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             return $this->result( false, $cursor, 'Could not decompress archive: ' . basename( $part ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
 
+        if ( ! class_exists( '\PharData' ) ) {
+            $this->discard_plain_tar( $part, $plain );
+            return $this->result( false, $cursor, "This site's PHP has the phar extension disabled, which the restore needs to read .tar archives.", MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+        }
+
         try {
             $phar    = new \PharData( $plain );
             $entries = $this->tar_entry_names( $phar );
         } catch ( \Throwable $e ) {
             $this->discard_plain_tar( $part, $plain );
-            return $this->result( false, $cursor, 'Could not open archive: ' . basename( $part ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+            $message = preg_replace( '/[\x00-\x1F\x7F]/', '', $e->getMessage() );
+            $message = str_replace( array( $plain, $part ), array( basename( $plain ), basename( $part ) ), $message );
+            $message = preg_replace( '~/(?:[^\s/"\'<>()[\]{}]+/)+([^\s/"\'<>()[\]{}]+)~', '$1', $message );
+            $message = substr( $message, 0, 300 );
+            return $this->result( false, $cursor, 'Could not open archive: ' . basename( $part ) . ' (' . get_class( $e ) . ': ' . $message . ')', MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
 
         $entry_count = count( $entries );
