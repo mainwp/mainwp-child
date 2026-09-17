@@ -264,11 +264,13 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
 
         if ( 'full' === $type ) {
             // Full dumps reuse legacy names, so orphaned fragments must not look like resume data.
-            // The legacy engine dumps under those same names with no spine row, so the age-0 sweep
-            // stands down while its pid lock is fresh; a legacy dump that stops heartbeating is
-            // invisible here exactly as it is to the caller's own single-backup check.
+            // The fragments this sweep is for are a dead native run's, and a native run leaves no
+            // pid file, so any pid in the directory means the litter may instead belong to a legacy
+            // backup - which adds its dump files to the archive and only reads them when the
+            // archive closes, long after its pid has gone stale. The aged sweep collects a dead
+            // legacy run's pid, and this sweep resumes working once it has.
             $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
-            if ( ! MainWP_Backup::is_pid_lock_fresh( $dirs[0] ) ) {
+            if ( ! glob( rtrim( $dirs[0], '/' ) . '/backup-*.pid' ) ) {
                 $this->sweep_stale_markers( $dirs[0], 0, true );
             }
         }

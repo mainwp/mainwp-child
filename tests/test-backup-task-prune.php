@@ -333,10 +333,11 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The legacy engine dumps under the same names with no task row, so a
-	 * fresh pid lock stands the age-0 sweep down.
+	 * The legacy engine dumps under the same names with no task row and reads
+	 * its dump files long after its pid goes stale, so any pid stands the
+	 * age-0 sweep down and the aged sweep is what clears the way again.
 	 */
-	public function test_full_task_creation_spares_fragments_under_a_fresh_legacy_pid_lock() {
+	public function test_full_task_creation_spares_fragments_while_a_legacy_pid_is_present() {
 		$spine    = MainWP_Child_Backup_Task::instance();
 		$dirs     = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' );
 		$prefix   = rtrim( $dirs[0], '/' ) . '/dbBackup-legacy-' . uniqid();
@@ -348,12 +349,17 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 			file_put_contents( $pid, '12345' );
 
 			$this->assertNotFalse( $spine->create_task( 'full' ) );
-			$this->assertFileExists( $fragment, 'A fresh pid lock must stand the sweep down.' );
+			$this->assertFileExists( $fragment, 'A fresh pid must stand the sweep down.' );
 
 			touch( $pid, time() - 4 * 3600 );
 
 			$this->assertNotFalse( $spine->create_task( 'full' ) );
-			$this->assertFileDoesNotExist( $fragment, 'A stale pid lock must not hold the sweep off.' );
+			$this->assertFileExists( $fragment, 'A stale pid must stand the sweep down too: the legacy zip path never heartbeats.' );
+
+			unlink( $pid );
+
+			$this->assertNotFalse( $spine->create_task( 'full' ) );
+			$this->assertFileDoesNotExist( $fragment, 'With no pid in the directory the sweep runs.' );
 		} finally {
 			foreach ( array( $fragment, $pid ) as $file ) {
 				if ( file_exists( $file ) ) {
