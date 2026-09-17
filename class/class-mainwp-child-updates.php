@@ -175,7 +175,6 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
             $this->update_premiums_to_do( $information, $premiumUpgrader, $mwp_premium_updates_to_do, $mwp_premium_updates_to_do_slugs );
         }
 
-
         /**
          * WP-Rocket auto cache purge.
          *
@@ -188,6 +187,10 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ! $plugin_update ) {
             // Save Status results.
             $information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false ); // causing sync plugins updates info are not correct.
+        } else {
+            $information['sync_partial'] = array(
+                'plugins' => MainWP_Child_Stats::get_instance()->get_all_plugins_int( false, '', '', false, false, array( 'site_stats' => false ) ),
+            );
         }
 
         // ** Send data to MainWP Dashboard. **//

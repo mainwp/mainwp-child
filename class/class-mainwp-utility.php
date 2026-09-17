@@ -822,6 +822,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         $http_code = wp_remote_retrieve_response_code( $response );
         return array(
             'http_code' => $http_code,
+            'error'     => esc_html__( 'Premium update request failed. Please try again later.', 'mainwp-child' ),
         );
     }
 
