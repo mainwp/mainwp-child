@@ -376,17 +376,32 @@ class UtilityDownloadTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Empty artifacts cannot satisfy a byte range or resume offset.
+	 * An empty artifact nobody asked a byte window of is a valid empty 200.
 	 */
 	public function test_empty_download_is_200_with_zero_content_length() {
 		$utility = MainWP_Utility::instance();
-		foreach ( array( null, 'bytes=0-', 'bytes=5-10' ) as $range_header ) {
-			$range = $utility->resolve_download_range( 0, $range_header, 5 );
-			$this->assertSame( 200, $range['status'] );
-			$headers = $utility->get_download_headers( MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST, 0, $range );
-			$this->assertContains( 'Content-Length: 0', $headers );
-			$this->assertSame( array(), preg_grep( '/^Content-Range:/', $headers ) );
-		}
+		$range   = $utility->resolve_download_range( 0, null, 0 );
+		$this->assertSame( 200, $range['status'] );
+		$headers = $utility->get_download_headers( MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST, 0, $range );
+		$this->assertContains( 'Content-Length: 0', $headers );
+		$this->assertSame( array(), preg_grep( '/^Content-Range:/', $headers ) );
+	}
+
+	/**
+	 * An empty artifact cannot satisfy a byte range or a resume offset: the
+	 * zero-size fast path must not answer 200 to a request that asked for
+	 * bytes that do not exist.
+	 */
+	public function test_empty_download_with_range_or_offset_is_416() {
+		$utility = MainWP_Utility::instance();
+
+		$range = $utility->resolve_download_range( 0, 'bytes=5-10' );
+		$this->assertSame( 416, $range['status'] );
+		$headers = $utility->get_download_headers( MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST, 0, $range );
+		$this->assertContains( 'Content-Range: bytes */0', $headers );
+
+		$range = $utility->resolve_download_range( 0, null, 5 );
+		$this->assertSame( 416, $range['status'] );
 	}
 
 	/**

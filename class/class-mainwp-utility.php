@@ -374,8 +374,10 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         $file_size = (int) $file_size;
         $offset    = (int) $offset;
 
-        // An empty tombstones list has no byte window to resume.
-        if ( 0 === $file_size ) {
+        // An empty tombstones list is a valid empty 200 only when nothing asked
+        // for a byte window; an explicit range or resume offset against zero
+        // bytes is unsatisfiable and falls through to the 416 below.
+        if ( 0 === $file_size && 0 === $offset && ( null === $range_header || '' === $range_header ) ) {
             return array(
                 'status' => 200,
                 'start'  => 0,
