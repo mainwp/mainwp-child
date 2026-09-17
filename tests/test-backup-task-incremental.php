@@ -5,6 +5,7 @@
  * @package Mainwp_Child
  */
 
+use MainWP\Child\MainWP_Backup_Error;
 use MainWP\Child\MainWP_Child_Backup_Incremental_Zip_Writer;
 use MainWP\Child\MainWP_Child_Backup_Task;
 use MainWP\Child\MainWP_Exception;
@@ -245,20 +246,21 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A manifest emission failure never fails the backup itself - the
-	 * archive completed; the chain just has no base manifest, which the
-	 * next incremental resolves by forcing a full.
+	 * A full archive without a manifest cannot seed the incremental chain,
+	 * so the Dashboard needs the walk failure code instead of an unusable base.
 	 */
-	public function test_manifest_emission_failure_keeps_backup_completed() {
+	public function test_manifest_emission_failure_fails_the_task() {
 		$this->runner->stubs['walk_manifest_slice'] = new \RuntimeException( 'walk failed' );
 
 		$task_id = $this->create_task( 'full', array( 'emit_manifest' => true ) );
 		$task    = $this->advance( $task_id );
 
-		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$sub_state = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $this->backup_dir );
+		$this->assertSame( MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED, $sub_state['error']['code'] );
 
 		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
-		$this->assertSame( 'backup-artifact.tar', $payload['file'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED, $payload['error_code'] );
 		$this->assertArrayNotHasKey( 'artifacts', $payload );
 	}
 

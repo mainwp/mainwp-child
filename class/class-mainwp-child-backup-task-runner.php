@@ -424,6 +424,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             // with the error: it holds the only record of which files this
             // task produced. The fresh row read beats the loop's local copy
             // because a phase may checkpoint progress and then throw.
+            // Only the row version can match the optimistic update after an intra-slice checkpoint.
             $failed_row = $spine->get_task( $task_id );
             $pre_fail   = null !== $failed_row ? $spine->read_sub_state( $failed_row, $backup_dir ) : null;
             if ( ! is_array( $pre_fail ) && isset( $sub_state ) && is_array( $sub_state ) ) {
@@ -432,7 +433,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
 
             $new_version = $spine->checkpoint(
                 $task_id,
-                $version,
+                null !== $failed_row ? (int) $failed_row->version : $version,
                 array(
                     'phase'     => MainWP_Child_Backup_Task::PHASE_FAILED,
                     'sub_state' => array(
@@ -635,6 +636,9 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @param int    $deadline   Slice deadline.
      * @param string $backup_dir Scratch directory.
      *
+     * @throws \Throwable When a MainWP_Exception from the manifest walk already carries an error code.
+     * @throws MainWP_Exception When the manifest needed to seed the chain cannot be built.
+     *
      * @return array Slice result.
      */
     protected function run_archiving_files( $task, $version, $sub_state, $deadline, $backup_dir ) {
@@ -708,17 +712,16 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         if ( ! empty( $params['emit_manifest'] ) && empty( $sub_state['walk_done'] ) ) {
-            // A manifest emission failure never fails the backup itself - the
-            // archive is intact; the chain base just lacks a manifest, which the
-            // next incremental resolves by forcing a full. The walk is sliced,
-            // so a tree larger than a slice resumes instead of re-walking.
+            // An archive without a manifest cannot seed the incremental chain.
+            // The Dashboard reports a base with no manifest as a corrupt file
+            // without a cause, so the walk failure must reach it as an error.
             try {
                 $walk = $this->walk_manifest_slice( $params, $backup_dir, isset( $sub_state['walk_cursor'] ) ? $sub_state['walk_cursor'] : null, $deadline );
-            } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - manifest emission is best effort.
-                unset( $e );
-                unset( $sub_state['walk_cursor'] );
-                $sub_state['walk_done'] = true;
-                return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+            } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - manifest failures must reach the Dashboard.
+                if ( $e instanceof MainWP_Exception && ! empty( $e->get_message_error_code() ) ) {
+                    throw $e;
+                }
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED ) . ' ' . $e->getMessage() ), null, MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
             }
 
             if ( empty( $walk['done'] ) ) {

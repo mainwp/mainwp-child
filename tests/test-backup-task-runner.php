@@ -772,6 +772,59 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $this->backup_dir . '/task_substate-' . $task_id . '.json' );
 	}
 
+	public function test_manifest_walk_exception_marks_failed() {
+		$this->runner->stubs['walk_manifest_slice'] = new \RuntimeException( 'walk exploded' );
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full', array( 'params' => array( 'ext' => 'tar', 'emit_manifest' => true ) ) );
+		$this->assertFileExists( $this->backup_dir . '/backup-artifact.tar' );
+
+		$task = $this->advance( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$sub_state = $spine->read_sub_state( $task, $this->backup_dir );
+		$this->assertSame( MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED, $sub_state['error']['code'] );
+		$this->assertStringContainsString( 'walk exploded', $sub_state['error']['message'] );
+		$this->assertFileDoesNotExist( $this->backup_dir . '/task_substate-' . $task_id . '.json' );
+		$this->assertFileDoesNotExist( $this->backup_dir . '/backup-artifact.tar' );
+		$payload = $spine->status_payload( $task, $this->backup_dir );
+		$this->assertSame( MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED, $payload['error_code'] );
+	}
+
+	public function test_manifest_walk_exception_preserves_error_code() {
+		$this->runner->stubs['walk_manifest_slice'] = new MainWP_Exception( 'no dir', null, MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE );
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full', array( 'params' => array( 'ext' => 'tar', 'emit_manifest' => true ) ) );
+		$this->assertFileExists( $this->backup_dir . '/backup-artifact.tar' );
+
+		$task = $this->advance( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$sub_state = $spine->read_sub_state( $task, $this->backup_dir );
+		$this->assertSame( MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE, $sub_state['error']['code'] );
+		$this->assertStringContainsString( 'no dir', $sub_state['error']['message'] );
+		$this->assertFileDoesNotExist( $this->backup_dir . '/task_substate-' . $task_id . '.json' );
+		$this->assertFileDoesNotExist( $this->backup_dir . '/backup-artifact.tar' );
+		$payload = $spine->status_payload( $task, $this->backup_dir );
+		$this->assertSame( MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE, $payload['error_code'] );
+	}
+
+	public function test_full_manifest_walk_completes_with_artifacts() {
+		$this->runner->stubs['walk_manifest_slice'] = array(
+			'done'        => true,
+			'size'        => 128,
+			'count'       => 1,
+			'total_bytes' => 2048,
+		);
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full', array( 'params' => array( 'ext' => 'tar', 'emit_manifest' => true ) ) );
+
+		$task = $this->advance( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$sub_state = $spine->read_sub_state( $task, $this->backup_dir );
+		$this->assertSame( array( 'full', 'manifest' ), array_column( $sub_state['artifacts'], 'role' ) );
+	}
+
 	/**
 	 * Upload and submit are stubs with a late-phase safety guard: once the
 	 * acceptance marker is set, the work is never re-issued.
