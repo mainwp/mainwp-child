@@ -163,7 +163,9 @@ class BackupFilesOnlyTest extends WP_UnitTestCase {
 		};
 		$backup->during_backup = function () use ( $throws, $failure, $artifact, &$called, &$ttl ) {
 			$called = true;
-			$this->assertTrue( get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ) );
+			$marker = get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT );
+			$this->assertIsString( $marker );
+			$this->assertNotSame( '', $marker );
 			$this->assertSame( 10800, $ttl );
 			if ( $throws ) {
 				throw $failure;
@@ -201,7 +203,7 @@ class BackupFilesOnlyTest extends WP_UnitTestCase {
 		} finally {
 			$_POST = $original_post;
 			remove_filter( 'expiration_of_transient_' . MainWP_Backup::LEGACY_RUNNING_TRANSIENT, $record_ttl );
-			MainWP_Backup::clear_legacy_backup_running();
+			MainWP_Backup::clear_legacy_backup_running( (string) get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ) );
 			while ( ob_get_level() > $ob_level ) {
 				ob_end_clean();
 			}
@@ -218,6 +220,25 @@ class BackupFilesOnlyTest extends WP_UnitTestCase {
 			'db success'     => array( 'db', false ),
 			'db exception'   => array( 'db', true ),
 		);
+	}
+
+	/**
+	 * A marker set by one request cannot be cleared by another request's token.
+	 */
+	public function test_legacy_marker_clears_only_for_its_own_token() {
+		try {
+			$token = MainWP_Backup::set_legacy_backup_running();
+			$this->assertIsString( $token );
+			$this->assertSame( $token, get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ) );
+
+			MainWP_Backup::clear_legacy_backup_running( 'some-other-token' );
+			$this->assertSame( $token, get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ), 'A foreign token must not clear the marker.' );
+
+			MainWP_Backup::clear_legacy_backup_running( $token );
+			$this->assertFalse( get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ) );
+		} finally {
+			delete_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT );
+		}
 	}
 
 	/**

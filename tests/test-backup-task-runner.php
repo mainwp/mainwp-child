@@ -307,7 +307,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	 * Drop spine rows and the scratch dir.
 	 */
 	public function tear_down() {
-		MainWP_Backup::clear_legacy_backup_running();
+		delete_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT );
 		global $wpdb;
 		$wpdb->query( 'DELETE FROM ' . MainWP_Child_Backup_Task::instance()->get_table_name() ); // phpcs:ignore -- test cleanup.
 		foreach ( (array) glob( $this->backup_dir . '/*' ) as $file ) {
