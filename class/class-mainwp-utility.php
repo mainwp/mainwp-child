@@ -783,7 +783,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         );
 
         if ( 'premium_update' === $perform ) {
-            $request_args ['timeout'] = 600;
+            $request_args['timeout'] = 600;
         }
 
         // Build Final Target URL.
