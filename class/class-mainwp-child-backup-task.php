@@ -269,7 +269,16 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             // backup - which adds its dump files to the archive and only reads them when the
             // archive closes, long after its pid has gone stale. The aged sweep collects a dead
             // legacy run's pid, and this sweep resumes working once it has.
+            // A pid nothing collects would close this gate for good on a child that
+            // runs native backups and prunes nothing, so a pid past the deadness
+            // threshold the legacy engine itself uses goes first. Only the pid: a
+            // fragment that old can still belong to a legacy run inside its walk.
             $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
+            foreach ( (array) glob( rtrim( $dirs[0], '/' ) . '/backup-*.pid' ) as $pid_file ) {
+                if ( is_file( $pid_file ) && filemtime( $pid_file ) < time() - 10800 ) {
+                    wp_delete_file( $pid_file );
+                }
+            }
             if ( ! glob( rtrim( $dirs[0], '/' ) . '/backup-*.pid' ) ) {
                 $this->sweep_stale_markers( $dirs[0], 0, true );
             }

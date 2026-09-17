@@ -351,15 +351,17 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 			$this->assertNotFalse( $spine->create_task( 'full' ) );
 			$this->assertFileExists( $fragment, 'A fresh pid must stand the sweep down.' );
 
+			touch( $pid, time() - 2 * 3600 );
+
+			$this->assertNotFalse( $spine->create_task( 'full' ) );
+			$this->assertFileExists( $fragment, 'A pid inside the deadness window must stand the sweep down: the legacy zip path never heartbeats.' );
+			$this->assertFileExists( $pid, 'That pid must survive: it can still belong to a legacy run inside its file walk.' );
+
 			touch( $pid, time() - 4 * 3600 );
 
 			$this->assertNotFalse( $spine->create_task( 'full' ) );
-			$this->assertFileExists( $fragment, 'A stale pid must stand the sweep down too: the legacy zip path never heartbeats.' );
-
-			unlink( $pid );
-
-			$this->assertNotFalse( $spine->create_task( 'full' ) );
-			$this->assertFileDoesNotExist( $fragment, 'With no pid in the directory the sweep runs.' );
+			$this->assertFileDoesNotExist( $pid, 'A pid past the deadness threshold is collected so the gate cannot close for good.' );
+			$this->assertFileDoesNotExist( $fragment, 'With the dead pid collected the sweep runs in the same call.' );
 		} finally {
 			foreach ( array( $fragment, $pid ) as $file ) {
 				if ( file_exists( $file ) ) {
