@@ -7,6 +7,7 @@
  */
 
 use MainWP\Child\MainWP_Backup;
+use MainWP\Child\MainWP_Exception;
 
 /**
  * Backup with the heavy archive step stubbed, recording how the legacy
@@ -130,6 +131,93 @@ class BackupFilesOnlyTest extends WP_UnitTestCase {
 		$this->assertSame( array(), $backup->dump_set_at_call, 'The archive step must see an empty dump set.' );
 		$this->assertSame( 'https://child.test/files-archive.tar.gz', $info['full'], 'The files archive rides the full slot.' );
 		$this->assertFalse( $info['db'] );
+	}
+
+	/**
+	 * Both legacy dump entries must protect fragments through archive completion.
+	 *
+	 * @dataProvider legacy_marker_runs
+	 * @param string $type   Backup type.
+	 * @param bool   $throws Whether the engine fails.
+	 */
+	public function test_legacy_marker_covers_run_and_clears_afterward( $type, $throws ) {
+		$backup = new class() extends MainWP_Backup {
+			public $during_backup;
+
+			public function backup_full( $fileName ) {
+				return call_user_func( $this->during_backup );
+			}
+
+			public function create_backup_db( $filepath_prefix, $archiveExt = false, &$archiver = null ) {
+				return call_user_func( $this->during_backup );
+			}
+		};
+		$artifact = $this->dir . '/legacy.zip';
+		file_put_contents( $artifact, 'archive' );
+		$failure    = 'db' === $type ? new MainWP_Exception( 'Legacy archive failed.', null, '' ) : new RuntimeException( 'Legacy archive failed.' );
+		$called     = false;
+		$ttl        = null;
+		$record_ttl = function ( $expiration ) use ( &$ttl ) {
+			$ttl = $expiration;
+			return $expiration;
+		};
+		$backup->during_backup = function () use ( $throws, $failure, $artifact, &$called, &$ttl ) {
+			$called = true;
+			$this->assertTrue( get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ) );
+			$this->assertSame( 10800, $ttl );
+			if ( $throws ) {
+				throw $failure;
+			}
+			return array(
+				'file'     => basename( $artifact ),
+				'filesize' => 7,
+				'filepath' => $artifact,
+			);
+		};
+		$original_post   = $_POST;
+		$_POST['type']    = $type;
+		$_POST['fileUID'] = '';
+		$this->assertFalse( get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ) );
+		add_filter( 'expiration_of_transient_' . MainWP_Backup::LEGACY_RUNNING_TRANSIENT, $record_ttl );
+		// The legacy entry ends with ob_end_flush(); give it a buffer of ours to close so
+		// PHPUnit's own buffer survives, then restore the level we started at.
+		$ob_level = ob_get_level();
+		ob_start();
+		try {
+			try {
+				if ( 'db' === $type ) {
+					$result = $backup->backup_db();
+				} else {
+					$result = $backup->backup( false );
+				}
+				$this->assertFalse( $throws, 'The engine exception must propagate.' );
+				$this->assertSame( 'legacy.zip', $result[ 'db' === $type ? 'file' : 'full' ] );
+			} catch ( Exception $e ) {
+				$this->assertTrue( $throws );
+				$this->assertSame( $failure, $e );
+			}
+			$this->assertTrue( $called, 'The legacy engine seam must run.' );
+			$this->assertFalse( get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ) );
+		} finally {
+			$_POST = $original_post;
+			remove_filter( 'expiration_of_transient_' . MainWP_Backup::LEGACY_RUNNING_TRANSIENT, $record_ttl );
+			MainWP_Backup::clear_legacy_backup_running();
+			while ( ob_get_level() > $ob_level ) {
+				ob_end_clean();
+			}
+		}
+	}
+
+	/**
+	 * @return array Legacy entry points and completion paths.
+	 */
+	public function legacy_marker_runs() {
+		return array(
+			'full success'   => array( 'full', false ),
+			'full exception' => array( 'full', true ),
+			'db success'     => array( 'db', false ),
+			'db exception'   => array( 'db', true ),
+		);
 	}
 
 	/**

@@ -141,14 +141,12 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         // backup. Reclaim only clears deadline-expired tasks, never a live one.
         $spine->reclaim_expired_tasks();
 
-        if ( ! empty( $spine->get_active_tasks() ) ) {
+        if ( false !== get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ) || ! empty( $spine->get_active_tasks() ) ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
         }
 
-        // The other half of the single-backup invariant: a legacy Run Now
-        // holds no spine row, only a *.pid file, so a fresh one must block a
-        // new task the same way an active spine task blocks a legacy Run Now
-        // (see MainWP_Backup::assert_no_active_spine_task()).
+        // Keep honoring pid files from legacy tar requests that began before
+        // the running marker was available.
         if ( MainWP_Backup::is_pid_lock_fresh( $this->backup_dir() ) ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
         }
@@ -533,6 +531,11 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         $params = isset( $sub_state['params'] ) && is_array( $sub_state['params'] ) ? $sub_state['params'] : array();
 
         if ( empty( $sub_state['db_prefix'] ) ) {
+            // Legacy archives may still be reading fragments under this dump prefix.
+            if ( false !== get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ) ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
+
             global $wpdb;
             $sub_state['db_prefix'] = $this->build_db_prefix( $task, $params, $backup_dir );
             $tables                 = $wpdb->get_col( "SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'", 0 ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- match the dumper's table inventory.

@@ -5,6 +5,8 @@
  * @package Mainwp_Child
  */
 
+use MainWP\Child\MainWP_Backup;
+use MainWP\Child\MainWP_Backup_Error;
 use MainWP\Child\MainWP_Backup_Budget_Exception;
 use MainWP\Child\MainWP_Child_Backup_Task;
 use MainWP\Child\MainWP_Child_Backup_Task_Runner;
@@ -305,6 +307,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	 * Drop spine rows and the scratch dir.
 	 */
 	public function tear_down() {
+		MainWP_Backup::clear_legacy_backup_running();
 		global $wpdb;
 		$wpdb->query( 'DELETE FROM ' . MainWP_Child_Backup_Task::instance()->get_table_name() ); // phpcs:ignore -- test cleanup.
 		foreach ( (array) glob( $this->backup_dir . '/*' ) as $file ) {
@@ -466,6 +469,44 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Legacy work has no task row for the native creation guard to find.
+	 */
+	public function test_create_task_refuses_legacy_running_marker() {
+		$spine = MainWP_Child_Backup_Task::instance();
+		$this->assertEmpty( $spine->get_active_tasks() );
+		MainWP_Backup::set_legacy_backup_running();
+
+		try {
+			$this->runner->create_task_for_params( 'full', array() );
+			$this->fail( 'A native task must not start during a legacy backup.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+		}
+		$this->assertEmpty( $spine->get_active_tasks() );
+	}
+
+	/**
+	 * Legacy work starting after task creation must keep its queued fragments.
+	 */
+	public function test_fresh_dump_refuses_legacy_marker_without_deleting_fragments() {
+		global $wpdb;
+		$fragment = $this->backup_dir . '/dbBackup-' . \MainWP\Child\MainWP_Helper::sanitize_filename( $wpdb->posts ) . '.sql.php';
+		file_put_contents( $fragment, 'legacy dump' );
+		file_put_contents( $fragment . '.tmp', 'legacy partial' );
+		$task_id = $this->runner->create_task_for_params( 'full', array() );
+		MainWP_Backup::set_legacy_backup_running();
+
+		$task = $this->advance( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, MainWP_Child_Backup_Task::instance()->status_payload( $task )['error_code'] );
+		$this->assertSame( 'legacy dump', file_get_contents( $fragment ) );
+		$this->assertSame( 'legacy partial', file_get_contents( $fragment . '.tmp' ) );
+		$this->assertSame( array(), $this->runner->seam_names() );
+		$this->assertNull( $task->lease_owner );
+		$this->assertSame( $task->version, $this->advance( $task_id )->version, 'A refused dump must stay terminal.' );
+	}
+
+	/**
 	 * Stale fragments must not be published as the fresh dump's contents.
 	 */
 	public function test_fresh_dump_rewrites_stale_target_fragment() {
@@ -521,6 +562,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 			);
 		};
 
+		MainWP_Backup::set_legacy_backup_running();
 		$task = $this->advance( $task_id );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_DUMPING_DB, $task->phase );
 		$this->assertContains( 'dump_tier2', $this->runner->seam_names() );

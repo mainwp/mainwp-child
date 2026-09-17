@@ -25,6 +25,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class MainWP_Backup {
 
     /**
+     * Shared marker for legacy dumps that native tasks could overwrite.
+     *
+     * @var string
+     */
+    const LEGACY_RUNNING_TRANSIENT = 'mainwp_legacy_backup_running';
+
+    /**
      * Whether to exclude zip archives.
      *
      * @var bool true|false
@@ -644,6 +651,21 @@ class MainWP_Backup {
     }
 
     /**
+     * Protect legacy dump fragments until the archive has consumed them.
+     */
+    public static function set_legacy_backup_running() {
+        // A crashed request expires at the legacy engine's three-hour deadness threshold.
+        set_transient( self::LEGACY_RUNNING_TRANSIENT, true, 10800 );
+    }
+
+    /**
+     * Release the fragments for a later native dump.
+     */
+    public static function clear_legacy_backup_running() {
+        delete_transient( self::LEGACY_RUNNING_TRANSIENT );
+    }
+
+    /**
      * Perform a backup.
      *
      * @param bool $write Whether or not to execute MainWP_Helper::write(), Default: true.
@@ -672,80 +694,93 @@ class MainWP_Backup {
             MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
         }
 
-        $timeout = $this->get_timeout_from_request();
-        MainWP_Helper::set_limit( $timeout );
-
-        MainWP_Helper::end_session();
-
-        // Cleanup pid files!
-        $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
-        $backupdir = trailingslashit( $dirs[0] );
-
-        /**
-         * WordPress files system object.
-         *
-         * @global object
-         */
-        global $wp_filesystem;
-
-        MainWP_Helper::get_wp_filesystem();
-
-        $files = glob( $backupdir . '*' );
-        foreach ( $files as $file ) {
-            if ( MainWP_Helper::ends_with( $file, '/index.php' ) | MainWP_Helper::ends_with( $file, '/.htaccess' ) ) {
-                continue;
-            }
-
-            if ( ( time() - filemtime( $file ) ) > ( 60 * 60 * 3 ) ) {
-                wp_delete_file( $file );
-            }
+        // phpcs:disable WordPress.Security.NonceVerification -- authenticated Dashboard dispatch.
+        $type = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
+        // phpcs:enable WordPress.Security.NonceVerification
+        if ( 'full' === $type ) {
+            self::set_legacy_backup_running();
         }
 
-        // phpcs:disable WordPress.Security.NonceVerification
-        $fileName = isset( $_POST['fileUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileUID'] ) ) : '';
-        $type     = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
-
         try {
-            if ( 'full' === $type || 'db' === $type || 'files' === $type ) {
-                $this->assert_disk_space_for_backup( $backupdir, 'db' !== $type );
-            }
+            try {
+                $timeout = $this->get_timeout_from_request();
+                MainWP_Helper::set_limit( $timeout );
 
-            if ( 'full' === $type || 'files' === $type ) {
+                MainWP_Helper::end_session();
 
-                if ( 'files' === $type ) {
-                    // A files-only backup embeds no database dump: an
-                    // empty prepared set short-circuits the fresh dump
-                    // the archiver would otherwise run. The artifact
-                    // rides the full slot like every file archive.
-                    $this->set_prepared_db_files( array() );
+                // Cleanup pid files!
+                $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
+                $backupdir = trailingslashit( $dirs[0] );
+
+                /**
+                 * WordPress files system object.
+                 *
+                 * @global object
+                 */
+                global $wp_filesystem;
+
+                MainWP_Helper::get_wp_filesystem();
+
+                $files = glob( $backupdir . '*' );
+                foreach ( $files as $file ) {
+                    if ( MainWP_Helper::ends_with( $file, '/index.php' ) | MainWP_Helper::ends_with( $file, '/.htaccess' ) ) {
+                        continue;
+                    }
+
+                    if ( ( time() - filemtime( $file ) ) > ( 60 * 60 * 3 ) ) {
+                        wp_delete_file( $file );
+                    }
                 }
 
-                $res = $this->backup_full( $fileName );
+                // phpcs:disable WordPress.Security.NonceVerification
+                $fileName = isset( $_POST['fileUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileUID'] ) ) : '';
 
-                if ( 'files' === $type ) {
-                    $this->set_prepared_db_files( null );
+                if ( 'full' === $type || 'db' === $type || 'files' === $type ) {
+                    $this->assert_disk_space_for_backup( $backupdir, 'db' !== $type );
                 }
 
-                if ( ! $res ) {
+                if ( 'full' === $type || 'files' === $type ) {
+
+                    if ( 'files' === $type ) {
+                        // A files-only backup embeds no database dump: an
+                        // empty prepared set short-circuits the fresh dump
+                        // the archiver would otherwise run. The artifact
+                        // rides the full slot like every file archive.
+                        $this->set_prepared_db_files( array() );
+                    }
+
+                    $res = $this->backup_full( $fileName );
+
+                    if ( 'files' === $type ) {
+                        $this->set_prepared_db_files( null );
+                    }
+
+                    if ( ! $res ) {
+                        $information['full'] = false;
+                    } else {
+                        $information['full'] = $res['file'];
+                        $information['size'] = $res['filesize'];
+                    }
+                    $information['db'] = false;
+                } elseif ( 'db' === $type ) {
+                    $ext = isset( $_POST['ext'] ) ? sanitize_text_field( wp_unslash( $_POST['ext'] ) ) : 'zip';
+                    $res = $this->backup_db( $fileName, $ext );
+                    if ( ! $res ) {
+                        $information['db'] = false;
+                    } else {
+                        $information['db']   = $res['file'];
+                        $information['size'] = $res['filesize'];
+                    }
                     $information['full'] = false;
                 } else {
-                    $information['full'] = $res['file'];
-                    $information['size'] = $res['filesize'];
+                    $information['full'] = false;
+                    $information['db']   = false;
                 }
-                $information['db'] = false;
-            } elseif ( 'db' === $type ) {
-                $ext = isset( $_POST['ext'] ) ? sanitize_text_field( wp_unslash( $_POST['ext'] ) ) : 'zip';
-                $res = $this->backup_db( $fileName, $ext );
-                if ( ! $res ) {
-                    $information['db'] = false;
-                } else {
-                    $information['db']   = $res['file'];
-                    $information['size'] = $res['filesize'];
+            } finally {
+                // The response helpers exit, so release before the error handler or response write.
+                if ( 'full' === $type ) {
+                    self::clear_legacy_backup_running();
                 }
-                $information['full'] = false;
-            } else {
-                $information['full'] = false;
-                $information['db']   = false;
             }
         } catch ( MainWP_Exception $e ) {
             MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
@@ -833,40 +868,45 @@ class MainWP_Backup {
      * @return array|bool $success Returns an array containing the Backup location & file size. Return FALSE on failure.
      */
     public function backup_db( $fileName = '', $ext = 'zip' ) {
-        $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
-        $dir       = $dirs[0];
-        $timestamp = time();
+        self::set_legacy_backup_running();
+        try {
+            $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
+            $dir       = $dirs[0];
+            $timestamp = time();
 
-        if ( '' !== $fileName ) {
-            $fileName .= '-';
-        }
-
-        $filepath_prefix = $dir . 'dbBackup-' . $fileName . $timestamp;
-
-        $dh = opendir( $dir );
-
-        if ( $dh ) {
-            while ( ( $file = readdir( $dh ) ) !== false ) {
-                if ( '.' !== $file && '..' !== $file && ( preg_match( '/dbBackup-(.*).sql(\.zip|\.tar|\.tar\.gz|\.tar\.bz2|\.tmp)?$/', $file ) ) ) {
-                    wp_delete_file( $dir . $file );
-                }
-                if ( '.' !== $file && '..' !== $file && ( preg_match( '/dbBackup-(.*).sql.php(\.zip|\.tar|\.tar\.gz|\.tar\.bz2|\.tmp)?$/', $file ) ) ) {
-                    wp_delete_file( $dir . $file );
-                }
+            if ( '' !== $fileName ) {
+                $fileName .= '-';
             }
-            closedir( $dh );
+
+            $filepath_prefix = $dir . 'dbBackup-' . $fileName . $timestamp;
+
+            $dh = opendir( $dir );
+
+            if ( $dh ) {
+                while ( ( $file = readdir( $dh ) ) !== false ) {
+                    if ( '.' !== $file && '..' !== $file && ( preg_match( '/dbBackup-(.*).sql(\.zip|\.tar|\.tar\.gz|\.tar\.bz2|\.tmp)?$/', $file ) ) ) {
+                        wp_delete_file( $dir . $file );
+                    }
+                    if ( '.' !== $file && '..' !== $file && ( preg_match( '/dbBackup-(.*).sql.php(\.zip|\.tar|\.tar\.gz|\.tar\.bz2|\.tmp)?$/', $file ) ) ) {
+                        wp_delete_file( $dir . $file );
+                    }
+                }
+                closedir( $dh );
+            }
+
+            // $ext !== false, the fuction will return in format: array( 'filepath' => $filepath );.
+            $result = $this->create_backup_db( $filepath_prefix, $ext );
+
+            MainWP_Helper::update_option( 'mainwp_child_last_db_backup_size', filesize( $result['filepath'] ) ); // NOSONAR .
+
+            return ( ! $result ) ? false : array(
+                'timestamp' => $timestamp,
+                'file'      => basename( $result['filepath'] ),
+                'filesize'  => filesize( $result['filepath'] ), // NOSONAR .
+            );
+        } finally {
+            self::clear_legacy_backup_running();
         }
-
-        // $ext !== false, the fuction will return in format: array( 'filepath' => $filepath );.
-        $result = $this->create_backup_db( $filepath_prefix, $ext );
-
-        MainWP_Helper::update_option( 'mainwp_child_last_db_backup_size', filesize( $result['filepath'] ) ); // NOSONAR .
-
-        return ( ! $result ) ? false : array(
-            'timestamp' => $timestamp,
-            'file'      => basename( $result['filepath'] ),
-            'filesize'  => filesize( $result['filepath'] ), // NOSONAR .
-        );
     }
 
     /**
