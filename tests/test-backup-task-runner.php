@@ -808,6 +808,24 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE, $payload['error_code'] );
 	}
 
+	public function test_incremental_manifest_walk_exception_marks_failed() {
+		$this->runner->stubs['walk_manifest_slice'] = new \RuntimeException( 'walk exploded' );
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->create_task( 'incremental' );
+
+		$task = $this->advance( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertNull( $task->lease_owner );
+		$sub_state = $spine->read_sub_state( $task, $this->backup_dir );
+		$this->assertSame( MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED, $sub_state['error']['code'] );
+		$this->assertSame( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED ) . ' walk exploded', $sub_state['error']['message'] );
+		$this->assertNotContains( 'run_incremental_diff', $this->runner->seam_names() );
+		$this->assertFileDoesNotExist( $this->backup_dir . '/task_substate-' . $task_id . '.json' );
+		$payload = $spine->status_payload( $task, $this->backup_dir );
+		$this->assertSame( MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED, $payload['error_code'] );
+	}
+
 	public function test_full_manifest_walk_completes_with_artifacts() {
 		$this->runner->stubs['walk_manifest_slice'] = array(
 			'done'        => true,
@@ -1226,5 +1244,53 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_UPLOADING, $task->phase, 'A stale runner must not overwrite the new holder\'s phase' );
 		$this->assertSame( 'watchdog-b', $task->lease_owner, 'The new holder\'s lease must survive the stale runner\'s failed CAS' );
 		$this->assertFileExists( $artifact, 'A runner that lost its lease must not delete artifacts it no longer owns' );
+	}
+
+	public function test_same_lane_stolen_lease_failure_does_not_overwrite_new_holder() {
+		$spine = MainWP_Child_Backup_Task::instance();
+		foreach ( array( 'dashboard', 'watchdog' ) as $owner ) {
+			$task_id  = $this->create_task( 'db' );
+			$artifact = $this->backup_dir . '/backup-failing.tar';
+			file_put_contents( $artifact, 'x' ); // phpcs:ignore -- test fixture.
+			$task = $spine->get_task( $task_id );
+			$spine->checkpoint(
+				$task_id,
+				(int) $task->version,
+				array(
+					'phase'     => MainWP_Child_Backup_Task::PHASE_UPLOADING,
+					'sub_state' => array(
+						'params'   => array( 'ext' => 'tar' ),
+						'artifact' => array(
+							'file' => 'backup-failing.tar',
+							'size' => 1,
+						),
+					),
+				)
+			);
+			$held = 'watchdog' === $owner;
+			if ( $held ) {
+				$task = $spine->get_task( $task_id );
+				$this->assertTrue( $spine->acquire_lease( $task_id, $owner, (int) $task->version, 120 ) );
+			}
+
+			$new_holder = null;
+			$this->runner->stubs['perform_upload'] = function () use ( $spine, $task_id, $owner, &$new_holder ) {
+				global $wpdb;
+				$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $task_id ) ); // phpcs:ignore -- test fixture.
+				$task = $spine->get_task( $task_id );
+				$this->assertTrue( $spine->acquire_lease( $task_id, $owner, (int) $task->version, 120 ) );
+				$new_holder = $spine->get_task( $task_id );
+				throw new MainWP_Exception( 'upload exploded', null, 'mainwp_backup_upload_failed' );
+			};
+
+			$task = $this->advance( $task_id, $owner, $held );
+
+			$this->assertNotNull( $new_holder );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_UPLOADING, $task->phase, 'A stale runner must not overwrite the same lane\'s new holder' );
+			$this->assertSame( $owner, $task->lease_owner );
+			$this->assertSame( $new_holder->version, $task->version, 'The stale runner must neither checkpoint nor release the new lease' );
+			$this->assertSame( $new_holder->sub_state, $task->sub_state );
+			$this->assertFileExists( $artifact, 'The new holder\'s artifacts must survive' );
+		}
 	}
 }

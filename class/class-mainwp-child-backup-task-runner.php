@@ -98,14 +98,12 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @param int    $version Row version after the watchdog's bookkeeping.
      */
     public function handle_watchdog_resume( $task, $version ) {
-        unset( $version ); // A fresh read below carries the current version.
-
         if ( MainWP_Child_Restore_Task_Runner::is_restore_type( $task->type ) && ! ( $this instanceof MainWP_Child_Restore_Task_Runner ) ) {
             return; // Restore tasks resume through the restore runner's listener.
         }
 
         $fresh = MainWP_Child_Backup_Task::instance()->get_task( $task->task_id );
-        if ( null === $fresh ) {
+        if ( null === $fresh || (int) $fresh->version !== (int) $version ) {
             return;
         }
 
@@ -381,8 +379,16 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             return $task; // Finished work: no lease churn, no version bump.
         }
 
-        if ( ! $lease_pre_held ) {
-            if ( ! $spine->acquire_lease( $task_id, $owner, $version, self::LEASE_TTL_SECONDS ) ) {
+        // Lane names repeat after expiry; only this invocation may adopt later checkpoints.
+        $lease_owner = substr( $owner, 0, 27 ) . ':' . wp_generate_uuid4();
+        if ( $lease_pre_held ) {
+            // Keep the watchdog's expiry while fencing its handoff to this invocation.
+            if ( ! $spine->handoff_lease( $task_id, $owner, $lease_owner, $version ) ) {
+                return $spine->get_task( $task_id );
+            }
+            ++$version;
+        } else {
+            if ( ! $spine->acquire_lease( $task_id, $lease_owner, $version, self::LEASE_TTL_SECONDS ) ) {
                 return $spine->get_task( $task_id ); // Another runner owns the row - back off.
             }
             ++$version; // The acquire incremented it.
@@ -433,7 +439,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 $pre_fail = $sub_state;
             }
 
-            $own_row     = null !== $failed_row && (string) $failed_row->lease_owner === (string) $owner;
+            $own_row     = null !== $failed_row && (string) $failed_row->lease_owner === $lease_owner;
             $new_version = $spine->checkpoint(
                 $task_id,
                 $own_row ? (int) $failed_row->version : $version,
@@ -455,7 +461,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         if ( ! $abandoned ) {
-            $spine->release_lease( $task_id, $owner, $version );
+            $spine->release_lease( $task_id, $lease_owner, $version );
         }
 
         $this->current_task_id = '';
@@ -769,6 +775,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @param int    $deadline   Slice deadline.
      * @param string $backup_dir Scratch directory.
      *
+     * @throws \Throwable When a MainWP_Exception from the manifest walk already carries an error code.
      * @throws MainWP_Exception When the parent manifest is unusable (the
      *                          Dashboard reruns the site as a full backup)
      *                          or an artifact cannot be created.
@@ -783,7 +790,14 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         // A walk longer than a slice yields and resumes from its cursor instead
         // of restarting from zero and starving the diff each slice.
         if ( empty( $sub_state['walk_done'] ) ) {
-            $walk = $this->walk_manifest_slice( $params, $backup_dir, isset( $sub_state['walk_cursor'] ) ? $sub_state['walk_cursor'] : null, $deadline );
+            try {
+                $walk = $this->walk_manifest_slice( $params, $backup_dir, isset( $sub_state['walk_cursor'] ) ? $sub_state['walk_cursor'] : null, $deadline );
+            } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - manifest failures must reach the Dashboard.
+                if ( $e instanceof MainWP_Exception && ! empty( $e->get_message_error_code() ) ) {
+                    throw $e;
+                }
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED ) . ' ' . $e->getMessage() ), null, MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+            }
 
             if ( empty( $walk['done'] ) ) {
                 $sub_state['walk_cursor'] = $walk['cursor'];
