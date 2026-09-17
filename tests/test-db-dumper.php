@@ -329,11 +329,15 @@ class DbDumperTest extends WP_UnitTestCase {
 		$this->assertSame( 0, $slice['cursor']['index'] );
 		$this->assertSame( array(), $slice['files'] );
 		$this->assertFileDoesNotExist( $final );
-		$this->assertFileExists( $final . '.tmp' );
+		$this->assertFileDoesNotExist( $final . '.tmp' );
 
-		$slice = $dumper->dump_tables_tier2_slice( $tables, $prefix, $slice['cursor'], 0 );
+		// The cleaned fragment restarts the table, which costs one extra slice at a zero budget.
+		for ( $i = 0; $i < 3 && empty( $slice['done'] ); $i++ ) {
+			$slice = $dumper->dump_tables_tier2_slice( $tables, $prefix, $slice['cursor'], 0 );
+		}
 		$this->assertTrue( $slice['done'] );
 		$this->assertSame( array( $final ), $slice['files'] );
+		$this->assertStringContainsString( 'CREATE TABLE', file_get_contents( $final ) );
 		$this->assertStringContainsString( 'INSERT INTO', file_get_contents( $final ) );
 	}
 

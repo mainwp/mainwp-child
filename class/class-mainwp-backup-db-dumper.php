@@ -533,14 +533,32 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             $final = $filepath_prefix . '-' . MainWP_Helper::sanitize_filename( $table ) . '.sql.php';
             $tmp   = $final . '.tmp';
 
-            if ( ! $cursor['started'] ) {
+            // A missing fragment under a started cursor means a failed read cleaned it
+            // up; restarting the table rewrites its header instead of appending rows
+            // to a headerless file.
+            if ( ! $cursor['started'] || ! file_exists( $tmp ) ) {
                 $this->tier2_start_table( $table, $tmp, $cursor );
                 $worked = true;
                 continue;
             }
 
-            $finished_rows = $this->tier2_dump_chunk( $table, $tmp, $cursor );
-            $worked        = true;
+            try {
+                $finished_rows = $this->tier2_dump_chunk( $table, $tmp, $cursor );
+            } catch ( \Exception $e ) {
+                // The task does not resume past this throw, so the finished tables of
+                // this run and the open fragment would otherwise sit in the backup
+                // directory holding database contents until stale-file handling.
+                foreach ( $cursor['files'] as $file ) {
+                    if ( file_exists( $file ) ) {
+                        unlink( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- partial dump cleanup.
+                    }
+                }
+                if ( file_exists( $tmp ) ) {
+                    unlink( $tmp ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- partial dump cleanup.
+                }
+                throw $e;
+            }
+            $worked = true;
 
             if ( $finished_rows ) {
                 if ( ! rename( $tmp, $final ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- atomic finalize of the per-table dump.
