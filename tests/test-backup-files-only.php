@@ -219,6 +219,7 @@ class BackupFilesOnlyTest extends WP_UnitTestCase {
 			'full exception' => array( 'full', true ),
 			'db success'     => array( 'db', false ),
 			'db exception'   => array( 'db', true ),
+			'files success'  => array( 'files', false ),
 		);
 	}
 

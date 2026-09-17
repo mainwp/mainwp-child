@@ -708,7 +708,8 @@ class MainWP_Backup {
         // phpcs:disable WordPress.Security.NonceVerification -- authenticated Dashboard dispatch.
         $type = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
         // phpcs:enable WordPress.Security.NonceVerification
-        $token = 'full' === $type ? self::set_legacy_backup_running() : null;
+        // Legacy refuses to start beside a native task whatever the type; hold the same line the other way.
+        $token = self::set_legacy_backup_running();
 
         try {
             $timeout = $this->get_timeout_from_request();
@@ -787,9 +788,7 @@ class MainWP_Backup {
         } catch ( MainWP_Exception $e ) {
             MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
         } finally {
-            if ( null !== $token ) {
-                self::clear_legacy_backup_running( $token );
-            }
+            self::clear_legacy_backup_running( $token );
         }
 
         if ( $write ) {
