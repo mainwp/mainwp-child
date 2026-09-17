@@ -200,7 +200,9 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
                 continue;
             }
 
-            if ( ! $spine->acquire_lease( $task->task_id, 'watchdog', $version, 2 * MainWP_Child_Backup_Task::SLICE_BUDGET_SECONDS ) ) {
+            $owner = MainWP_Child_Backup_Task_Runner::LEASE_OWNER_WATCHDOG;
+            $owner = substr( $owner, 0, 27 ) . ':' . wp_generate_uuid4();
+            if ( ! $spine->acquire_lease( $task->task_id, $owner, $version, 2 * MainWP_Child_Backup_Task::SLICE_BUDGET_SECONDS ) ) {
                 continue; // Another runner won the row - back off.
             }
 
@@ -213,7 +215,7 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
                 // wedge the task until the lease expires.
                 $fresh = $spine->get_task( $task->task_id );
                 if ( null !== $fresh ) {
-                    $spine->release_lease( $task->task_id, 'watchdog', (int) $fresh->version );
+                    $spine->release_lease( $task->task_id, $owner, (int) $fresh->version );
                 }
                 continue;
             }
@@ -226,10 +228,11 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
              *
              * @param object $task    The stalled task row (pre-resume state).
              * @param int    $version Current row version after the resume bookkeeping.
+             * @param string $owner   Unique token holding the lease for this invocation.
              */
-            do_action( 'mainwp_child_backup_task_resume', $task, $version );
+            do_action( 'mainwp_child_backup_task_resume', $task, $version, $owner );
 
-            $spine->release_lease( $task->task_id, 'watchdog', $version );
+            $spine->release_lease( $task->task_id, $owner, $version );
         }
     }
 }

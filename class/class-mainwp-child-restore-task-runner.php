@@ -82,14 +82,15 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * Advance one slice for a stalled restore task. Backup types are the
      * backup runner's; this listener only takes restore tasks.
      *
-     * @param object $task    Stalled task row (pre-resume state).
-     * @param int    $version Row version after the watchdog's bookkeeping.
+     * @param object      $task    Stalled task row (pre-resume state).
+     * @param int         $version Row version after the watchdog's bookkeeping.
+     * @param string|null $owner   Lease token, or null to read it from the matching row.
      */
-    public function handle_watchdog_resume( $task, $version ) {
+    public function handle_watchdog_resume( $task, $version, $owner = null ) {
         if ( ! static::is_restore_type( $task->type ) ) {
             return;
         }
-        parent::handle_watchdog_resume( $task, $version );
+        parent::handle_watchdog_resume( $task, $version, $owner );
     }
 
     /**

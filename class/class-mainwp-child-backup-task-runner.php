@@ -83,7 +83,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * slice advanced by this runner.
      */
     public function register_hooks() {
-        add_action( 'mainwp_child_backup_task_resume', array( $this, 'handle_watchdog_resume' ), 10, 2 );
+        add_action( 'mainwp_child_backup_task_resume', array( $this, 'handle_watchdog_resume' ), 10, 3 );
     }
 
     /**
@@ -94,10 +94,11 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * version it owns, making the watchdog's own trailing release a harmless
      * no-op.
      *
-     * @param object $task    Stalled task row (pre-resume state).
-     * @param int    $version Row version after the watchdog's bookkeeping.
+     * @param object      $task    Stalled task row (pre-resume state).
+     * @param int         $version Row version after the watchdog's bookkeeping.
+     * @param string|null $owner   Lease token, or null to read it from the matching row.
      */
-    public function handle_watchdog_resume( $task, $version ) {
+    public function handle_watchdog_resume( $task, $version, $owner = null ) {
         if ( MainWP_Child_Restore_Task_Runner::is_restore_type( $task->type ) && ! ( $this instanceof MainWP_Child_Restore_Task_Runner ) ) {
             return; // Restore tasks resume through the restore runner's listener.
         }
@@ -107,7 +108,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             return;
         }
 
-        $this->advance_one_slice( $fresh, self::LEASE_OWNER_WATCHDOG, true );
+        if ( null === $owner ) {
+            $owner = $fresh->lease_owner;
+        }
+        $this->advance_one_slice( $fresh, $owner, true );
     }
 
     /**
@@ -365,7 +369,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * original holder's release becomes a harmless no-op.
      *
      * @param object $task           Task row (a fresh read).
-     * @param string $owner          Lease owner label.
+     * @param string $owner          Lane label, or the existing token when the lease is pre-held.
      * @param bool   $lease_pre_held True when the caller already holds the lease (watchdog path).
      *
      * @return object|null Fresh task row after the slice.
@@ -379,15 +383,14 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             return $task; // Finished work: no lease churn, no version bump.
         }
 
-        // Lane names repeat after expiry; only this invocation may adopt later checkpoints.
-        $lease_owner = substr( $owner, 0, 27 ) . ':' . wp_generate_uuid4();
+        $lease_owner = $owner;
         if ( $lease_pre_held ) {
-            // Keep the watchdog's expiry while fencing its handoff to this invocation.
-            if ( ! $spine->handoff_lease( $task_id, $owner, $lease_owner, $version ) ) {
+            if ( empty( $lease_owner ) || (string) $task->lease_owner !== $lease_owner ) {
                 return $spine->get_task( $task_id );
             }
-            ++$version;
         } else {
+            // Lane names repeat after expiry; only this invocation may adopt later checkpoints.
+            $lease_owner = substr( $owner, 0, 27 ) . ':' . wp_generate_uuid4();
             if ( ! $spine->acquire_lease( $task_id, $lease_owner, $version, self::LEASE_TTL_SECONDS ) ) {
                 return $spine->get_task( $task_id ); // Another runner owns the row - back off.
             }
@@ -792,7 +795,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         if ( empty( $sub_state['walk_done'] ) ) {
             try {
                 $walk = $this->walk_manifest_slice( $params, $backup_dir, isset( $sub_state['walk_cursor'] ) ? $sub_state['walk_cursor'] : null, $deadline );
-            } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - manifest failures must reach the Dashboard.
+            } catch ( \Throwable $e ) { // NOSONAR - manifest failures must reach the Dashboard.
                 if ( $e instanceof MainWP_Exception && ! empty( $e->get_message_error_code() ) ) {
                     throw $e;
                 }

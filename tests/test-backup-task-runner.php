@@ -916,6 +916,9 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$runner->register_hooks();
 		try {
 			$this->assertSame( 10, has_action( 'mainwp_child_backup_task_resume', array( $runner, 'handle_watchdog_resume' ) ) );
+			global $wp_filter;
+			$key = _wp_filter_build_unique_id( 'mainwp_child_backup_task_resume', array( $runner, 'handle_watchdog_resume' ), 10 );
+			$this->assertSame( 3, $wp_filter['mainwp_child_backup_task_resume']->callbacks[10][ $key ]['accepted_args'] );
 		} finally {
 			remove_action( 'mainwp_child_backup_task_resume', array( $runner, 'handle_watchdog_resume' ) );
 		}
@@ -1246,6 +1249,131 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertFileExists( $artifact, 'A runner that lost its lease must not delete artifacts it no longer owns' );
 	}
 
+	public function test_watchdog_resume_uses_one_unique_token_from_acquisition() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->create_task( 'db' );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET last_progress_at = DATE_SUB(NOW(), INTERVAL 600 SECOND) WHERE task_id = %s', $task_id ) );
+
+		$hook_owner = null;
+		$held_owner = null;
+		$slice_owner = null;
+		$resume_count = null;
+		$observe = function ( $task, $version, $owner = null ) use ( $spine, &$hook_owner, &$held_owner, &$resume_count ) {
+			$held = $spine->get_task( $task->task_id );
+			$hook_owner = $owner;
+			$held_owner = $held->lease_owner;
+			$resume_count = (int) $held->resume_count;
+		};
+		$this->runner->stubs['tier1_available'] = function () use ( $spine, $task_id, &$slice_owner ) {
+			$slice_owner = $spine->get_task( $task_id )->lease_owner;
+			return true;
+		};
+
+		remove_all_actions( 'mainwp_child_backup_task_resume' );
+		add_action( 'mainwp_child_backup_task_resume', $observe, 1, 3 );
+		$this->runner->register_hooks();
+		try {
+			\MainWP\Child\MainWP_Child_Backup_Watchdog::instance()->check_tasks( 0 );
+		} finally {
+			remove_all_actions( 'mainwp_child_backup_task_resume' );
+		}
+
+		$this->assertNotSame( 'watchdog', $held_owner );
+		$this->assertMatchesRegularExpression( '/^watchdog:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/', $held_owner );
+		$this->assertLessThanOrEqual( 64, strlen( $held_owner ) );
+		$this->assertSame( $held_owner, $hook_owner, 'The hook must carry the acquired token' );
+		$this->assertSame( $held_owner, $slice_owner, 'The runner must retain the acquired token' );
+		$this->assertSame( 1, $resume_count );
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertNull( $task->lease_owner );
+	}
+
+	public function test_two_argument_watchdog_resume_refuses_stale_version() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->create_task( 'db' );
+		$task    = $spine->get_task( $task_id );
+		$owner   = 'watchdog:' . wp_generate_uuid4();
+		$this->assertTrue( $spine->acquire_lease( $task_id, $owner, (int) $task->version, 120 ) );
+		$held = $spine->get_task( $task_id );
+
+		remove_all_actions( 'mainwp_child_backup_task_resume' );
+		$this->runner->register_hooks();
+		try {
+			do_action( 'mainwp_child_backup_task_resume', $task, (int) $task->version );
+			$this->assertSame( array(), $this->runner->calls );
+			$this->assertSame( $held->version, $spine->get_task( $task_id )->version );
+			do_action( 'mainwp_child_backup_task_resume', $task, (int) $held->version );
+		} finally {
+			remove_all_actions( 'mainwp_child_backup_task_resume' );
+		}
+
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertNull( $task->lease_owner );
+	}
+
+	public function test_legacy_watchdog_failure_does_not_overwrite_new_holder() {
+		global $wpdb;
+		$spine    = MainWP_Child_Backup_Task::instance();
+		$task_id  = $this->create_task( 'db' );
+		$artifact = $this->backup_dir . '/backup-failing.tar';
+		file_put_contents( $artifact, 'x' );
+		$task = $spine->get_task( $task_id );
+		$version = $spine->checkpoint(
+			$task_id,
+			(int) $task->version,
+			array(
+				'phase' => MainWP_Child_Backup_Task::PHASE_UPLOADING,
+				'sub_state' => array(
+					'params' => array( 'ext' => 'tar' ),
+					'artifact' => array( 'file' => 'backup-failing.tar', 'size' => 1 ),
+				),
+			)
+		);
+		$this->assertTrue( $spine->acquire_lease( $task_id, 'watchdog', $version, 120 ) );
+		$legacy = $spine->get_task( $task_id );
+		$this->assertSame( 'watchdog', $legacy->lease_owner );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND), last_progress_at = DATE_SUB(NOW(), INTERVAL 600 SECOND) WHERE task_id = %s', $task_id ) );
+
+		$new_holder = null;
+		$after_failure = null;
+		$legacy_failure = function () use ( $spine, $task_id, $legacy, &$new_holder, &$after_failure ) {
+			$new_holder = $spine->get_task( $task_id );
+			$pre_fail = $spine->read_sub_state( $new_holder, $this->backup_dir );
+			// Reproduce the in-flight old runner's catch before the new runner is dispatched.
+			$own_row = (string) $new_holder->lease_owner === $legacy->lease_owner;
+			$failed = $spine->checkpoint(
+				$task_id,
+				$own_row ? (int) $new_holder->version : (int) $legacy->version,
+				array( 'phase' => MainWP_Child_Backup_Task::PHASE_FAILED, 'sub_state' => array( 'error' => array( 'message' => 'old upload exploded' ) ) )
+			);
+			if ( false !== $failed ) {
+				$this->runner->cleanup_failed_task_artifacts( $task_id, $pre_fail, $this->backup_dir );
+				$spine->delete_sidecar( $task_id, $this->backup_dir );
+			}
+			$spine->release_lease( $task_id, $legacy->lease_owner, false !== $failed ? $failed : (int) $legacy->version );
+			$after_failure = $spine->get_task( $task_id );
+		};
+
+		remove_all_actions( 'mainwp_child_backup_task_resume' );
+		add_action( 'mainwp_child_backup_task_resume', $legacy_failure, 1, 0 );
+		try {
+			\MainWP\Child\MainWP_Child_Backup_Watchdog::instance()->check_tasks( 0 );
+		} finally {
+			remove_all_actions( 'mainwp_child_backup_task_resume' );
+		}
+
+		$this->assertNotNull( $new_holder );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_UPLOADING, $after_failure->phase );
+		$this->assertSame( $new_holder->lease_owner, $after_failure->lease_owner );
+		$this->assertSame( $new_holder->version, $after_failure->version, 'The legacy runner must not adopt the successor version' );
+		$this->assertSame( $new_holder->sub_state, $after_failure->sub_state );
+		$this->assertFileExists( $artifact, 'The successor artifacts must survive the legacy failure' );
+		$this->assertNull( $spine->get_task( $task_id )->lease_owner, 'The watchdog releases its token when no runner advances it' );
+	}
+
 	public function test_same_lane_stolen_lease_failure_does_not_overwrite_new_holder() {
 		$spine = MainWP_Child_Backup_Task::instance();
 		foreach ( array( 'dashboard', 'watchdog' ) as $owner ) {
@@ -1268,26 +1396,28 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 				)
 			);
 			$held = 'watchdog' === $owner;
+			$first_owner = $held ? $owner . ':' . wp_generate_uuid4() : $owner;
+			$next_owner = $owner . ':' . wp_generate_uuid4();
 			if ( $held ) {
 				$task = $spine->get_task( $task_id );
-				$this->assertTrue( $spine->acquire_lease( $task_id, $owner, (int) $task->version, 120 ) );
+				$this->assertTrue( $spine->acquire_lease( $task_id, $first_owner, (int) $task->version, 120 ) );
 			}
 
 			$new_holder = null;
-			$this->runner->stubs['perform_upload'] = function () use ( $spine, $task_id, $owner, &$new_holder ) {
+			$this->runner->stubs['perform_upload'] = function () use ( $spine, $task_id, $next_owner, &$new_holder ) {
 				global $wpdb;
 				$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $task_id ) ); // phpcs:ignore -- test fixture.
 				$task = $spine->get_task( $task_id );
-				$this->assertTrue( $spine->acquire_lease( $task_id, $owner, (int) $task->version, 120 ) );
+				$this->assertTrue( $spine->acquire_lease( $task_id, $next_owner, (int) $task->version, 120 ) );
 				$new_holder = $spine->get_task( $task_id );
 				throw new MainWP_Exception( 'upload exploded', null, 'mainwp_backup_upload_failed' );
 			};
 
-			$task = $this->advance( $task_id, $owner, $held );
+			$task = $this->advance( $task_id, $first_owner, $held );
 
 			$this->assertNotNull( $new_holder );
 			$this->assertSame( MainWP_Child_Backup_Task::PHASE_UPLOADING, $task->phase, 'A stale runner must not overwrite the same lane\'s new holder' );
-			$this->assertSame( $owner, $task->lease_owner );
+			$this->assertSame( $next_owner, $task->lease_owner );
 			$this->assertSame( $new_holder->version, $task->version, 'The stale runner must neither checkpoint nor release the new lease' );
 			$this->assertSame( $new_holder->sub_state, $task->sub_state );
 			$this->assertFileExists( $artifact, 'The new holder\'s artifacts must survive' );
