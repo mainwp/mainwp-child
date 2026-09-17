@@ -272,11 +272,19 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     protected function plain_tar_for( $part, $deadline, &$timed_out ) {
         $timed_out = false;
 
+        $plain = static::phar_safe_tar_path( $part );
         if ( ! preg_match( '/\.tar\.gz$/i', $part ) ) {
-            return $part;
+            if ( ! static::phar_rejects_name( basename( $part ) ) ) {
+                return $part;
+            }
+            // The name itself is unreadable to PharData; a hard link under a
+            // short name reads the same bytes without copying the part.
+            if ( file_exists( $plain ) || @link( $part, $plain ) || copy( $part, $plain ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- link() warns on filesystems without hard links; the copy below is the fallback.
+                return $plain;
+            }
+            return null;
         }
 
-        $plain = $part . '.plain.tar';
         if ( file_exists( $plain ) && filesize( $plain ) > 0 ) {
             return $plain; // A prior slice already decompressed it.
         }
@@ -315,6 +323,37 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             return null;
         }
         return $plain;
+    }
+
+    /**
+     * The plain-tar path PharData can open for a part.
+     *
+     * PharData finds the archive format by scanning from the first dot in
+     * the file name and gives up when that tail is 50 characters or more
+     * (phar_check_str in ext/phar). Dashboard archive names carry the
+     * site's host name, so a dotted host plus the date stamp already sits
+     * near the limit, and appending .plain.tar crossed it on a live restore.
+     * Dots in the stem become dashes so the only dot-tail is ".plain.tar".
+     *
+     * @param string $part Archive path.
+     *
+     * @return string Plain tar path beside the part.
+     */
+    protected static function phar_safe_tar_path( $part ) {
+        $stem = preg_replace( '/\.tar(\.gz)?$/i', '', basename( $part ) );
+        return dirname( $part ) . '/' . str_replace( '.', '-', $stem ) . '.plain.tar';
+    }
+
+    /**
+     * Whether PharData refuses a file name before reading a byte of it.
+     *
+     * @param string $basename Archive file name.
+     *
+     * @return bool True when the tail after the first dot is 50+ characters.
+     */
+    protected static function phar_rejects_name( $basename ) {
+        $dot = strpos( $basename, '.' );
+        return false !== $dot && strlen( $basename ) - $dot >= 50;
     }
 
     /**

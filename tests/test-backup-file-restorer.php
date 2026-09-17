@@ -452,6 +452,50 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A dashboard-named tar.gz (site host plus date stamp) decompresses to a
+	 * plain tar PharData accepts. Appending .plain.tar to the real archive
+	 * name put 53 characters after the first dot, past PharData's 50 limit,
+	 * and the live restore of snapshot 619 failed to open its archive.
+	 */
+	public function test_tar_gz_with_dashboard_name_extracts() {
+		$tar = $this->dir . '/dump.tar';
+		$phar = new PharData( $tar );
+		$phar->addFromString( 'wp-content/uploads/marker.png', 'png-bytes' );
+		$phar->compress( Phar::GZ );
+		unset( $phar );
+		Phar::unlinkArchive( $tar );
+		$part = $this->dir . '/s619-full-three.mainwps.com-September-17-2026-23-55.tar.gz';
+		rename( $tar . '.gz', $part );
+
+		$result = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( 'png-bytes', file_get_contents( $this->extract_to . '/wp-content/uploads/marker.png' ) );
+		$this->assertFileDoesNotExist( $this->dir . '/s619-full-three-mainwps-com-September-17-2026-23-55.plain.tar', 'The plain tar is discarded after extraction.' );
+		$this->assertFileExists( $part, 'The part itself is left for the caller to clean up.' );
+	}
+
+	/**
+	 * An uncompressed tar whose name PharData refuses outright (a dotted host
+	 * long enough to push the dot-tail to 50+ characters) reads through a
+	 * short-named hard link that is removed afterwards.
+	 */
+	public function test_plain_tar_with_long_dotted_name_extracts() {
+		$name = 's7-full-staging.trendyfashionhouse.com-September-17-2026-23-55.tar';
+		$this->assertGreaterThanOrEqual( 50, strlen( $name ) - strpos( $name, '.' ), 'The fixture name must be one PharData rejects.' );
+		// PharData cannot create the fixture under that name either.
+		$part = $this->dir . '/' . $name;
+		rename( $this->make_tar( 'fixture.tar', array( 'index.php' => '<?php // site' ) ), $part );
+
+		$result = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( '<?php // site', file_get_contents( $this->extract_to . '/index.php' ) );
+		$this->assertFileDoesNotExist( $this->dir . '/s7-full-staging-trendyfashionhouse-com-September-17-2026-23-55.plain.tar' );
+		$this->assertFileExists( $part );
+	}
+
+	/**
 	 * Archive-open failures retain their cause without exposing host directories.
 	 */
 	public function test_invalid_tar_reports_exception_without_directory() {
