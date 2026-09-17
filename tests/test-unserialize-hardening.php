@@ -227,6 +227,34 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A serialized array that references itself (an R: back-reference) unserializes
+	 * to a cyclic array. The object walk must refuse it instead of recursing until
+	 * memory or time runs out, and the cell must not be persisted.
+	 *
+	 * @return void
+	 */
+	public function test_insert_postmeta_refuses_cyclic_serialized_array() {
+		$post_id = self::factory()->post->create();
+		$data    = array(
+			'postmeta' => array(
+				array(
+					'meta_key'   => 'mainwp_cyclic_meta',
+					'meta_value' => 'a:1:{i:0;R:1;}',
+				),
+			),
+		);
+
+		$cpt    = MainWP_Custom_Post_Type::instance();
+		$method = new ReflectionMethod( MainWP_Custom_Post_Type::class, 'insert_postmeta' );
+		$method->setAccessible( true );
+		$result = $method->invokeArgs( $cpt, array( $post_id, $data, false, false ) );
+
+		$this->assertArrayNotHasKey( 'error', (array) $result );
+		delete_post_meta( $post_id, 'mainwp_cyclic_meta' );
+		$this->assertSame( array(), get_post_meta( $post_id, 'mainwp_cyclic_meta' ), 'A cyclic serialized array must not be persisted.' );
+	}
+
+	/**
 	 * The dashboard-fed custom-post-type import (insert_postmeta) must never
 	 * persist a serialized PHP object. A bare maybe_unserialize() instantiates
 	 * the object at import time (firing __wakeup); even a restricted unserialize
