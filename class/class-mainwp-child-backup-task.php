@@ -262,28 +262,6 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
 
         $this->install();
 
-        if ( 'full' === $type ) {
-            // Full dumps reuse legacy names, so orphaned fragments must not look like resume data.
-            // The fragments this sweep is for are a dead native run's, and a native run leaves no
-            // pid file, so any pid in the directory means the litter may instead belong to a legacy
-            // backup - which adds its dump files to the archive and only reads them when the
-            // archive closes, long after its pid has gone stale. The aged sweep collects a dead
-            // legacy run's pid, and this sweep resumes working once it has.
-            // A pid nothing collects would close this gate for good on a child that
-            // runs native backups and prunes nothing, so a pid past the deadness
-            // threshold the legacy engine itself uses goes first. Only the pid: a
-            // fragment that old can still belong to a legacy run inside its walk.
-            $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
-            foreach ( (array) glob( rtrim( $dirs[0], '/' ) . '/backup-*.pid' ) as $pid_file ) {
-                if ( is_file( $pid_file ) && filemtime( $pid_file ) < time() - 10800 ) {
-                    wp_delete_file( $pid_file );
-                }
-            }
-            if ( ! glob( rtrim( $dirs[0], '/' ) . '/backup-*.pid' ) ) {
-                $this->sweep_stale_markers( $dirs[0], 0, true );
-            }
-        }
-
         $max_resumes = null === $max_resumes ? self::DEFAULT_MAX_RESUMES : (int) $max_resumes;
         $task_id     = 'task-' . time() . '-' . strtolower( wp_generate_password( 12, false ) );
         $deadline    = null === $deadline_seconds ? self::WALL_CLOCK_WINDOW_SECONDS : (int) $deadline_seconds;
@@ -1029,19 +1007,11 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * touched, whatever their age - artifact deletion is prune_task's job
      * and only ever by name.
      *
-     * $dump_fragments_only narrows the sweep to completed `.sql.php` fragments and
-     * disables $age_seconds with it: at full-task creation nothing may be dumping,
-     * so age carries no information and a fragment minutes old is still litter a
-     * dead run left behind. A tier-2 `.sql.php.tmp` is left alone on purpose - the
-     * next run restarts that table from the top, so the open file is litter the
-     * aged sweep collects rather than resume data anyone reads.
-     *
-     * @param string $backup_dir          Backup directory.
-     * @param int    $age_seconds         Minimum age before a leftover is stale.
-     * @param bool   $dump_fragments_only Sweep only dump fragments, ignoring $age_seconds.
+     * @param string $backup_dir  Backup directory.
+     * @param int    $age_seconds Minimum age before a leftover is stale.
      */
-    public function sweep_stale_markers( $backup_dir, $age_seconds = 10800, $dump_fragments_only = false ) {
-        $patterns = $dump_fragments_only ? array( 'dbBackup-*.sql.php' ) : array( 'backup-*.pid', 'backup-*.done', 'dbBackup-*.sql*', 'manifest-staged-*.list' );
+    public function sweep_stale_markers( $backup_dir, $age_seconds = 10800 ) {
+        $patterns = array( 'backup-*.pid', 'backup-*.done', 'dbBackup-*.sql*', 'manifest-staged-*.list' );
         $cutoff   = time() - $age_seconds;
 
         // A long dump (>3h on a big site) leaves fragments older than the age
@@ -1068,7 +1038,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                         continue 2;
                     }
                 }
-                if ( is_file( $file ) && ( $dump_fragments_only || filemtime( $file ) < $cutoff ) ) {
+                if ( is_file( $file ) && filemtime( $file ) < $cutoff ) {
                     wp_delete_file( $file );
                 }
             }

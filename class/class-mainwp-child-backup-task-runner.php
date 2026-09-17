@@ -533,7 +533,29 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         $params = isset( $sub_state['params'] ) && is_array( $sub_state['params'] ) ? $sub_state['params'] : array();
 
         if ( empty( $sub_state['db_prefix'] ) ) {
+            global $wpdb;
             $sub_state['db_prefix'] = $this->build_db_prefix( $task, $params, $backup_dir );
+            $tables                 = $wpdb->get_col( "SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'", 0 ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- match the dumper's table inventory.
+            if ( '' !== $wpdb->last_error ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DB_QUERY_FAILED ) ), null, MainWP_Backup_Error::ERR_DB_QUERY_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+            }
+
+            // A fresh dump must not mistake an interrupted run's fragments for resume data.
+            foreach ( $tables as $table ) {
+                $fragment = $sub_state['db_prefix'] . '-' . MainWP_Helper::sanitize_filename( $table ) . '.sql.php';
+                foreach ( array( $fragment, $fragment . '.tmp' ) as $file ) {
+                    if ( file_exists( $file ) ) {
+                        wp_delete_file( $file );
+                        clearstatcache( true, $file );
+                        if ( file_exists( $file ) ) {
+                            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_PERMISSIONS ) ), null, MainWP_Backup_Error::ERR_PERMISSIONS ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+                        }
+                    }
+                }
+            }
+
+            // The stale-file sweep must see this prefix before the dumper writes any fragments.
+            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
         }
         $prefix = $sub_state['db_prefix'];
 

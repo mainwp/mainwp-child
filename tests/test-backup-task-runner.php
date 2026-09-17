@@ -466,6 +466,106 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Stale fragments must not be published as the fresh dump's contents.
+	 */
+	public function test_fresh_dump_rewrites_stale_target_fragment() {
+		global $wpdb;
+		$fragment = $this->backup_dir . '/dbBackup-' . \MainWP\Child\MainWP_Helper::sanitize_filename( $wpdb->posts ) . '.sql.php';
+		file_put_contents( $fragment, 'stale dump' );
+		file_put_contents( $fragment . '.tmp', 'stale partial' );
+		$task_id = $this->create_task( 'full' );
+
+		$this->runner->stubs['dump_tier1'] = function ( $prefix ) use ( $task_id, $fragment ) {
+			$spine     = MainWP_Child_Backup_Task::instance();
+			$task      = $spine->get_task( $task_id );
+			$sub_state = $spine->read_sub_state( $task, $this->backup_dir );
+			$this->assertSame( $prefix, $sub_state['db_prefix'], 'The prefix must be persisted before the first dump write.' );
+			$this->assertFileDoesNotExist( $fragment . '.tmp' );
+			if ( ! file_exists( $fragment ) ) {
+				file_put_contents( $fragment, 'fresh dump' );
+			}
+			return array( $fragment );
+		};
+
+		$task = $this->advance( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 'fresh dump', file_get_contents( $fragment ) );
+	}
+
+	/**
+	 * A persisted dump prefix keeps completed fragments and the open partial resumable.
+	 */
+	public function test_resumed_dump_preserves_existing_target_fragments() {
+		global $wpdb;
+		$prefix   = $this->backup_dir . '/dbBackup';
+		$fragment = $prefix . '-' . \MainWP\Child\MainWP_Helper::sanitize_filename( $wpdb->posts ) . '.sql.php';
+		file_put_contents( $fragment, 'completed table' );
+		file_put_contents( $fragment . '.tmp', 'partial table' );
+		$cursor  = array( 'index' => 1 );
+		$task_id = MainWP_Child_Backup_Task::instance()->create_task(
+			'full',
+			array(
+				'db_prefix' => $prefix,
+				'db_tier'   => 2,
+				'db_cursor' => $cursor,
+			)
+		);
+		$this->runner->stubs['dump_tier2'] = function ( $dump_prefix, $dump_cursor ) use ( $prefix, $fragment, $cursor ) {
+			$this->assertSame( $prefix, $dump_prefix );
+			$this->assertSame( $cursor, $dump_cursor );
+			$this->assertSame( 'completed table', file_get_contents( $fragment ) );
+			$this->assertSame( 'partial table', file_get_contents( $fragment . '.tmp' ) );
+			return array(
+				'done'   => false,
+				'cursor' => $dump_cursor,
+			);
+		};
+
+		$task = $this->advance( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_DUMPING_DB, $task->phase );
+		$this->assertContains( 'dump_tier2', $this->runner->seam_names() );
+		$this->assertSame( 'completed table', file_get_contents( $fragment ) );
+		$this->assertSame( 'partial table', file_get_contents( $fragment . '.tmp' ) );
+	}
+
+	/**
+	 * A fresh dump owns only its table names under its exact prefix.
+	 */
+	public function test_fresh_dump_preserves_other_fragment_names() {
+		global $wpdb;
+		$table    = \MainWP\Child\MainWP_Helper::sanitize_filename( $wpdb->posts );
+		$fragment = $this->backup_dir . '/dbBackup-' . $table . '.sql.php';
+		$others   = array(
+			$this->backup_dir . '/dbBackup-1700000000-' . $table . '.sql.php',
+			$this->backup_dir . '/dbBackup-not_a_dump_table.sql.php',
+		);
+		foreach ( array_merge( array( $fragment, $fragment . '.tmp' ), $others ) as $file ) {
+			file_put_contents( $file, 'existing dump' );
+		}
+		$task_id = $this->create_task( 'full' );
+		$this->runner->stubs['tier1_available'] = false;
+		$this->runner->stubs['dump_tier2']      = function ( $prefix, $cursor ) use ( $task_id, $fragment ) {
+			$spine     = MainWP_Child_Backup_Task::instance();
+			$sub_state = $spine->read_sub_state( $spine->get_task( $task_id ), $this->backup_dir );
+			$this->assertSame( $prefix, $sub_state['db_prefix'] );
+			$this->assertNull( $cursor );
+			$this->assertFileDoesNotExist( $fragment );
+			$this->assertFileDoesNotExist( $fragment . '.tmp' );
+			file_put_contents( $fragment, 'fresh dump' );
+			return array(
+				'done'  => true,
+				'files' => array( $fragment ),
+			);
+		};
+
+		$task = $this->advance( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		foreach ( $others as $file ) {
+			$this->assertSame( 'existing dump', file_get_contents( $file ) );
+		}
+	}
+
+	/**
 	 * A Tier-1 budget overrun downgrades to Tier-2: the slice yields with
 	 * the phase unchanged, and the next slice dumps via Tier-2 without
 	 * retrying Tier-1.
