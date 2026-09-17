@@ -263,6 +263,76 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A new full backup must not reuse fragments left by an interrupted dump, even if recent.
+	 */
+	public function test_full_task_creation_removes_orphaned_dump_fragments() {
+		$spine    = MainWP_Child_Backup_Task::instance();
+		$dirs     = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' );
+		$prefix   = rtrim( $dirs[0], '/' ) . '/dbBackup-create-' . uniqid();
+		$fragment = $prefix . '-wp_posts.sql.php';
+		$archive  = $prefix . '.sql.zip';
+		$marker   = rtrim( $dirs[0], '/' ) . '/backup-create-' . uniqid() . '.done';
+
+		try {
+			foreach ( array( $fragment, $archive, $marker ) as $file ) {
+				file_put_contents( $file, 'old dump' );
+			}
+			touch( $archive, time() - 4 * 3600 );
+			touch( $marker, time() - 4 * 3600 );
+
+			$this->assertNotFalse( $spine->create_task( 'db' ) );
+			$this->assertFileExists( $fragment, 'Only full task creation should sweep fragments.' );
+			$this->assertNotFalse( $spine->create_task( 'full' ) );
+			$this->assertFileDoesNotExist( $fragment );
+			$this->assertFileExists( $archive );
+			$this->assertFileExists( $marker );
+		} finally {
+			foreach ( array( $fragment, $archive, $marker ) as $file ) {
+				if ( file_exists( $file ) ) {
+					unlink( $file );
+				}
+			}
+		}
+	}
+
+	/**
+	 * Creating another full task must preserve fragments an active task still needs.
+	 */
+	public function test_full_task_creation_spares_active_dump_fragments() {
+		$spine  = MainWP_Child_Backup_Task::instance();
+		$dirs   = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' );
+		$prefix = rtrim( $dirs[0], '/' ) . '/dbBackup-active-' . uniqid();
+		$files  = array( $prefix . '-wp_posts.sql.php', $prefix . '-named.sql.php', $prefix . '-orphan.sql.php' );
+		$this->assertNotFalse(
+			$spine->create_task(
+				'full',
+				array(
+					'db_prefix' => $prefix . '-wp',
+					'db_files'  => array( $files[1] ),
+				)
+			)
+		);
+
+		try {
+			foreach ( $files as $file ) {
+				file_put_contents( $file, 'active dump' );
+				touch( $file, time() - 4 * 3600 );
+			}
+
+			$this->assertNotFalse( $spine->create_task( 'full' ) );
+			$this->assertFileExists( $files[0], 'The active dump prefix must remain guarded.' );
+			$this->assertFileExists( $files[1], 'Explicitly recorded dump files must remain guarded.' );
+			$this->assertFileDoesNotExist( $files[2] );
+		} finally {
+			foreach ( $files as $file ) {
+				if ( file_exists( $file ) ) {
+					unlink( $file );
+				}
+			}
+		}
+	}
+
+	/**
 	 * An orphaned staged manifest (its task-create never arrived) is
 	 * swept once stale; a fresh one may belong to a transfer in flight.
 	 */

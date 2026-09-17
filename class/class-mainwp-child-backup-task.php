@@ -262,6 +262,12 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
 
         $this->install();
 
+        if ( 'full' === $type ) {
+            // Full dumps reuse legacy names, so orphaned fragments must not look like resume data.
+            $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
+            $this->sweep_stale_markers( $dirs[0], 0, true );
+        }
+
         $max_resumes = null === $max_resumes ? self::DEFAULT_MAX_RESUMES : (int) $max_resumes;
         $task_id     = 'task-' . time() . '-' . strtolower( wp_generate_password( 12, false ) );
         $deadline    = null === $deadline_seconds ? self::WALL_CLOCK_WINDOW_SECONDS : (int) $deadline_seconds;
@@ -1007,11 +1013,12 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * touched, whatever their age - artifact deletion is prune_task's job
      * and only ever by name.
      *
-     * @param string $backup_dir  Backup directory.
-     * @param int    $age_seconds Minimum age before a leftover is stale.
+     * @param string $backup_dir          Backup directory.
+     * @param int    $age_seconds         Minimum age before a leftover is stale.
+     * @param bool   $dump_fragments_only Ignore age for dump fragments when starting a full backup.
      */
-    public function sweep_stale_markers( $backup_dir, $age_seconds = 10800 ) {
-        $patterns = array( 'backup-*.pid', 'backup-*.done', 'dbBackup-*.sql*', 'manifest-staged-*.list' );
+    public function sweep_stale_markers( $backup_dir, $age_seconds = 10800, $dump_fragments_only = false ) {
+        $patterns = $dump_fragments_only ? array( 'dbBackup-*.sql.php' ) : array( 'backup-*.pid', 'backup-*.done', 'dbBackup-*.sql*', 'manifest-staged-*.list' );
         $cutoff   = time() - $age_seconds;
 
         // A long dump (>3h on a big site) leaves fragments older than the age
@@ -1038,7 +1045,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                         continue 2;
                     }
                 }
-                if ( is_file( $file ) && filemtime( $file ) < $cutoff ) {
+                if ( is_file( $file ) && ( $dump_fragments_only || filemtime( $file ) < $cutoff ) ) {
                     wp_delete_file( $file );
                 }
             }
