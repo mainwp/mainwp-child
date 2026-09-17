@@ -250,7 +250,6 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 		$result = $method->invokeArgs( $cpt, array( $post_id, $data, false, false ) );
 
 		$this->assertArrayNotHasKey( 'error', (array) $result );
-		delete_post_meta( $post_id, 'mainwp_cyclic_meta' );
 		$this->assertSame( array(), get_post_meta( $post_id, 'mainwp_cyclic_meta' ), 'A cyclic serialized array must not be persisted.' );
 	}
 
