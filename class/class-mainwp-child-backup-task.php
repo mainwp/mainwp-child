@@ -264,8 +264,13 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
 
         if ( 'full' === $type ) {
             // Full dumps reuse legacy names, so orphaned fragments must not look like resume data.
+            // The legacy engine dumps under those same names with no spine row, so the age-0 sweep
+            // stands down while its pid lock is fresh; a legacy dump that stops heartbeating is
+            // invisible here exactly as it is to the caller's own single-backup check.
             $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
-            $this->sweep_stale_markers( $dirs[0], 0, true );
+            if ( ! MainWP_Backup::is_pid_lock_fresh( $dirs[0] ) ) {
+                $this->sweep_stale_markers( $dirs[0], 0, true );
+            }
         }
 
         $max_resumes = null === $max_resumes ? self::DEFAULT_MAX_RESUMES : (int) $max_resumes;
@@ -1013,9 +1018,16 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * touched, whatever their age - artifact deletion is prune_task's job
      * and only ever by name.
      *
+     * $dump_fragments_only narrows the sweep to completed `.sql.php` fragments and
+     * disables $age_seconds with it: at full-task creation nothing may be dumping,
+     * so age carries no information and a fragment minutes old is still litter a
+     * dead run left behind. A tier-2 `.sql.php.tmp` is left alone on purpose - the
+     * next run restarts that table from the top, so the open file is litter the
+     * aged sweep collects rather than resume data anyone reads.
+     *
      * @param string $backup_dir          Backup directory.
      * @param int    $age_seconds         Minimum age before a leftover is stale.
-     * @param bool   $dump_fragments_only Ignore age for dump fragments when starting a full backup.
+     * @param bool   $dump_fragments_only Sweep only dump fragments, ignoring $age_seconds.
      */
     public function sweep_stale_markers( $backup_dir, $age_seconds = 10800, $dump_fragments_only = false ) {
         $patterns = $dump_fragments_only ? array( 'dbBackup-*.sql.php' ) : array( 'backup-*.pid', 'backup-*.done', 'dbBackup-*.sql*', 'manifest-staged-*.list' );

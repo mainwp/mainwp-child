@@ -333,6 +333,37 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The legacy engine dumps under the same names with no task row, so a
+	 * fresh pid lock stands the age-0 sweep down.
+	 */
+	public function test_full_task_creation_spares_fragments_under_a_fresh_legacy_pid_lock() {
+		$spine    = MainWP_Child_Backup_Task::instance();
+		$dirs     = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' );
+		$prefix   = rtrim( $dirs[0], '/' ) . '/dbBackup-legacy-' . uniqid();
+		$fragment = $prefix . '-wp_posts.sql.php';
+		$pid      = rtrim( $dirs[0], '/' ) . '/backup-legacy-' . uniqid() . '.pid';
+
+		try {
+			file_put_contents( $fragment, 'legacy dump in flight' );
+			file_put_contents( $pid, '12345' );
+
+			$this->assertNotFalse( $spine->create_task( 'full' ) );
+			$this->assertFileExists( $fragment, 'A fresh pid lock must stand the sweep down.' );
+
+			touch( $pid, time() - 4 * 3600 );
+
+			$this->assertNotFalse( $spine->create_task( 'full' ) );
+			$this->assertFileDoesNotExist( $fragment, 'A stale pid lock must not hold the sweep off.' );
+		} finally {
+			foreach ( array( $fragment, $pid ) as $file ) {
+				if ( file_exists( $file ) ) {
+					unlink( $file );
+				}
+			}
+		}
+	}
+
+	/**
 	 * An orphaned staged manifest (its task-create never arrived) is
 	 * swept once stale; a fresh one may belong to a transfer in flight.
 	 */
