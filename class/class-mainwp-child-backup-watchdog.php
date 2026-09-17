@@ -200,8 +200,7 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
                 continue;
             }
 
-            $owner = MainWP_Child_Backup_Task_Runner::LEASE_OWNER_WATCHDOG;
-            $owner = substr( $owner, 0, 27 ) . ':' . wp_generate_uuid4();
+            $owner = substr( MainWP_Child_Backup_Task_Runner::LEASE_OWNER_WATCHDOG, 0, 27 ) . ':' . wp_generate_uuid4();
             if ( ! $spine->acquire_lease( $task->task_id, $owner, $version, 2 * MainWP_Child_Backup_Task::SLICE_BUDGET_SECONDS ) ) {
                 continue; // Another runner won the row - back off.
             }
