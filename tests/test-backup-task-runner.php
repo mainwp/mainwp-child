@@ -1183,4 +1183,48 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertFileExists( $chain, 'The promoted chain base must survive' );
 		$this->assertFileExists( $this->backup_dir . '/backup-artifact.tar', 'Files the failed task never produced must survive' );
 	}
+
+	/**
+	 * A runner whose lease has already been reclaimed by another owner (the
+	 * watchdog handing the task to a second runner) must not let its own
+	 * failure checkpoint win the CAS: doing so would stamp PHASE_FAILED over
+	 * the new holder's in-flight state and delete its artifacts.
+	 */
+	public function test_stolen_lease_failure_does_not_overwrite_new_holder() {
+		$spine    = MainWP_Child_Backup_Task::instance();
+		$task_id  = $this->create_task( 'db' );
+		$artifact = $this->backup_dir . '/backup-failing.tar';
+		file_put_contents( $artifact, 'x' ); // phpcs:ignore -- test fixture.
+
+		$task = $spine->get_task( $task_id );
+		$spine->checkpoint(
+			$task_id,
+			(int) $task->version,
+			array(
+				'phase'     => MainWP_Child_Backup_Task::PHASE_UPLOADING,
+				'sub_state' => array(
+					'params'   => array( 'ext' => 'tar' ),
+					'artifact' => array(
+						'file' => 'backup-failing.tar',
+						'size' => 1,
+					),
+				),
+			)
+		);
+
+		// The stub simulates the watchdog reclaiming this task's expired
+		// lease and dispatching a resume to another runner before this
+		// slice's own engine call throws.
+		$this->runner->stubs['perform_upload'] = function () use ( $spine, $task_id ) {
+			global $wpdb;
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . " SET lease_owner = 'watchdog-b', version = version + 1 WHERE task_id = %s", $task_id ) ); // phpcs:ignore -- test fixture.
+			throw new MainWP_Exception( 'upload exploded', null, 'mainwp_backup_upload_failed' );
+		};
+
+		$task = $this->advance( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_UPLOADING, $task->phase, 'A stale runner must not overwrite the new holder\'s phase' );
+		$this->assertSame( 'watchdog-b', $task->lease_owner, 'The new holder\'s lease must survive the stale runner\'s failed CAS' );
+		$this->assertFileExists( $artifact, 'A runner that lost its lease must not delete artifacts it no longer owns' );
+	}
 }

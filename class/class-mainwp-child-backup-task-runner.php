@@ -424,16 +424,19 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             // with the error: it holds the only record of which files this
             // task produced. The fresh row read beats the loop's local copy
             // because a phase may checkpoint progress and then throw.
-            // Only the row version can match the optimistic update after an intra-slice checkpoint.
+            // The re-read version is adopted only while we still hold the
+            // lease - otherwise a runner that lost its lease would overwrite
+            // the new holder's state and delete its artifacts.
             $failed_row = $spine->get_task( $task_id );
             $pre_fail   = null !== $failed_row ? $spine->read_sub_state( $failed_row, $backup_dir ) : null;
             if ( ! is_array( $pre_fail ) && isset( $sub_state ) && is_array( $sub_state ) ) {
                 $pre_fail = $sub_state;
             }
 
+            $own_row     = null !== $failed_row && (string) $failed_row->lease_owner === (string) $owner;
             $new_version = $spine->checkpoint(
                 $task_id,
-                null !== $failed_row ? (int) $failed_row->version : $version,
+                $own_row ? (int) $failed_row->version : $version,
                 array(
                     'phase'     => MainWP_Child_Backup_Task::PHASE_FAILED,
                     'sub_state' => array(
