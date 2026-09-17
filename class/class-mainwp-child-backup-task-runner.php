@@ -96,7 +96,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      *
      * @param object      $task    Stalled task row (pre-resume state).
      * @param int         $version Row version after the watchdog's bookkeeping.
-     * @param string|null $owner   Lease token, or null to read it from the matching row.
+     * @param string|null $owner   Lease token; a missing token refuses the resume.
      */
     public function handle_watchdog_resume( $task, $version, $owner = null ) {
         if ( MainWP_Child_Restore_Task_Runner::is_restore_type( $task->type ) && ! ( $this instanceof MainWP_Child_Restore_Task_Runner ) ) {
@@ -109,7 +109,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         if ( null === $owner ) {
-            $owner = $fresh->lease_owner;
+            return;
         }
         $this->advance_one_slice( $fresh, $owner, true );
     }

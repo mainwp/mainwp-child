@@ -339,6 +339,35 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     }
 
     /**
+     * Transfer a live lease for an old runner during a partial upgrade only.
+     *
+     * No current caller uses this method. Keep it for requests that loaded
+     * the old runner before plugin files were replaced.
+     *
+     * @param string $task_id    Task id.
+     * @param string $from_owner Owner currently holding the lease.
+     * @param string $to_owner   Owner receiving the lease.
+     * @param int    $version    Version the caller last observed.
+     *
+     * @return bool True when transferred.
+     */
+    public function handoff_lease( $task_id, $from_owner, $to_owner, $version ) {
+        global $wpdb;
+        $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- CAS write on the spine table.
+            $wpdb->prepare(
+                'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
+                ' SET lease_owner = %s, version = version + 1
+                 WHERE task_id = %s AND lease_owner = %s AND version = %d AND lease_expires_at >= NOW()',
+                $to_owner,
+                $task_id,
+                $from_owner,
+                $version
+            )
+        );
+        return 1 === $result;
+    }
+
+    /**
      * Release a held lease.
      *
      * @param string $task_id Task id.

@@ -1290,6 +1290,39 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertNull( $task->lease_owner );
 	}
 
+	public function test_old_runner_handoff_accepts_live_lease() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->create_task( 'db' );
+		$task    = $spine->get_task( $task_id );
+		$owner   = 'watchdog:' . wp_generate_uuid4();
+		$this->assertTrue( $spine->acquire_lease( $task_id, 'watchdog', (int) $task->version, 120 ) );
+		$held = $spine->get_task( $task_id );
+
+		// An already-loaded old runner calls this on the newly loaded spine.
+		$this->assertTrue( $spine->handoff_lease( $task_id, 'watchdog', $owner, (int) $held->version ) );
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( $owner, $task->lease_owner );
+		$this->assertSame( (int) $held->version + 1, (int) $task->version );
+		$this->assertSame( $held->lease_expires_at, $task->lease_expires_at, 'Handoff must preserve the watchdog expiry' );
+	}
+
+	public function test_old_runner_handoff_refuses_expired_lease() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->create_task( 'db' );
+		$task    = $spine->get_task( $task_id );
+		$owner   = 'watchdog:' . wp_generate_uuid4();
+		$this->assertTrue( $spine->acquire_lease( $task_id, 'watchdog', (int) $task->version, 120 ) );
+		$this->assertSame( 1, $wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $task_id ) ) );
+		$held = $spine->get_task( $task_id );
+
+		$this->assertFalse( $spine->handoff_lease( $task_id, 'watchdog', $owner, (int) $held->version ) );
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( $held->lease_owner, $task->lease_owner );
+		$this->assertSame( $held->version, $task->version );
+		$this->assertSame( $held->lease_expires_at, $task->lease_expires_at );
+	}
+
 	public function test_two_argument_watchdog_resume_refuses_stale_version() {
 		$spine   = MainWP_Child_Backup_Task::instance();
 		$task_id = $this->create_task( 'db' );
@@ -1310,8 +1343,52 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		}
 
 		$task = $spine->get_task( $task_id );
-		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
-		$this->assertNull( $task->lease_owner );
+		$this->assertSame( array(), $this->runner->calls );
+		$this->assertSame( $held->phase, $task->phase );
+		$this->assertSame( $held->version, $task->version );
+		$this->assertSame( $held->lease_owner, $task->lease_owner );
+		$this->assertSame( $held->sub_state, $task->sub_state );
+	}
+
+	public function test_two_argument_watchdog_resume_refuses_literal_owner() {
+		$spine    = MainWP_Child_Backup_Task::instance();
+		$task_id  = $this->create_task( 'db' );
+		$artifact = $this->backup_dir . '/backup-artifact.tar';
+		$task     = $spine->get_task( $task_id );
+		$version  = $spine->checkpoint(
+			$task_id,
+			(int) $task->version,
+			array(
+				'phase'     => MainWP_Child_Backup_Task::PHASE_UPLOADING,
+				'sub_state' => array(
+					'params'   => array( 'ext' => 'tar' ),
+					'artifact' => array( 'file' => 'backup-artifact.tar', 'size' => 2048 ),
+				),
+			)
+		);
+		$this->assertNotFalse( $version );
+		$this->assertTrue( $spine->acquire_lease( $task_id, 'watchdog', $version, 120 ) );
+		$held = $spine->get_task( $task_id );
+		$this->assertSame( 'watchdog', $held->lease_owner );
+		$this->assertFileExists( $artifact );
+		$this->runner->stubs['perform_upload'] = new MainWP_Exception( 'upload exploded', null, 'mainwp_backup_upload_failed' );
+
+		// An old watchdog supplies only the task and its matching version.
+		remove_all_actions( 'mainwp_child_backup_task_resume' );
+		$this->runner->register_hooks();
+		try {
+			do_action( 'mainwp_child_backup_task_resume', $task, (int) $held->version );
+		} finally {
+			remove_all_actions( 'mainwp_child_backup_task_resume' );
+		}
+
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( array(), $this->runner->calls, 'A dispatch without a token must not run a slice' );
+		$this->assertSame( $held->version, $task->version, 'Refusal must not checkpoint or release the lease' );
+		$this->assertSame( $held->phase, $task->phase );
+		$this->assertSame( $held->sub_state, $task->sub_state );
+		$this->assertSame( $held->lease_owner, $task->lease_owner );
+		$this->assertFileExists( $artifact, 'Refusal must preserve the task artifact' );
 	}
 
 	public function test_legacy_watchdog_failure_does_not_overwrite_new_holder() {
