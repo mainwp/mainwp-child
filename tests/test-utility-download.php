@@ -6,6 +6,7 @@
  */
 
 use MainWP\Child\MainWP_Utility;
+use MainWP\Child\MainWP_Child_Backup_Incremental_Diff;
 
 /**
  * Utility double that records refusal emissions instead of touching the
@@ -339,8 +340,7 @@ class UtilityDownloadTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A present-but-empty artifact is the same not-ready race, not a valid
-	 * zero-byte download.
+	 * An empty artifact other than tombstones remains unavailable.
 	 */
 	public function test_resolve_download_availability_zero_byte_file_is_503() {
 		$empty = tempnam( sys_get_temp_dir(), 'mwp-dl-empty-' );
@@ -352,6 +352,41 @@ class UtilityDownloadTest extends WP_UnitTestCase {
 		$this->assertFalse( $availability['ok'] );
 		$this->assertSame( 503, $availability['status'] );
 		$this->assertSame( 5, $availability['retry_after'] );
+	}
+
+	/**
+	 * Incrementals without deletions still need a downloadable tombstones artifact.
+	 */
+	public function test_resolve_download_availability_empty_tombstones_is_ok() {
+		$upload_dir = wp_upload_dir();
+		$backup_dir = $upload_dir['basedir'] . '/mainwp/backup/mwp-dl-test-' . wp_rand();
+		wp_mkdir_p( $backup_dir );
+		$empty = $backup_dir . '/' . MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST;
+		file_put_contents( $empty, '' );
+
+		try {
+			$availability = MainWP_Utility::instance()->resolve_download_availability( $empty );
+			$this->assertTrue( $availability['ok'] );
+			$this->assertSame( 200, $availability['status'] );
+			$this->assertNull( $availability['retry_after'] );
+		} finally {
+			unlink( $empty );
+			rmdir( $backup_dir );
+		}
+	}
+
+	/**
+	 * Empty artifacts cannot satisfy a byte range or resume offset.
+	 */
+	public function test_empty_download_is_200_with_zero_content_length() {
+		$utility = MainWP_Utility::instance();
+		foreach ( array( null, 'bytes=0-', 'bytes=5-10' ) as $range_header ) {
+			$range = $utility->resolve_download_range( 0, $range_header, 5 );
+			$this->assertSame( 200, $range['status'] );
+			$headers = $utility->get_download_headers( MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST, 0, $range );
+			$this->assertContains( 'Content-Length: 0', $headers );
+			$this->assertSame( array(), preg_grep( '/^Content-Range:/', $headers ) );
+		}
 	}
 
 	/**

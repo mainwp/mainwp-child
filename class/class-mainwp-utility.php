@@ -228,7 +228,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
      * Method resolve_download_availability()
      *
      * Decide whether a resolved backup file path is ready to stream. A file
-     * that is missing or still empty is the child's post-completion settle
+     * that is missing or unexpectedly empty is the child's post-completion settle
      * window, so the refusal invites a retry; a wp-config path is a security
      * refusal and does not.
      *
@@ -244,7 +244,8 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
                 'retry_after' => null,
             );
         }
-        if ( ! file_exists( $fullpath ) || 0 === (int) filesize( $fullpath ) ) {
+        // No deletions produces a valid empty tombstones list; other empty artifacts are not ready.
+        if ( ! file_exists( $fullpath ) || ( 0 === (int) filesize( $fullpath ) && MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST !== basename( $fullpath ) ) ) {
             return array(
                 'ok'          => false,
                 'status'      => 503,
@@ -343,7 +344,9 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         while ( ob_get_level() ) {
             ob_end_clean();
         }
-        $this->readfile_chunked( $fullpath, $range['start'], $range['end'] - $range['start'] + 1 );
+        if ( 0 < $file_size ) {
+            $this->readfile_chunked( $fullpath, $range['start'], $range['end'] - $range['start'] + 1 );
+        }
         return true;
     }
 
@@ -370,6 +373,15 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
     public function resolve_download_range( $file_size, $range_header, $offset = 0 ) {
         $file_size = (int) $file_size;
         $offset    = (int) $offset;
+
+        // An empty tombstones list has no byte window to resume.
+        if ( 0 === $file_size ) {
+            return array(
+                'status' => 200,
+                'start'  => 0,
+                'end'    => -1,
+            );
+        }
 
         $unsatisfiable = array(
             'status' => 416,
@@ -463,7 +475,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         if ( 206 === $range['status'] ) {
             $headers[] = 'Content-Range: bytes ' . $range['start'] . '-' . $range['end'] . '/' . $file_size;
         }
-        $headers[] = 'Content-Length: ' . ( $range['end'] - $range['start'] + 1 );
+        $headers[] = 'Content-Length: ' . ( 0 === $file_size ? 0 : $range['end'] - $range['start'] + 1 );
 
         return $headers;
     }
