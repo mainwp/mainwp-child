@@ -1419,9 +1419,15 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @param string $prefix Dump file prefix.
      *
      * @return array Files including the marker.
+     *
+     * @throws MainWP_Exception If the marker cannot be created.
      */
     protected function finalize_dump_files( $files, $prefix ) {
-        fclose( fopen( $prefix . '.sql', 'w' ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- empty marker file, legacy format.
+        $handle = fopen( $prefix . '.sql', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- empty marker file, legacy format.
+        if ( false === $handle ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_PERMISSIONS ) ), null, MainWP_Backup_Error::ERR_PERMISSIONS ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+        }
+        fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- empty marker file, legacy format.
         $files[] = $prefix . '.sql';
         return $files;
     }

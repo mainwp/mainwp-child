@@ -661,7 +661,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
      *
      * @return bool True when no more rows remain for this table.
      *
-     * @throws MainWP_Exception On write failure.
+     * @throws MainWP_Exception On read/write failure.
      */
     protected function tier2_dump_chunk( $table, $tmp, &$cursor ) { //phpcs:ignore -- NOSONAR - chunked dump loop.
         global $wpdb;
@@ -715,9 +715,14 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             );
         }
 
-        $rows = $wpdb->get_results( $sql, ARRAY_N ); // phpcs:ignore -- chunked dump read.
-        if ( ! is_array( $rows ) ) {
-            $rows = array();
+        $rows     = $wpdb->get_results( $sql, ARRAY_N ); // phpcs:ignore -- chunked dump read.
+        $db_error = $wpdb->last_error;
+        if ( '' !== $db_error || ! is_array( $rows ) ) {
+            throw new MainWP_Exception(
+                esc_html( MainWP_Backup_Error::scrub_db_credentials( "Reading table `$table` failed: " . $db_error ) ),
+                null,
+                MainWP_Backup_Error::ERR_DB_QUERY_FAILED // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message escaped and scrubbed, code is a registry class constant.
+            );
         }
         if ( empty( $rows ) ) {
             return true;

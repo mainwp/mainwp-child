@@ -289,6 +289,55 @@ class DbDumperTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A failed row read must not finalize a schema-only backup.
+	 */
+	public function test_tier2_query_failure_does_not_finalize_table() {
+		global $wpdb;
+		$dumper = MainWP_Backup_Db_Dumper::instance();
+		$prefix = $this->scratch . '/dbBackup';
+		$tables = array( $this->fixture_table );
+		$slice  = $dumper->dump_tables_tier2_slice( $tables, $prefix, array(), 0 );
+		$this->assertFalse( $slice['done'] );
+		$this->assertTrue( $slice['cursor']['started'] );
+		$final = $prefix . '-' . $this->fixture_table . '.sql.php';
+		$filter = function ( $sql ) {
+			if ( false !== strpos( $sql, $this->fixture_table ) && false !== stripos( $sql, 'LIMIT' ) ) {
+				return 'SELECT * FROM `' . $this->fixture_table . '_missing`';
+			}
+			return $sql;
+		};
+		$failure = null;
+		$errors  = $wpdb->suppress_errors( true );
+		add_filter( 'query', $filter );
+		try {
+			$slice = $dumper->dump_tables_tier2_slice( $tables, $prefix, $slice['cursor'], 0 );
+		} catch ( \MainWP\Child\MainWP_Exception $e ) {
+			$failure = $e;
+		} finally {
+			$db_error = $wpdb->last_error;
+			remove_filter( 'query', $filter );
+			$wpdb->suppress_errors( $errors );
+		}
+
+		$this->assertInstanceOf( \MainWP\Child\MainWP_Exception::class, $failure );
+		$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_DB_QUERY_FAILED, $failure->get_message_error_code() );
+		$this->assertNotEmpty( $db_error );
+		$this->assertStringContainsString( esc_html( \MainWP\Child\MainWP_Backup_Error::scrub_db_credentials( $db_error ) ), $failure->getMessage() );
+		$this->assertStringContainsString( $this->fixture_table, $failure->getMessage() );
+		$this->assertStringNotContainsString( 'SELECT', $failure->getMessage() );
+		$this->assertFalse( $slice['done'] );
+		$this->assertSame( 0, $slice['cursor']['index'] );
+		$this->assertSame( array(), $slice['files'] );
+		$this->assertFileDoesNotExist( $final );
+		$this->assertFileExists( $final . '.tmp' );
+
+		$slice = $dumper->dump_tables_tier2_slice( $tables, $prefix, $slice['cursor'], 0 );
+		$this->assertTrue( $slice['done'] );
+		$this->assertSame( array( $final ), $slice['files'] );
+		$this->assertStringContainsString( 'INSERT INTO', file_get_contents( $final ) );
+	}
+
+	/**
 	 * A whole-DB Tier-2 dump (null cursor) must run the topology guard before
 	 * reading $wpdb, so a sharded/replicated site cannot silently dump one
 	 * shard through the dedicated-connection fallback.

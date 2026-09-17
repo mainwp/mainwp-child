@@ -317,6 +317,38 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * An unwritable marker must produce the coded backup failure.
+	 */
+	public function test_finalize_dump_files_reports_unwritable_directory() {
+		if ( function_exists( 'posix_geteuid' ) && 0 === posix_geteuid() ) {
+			$this->markTestSkipped( 'Root can write to directories without write permission.' );
+		}
+		$prefix = $this->backup_dir . '/dbBackup';
+		$method = new ReflectionMethod( MainWP_Child_Backup_Task_Runner::class, 'finalize_dump_files' );
+		$method->setAccessible( true );
+		$this->assertTrue( chmod( $this->backup_dir, 0500 ) );
+		$failure = null;
+		set_error_handler(
+			function ( $severity, $message ) use ( $prefix ) {
+				return E_WARNING === $severity && false !== strpos( $message, 'fopen(' . $prefix . '.sql)' );
+			}
+		);
+		try {
+			$method->invoke( $this->runner, array(), $prefix );
+		} catch ( MainWP_Exception $e ) {
+			$failure = $e;
+		} finally {
+			restore_error_handler();
+			chmod( $this->backup_dir, 0755 );
+		}
+		$this->assertInstanceOf( MainWP_Exception::class, $failure );
+		$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_PERMISSIONS, $failure->get_message_error_code() );
+		$this->assertFileDoesNotExist( $prefix . '.sql' );
+		$this->assertSame( array( $prefix . '.sql' ), $method->invoke( $this->runner, array(), $prefix ) );
+		$this->assertSame( 0, filesize( $prefix . '.sql' ) );
+	}
+
+	/**
 	 * Create a task with standard params.
 	 *
 	 * @param string $type Backup type.
