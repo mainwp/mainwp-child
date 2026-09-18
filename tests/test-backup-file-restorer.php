@@ -471,7 +471,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertNull( $result['error'] );
 		$this->assertTrue( $result['done'] );
 		$this->assertSame( 'png-bytes', file_get_contents( $this->extract_to . '/wp-content/uploads/marker.png' ) );
-		$this->assertFileDoesNotExist( $this->dir . '/s619-full-three-mainwps-com-September-17-2026-23-55.plain.tar', 'The plain tar is discarded after extraction.' );
+		$this->assertFileDoesNotExist( $this->dir . '/s619-full-three-mainwps-com-September-17-2026-23-55-' . substr( sha1( basename( $part ) ), 0, 12 ) . '.plain.tar', 'The plain tar is discarded after extraction.' );
 		$this->assertFileExists( $part, 'The part itself is left for the caller to clean up.' );
 	}
 
@@ -491,8 +491,36 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertNull( $result['error'] );
 		$this->assertTrue( $result['done'] );
 		$this->assertSame( '<?php // site', file_get_contents( $this->extract_to . '/index.php' ) );
-		$this->assertFileDoesNotExist( $this->dir . '/s7-full-staging-trendyfashionhouse-com-September-17-2026-23-55.plain.tar' );
+		$this->assertFileDoesNotExist( $this->dir . '/s7-full-staging-trendyfashionhouse-com-September-17-2026-23-55-' . substr( sha1( basename( $part ) ), 0, 12 ) . '.tar' );
 		$this->assertFileExists( $part );
+	}
+
+	/**
+	 * Dotted and dashed archive names must not reuse each other's plain tar.
+	 */
+	public function test_phar_safe_tar_paths_distinguish_dotted_and_dashed_names() {
+		$method = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'phar_safe_tar_path' );
+		$method->setAccessible( true );
+		$dotted = $method->invoke( null, $this->dir . '/a.b-September-17-2026-23-55.tar.gz' );
+		$dashed = $method->invoke( null, $this->dir . '/a-b-September-17-2026-23-55.tar.gz' );
+
+		$this->assertNotSame( $dotted, $dashed );
+		$this->assertStringEndsWith( '.plain.tar', $dotted );
+		$this->assertStringEndsWith( '.plain.tar', $dashed );
+	}
+
+	/**
+	 * A bzip2 alias needs its compression extension because its bytes stay compressed.
+	 */
+	public function test_phar_safe_tar_path_preserves_bz2_extension() {
+		$name = 's7-full-staging.trendyfashionhouse.com-September-17-2026-23-55.tar.bz2';
+		$this->assertGreaterThanOrEqual( 50, strlen( $name ) - strpos( $name, '.' ), 'The fixture name must be one PharData rejects.' );
+		$method = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'phar_safe_tar_path' );
+		$method->setAccessible( true );
+		$alias = $method->invoke( null, $this->dir . '/' . $name );
+
+		$this->assertStringEndsWith( '.tar.bz2', $alias );
+		$this->assertLessThan( 50, strlen( basename( $alias ) ) - strpos( basename( $alias ), '.' ), 'The alias name must be one PharData accepts.' );
 	}
 
 	/**

@@ -326,22 +326,27 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     }
 
     /**
-     * The plain-tar path PharData can open for a part.
+     * The alias path PharData can open for a part.
      *
      * PharData finds the archive format by scanning from the first dot in
      * the file name and gives up when that tail is 50 characters or more
      * (phar_check_str in ext/phar). Dashboard archive names carry the
      * site's host name, so a dotted host plus the date stamp already sits
      * near the limit, and appending .plain.tar crossed it on a live restore.
-     * Dots in the stem become dashes so the only dot-tail is ".plain.tar".
+     * Dots in the stem become dashes to keep the dot-tail below the limit.
+     * The basename hash prevents dotted and dashed names sharing an alias.
      *
      * @param string $part Archive path.
      *
-     * @return string Plain tar path beside the part.
+     * @return string Alias path beside the part.
      */
     protected static function phar_safe_tar_path( $part ) {
-        $stem = preg_replace( '/\.tar(\.gz)?$/i', '', basename( $part ) );
-        return dirname( $part ) . '/' . str_replace( '.', '-', $stem ) . '.plain.tar';
+        $stem      = preg_replace( '/\.tar(\.gz|\.bz2)?$/i', '', basename( $part ) );
+        $extension = substr( basename( $part ), strlen( $stem ) );
+        if ( '.tar.gz' === strtolower( $extension ) ) {
+            $extension = '.plain.tar';
+        }
+        return dirname( $part ) . '/' . str_replace( '.', '-', $stem ) . '-' . substr( sha1( basename( $part ) ), 0, 12 ) . $extension;
     }
 
     /**
