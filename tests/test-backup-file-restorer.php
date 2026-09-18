@@ -10,7 +10,7 @@ use MainWP\Child\MainWP_Backup_Error;
 use MainWP\Child\MainWP_Child_Backup_Task_Runner;
 
 /**
- * Restorer that forces every .tar.gz decompression to hit the slice deadline,
+ * Restorer that forces every compressed tar decompression to hit the slice deadline,
  * standing in for a stream too large to finish, without depending on wall-clock
  * timing.
  */
@@ -26,7 +26,7 @@ class TimeoutDecompressRestorer extends MainWP_Child_Backup_File_Restorer {
 	 * @return string|null Plain tar path, or null on the forced timeout.
 	 */
 	protected function plain_tar_for( $part, $deadline, &$timed_out ) {
-		if ( preg_match( '/\.tar\.gz$/i', $part ) ) {
+		if ( preg_match( '/\.tar\.(gz|bz2)$/i', $part ) ) {
 			$timed_out = true;
 			return null;
 		}
@@ -527,6 +527,32 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A tar.bz2 part decompresses before PharData reads its entries.
+	 */
+	public function test_tar_bz2_part_extracted() {
+		if ( ! function_exists( 'bzopen' ) ) {
+			$this->markTestSkipped( 'The bzip2 extension is unavailable.' );
+		}
+		$sql = '<?php exit(); ?>' . "\nCREATE TABLE `wp_a` (id INT);\n";
+		$tar = $this->make_tar( 'dump.tar', array( 'dbBackup-wp_a.sql.php' => $sql, 'sub/nested.txt' => 'nested-bytes' ) );
+		$compressed = bzcompress( file_get_contents( $tar ) );
+		$this->assertIsString( $compressed );
+		$part = $tar . '.bz2';
+		$this->assertSame( strlen( $compressed ), file_put_contents( $part, $compressed ) );
+		Phar::unlinkArchive( $tar );
+
+		$result = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( $sql, file_get_contents( $this->extract_to . '/dbBackup-wp_a.sql.php' ) );
+		$this->assertSame( 'nested-bytes', file_get_contents( $this->extract_to . '/sub/nested.txt' ) );
+		$plain = $this->dir . '/dump-' . substr( sha1( basename( $part ) ), 0, 12 ) . '.plain.tar';
+		$this->assertFileDoesNotExist( $plain );
+		$this->assertSame( array(), glob( $plain . '*.tmp' ) );
+		$this->assertFileExists( $part );
+	}
+
+	/**
 	 * A dashboard-named tar.gz (site host plus date stamp) decompresses to a
 	 * plain tar PharData accepts. Appending .plain.tar to this fixture's
 	 * name puts 53 characters after the first dot, past PharData's 50 limit.
@@ -653,11 +679,18 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$alias_method = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'phar_safe_tar_path' );
 		$alias_method->setAccessible( true );
 
-		foreach ( array( '.tar', '.tar.gz' ) as $extension ) {
+		foreach ( array( '.tar', '.tar.gz', '.tar.bz2' ) as $extension ) {
+			if ( '.tar.bz2' === $extension && ! function_exists( 'bzopen' ) ) {
+				continue;
+			}
 			$name = 's42-full-site.example-staging-site.test-September-17-2026-23-55' . $extension;
 			$part = $this->dir . '/' . $name;
 			$tar = $this->make_tar( 'fixture' . str_replace( '.', '-', $extension ) . '.tar', array( 'index.php' => 'part-content' ) );
-			if ( '.tar.gz' === $extension ) {
+			if ( '.tar.bz2' === $extension ) {
+				$compressed = bzcompress( file_get_contents( $tar ) );
+				$this->assertIsString( $compressed );
+				$this->assertSame( strlen( $compressed ), file_put_contents( $part, $compressed ) );
+			} elseif ( '.tar.gz' === $extension ) {
 				$this->assertNotFalse( file_put_contents( $part, gzencode( file_get_contents( $tar ) ) ) );
 			} else {
 				$this->assertTrue( rename( $tar, $part ) );
@@ -737,11 +770,18 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		};
 		add_filter( 'random_password', $filter );
 		try {
-			foreach ( array( '.tar', '.tar.gz' ) as $extension ) {
+			foreach ( array( '.tar', '.tar.gz', '.tar.bz2' ) as $extension ) {
+				if ( '.tar.bz2' === $extension && ! function_exists( 'bzopen' ) ) {
+					continue;
+				}
 				$name = 's42-full-site.example-staging-site.test-September-17-2026-23-55' . $extension;
 				$part = $this->dir . '/' . $name;
 				$tar = $this->make_tar( 'suffix' . str_replace( '.', '-', $extension ) . '.tar', array( 'index.php' => 'part-content' ) );
-				if ( '.tar.gz' === $extension ) {
+				if ( '.tar.bz2' === $extension ) {
+					$compressed = bzcompress( file_get_contents( $tar ) );
+					$this->assertIsString( $compressed );
+					$this->assertSame( strlen( $compressed ), file_put_contents( $part, $compressed ) );
+				} elseif ( '.tar.gz' === $extension ) {
 					file_put_contents( $part, gzencode( file_get_contents( $tar ) ) );
 				} else {
 					rename( $tar, $part );
@@ -753,7 +793,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		} finally {
 			remove_filter( 'random_password', $filter );
 		}
-		$this->assertCount( 2, $this->restorer->temp_paths );
+		$this->assertCount( function_exists( 'bzopen' ) ? 3 : 2, $this->restorer->temp_paths );
 		foreach ( $this->restorer->temp_paths as $path ) {
 			$this->assertMatchesRegularExpression( '/\.[0-9a-f]{12}\.tmp$/', $path );
 			$this->assertFileDoesNotExist( $path );
@@ -797,16 +837,16 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A bzip2 alias needs its compression extension because its bytes stay compressed.
+	 * A bzip2 part uses a plain tar alias for its decompressed bytes.
 	 */
-	public function test_phar_safe_tar_path_preserves_bz2_extension() {
+	public function test_phar_safe_tar_path_maps_bz2_to_plain_tar() {
 		$name = 's42-full-site.example-staging-site.test-September-17-2026-23-55.tar.bz2';
 		$this->assertGreaterThanOrEqual( 50, strlen( $name ) - strpos( $name, '.' ), 'The fixture name must be one PharData rejects.' );
 		$method = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'phar_safe_tar_path' );
 		$method->setAccessible( true );
 		$alias = $method->invoke( null, $this->dir . '/' . $name );
 
-		$this->assertStringEndsWith( '.tar.bz2', $alias );
+		$this->assertStringEndsWith( '.plain.tar', $alias );
 		$this->assertLessThan( 50, strlen( basename( $alias ) ) - strpos( basename( $alias ), '.' ), 'The alias name must be one PharData accepts.' );
 	}
 

@@ -165,7 +165,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         }
 
         // Phar reads of compressed tars are unreliable across PHP builds
-        // (8.4 returns empty entry streams), so compressed parts gunzip
+        // (8.4 returns empty entry streams), so compressed parts decompress
         // to a plain .tar first; the plain-tar reader is solid everywhere.
         $timed_out = false;
         $plain     = $this->plain_tar_for( $part, $deadline, $timed_out );
@@ -179,7 +179,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                     // retry: a full slice that still cannot finish refuses below.
                     return $this->result( false, $cursor, null, null );
                 }
-                // A full slice was not enough to decompress this stream and gzip
+                // A full slice was not enough to decompress this stream and decompression
                 // cannot resume across requests, so refuse rather than loop.
                 return $this->result(
                     false,
@@ -188,7 +188,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                     MainWP_Backup_Error::ERR_RESTORE_EXTRACT
                 );
             }
-            $message = preg_match( '/\.tar\.gz$/i', $part ) ? 'Could not decompress archive: ' : 'Could not prepare archive for reading: ';
+            $message = preg_match( '/\.tar\.(gz|bz2)$/i', $part ) ? 'Could not decompress archive: ' : 'Could not prepare archive for reading: ';
             return $this->result( false, $cursor, $message . basename( $part ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
 
@@ -257,9 +257,9 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     /**
      * Resolve a tar part to a plain (uncompressed) tar on disk.
      *
-     * A .tar passes through; .tar.gz streams through zlib into a sibling temp
-     * file. The decompression is bounded by the slice deadline: gzip cannot be
-     * resumed across requests (the inflate state is not serializable), so a
+     * A .tar passes through; .tar.gz and .tar.bz2 stream into a sibling temp
+     * file. Decompression is bounded by the slice deadline and cannot be
+     * resumed across requests (the stream state is not serializable), so a
      * stream that cannot finish inside one slice is refused rather than
      * restarted from byte 0 every slice. The refusal sets $timed_out so the
      * caller can guide the operator to the uncompressed .tar format.
@@ -274,7 +274,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         $timed_out = false;
 
         $plain = static::phar_safe_tar_path( $part );
-        if ( ! preg_match( '/\.tar\.gz$/i', $part ) ) {
+        if ( ! preg_match( '/\.tar\.(gz|bz2)$/i', $part ) ) {
             if ( ! static::phar_rejects_name( basename( $part ) ) ) {
                 return $part;
             }
@@ -308,47 +308,58 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             return $plain; // A prior slice already decompressed it.
         }
 
-        $in = @gzopen( $part, 'rb' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- open failures are handled below; warnings must not corrupt the response.
+        $gzip  = (bool) preg_match( '/\.tar\.gz$/i', $part );
+        $open  = $gzip ? 'gzopen' : 'bzopen';
+        $read  = $gzip ? 'gzread' : 'bzread';
+        $close = $gzip ? 'gzclose' : 'bzclose';
+        if ( ! function_exists( $open ) || ! function_exists( $read ) || ! function_exists( $close ) ) {
+            return null;
+        }
+
+        $in = @$open( $part, 'r' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- open failures are handled below; warnings must not corrupt the response.
         if ( false === $in ) {
             return null;
         }
         // Same reason as the hard-link branch: a resumed runner shares this
         // task's scratch dir, so a shared name lets one promote the other's
         // half-written stream.
-        $gz_tmp = $plain . '.' . bin2hex( random_bytes( 6 ) ) . '.tmp';
-        $this->sweep_stale_plain_temps( $plain, $gz_tmp );
-        $out = @fopen( $gz_tmp, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- open failures are handled below; warnings must not corrupt the response.
+        $compressed_tmp = $plain . '.' . bin2hex( random_bytes( 6 ) ) . '.tmp';
+        $this->sweep_stale_plain_temps( $plain, $compressed_tmp );
+        $out = @fopen( $compressed_tmp, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- open failures are handled below; warnings must not corrupt the response.
         if ( false === $out ) {
-            gzclose( $in );
+            $close( $in );
             return null;
         }
         $written = 0;
-        while ( ! gzeof( $in ) ) {
+        while ( true ) {
             if ( microtime( true ) >= $deadline ) {
-                // Out of slice mid-stream. gzip is not resumable, so discard
+                // Out of slice mid-stream. Decompression cannot resume, so discard
                 // the partial and refuse rather than loop forever from byte 0.
-                gzclose( $in );
+                $close( $in );
                 fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
-                wp_delete_file( $gz_tmp );
+                wp_delete_file( $compressed_tmp );
                 $timed_out = true;
                 return null;
             }
-            $chunk = gzread( $in, 262144 );
+            $chunk = $read( $in, 262144 );
+            if ( '' === $chunk ) {
+                break;
+            }
             if ( false === $chunk || strlen( $chunk ) !== fwrite( $out, $chunk ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming decompression.
-                gzclose( $in );
+                $close( $in );
                 fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
-                wp_delete_file( $gz_tmp );
+                wp_delete_file( $compressed_tmp );
                 return null;
             }
             $written += strlen( $chunk );
         }
-        gzclose( $in );
+        $close( $in );
         $closed = $this->close_out( $out );
 
         // The byte count guards against promoting an incomplete file as a reusable alias.
-        clearstatcache( true, $gz_tmp );
-        if ( ! $closed || @filesize( $gz_tmp ) !== $written || ! @rename( $gz_tmp, $plain ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- atomic promote; filesize/rename warnings must not corrupt the response.
-            wp_delete_file( $gz_tmp );
+        clearstatcache( true, $compressed_tmp );
+        if ( ! $closed || @filesize( $compressed_tmp ) !== $written || ! @rename( $compressed_tmp, $plain ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- atomic promote; filesize/rename warnings must not corrupt the response.
+            wp_delete_file( $compressed_tmp );
             return null;
         }
         return $plain;
@@ -450,7 +461,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     protected static function phar_safe_tar_path( $part ) {
         $stem      = preg_replace( '/\.tar(\.gz|\.bz2)?$/i', '', basename( $part ) );
         $extension = substr( basename( $part ), strlen( $stem ) );
-        if ( '.tar.gz' === strtolower( $extension ) ) {
+        if ( in_array( strtolower( $extension ), array( '.tar.gz', '.tar.bz2' ), true ) ) {
             $extension = '.plain.tar';
         }
         return dirname( $part ) . '/' . str_replace( '.', '-', $stem ) . '-' . substr( sha1( basename( $part ) ), 0, 12 ) . $extension;
