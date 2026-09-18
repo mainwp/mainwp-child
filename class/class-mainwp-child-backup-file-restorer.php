@@ -345,7 +345,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         gzclose( $in );
         $closed = $this->close_out( $out );
 
-        // A failed final flush or a foreign truncation must not become a reusable alias.
+        // The byte count guards against promoting an incomplete file as a reusable alias.
         clearstatcache( true, $gz_tmp );
         if ( ! $closed || @filesize( $gz_tmp ) !== $written || ! @rename( $gz_tmp, $plain ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- atomic promote; filesize/rename warnings must not corrupt the response.
             wp_delete_file( $gz_tmp );
@@ -376,7 +376,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 continue;
             }
             $mtime = $this->plain_temp_mtime( $stale );
-            // No progress for a full lease TTL means the writer's lease has expired.
+            // This bound protects a live peer; abandoned temps may survive the first resume until a later one.
             if ( false !== $mtime && $mtime < time() - MainWP_Child_Backup_Task_Runner::LEASE_TTL_SECONDS ) {
                 wp_delete_file( $stale );
             }
@@ -395,14 +395,17 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     }
 
     /**
-     * Close the decompressed output and report deferred write failures.
+     * Close the decompressed output stream.
+     *
+     * PHP's fclose() only reports an invalid stream, not a deferred close(2) error, so the
+     * byte count compared against the promoted file is the completeness gate.
      *
      * @param resource $out Output stream.
      *
-     * @return bool Whether closing succeeded.
+     * @return bool Whether fclose() accepted the stream.
      */
     protected function close_out( $out ) {
-        return @fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- deferred write failures are handled before promotion; warnings must not corrupt the response.
+        return @fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- completeness depends on the byte count; warnings must not corrupt the response.
     }
 
     /**
