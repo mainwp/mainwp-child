@@ -453,9 +453,8 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 
 	/**
 	 * A dashboard-named tar.gz (site host plus date stamp) decompresses to a
-	 * plain tar PharData accepts. Appending .plain.tar to the real archive
-	 * name put 53 characters after the first dot, past PharData's 50 limit,
-	 * and the live restore of snapshot 619 failed to open its archive.
+	 * plain tar PharData accepts. Appending .plain.tar to this fixture's
+	 * name puts 53 characters after the first dot, past PharData's 50 limit.
 	 */
 	public function test_tar_gz_with_dashboard_name_extracts() {
 		$tar = $this->dir . '/dump.tar';
@@ -464,14 +463,16 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$phar->compress( Phar::GZ );
 		unset( $phar );
 		Phar::unlinkArchive( $tar );
-		$part = $this->dir . '/s619-full-three.mainwps.com-September-17-2026-23-55.tar.gz';
+		$part = $this->dir . '/s42-full-site.example.com-September-17-2026-23-55.tar.gz';
+		$old_alias = basename( $part ) . '.plain.tar';
+		$this->assertSame( 53, strlen( $old_alias ) - strpos( $old_alias, '.' ), 'The old alias must exceed the PharData name limit.' );
 		rename( $tar . '.gz', $part );
 
 		$result = $this->run_all( $this->config( array( $part ) ) );
 		$this->assertNull( $result['error'] );
 		$this->assertTrue( $result['done'] );
 		$this->assertSame( 'png-bytes', file_get_contents( $this->extract_to . '/wp-content/uploads/marker.png' ) );
-		$this->assertFileDoesNotExist( $this->dir . '/s619-full-three-mainwps-com-September-17-2026-23-55-' . substr( sha1( basename( $part ) ), 0, 12 ) . '.plain.tar', 'The plain tar is discarded after extraction.' );
+		$this->assertFileDoesNotExist( $this->dir . '/s42-full-site-example-com-September-17-2026-23-55-' . substr( sha1( basename( $part ) ), 0, 12 ) . '.plain.tar', 'The plain tar is discarded after extraction.' );
 		$this->assertFileExists( $part, 'The part itself is left for the caller to clean up.' );
 	}
 
@@ -481,7 +482,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 	 * short-named hard link that is removed afterwards.
 	 */
 	public function test_plain_tar_with_long_dotted_name_extracts() {
-		$name = 's7-full-staging.trendyfashionhouse.com-September-17-2026-23-55.tar';
+		$name = 's42-full-site.example-staging-site.test-September-17-2026-23-55.tar';
 		$this->assertGreaterThanOrEqual( 50, strlen( $name ) - strpos( $name, '.' ), 'The fixture name must be one PharData rejects.' );
 		// PharData cannot create the fixture under that name either.
 		$part = $this->dir . '/' . $name;
@@ -491,7 +492,51 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertNull( $result['error'] );
 		$this->assertTrue( $result['done'] );
 		$this->assertSame( '<?php // site', file_get_contents( $this->extract_to . '/index.php' ) );
-		$this->assertFileDoesNotExist( $this->dir . '/s7-full-staging-trendyfashionhouse-com-September-17-2026-23-55-' . substr( sha1( basename( $part ) ), 0, 12 ) . '.tar' );
+		$this->assertFileDoesNotExist( $this->dir . '/s42-full-site-example-staging-site-test-September-17-2026-23-55-' . substr( sha1( basename( $part ) ), 0, 12 ) . '.tar' );
+		$this->assertFileExists( $part );
+	}
+
+	/**
+	 * A stale alias can be a readable tar while still missing the part's entries.
+	 */
+	public function test_plain_tar_replaces_incomplete_alias() {
+		$name = 's42-full-site.example-staging-site.test-September-17-2026-23-55.tar';
+		$this->assertGreaterThanOrEqual( 50, strlen( $name ) - strpos( $name, '.' ), 'The fixture name must be one PharData rejects.' );
+		$part = $this->dir . '/' . $name;
+		$content = str_repeat( 'part-content', 512 );
+		rename( $this->make_tar( 'fixture.tar', array( 'index.php' => $content ) ), $part );
+		$plain = $this->dir . '/s42-full-site-example-staging-site-test-September-17-2026-23-55-' . substr( sha1( $name ), 0, 12 ) . '.tar';
+		rename( $this->make_tar( 'stale.tar', array( 'stale.txt' => 'stale-content' ) ), $plain );
+		$this->assertLessThan( filesize( $part ), filesize( $plain ), 'The stale copy must be shorter than the part.' );
+
+		$result = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( $content, file_get_contents( $this->extract_to . '/index.php' ) );
+		$this->assertFileDoesNotExist( $this->extract_to . '/stale.txt' );
+		$this->assertFileDoesNotExist( $plain );
+		$this->assertFileExists( $part );
+	}
+
+	/**
+	 * A temporary copy from an interrupted request must not replace the part.
+	 */
+	public function test_plain_tar_does_not_promote_leftover_tmp_alias() {
+		$name = 's42-full-site.example-staging-site.test-September-17-2026-23-55.tar';
+		$this->assertGreaterThanOrEqual( 50, strlen( $name ) - strpos( $name, '.' ), 'The fixture name must be one PharData rejects.' );
+		$part = $this->dir . '/' . $name;
+		$content = str_repeat( 'part-content', 512 );
+		rename( $this->make_tar( 'fixture.tar', array( 'index.php' => $content ) ), $part );
+		$plain = $this->dir . '/s42-full-site-example-staging-site-test-September-17-2026-23-55-' . substr( sha1( $name ), 0, 12 ) . '.tar';
+		rename( $this->make_tar( 'stale.tar', array( 'stale.txt' => 'stale-content' ) ), $plain . '.tmp' );
+		$this->assertLessThan( filesize( $part ), filesize( $plain . '.tmp' ), 'The stale copy must be shorter than the part.' );
+
+		$result = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( $content, file_get_contents( $this->extract_to . '/index.php' ) );
+		$this->assertFileDoesNotExist( $this->extract_to . '/stale.txt' );
+		$this->assertFileDoesNotExist( $plain );
 		$this->assertFileExists( $part );
 	}
 
@@ -513,7 +558,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 	 * A bzip2 alias needs its compression extension because its bytes stay compressed.
 	 */
 	public function test_phar_safe_tar_path_preserves_bz2_extension() {
-		$name = 's7-full-staging.trendyfashionhouse.com-September-17-2026-23-55.tar.bz2';
+		$name = 's42-full-site.example-staging-site.test-September-17-2026-23-55.tar.bz2';
 		$this->assertGreaterThanOrEqual( 50, strlen( $name ) - strpos( $name, '.' ), 'The fixture name must be one PharData rejects.' );
 		$method = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'phar_safe_tar_path' );
 		$method->setAccessible( true );
@@ -617,8 +662,9 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertFalse( $result['done'] );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
 		$this->assertStringContainsString( 'uncompressed .tar', $result['error'] );
-		$this->assertFileDoesNotExist( $gz . '.plain.tar' );
-		$this->assertFileDoesNotExist( $gz . '.plain.tar.tmp' );
+		$plain = $this->dir . '/big-' . substr( sha1( basename( $gz ) ), 0, 12 ) . '.plain.tar';
+		$this->assertFileDoesNotExist( $plain );
+		$this->assertFileDoesNotExist( $plain . '.tmp' );
 	}
 
 	/**

@@ -188,7 +188,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                     MainWP_Backup_Error::ERR_RESTORE_EXTRACT
                 );
             }
-            return $this->result( false, $cursor, 'Could not decompress archive: ' . basename( $part ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+            $message = preg_match( '/\.tar\.gz$/i', $part ) ? 'Could not decompress archive: ' : 'Could not prepare archive for reading: ';
+            return $this->result( false, $cursor, $message . basename( $part ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
 
         if ( ! $this->phar_available() ) {
@@ -279,9 +280,18 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             }
             // The name itself is unreadable to PharData; a hard link under a
             // short name reads the same bytes without copying the part.
-            if ( file_exists( $plain ) || @link( $part, $plain ) || copy( $part, $plain ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- link() warns on filesystems without hard links; the copy below is the fallback.
+            if ( file_exists( $plain ) ) {
+                if ( filesize( $plain ) === filesize( $part ) ) {
+                    return $plain;
+                }
+                // A copy from a request that died mid-write; a tar truncated on an
+                // entry boundary opens cleanly with only part of the archive.
+                wp_delete_file( $plain );
+            }
+            if ( @link( $part, $plain ) || ( @copy( $part, $plain . '.tmp' ) && rename( $plain . '.tmp', $plain ) ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions -- link() may be unsupported; link/copy warnings must not corrupt the response; rename atomically promotes the copy.
                 return $plain;
             }
+            wp_delete_file( $plain . '.tmp' );
             return null;
         }
 
