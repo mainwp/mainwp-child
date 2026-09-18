@@ -82,6 +82,42 @@ class PharlessRestorer extends InvalidTarDecompressRestorer {
 }
 
 /**
+ * Reach the copy fallback even on filesystems that support hard links.
+ */
+class CopyFallbackRestorer extends MainWP_Child_Backup_File_Restorer {
+
+	/**
+	 * Prevent filesystem support from bypassing the copy regression checks.
+	 *
+	 * @param string $part  Archive path.
+	 * @param string $plain Alias path.
+	 *
+	 * @return bool Always false.
+	 */
+	protected function link_part( $part, $plain ) {
+		return false;
+	}
+}
+
+/**
+ * Reproduce a successful copy whose temporary file lost bytes before promotion.
+ */
+class ShortCopyRestorer extends CopyFallbackRestorer {
+
+	/**
+	 * A successful return must not let an incomplete file bypass the size check.
+	 *
+	 * @param string $part Archive path.
+	 * @param string $tmp  Temporary copy path.
+	 *
+	 * @return bool Whether writing the short fixture succeeded.
+	 */
+	protected function copy_part( $part, $tmp ) {
+		return false !== file_put_contents( $tmp, 'short' );
+	}
+}
+
+/**
  * Tests for the chunked, hash-verified, zip-slip-guarded file restorer.
  *
  * Every archive verifies its sha256 against the expected hash before a
@@ -522,14 +558,16 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 	 * A temporary copy from an interrupted request must not replace the part.
 	 */
 	public function test_plain_tar_does_not_promote_leftover_tmp_alias() {
+		$this->restorer = new CopyFallbackRestorer();
 		$name = 's42-full-site.example-staging-site.test-September-17-2026-23-55.tar';
 		$this->assertGreaterThanOrEqual( 50, strlen( $name ) - strpos( $name, '.' ), 'The fixture name must be one PharData rejects.' );
 		$part = $this->dir . '/' . $name;
 		$content = str_repeat( 'part-content', 512 );
 		rename( $this->make_tar( 'fixture.tar', array( 'index.php' => $content ) ), $part );
 		$plain = $this->dir . '/s42-full-site-example-staging-site-test-September-17-2026-23-55-' . substr( sha1( $name ), 0, 12 ) . '.tar';
-		rename( $this->make_tar( 'stale.tar', array( 'stale.txt' => 'stale-content' ) ), $plain . '.tmp' );
-		$this->assertLessThan( filesize( $part ), filesize( $plain . '.tmp' ), 'The stale copy must be shorter than the part.' );
+		$tmp = $plain . '.' . getmypid() . '.tmp';
+		rename( $this->make_tar( 'stale.tar', array( 'stale.txt' => 'stale-content' ) ), $tmp );
+		$this->assertLessThan( filesize( $part ), filesize( $tmp ), 'The stale copy must be shorter than the part.' );
 
 		$result = $this->run_all( $this->config( array( $part ) ) );
 		$this->assertNull( $result['error'] );
@@ -537,6 +575,29 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertSame( $content, file_get_contents( $this->extract_to . '/index.php' ) );
 		$this->assertFileDoesNotExist( $this->extract_to . '/stale.txt' );
 		$this->assertFileDoesNotExist( $plain );
+		$this->assertFileExists( $part );
+		$this->assertSame( array(), glob( $plain . '*.tmp' ), 'No temporary copy may survive a successful restore.' );
+	}
+
+	/**
+	 * A copy's success flag cannot prove that its temporary file is complete.
+	 */
+	public function test_plain_tar_does_not_promote_short_copy() {
+		$this->restorer = new ShortCopyRestorer();
+		$name = 's42-full-site.example-staging-site.test-September-17-2026-23-55.tar';
+		$this->assertGreaterThanOrEqual( 50, strlen( $name ) - strpos( $name, '.' ) );
+		$part = $this->dir . '/' . $name;
+		rename( $this->make_tar( 'fixture.tar', array( 'index.php' => 'part-content' ) ), $part );
+		$plain = $this->dir . '/s42-full-site-example-staging-site-test-September-17-2026-23-55-' . substr( sha1( $name ), 0, 12 ) . '.tar';
+		$this->assertGreaterThan( strlen( 'short' ), filesize( $part ) );
+
+		$result = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertFalse( $result['done'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertSame( 'Could not prepare archive for reading: ' . $name, $result['error'] );
+		$this->assertFileDoesNotExist( $plain );
+		$this->assertFileDoesNotExist( $this->extract_to . '/index.php' );
+		$this->assertSame( array(), glob( $plain . '*.tmp' ), 'A rejected copy must be removed.' );
 		$this->assertFileExists( $part );
 	}
 
@@ -664,7 +725,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'uncompressed .tar', $result['error'] );
 		$plain = $this->dir . '/big-' . substr( sha1( basename( $gz ) ), 0, 12 ) . '.plain.tar';
 		$this->assertFileDoesNotExist( $plain );
-		$this->assertFileDoesNotExist( $plain . '.tmp' );
+		$this->assertSame( array(), glob( $plain . '*.tmp' ), 'The partial decompression is discarded.' );
 	}
 
 	/**

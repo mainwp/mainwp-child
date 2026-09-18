@@ -288,10 +288,18 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 // entry boundary opens cleanly with only part of the archive.
                 wp_delete_file( $plain );
             }
-            if ( @link( $part, $plain ) || ( @copy( $part, $plain . '.tmp' ) && rename( $plain . '.tmp', $plain ) ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions -- link() may be unsupported; link/copy warnings must not corrupt the response; rename atomically promotes the copy.
+            if ( $this->link_part( $part, $plain ) ) {
                 return $plain;
             }
-            wp_delete_file( $plain . '.tmp' );
+            // A resumed runner must not truncate another process's unfinished copy.
+            $tmp    = $plain . '.' . getmypid() . '.tmp';
+            $copied = $this->copy_part( $part, $tmp );
+            clearstatcache( true, $tmp );
+            $size = @filesize( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- a failed copy may leave no file; warnings must not corrupt the response.
+            if ( $copied && false !== $size && filesize( $part ) === $size && @rename( $tmp, $plain ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions -- like link/copy failures, rename warnings must not corrupt the response.
+                return $plain;
+            }
+            wp_delete_file( $tmp );
             return null;
         }
 
@@ -299,11 +307,15 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             return $plain; // A prior slice already decompressed it.
         }
 
-        $in = gzopen( $part, 'rb' );
+        $in = @gzopen( $part, 'rb' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- open failures are handled below; warnings must not corrupt the response.
         if ( false === $in ) {
             return null;
         }
-        $out = fopen( $plain . '.tmp', 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming decompression.
+        // Same reason as the hard-link branch: a resumed runner shares this
+        // task's scratch dir, so a shared name lets one promote the other's
+        // half-written stream.
+        $gz_tmp = $plain . '.' . getmypid() . '.tmp';
+        $out    = @fopen( $gz_tmp, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- open failures are handled below; warnings must not corrupt the response.
         if ( false === $out ) {
             gzclose( $in );
             return null;
@@ -314,7 +326,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 // the partial and refuse rather than loop forever from byte 0.
                 gzclose( $in );
                 fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
-                wp_delete_file( $plain . '.tmp' );
+                wp_delete_file( $gz_tmp );
                 $timed_out = true;
                 return null;
             }
@@ -322,17 +334,42 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             if ( false === $chunk || strlen( $chunk ) !== fwrite( $out, $chunk ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming decompression.
                 gzclose( $in );
                 fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
-                wp_delete_file( $plain . '.tmp' );
+                wp_delete_file( $gz_tmp );
                 return null;
             }
         }
         gzclose( $in );
         fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
 
-        if ( ! rename( $plain . '.tmp', $plain ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic promote.
+        if ( ! @rename( $gz_tmp, $plain ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- atomic promote; rename warnings must not corrupt the response.
+            wp_delete_file( $gz_tmp );
             return null;
         }
         return $plain;
+    }
+
+    /**
+     * Isolate hard-link support so tests can reach the copy fallback on any filesystem.
+     *
+     * @param string $part  Archive path.
+     * @param string $plain Alias path.
+     *
+     * @return bool Whether the hard link was created.
+     */
+    protected function link_part( $part, $plain ) {
+        return @link( $part, $plain ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- link() may be unsupported; warnings must not corrupt the response.
+    }
+
+    /**
+     * Isolate copying so tests can reproduce a short copy without racing another process.
+     *
+     * @param string $part Archive path.
+     * @param string $tmp  Temporary copy path.
+     *
+     * @return bool Whether copying reported success.
+     */
+    protected function copy_part( $part, $tmp ) {
+        return @copy( $part, $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions -- copy warnings must not corrupt the response.
     }
 
     /**
