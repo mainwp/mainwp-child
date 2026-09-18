@@ -513,6 +513,32 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The gzip branch must not write to the name every runner would pick. A
+	 * file parked on the old shared name survives untouched because nothing
+	 * writes there any more; sharing it is what let one runner promote
+	 * another's half-written stream.
+	 */
+	public function test_tar_gz_does_not_write_the_shared_temp_name() {
+		$tar  = $this->dir . '/dump.tar';
+		$phar = new PharData( $tar );
+		$phar->addFromString( 'wp-content/uploads/marker.png', 'png-bytes' );
+		$phar->compress( Phar::GZ );
+		unset( $phar );
+		Phar::unlinkArchive( $tar );
+		$part = $this->dir . '/s42-full-site.example.com-September-17-2026-23-55.tar.gz';
+		rename( $tar . '.gz', $part );
+		$plain  = $this->dir . '/s42-full-site-example-com-September-17-2026-23-55-' . substr( sha1( basename( $part ) ), 0, 12 ) . '.plain.tar';
+		$shared = $plain . '.tmp';
+		file_put_contents( $shared, 'another-runner-bytes' );
+
+		$result = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( 'png-bytes', file_get_contents( $this->extract_to . '/wp-content/uploads/marker.png' ) );
+		$this->assertSame( 'another-runner-bytes', file_get_contents( $shared ), 'The shared temporary name must be left alone.' );
+	}
+
+	/**
 	 * An uncompressed tar whose name PharData refuses outright (a dotted host
 	 * long enough to push the dot-tail to 50+ characters) reads through a
 	 * short-named hard link that is removed afterwards.
@@ -567,6 +593,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$plain = $this->dir . '/s42-full-site-example-staging-site-test-September-17-2026-23-55-' . substr( sha1( $name ), 0, 12 ) . '.tar';
 		$tmp = $plain . '.' . getmypid() . '.tmp';
 		rename( $this->make_tar( 'stale.tar', array( 'stale.txt' => 'stale-content' ) ), $tmp );
+		$this->assertTrue( touch( $tmp, time() - 2 * HOUR_IN_SECONDS ) );
 		$this->assertLessThan( filesize( $part ), filesize( $tmp ), 'The stale copy must be shorter than the part.' );
 
 		$result = $this->run_all( $this->config( array( $part ) ) );
@@ -577,6 +604,42 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $plain );
 		$this->assertFileExists( $part );
 		$this->assertSame( array(), glob( $plain . '*.tmp' ), 'No temporary copy may survive a successful restore.' );
+	}
+
+	/**
+	 * Abandoned writes must be reclaimed without deleting a live peer's bytes.
+	 */
+	public function test_plain_tar_sweeps_stale_temps_and_preserves_fresh_peers() {
+		$this->restorer = new CopyFallbackRestorer();
+		$alias_method = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'phar_safe_tar_path' );
+		$alias_method->setAccessible( true );
+
+		foreach ( array( '.tar', '.tar.gz' ) as $extension ) {
+			$name = 's42-full-site.example-staging-site.test-September-17-2026-23-55' . $extension;
+			$part = $this->dir . '/' . $name;
+			$tar = $this->make_tar( 'fixture' . str_replace( '.', '-', $extension ) . '.tar', array( 'index.php' => 'part-content' ) );
+			if ( '.tar.gz' === $extension ) {
+				$this->assertNotFalse( file_put_contents( $part, gzencode( file_get_contents( $tar ) ) ) );
+			} else {
+				$this->assertTrue( rename( $tar, $part ) );
+			}
+			$plain = $alias_method->invoke( null, $part );
+			$stale = $plain . '.99999.tmp';
+			$fresh = $plain . '.live-peer.tmp';
+			$this->assertNotFalse( file_put_contents( $stale, 'abandoned' ) );
+			$this->assertNotFalse( file_put_contents( $fresh, 'peer-content' ) );
+			$this->assertTrue( touch( $stale, time() - 2 * HOUR_IN_SECONDS ) );
+			$this->assertTrue( touch( $fresh, time() ) );
+
+			$result = $this->run_all( $this->config( array( $part ) ) );
+			$this->assertNull( $result['error'], $extension );
+			$this->assertTrue( $result['done'], $extension );
+			$this->assertSame( 'part-content', file_get_contents( $this->extract_to . '/index.php' ), $extension );
+			$this->assertFileDoesNotExist( $stale, $extension );
+			$this->assertFileExists( $fresh, $extension );
+			$this->assertSame( 'peer-content', file_get_contents( $fresh ), $extension );
+			$this->assertSame( array( $fresh ), glob( $plain . '*.tmp' ), $extension );
+		}
 	}
 
 	/**

@@ -291,8 +291,9 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             if ( $this->link_part( $part, $plain ) ) {
                 return $plain;
             }
-            // A resumed runner must not truncate another process's unfinished copy.
-            $tmp    = $plain . '.' . getmypid() . '.tmp';
+            // Runners on different hosts can share a pid and this scratch directory.
+            $tmp = $plain . '.' . wp_generate_password( 12, false ) . '.tmp';
+            $this->sweep_stale_plain_temps( $plain, $tmp );
             $copied = $this->copy_part( $part, $tmp );
             clearstatcache( true, $tmp );
             $size = @filesize( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- a failed copy may leave no file; warnings must not corrupt the response.
@@ -314,12 +315,14 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         // Same reason as the hard-link branch: a resumed runner shares this
         // task's scratch dir, so a shared name lets one promote the other's
         // half-written stream.
-        $gz_tmp = $plain . '.' . getmypid() . '.tmp';
-        $out    = @fopen( $gz_tmp, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- open failures are handled below; warnings must not corrupt the response.
+        $gz_tmp = $plain . '.' . wp_generate_password( 12, false ) . '.tmp';
+        $this->sweep_stale_plain_temps( $plain, $gz_tmp );
+        $out = @fopen( $gz_tmp, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- open failures are handled below; warnings must not corrupt the response.
         if ( false === $out ) {
             gzclose( $in );
             return null;
         }
+        $written = 0;
         while ( ! gzeof( $in ) ) {
             if ( microtime( true ) >= $deadline ) {
                 // Out of slice mid-stream. gzip is not resumable, so discard
@@ -337,15 +340,33 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 wp_delete_file( $gz_tmp );
                 return null;
             }
+            $written += strlen( $chunk );
         }
         gzclose( $in );
         fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
 
-        if ( ! @rename( $gz_tmp, $plain ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- atomic promote; rename warnings must not corrupt the response.
+        // A failed final flush or a foreign truncation must not become a reusable alias.
+        clearstatcache( true, $gz_tmp );
+        if ( @filesize( $gz_tmp ) !== $written || ! @rename( $gz_tmp, $plain ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- atomic promote; filesize/rename warnings must not corrupt the response.
             wp_delete_file( $gz_tmp );
             return null;
         }
         return $plain;
+    }
+
+    /**
+     * Interrupted writers otherwise leave a full archive behind on every resume.
+     *
+     * @param string $plain Alias path.
+     * @param string $tmp   Current writer's temporary path.
+     */
+    private function sweep_stale_plain_temps( $plain, $tmp ) {
+        foreach ( (array) glob( $plain . '.*.tmp' ) as $stale ) {
+            // The age bound protects a live peer's in-flight write from this sweep.
+            if ( $stale !== $tmp && filemtime( $stale ) < time() - HOUR_IN_SECONDS ) {
+                wp_delete_file( $stale );
+            }
+        }
     }
 
     /**
