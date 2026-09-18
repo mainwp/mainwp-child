@@ -292,7 +292,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 return $plain;
             }
             // Runners on different hosts can share a pid and this scratch directory.
-            $tmp = $plain . '.' . wp_generate_password( 12, false ) . '.tmp';
+            $tmp = $plain . '.' . bin2hex( random_bytes( 6 ) ) . '.tmp';
             $this->sweep_stale_plain_temps( $plain, $tmp );
             $copied = $this->copy_part( $part, $tmp );
             clearstatcache( true, $tmp );
@@ -315,7 +315,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         // Same reason as the hard-link branch: a resumed runner shares this
         // task's scratch dir, so a shared name lets one promote the other's
         // half-written stream.
-        $gz_tmp = $plain . '.' . wp_generate_password( 12, false ) . '.tmp';
+        $gz_tmp = $plain . '.' . bin2hex( random_bytes( 6 ) ) . '.tmp';
         $this->sweep_stale_plain_temps( $plain, $gz_tmp );
         $out = @fopen( $gz_tmp, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- open failures are handled below; warnings must not corrupt the response.
         if ( false === $out ) {
@@ -343,11 +343,11 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             $written += strlen( $chunk );
         }
         gzclose( $in );
-        fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+        $closed = $this->close_out( $out );
 
         // A failed final flush or a foreign truncation must not become a reusable alias.
         clearstatcache( true, $gz_tmp );
-        if ( @filesize( $gz_tmp ) !== $written || ! @rename( $gz_tmp, $plain ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- atomic promote; filesize/rename warnings must not corrupt the response.
+        if ( ! $closed || @filesize( $gz_tmp ) !== $written || ! @rename( $gz_tmp, $plain ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- atomic promote; filesize/rename warnings must not corrupt the response.
             wp_delete_file( $gz_tmp );
             return null;
         }
@@ -361,12 +361,48 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @param string $tmp   Current writer's temporary path.
      */
     private function sweep_stale_plain_temps( $plain, $tmp ) {
-        foreach ( (array) glob( $plain . '.*.tmp' ) as $stale ) {
-            // The age bound protects a live peer's in-flight write from this sweep.
-            if ( $stale !== $tmp && filemtime( $stale ) < time() - HOUR_IN_SECONDS ) {
+        $directory = dirname( $plain );
+        $prefix    = basename( $plain ) . '.';
+        $entries   = @scandir( $directory ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- an unreadable directory cannot be swept; warnings must not corrupt the response.
+        if ( false === $entries ) {
+            return;
+        }
+        foreach ( $entries as $entry ) {
+            if ( 0 !== strpos( $entry, $prefix ) || '.tmp' !== substr( $entry, -4 ) ) {
+                continue;
+            }
+            $stale = $directory . '/' . $entry;
+            if ( $stale === $tmp ) {
+                continue;
+            }
+            $mtime = $this->plain_temp_mtime( $stale );
+            // No progress for a full lease TTL means the writer's lease has expired.
+            if ( false !== $mtime && $mtime < time() - MainWP_Child_Backup_Task_Runner::LEASE_TTL_SECONDS ) {
                 wp_delete_file( $stale );
             }
         }
+    }
+
+    /**
+     * Read a temporary file's age, preserving stat failures for the sweep.
+     *
+     * @param string $path Temporary file path.
+     *
+     * @return int|false Modification time, or false when stat fails.
+     */
+    protected function plain_temp_mtime( $path ) {
+        return @filemtime( $path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- a peer may remove its temp before stat; warnings must not corrupt the response.
+    }
+
+    /**
+     * Close the decompressed output and report deferred write failures.
+     *
+     * @param resource $out Output stream.
+     *
+     * @return bool Whether closing succeeded.
+     */
+    protected function close_out( $out ) {
+        return @fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- deferred write failures are handled before promotion; warnings must not corrupt the response.
     }
 
     /**

@@ -7,6 +7,7 @@
 
 use MainWP\Child\MainWP_Child_Backup_File_Restorer;
 use MainWP\Child\MainWP_Backup_Error;
+use MainWP\Child\MainWP_Child_Backup_Task_Runner;
 
 /**
  * Restorer that forces every .tar.gz decompression to hit the slice deadline,
@@ -95,6 +96,44 @@ class CopyFallbackRestorer extends MainWP_Child_Backup_File_Restorer {
 	 * @return bool Always false.
 	 */
 	protected function link_part( $part, $plain ) {
+		return false;
+	}
+}
+
+/**
+ * Observe temporary names and reproduce an unreadable peer mtime.
+ */
+class ObservedTempRestorer extends CopyFallbackRestorer {
+
+	public $temp_paths = array();
+
+	protected function copy_part( $part, $tmp ) {
+		$this->temp_paths[] = $tmp;
+		return parent::copy_part( $part, $tmp );
+	}
+
+	protected function close_out( $out ) {
+		$this->temp_paths[] = stream_get_meta_data( $out )['uri'];
+		return parent::close_out( $out );
+	}
+
+	protected function plain_temp_mtime( $path ) {
+		return '.unknown.tmp' === substr( $path, -12 ) ? false : parent::plain_temp_mtime( $path );
+	}
+}
+
+/**
+ * Report a deferred close failure after all decompressed bytes reached disk.
+ */
+class FailedCloseRestorer extends MainWP_Child_Backup_File_Restorer {
+
+	public $closed_size;
+
+	protected function close_out( $out ) {
+		$path = stream_get_meta_data( $out )['uri'];
+		parent::close_out( $out );
+		clearstatcache( true, $path );
+		$this->closed_size = filesize( $path );
 		return false;
 	}
 }
@@ -610,7 +649,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 	 * Abandoned writes must be reclaimed without deleting a live peer's bytes.
 	 */
 	public function test_plain_tar_sweeps_stale_temps_and_preserves_fresh_peers() {
-		$this->restorer = new CopyFallbackRestorer();
+		$this->restorer = new ObservedTempRestorer();
 		$alias_method = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'phar_safe_tar_path' );
 		$alias_method->setAccessible( true );
 
@@ -626,10 +665,13 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			$plain = $alias_method->invoke( null, $part );
 			$stale = $plain . '.99999.tmp';
 			$fresh = $plain . '.live-peer.tmp';
+			$unknown = $plain . '.unknown.tmp';
+			$this->assertNotFalse( file_put_contents( $unknown, 'unknown-age' ) );
+			$this->assertTrue( touch( $unknown, time() - 2 * HOUR_IN_SECONDS ) );
 			$this->assertNotFalse( file_put_contents( $stale, 'abandoned' ) );
 			$this->assertNotFalse( file_put_contents( $fresh, 'peer-content' ) );
-			$this->assertTrue( touch( $stale, time() - 2 * HOUR_IN_SECONDS ) );
-			$this->assertTrue( touch( $fresh, time() ) );
+			$this->assertTrue( touch( $stale, time() - MainWP_Child_Backup_Task_Runner::LEASE_TTL_SECONDS - 30 ) );
+			$this->assertTrue( touch( $fresh, time() - MainWP_Child_Backup_Task_Runner::LEASE_TTL_SECONDS + 60 ) );
 
 			$result = $this->run_all( $this->config( array( $part ) ) );
 			$this->assertNull( $result['error'], $extension );
@@ -638,7 +680,83 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			$this->assertFileDoesNotExist( $stale, $extension );
 			$this->assertFileExists( $fresh, $extension );
 			$this->assertSame( 'peer-content', file_get_contents( $fresh ), $extension );
-			$this->assertSame( array( $fresh ), glob( $plain . '*.tmp' ), $extension );
+			$this->assertSame( 'unknown-age', file_get_contents( $unknown ), $extension );
+			$this->assertSame( array( $fresh, $unknown ), glob( $plain . '*.tmp' ), $extension );
+		}
+	}
+
+	/**
+	 * A failed close must reject even a full-sized decompressed tar.
+	 */
+	public function test_plain_tar_does_not_promote_failed_close() {
+		$this->restorer = new FailedCloseRestorer();
+		$tar = $this->make_tar( 'close.tar', array( 'index.php' => 'part-content' ) );
+		$part = $tar . '.gz';
+		file_put_contents( $part, gzencode( file_get_contents( $tar ) ) );
+		$plain = $this->dir . '/close-' . substr( sha1( basename( $part ) ), 0, 12 ) . '.plain.tar';
+
+		$result = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertSame( filesize( $tar ), $this->restorer->closed_size );
+		$this->assertFalse( $result['done'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertFileDoesNotExist( $plain );
+		$this->assertFileDoesNotExist( $this->extract_to . '/index.php' );
+		$this->assertSame( array(), glob( $plain . '*.tmp' ) );
+		$this->assertFileExists( $part );
+	}
+
+	/**
+	 * Brackets in archive names must be matched literally during cleanup.
+	 */
+	public function test_plain_tar_sweeps_stale_temps_with_brackets() {
+		$tar = $this->make_tar( 'brackets.tar', array( 'index.php' => 'part-content' ) );
+		$part = $this->dir . '/site[ab].tar.gz';
+		file_put_contents( $part, gzencode( file_get_contents( $tar ) ) );
+		$plain = $this->dir . '/site[ab]-' . substr( sha1( basename( $part ) ), 0, 12 ) . '.plain.tar';
+		$stale = $plain . '.dead.tmp';
+		$other = $plain . '-other.dead.tmp';
+		file_put_contents( $stale, 'abandoned' );
+		file_put_contents( $other, 'unrelated' );
+		touch( $stale, time() - MainWP_Child_Backup_Task_Runner::LEASE_TTL_SECONDS - 30 );
+		touch( $other, time() - MainWP_Child_Backup_Task_Runner::LEASE_TTL_SECONDS - 30 );
+
+		$result = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertFileDoesNotExist( $stale );
+		$this->assertSame( 'unrelated', file_get_contents( $other ) );
+	}
+
+	/**
+	 * Password filters cannot control either writer's temporary filename.
+	 */
+	public function test_plain_tar_temp_suffix_is_hex_despite_password_filter() {
+		$this->restorer = new ObservedTempRestorer();
+		$filter = static function () {
+			return 'shared/[ab]';
+		};
+		add_filter( 'random_password', $filter );
+		try {
+			foreach ( array( '.tar', '.tar.gz' ) as $extension ) {
+				$name = 's42-full-site.example-staging-site.test-September-17-2026-23-55' . $extension;
+				$part = $this->dir . '/' . $name;
+				$tar = $this->make_tar( 'suffix' . str_replace( '.', '-', $extension ) . '.tar', array( 'index.php' => 'part-content' ) );
+				if ( '.tar.gz' === $extension ) {
+					file_put_contents( $part, gzencode( file_get_contents( $tar ) ) );
+				} else {
+					rename( $tar, $part );
+				}
+				$result = $this->run_all( $this->config( array( $part ) ) );
+				$this->assertNull( $result['error'], $extension );
+				$this->assertTrue( $result['done'], $extension );
+			}
+		} finally {
+			remove_filter( 'random_password', $filter );
+		}
+		$this->assertCount( 2, $this->restorer->temp_paths );
+		foreach ( $this->restorer->temp_paths as $path ) {
+			$this->assertMatchesRegularExpression( '/\.[0-9a-f]{12}\.tmp$/', $path );
+			$this->assertFileDoesNotExist( $path );
 		}
 	}
 
