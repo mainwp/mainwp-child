@@ -109,6 +109,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         if ( null === $owner ) {
+            // resume_count is already bumped, so refunding this attempt would mean
+            // writing under a lease we don't hold - a token-less call is an old
+            // watchdog tick still using its literal owner name, from the mixed-
+            // version window of a plugin update. Spend the attempt; let the cap fail loudly.
             return;
         }
         $this->advance_one_slice( $fresh, $owner, true );
