@@ -835,7 +835,12 @@ class MainWP_Clone_Install {
 
         // some unseriliased data cannot be re-serialised eg. SimpleXMLElements.
         try {
-            $unserialized = ( is_string( $data ) && is_serialized( $data ) ) ? unserialize( $data, array( 'allowed_classes' => false ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- restricted unserialize of clone-source row data, no classes instantiated.
+            // is_serialized() checks the shape of a payload, not its internal
+            // lengths, so a truncated value gets this far and then warns. Core
+            // silences its own decode helper for the same reason: the warning
+            // would print into the clone response body and corrupt it, and the
+            // catch ( \Exception ) below does not catch a warning.
+            $unserialized = ( is_string( $data ) && is_serialized( $data ) ) ? @unserialize( $data, array( 'allowed_classes' => false ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.PHP.NoSilencedErrors.Discouraged -- restricted unserialize of clone-source row data, no classes instantiated.
             if ( is_string( $data ) && is_serialized( $data ) && ! is_serialized_string( $data ) && false !== $unserialized ) {
                 if ( $this->value_contains_object( $unserialized ) ) {
                     // A clone-source cell carrying a serialized PHP object (at any
@@ -868,7 +873,7 @@ class MainWP_Clone_Install {
                 $data = $_tmp;
                 unset( $_tmp );
             } elseif ( is_serialized_string( $data ) && is_serialized( $data ) ) {
-                $data = unserialize( $data, array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- restricted unserialize of a plain serialized string.
+                $data = @unserialize( $data, array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.PHP.NoSilencedErrors.Discouraged -- restricted unserialize of a plain serialized string; a malformed payload must not warn into the clone response.
                 if ( false !== $data ) {
                     $data = str_replace( $from, $to, $data );
                     $data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
