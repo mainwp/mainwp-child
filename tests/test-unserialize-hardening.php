@@ -64,6 +64,66 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Cyclic arrays need the same refusal as objects because decoding preserves references.
+	 */
+	public function test_clone_value_contains_object_rejects_self_referencing_array() {
+		$a      = array();
+		$a[0]   = &$a;
+		$target = new MainWP_Clone_Install();
+		$method = new ReflectionMethod( MainWP_Clone_Install::class, 'value_contains_object' );
+		$method->setAccessible( true );
+
+		$this->assertTrue( $method->invoke( $target, $a ) );
+		$this->assertTrue( $method->invoke( $target, unserialize( serialize( $a ), array( 'allowed_classes' => false ) ) ) );
+		$this->assertSame( '', $target->recursive_unserialize_replace( 'old', 'new', serialize( $a ) ) );
+	}
+
+	/**
+	 * Ordinary nested arrays must remain eligible for import.
+	 */
+	public function test_clone_value_contains_object_accepts_five_deep_array() {
+		$value = 'plain';
+		for ( $depth = 0; $depth < 5; ++$depth ) {
+			$value = array( $value );
+		}
+		$target = new MainWP_Clone_Install();
+		$method = new ReflectionMethod( MainWP_Clone_Install::class, 'value_contains_object' );
+		$method->setAccessible( true );
+
+		$this->assertFalse( $method->invoke( $target, $value ) );
+		$this->assertSame( serialize( $value ), $target->recursive_unserialize_replace( 'old', 'new', serialize( $value ) ) );
+	}
+
+	/**
+	 * Cyclic arrays need the same refusal as objects because decoding preserves references.
+	 */
+	public function test_custom_post_type_value_contains_object_rejects_self_referencing_array() {
+		$a      = array();
+		$a[0]   = &$a;
+		$target = MainWP_Custom_Post_Type::instance();
+		$method = new ReflectionMethod( MainWP_Custom_Post_Type::class, 'value_contains_object' );
+		$method->setAccessible( true );
+
+		$this->assertTrue( $method->invoke( $target, $a ) );
+		$this->assertTrue( $method->invoke( $target, unserialize( serialize( $a ), array( 'allowed_classes' => false ) ) ) );
+	}
+
+	/**
+	 * Ordinary nested arrays must remain eligible for import.
+	 */
+	public function test_custom_post_type_value_contains_object_accepts_five_deep_array() {
+		$value = 'plain';
+		for ( $depth = 0; $depth < 5; ++$depth ) {
+			$value = array( $value );
+		}
+		$target = MainWP_Custom_Post_Type::instance();
+		$method = new ReflectionMethod( MainWP_Custom_Post_Type::class, 'value_contains_object' );
+		$method->setAccessible( true );
+
+		$this->assertFalse( $method->invoke( $target, $value ) );
+	}
+
+	/**
 	 * A serialized object string fed to the legacy clone replacer must not
 	 * instantiate the class, and the object payload must be dropped rather than
 	 * re-serialized back into the row. Round-tripping the __PHP_Incomplete_Class

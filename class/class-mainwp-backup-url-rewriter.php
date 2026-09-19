@@ -238,15 +238,19 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
      * @param string $to         Replacement.
      * @param mixed  $data       Value (string, array, object on recursion).
      * @param bool   $serialised Whether to re-serialize the result.
+     * @param int    $depth      Current nesting depth.
      *
      * @return mixed Replaced value.
      */
-    public function recursive_replace( $from, $to, $data, $serialised = false ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- type dispatch mirrors the legacy replacer.
+    public function recursive_replace( $from, $to, $data, $serialised = false, $depth = 0 ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- type dispatch mirrors the legacy replacer.
         try {
+            if ( $depth > 32 ) {
+                return $serialised ? serialize( $data ) : $data; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- preserve values beyond the safe traversal depth.
+            }
             if ( is_string( $data ) && is_serialized( $data ) && ! is_serialized_string( $data ) ) {
                 $unserialized = unserialize( $data, array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- restricted unserialize, no classes instantiated.
                 if ( false !== $unserialized || 'b:0;' === $data ) {
-                    return $this->recursive_replace( $from, $to, $unserialized, true );
+                    return $this->recursive_replace( $from, $to, $unserialized, true, $depth + 1 );
                 }
                 return $data;
             }
@@ -254,7 +258,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
             if ( is_array( $data ) ) {
                 $output = array();
                 foreach ( $data as $key => $value ) {
-                    $output[ $key ] = $this->recursive_replace( $from, $to, $value );
+                    $output[ $key ] = $this->recursive_replace( $from, $to, $value, false, $depth + 1 );
                 }
                 $data = $output;
             } elseif ( is_object( $data ) ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement -- incomplete-class stubs re-serialize byte-identical; properties deliberately untouched.

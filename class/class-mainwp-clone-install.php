@@ -798,16 +798,21 @@ class MainWP_Clone_Install {
      * later option or meta read would rehydrate into a live object.
      *
      * @param mixed $value Value to inspect.
+     * @param int   $depth Current nesting depth.
      *
-     * @return bool True if the value is an object or contains a nested object.
+     * @return bool True if the value is an object, contains a nested object, or nests too deep to trust.
      */
-    private function value_contains_object( $value ) {
+    private function value_contains_object( $value, $depth = 0 ) {
         if ( is_object( $value ) ) {
+            return true;
+        }
+        // Serialized back-references can produce cyclic arrays even with allowed_classes disabled.
+        if ( $depth > 32 ) {
             return true;
         }
         if ( is_array( $value ) ) {
             foreach ( $value as $item ) {
-                if ( $this->value_contains_object( $item ) ) {
+                if ( $this->value_contains_object( $item, $depth + 1 ) ) {
                     return true;
                 }
             }

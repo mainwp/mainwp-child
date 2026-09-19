@@ -209,6 +209,34 @@ class BackupUrlRewriterTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Restricted decoding preserves back-references, so traversal must be bounded.
+	 */
+	public function test_recursive_replace_terminates_on_self_referencing_array() {
+		$a    = array();
+		$a[0] = &$a;
+
+		$this->assertIsArray( $this->rewriter->recursive_replace( 'old', 'new', $a ) );
+		$result = $this->rewriter->recursive_replace( 'old', 'new', serialize( $a ) );
+		$this->assertIsString( $result );
+		$this->assertIsArray( unserialize( $result, array( 'allowed_classes' => false ) ) );
+	}
+
+	/**
+	 * The depth limit must leave ordinary nested URL replacement usable.
+	 */
+	public function test_recursive_replace_rewrites_five_deep_array() {
+		$data     = 'http://old.example/page';
+		$expected = 'https://new.example/page';
+		for ( $depth = 0; $depth < 5; ++$depth ) {
+			$data     = array( $data );
+			$expected = array( $expected );
+		}
+
+		$this->assertSame( $expected, $this->rewriter->recursive_replace( 'http://old.example', 'https://new.example', $data ) );
+		$this->assertSame( serialize( $expected ), $this->rewriter->recursive_replace( 'http://old.example', 'https://new.example', serialize( $data ) ) );
+	}
+
+	/**
 	 * A plain string URL is rewritten.
 	 */
 	public function test_plain_string_url_rewritten() {
