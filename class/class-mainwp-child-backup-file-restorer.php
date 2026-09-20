@@ -43,6 +43,13 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     private $checkpoint_cursor;
 
     /**
+     * Directories already swept for abandoned entry temps in this request.
+     *
+     * @var array
+     */
+    private $swept_directories = array();
+
+    /**
      * Whether compressed preparation refused the extraction limits.
      *
      * @var bool
@@ -87,7 +94,6 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 'entry_index'    => 0,
                 'entries'        => 0,
                 'expanded_bytes' => 0,
-                'pending_temp'   => '',
             ),
             is_array( $cursor ) ? $cursor : array()
         );
@@ -744,7 +750,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @throws \Throwable After discarding failed temporary output.
      */
     private function write_entry_stream( $stream, $target, &$cursor, $compressed, $entry_name ) {
-        $temp  = dirname( $target ) . '/.mainwp-restore-' . md5( $entry_name ) . '.tmp';
+        $this->sweep_entry_temps( dirname( $target ) );
         $perms = false;
         $owner = false;
         $group = false;
@@ -757,19 +763,17 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         }
         // A false read must not become chmod( 0 ), which would leave the
         // restored file unreadable; fall through to the creation default.
-        $mode                   = false === $perms ? null : ( $perms & 0777 );
-        $cursor['pending_temp'] = $temp;
-        $pending_cursor         = $cursor;
-        // A killed write retries this entry, so it has not yet consumed an entry slot.
-        --$pending_cursor['entries'];
-        if ( is_callable( $this->checkpoint_cursor ) && false === call_user_func( $this->checkpoint_cursor, $pending_cursor ) ) {
-            throw new \Exception( 'Could not checkpoint the restore entry.' );
+        $mode = false === $perms ? null : ( $perms & 0777 );
+        $out  = false;
+        for ( $attempt = 0; $attempt < 3 && false === $out; ++$attempt ) {
+            $temp = $this->entry_temp_path( $target );
+            $out  = is_link( $temp ) ? false : @fopen( $temp, 'xb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- exclusive creation never truncates an existing path.
         }
-        $out = is_link( $temp ) ? false : @fopen( $temp, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- open failure leaves the live target untouched.
+        if ( false === $out ) {
+            $parent = dirname( $entry_name );
+            throw new \Exception( sprintf( 'Could not create a temporary file in %s; the restore needs write permission on that directory.', '.' === $parent ? 'the site root' : esc_html( $parent ) ) );
+        }
         try {
-            if ( false === $out ) {
-                throw new \Exception( sprintf( 'Could not create a temporary file in %s; the restore needs write permission on that directory.', esc_html( dirname( $entry_name ) ) ) );
-            }
             $this->copy_bounded_entry( $stream, $out, $cursor, $compressed, $entry_name );
             $closed = fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- finish the temporary file before promotion.
             $out    = null;
@@ -782,7 +786,6 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             if ( ! @rename( $temp, $target ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- same-directory atomic replacement never follows a leaf link.
                 throw new \Exception( sprintf( 'Could not write extracted file: %s.', esc_html( $entry_name ) ) );
             }
-            $cursor['pending_temp'] = '';
             clearstatcache( true, $target );
             // Ownership changes may be denied to PHP; restored bytes and mode remain valid.
             // phpcs:disable WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions -- native ownership preservation is best effort.
@@ -799,6 +802,34 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             }
             wp_delete_file( $temp );
             throw $e;
+        }
+    }
+
+    /**
+     * Choose a new same-directory name for an exclusive entry write.
+     *
+     * @param string $target Validated target path.
+     *
+     * @return string Temporary path.
+     */
+    protected function entry_temp_path( $target ) {
+        return dirname( $target ) . '/.mainwp-restore-' . bin2hex( random_bytes( 8 ) ) . '.tmp';
+    }
+
+    /**
+     * Reclaim abandoned regular temps once per directory in this request.
+     *
+     * @param string $directory Validated target directory.
+     */
+    private function sweep_entry_temps( $directory ) {
+        if ( isset( $this->swept_directories[ $directory ] ) ) {
+            return;
+        }
+        $this->swept_directories[ $directory ] = true;
+        foreach ( (array) glob( $directory . '/.mainwp-restore-*.tmp' ) as $temp ) {
+            if ( preg_match( '/^\.mainwp-restore-[0-9a-f]+\.tmp$/', basename( $temp ) ) && ! is_link( $temp ) && is_file( $temp ) ) {
+                wp_delete_file( $temp );
+            }
         }
     }
 

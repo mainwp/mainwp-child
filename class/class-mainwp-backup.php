@@ -1795,12 +1795,18 @@ class MainWP_Backup {
      * @return bool Whether either path is excluded.
      */
     public static function excluded_by_path_or_target( $excludes, $name ) {
+        if ( preg_match( '/^\.mainwp-restore-[0-9a-f]+\.tmp$/', basename( $name ) ) ) {
+            return true;
+        }
         if ( MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $name ) ) ) {
             return true;
         }
         $real = realpath( $name );
         if ( false === $real ) {
             return false;
+        }
+        if ( preg_match( '/^\.mainwp-restore-[0-9a-f]+\.tmp$/', basename( $real ) ) ) {
+            return true;
         }
         if ( $real !== $name && MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $real ) ) ) {
             return true;
@@ -1809,7 +1815,7 @@ class MainWP_Backup {
         if ( null === $abspath_real ) {
             $abspath_real = realpath( ABSPATH );
         }
-        return false !== $abspath_real && ABSPATH !== $abspath_real && MainWP_Helper::excluded_from_backup( $excludes, str_replace( trailingslashit( $abspath_real ), '', $real ) );
+        return false !== $abspath_real && trailingslashit( ABSPATH ) !== trailingslashit( $abspath_real ) && MainWP_Helper::excluded_from_backup( $excludes, str_replace( trailingslashit( $abspath_real ), '', $real ) );
     }
 
     /**

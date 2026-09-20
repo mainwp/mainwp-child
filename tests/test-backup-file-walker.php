@@ -323,6 +323,37 @@ class BackupFileWalkerTest extends WP_UnitTestCase {
 		$this->assertContains( 'wp-content/uploads/link.jpg', $relpaths );
 	}
 
+	public function test_user_exclude_applies_through_resolved_root() {
+		$link = $this->root . '-linked';
+		symlink( $this->root, $link );
+		try {
+			symlink( $this->root . '/wp-content/cache/page.html', $this->root . '/linked-page.html' );
+			symlink( $this->root . '/wp-content/cache', $this->root . '/linked-cache' );
+			$walker = new MainWP_Child_Backup_File_Walker( $link, array( 'wp-content/cache' ), false, false, array( $this->backup_dir ) );
+			$walker->emit_sidecars( $this->backup_dir );
+			$relpaths = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
+			$this->assertNotContains( 'linked-page.html', $relpaths );
+			$this->assertNotContains( 'linked-cache/page.html', $relpaths );
+			$this->assertNotContains( 'wp-content/cache/page.html', $relpaths );
+			$this->assertContains( 'wp-content/uploads/photo.jpg', $relpaths );
+		} finally {
+			unlink( $link );
+		}
+	}
+
+	public function test_restore_temps_excluded_from_walk() {
+		$temp = $this->root . '/wp-content/uploads/.mainwp-restore-0123abcdef.tmp';
+		file_put_contents( $temp, 'partial file' );
+		file_put_contents( $this->root . '/wp-content/uploads/.mainwp-restore-nothex.tmp', 'ordinary dotfile' );
+		symlink( $temp, $this->root . '/temp-alias.txt' );
+		$this->walker()->emit_sidecars( $this->backup_dir );
+		$relpaths = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
+		$this->assertNotContains( 'wp-content/uploads/.mainwp-restore-0123abcdef.tmp', $relpaths );
+		$this->assertNotContains( 'temp-alias.txt', $relpaths );
+		$this->assertContains( 'wp-content/uploads/.mainwp-restore-nothex.tmp', $relpaths );
+		$this->assertContains( 'wp-content/uploads/photo.jpg', $relpaths );
+	}
+
 	public function test_user_exclude_applies_to_link_target() {
 		symlink( $this->root . '/wp-content/cache/page.html', $this->root . '/linked-page.html' );
 		symlink( $this->root . '/wp-content/cache', $this->root . '/linked-cache' );

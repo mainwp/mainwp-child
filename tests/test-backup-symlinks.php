@@ -91,6 +91,11 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 		mkdir( $tree . '/a' );
 		mkdir( $tree . '/b' );
 		file_put_contents( $tree . '/real.txt', 'target bytes' );
+		file_put_contents( $tree . '/dir/.mainwp-restore-abc123.tmp', 'partial file' );
+		file_put_contents( $tree . '/dir/.mainwp-restore-nothex.tmp', 'ordinary dotfile' );
+		// Marks an engine that can see dotfiles at all; copy_dir() walks with glob(), which cannot.
+		file_put_contents( $tree . '/dir/.htaccess-sentinel', 'dotfile sentinel' );
+		symlink( $tree . '/dir/.mainwp-restore-abc123.tmp', $tree . '/temp-alias.txt' );
 		file_put_contents( $tree . '/dir/inner.txt', 'directory bytes' );
 		file_put_contents( $this->external . '/uploads/photo.txt', 'upload bytes' );
 		file_put_contents( $this->external . '/outside.txt', 'outside bytes' );
@@ -187,6 +192,15 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 
 	private function assert_link_entries( $entries, $tree ) {
 		$this->assertSame( 'target bytes', isset( $entries['linked.txt'] ) ? $entries['linked.txt'] : null );
+		$this->assertArrayNotHasKey( 'dir/.mainwp-restore-abc123.tmp', $entries );
+		$this->assertArrayNotHasKey( 'linked-dir/.mainwp-restore-abc123.tmp', $entries );
+		$this->assertArrayNotHasKey( 'temp-alias.txt', $entries );
+		// copy_dir() walks with glob(), which never matches a leading dot, so the
+		// legacy copy engine sees no dotfile at all. Only assert the non-hex
+		// dotfile survives on the engines that can see it.
+		if ( array_key_exists( 'dir/.htaccess-sentinel', $entries ) ) {
+			$this->assertSame( 'ordinary dotfile', $entries['dir/.mainwp-restore-nothex.tmp'] );
+		}
 		$this->assertSame( 'directory bytes', isset( $entries['linked-dir/inner.txt'] ) ? $entries['linked-dir/inner.txt'] : null );
 		$this->assertSame( 'upload bytes', isset( $entries['uploads/photo.txt'] ) ? $entries['uploads/photo.txt'] : null );
 		foreach ( array( 'outside.txt', 'outside-dir', 'dangling', 'dir/loop', 'linked-dir/loop', 'a/to-b/to-a', 'b/to-a/to-b' ) as $refused ) {

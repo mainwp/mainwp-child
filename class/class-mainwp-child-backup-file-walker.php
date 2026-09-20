@@ -656,6 +656,9 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
      * @return bool True when the node may be walked.
      */
     protected function is_walkable( $node ) {
+        if ( preg_match( '/^\.mainwp-restore-[0-9a-f]+\.tmp$/', basename( $node ) ) ) {
+            return false;
+        }
         if ( MainWP_Helper::excluded_from_backup( $this->excludes, substr( $node, strlen( $this->root ) ) ) ) {
             return false;
         }
@@ -670,7 +673,7 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
             return false;
         }
 
-        if ( MainWP_Helper::excluded_from_backup( $this->excludes, str_replace( $this->root, '', $real ) ) ) {
+        if ( preg_match( '/^\.mainwp-restore-[0-9a-f]+\.tmp$/', basename( $real ) ) || MainWP_Helper::excluded_from_backup( $this->excludes, str_replace( $this->root, '', $real ) ) ) {
             return false;
         }
         if ( false !== $this->root_real && MainWP_Helper::excluded_from_backup( $this->excludes, str_replace( trailingslashit( $this->root_real ), '', $real ) ) ) {

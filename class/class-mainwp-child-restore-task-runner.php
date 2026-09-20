@@ -1485,9 +1485,6 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 return $this->slice_result( $version, true, true );
             }
             if ( null !== $outcome['error'] ) {
-                if ( ! empty( $outcome['cursor']['pending_temp'] ) ) {
-                    wp_delete_file( $outcome['cursor']['pending_temp'] );
-                }
                 throw new MainWP_Exception( esc_html( $outcome['error'] ), null, $outcome['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
             }
             if ( ! $outcome['done'] ) {
@@ -3075,9 +3072,6 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      */
     protected function terminal_cleanup( $task, $sub_state, $backup_dir ) {
         try {
-            if ( ! empty( $sub_state['file_restore']['part_cursor']['pending_temp'] ) ) {
-                wp_delete_file( $sub_state['file_restore']['part_cursor']['pending_temp'] );
-            }
             $engine = $this->restore_engine();
             if ( isset( $sub_state['params']['restore_id'] ) ) {
                 $engine->cleanup_tmp_tables( $sub_state['params']['restore_id'] );

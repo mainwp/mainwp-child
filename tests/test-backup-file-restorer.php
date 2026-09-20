@@ -458,30 +458,147 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'existing.txt', $result['error'] );
 		$this->assertSame( 'original bytes', file_get_contents( $target ) );
 		$this->assertSame( array(), glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) );
-		$temp = $this->extract_to . '/.mainwp-restore-' . md5( 'existing.txt' ) . '.tmp';
-		$this->assertSame( $temp, $result['cursor']['pending_temp'] );
+		$this->assertArrayNotHasKey( 'pending_temp', $result['cursor'] );
 		$config = $this->config( array( $part ) );
-		$checkpoints = array();
-		$config['checkpoint_cursor'] = function ( $cursor ) use ( &$checkpoints, $temp ) {
-			$this->assertSame( $temp, $cursor['pending_temp'] );
-			$checkpoints[] = json_decode( wp_json_encode( $cursor ), true );
-			return true;
-		};
 		for ( $attempt = 0; $attempt < 2; ++$attempt ) {
+			$temp = $this->extract_to . '/.mainwp-restore-' . bin2hex( random_bytes( 8 ) ) . '.tmp';
 			file_put_contents( $temp, 'interrupted temporary output' );
+			$this->restorer = new class() extends MainWP_Child_Backup_File_Restorer {
+				protected function extraction_limits() {
+					return array_merge( parent::extraction_limits(), array( 'expanded_bytes' => 3 ) );
+				}
+			};
 			$result = $this->restorer->restore_slice( array(), $config, microtime( true ) + 60 );
 			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
-			$this->assertSame( $temp, $result['cursor']['pending_temp'] );
-			$this->assertLessThanOrEqual( 1, count( glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) ) );
+			$this->assertSame( 'original bytes', file_get_contents( $target ) );
+			$this->assertSame( array(), glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) );
 		}
 		file_put_contents( $temp, 'interrupted temporary output' );
 		$this->restorer = new MainWP_Child_Backup_File_Restorer();
-		$result = $this->restorer->restore_slice( $checkpoints[1], $config, microtime( true ) + 60 );
+		$result = $this->restorer->restore_slice( array( 'pending_temp' => $temp ), $config, microtime( true ) + 60 );
 		$this->assertNull( $result['error'] );
 		$this->assertTrue( $result['done'] );
-		$this->assertSame( '', $result['cursor']['pending_temp'] );
 		$this->assertSame( 'replacement', file_get_contents( $target ) );
 		$this->assertSame( array(), glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) );
+	}
+
+	/** @dataProvider data_read_only_target_formats */
+	public function test_archive_preserves_temp_named_member( $format ) {
+		$name = 'dir/.mainwp-restore-' . md5( 'dir/file' ) . '.tmp';
+		$entries = array( $name => 'real archived dotfile', 'dir/file' => 'ordinary file' );
+		$part = 'zip' === $format
+			? $this->make_zip( 'names.zip', $entries )
+			: $this->make_tar( 'names.tar', $entries );
+		$result = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		foreach ( $entries as $entry => $content ) {
+			$this->assertSame( $content, file_get_contents( $this->extract_to . '/' . $entry ), $entry );
+		}
+	}
+
+	public static function temp_collisions() {
+		return array( 'file' => array( false ), 'symlink' => array( true ) );
+	}
+
+	/** @dataProvider temp_collisions */
+	public function test_temp_collision_retries_without_truncation( $link ) {
+		$peer = $this->extract_to . '/.mainwp-restore-0123456789abcdef.tmp';
+		$original = $this->dir . '/original.txt';
+		file_put_contents( $original, 'original bytes' );
+		$this->restorer = new class( $peer, $original, $link ) extends MainWP_Child_Backup_File_Restorer {
+			public $attempts = 0;
+			private $peer;
+			private $original;
+			private $link;
+			public function __construct( $peer, $original, $link ) {
+				$this->peer = $peer;
+				$this->original = $original;
+				$this->link = $link;
+			}
+			protected function entry_temp_path( $target ) {
+				if ( 1 === ++$this->attempts ) {
+					// A peer creates this path after the directory sweep.
+					if ( $this->link ) {
+						symlink( $this->original, $this->peer );
+					} else {
+						copy( $this->original, $this->peer );
+					}
+					return $this->peer;
+				}
+				return parent::entry_temp_path( $target );
+			}
+		};
+		$part = $this->make_zip( 'collision.zip', array( 'file.txt' => 'restored bytes' ) );
+		$result = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( 2, $this->restorer->attempts );
+		$this->assertSame( 'original bytes', file_get_contents( $peer ) );
+		$this->assertSame( 'original bytes', file_get_contents( $original ) );
+		$this->assertSame( $link, is_link( $peer ) );
+		$this->assertSame( 'restored bytes', file_get_contents( $this->extract_to . '/file.txt' ) );
+		if ( $link ) {
+			$method = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'write_entry_stream' );
+			$source = implode( '', array_slice( file( $method->getFileName() ), $method->getStartLine() - 1, $method->getEndLine() - $method->getStartLine() + 1 ) );
+			$this->assertStringContainsString( "is_link( \$temp ) ? false : @fopen( \$temp, 'xb' )", $source, 'Keep the explicit symlink refusal as well as exclusive creation.' );
+		}
+	}
+
+	public function test_temp_collisions_stop_after_three_attempts() {
+		$peer = $this->extract_to . '/.mainwp-restore-abcdef.tmp';
+		$this->restorer = new class( $peer ) extends MainWP_Child_Backup_File_Restorer {
+			public $attempts = 0;
+			private $peer;
+			public function __construct( $peer ) {
+				$this->peer = $peer;
+			}
+			protected function entry_temp_path( $target ) {
+				if ( 1 === ++$this->attempts ) {
+					file_put_contents( $this->peer, 'peer bytes' );
+				}
+				return $this->peer;
+			}
+		};
+		file_put_contents( $this->extract_to . '/file.txt', 'live bytes' );
+		$part = $this->make_zip( 'collision.zip', array( 'file.txt' => 'restored bytes' ) );
+		$result = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertSame( 'Could not create a temporary file in the site root; the restore needs write permission on that directory.', $result['error'] );
+		$this->assertSame( 3, $this->restorer->attempts );
+		$this->assertSame( 'peer bytes', file_get_contents( $peer ) );
+		$this->assertSame( 'live bytes', file_get_contents( $this->extract_to . '/file.txt' ) );
+	}
+
+	public function test_directory_sweep_is_guarded_and_runs_once() {
+		$directory = $this->extract_to . '/dir';
+		mkdir( $directory );
+		$stale = $directory . '/.mainwp-restore-abc123.tmp';
+		file_put_contents( $stale, 'abandoned bytes' );
+		file_put_contents( $directory . '/.ordinary', 'keep' );
+		file_put_contents( $directory . '/.mainwp-restore-nothex.tmp', 'keep' );
+		mkdir( $directory . '/.mainwp-restore-dead.tmp' );
+		$outside = $this->dir . '/outside.txt';
+		file_put_contents( $outside, 'keep' );
+		symlink( $outside, $directory . '/.mainwp-restore-beef.tmp' );
+		$part = $this->make_zip( 'sweep.zip', array( 'dir/one.txt' => 'one', 'dir/two.txt' => 'two' ) );
+		$config = $this->config( array( $part ) );
+		$first = $this->restorer->restore_slice( array(), $config, 0 );
+		$this->assertNull( $first['error'] );
+		$this->assertFalse( $first['done'] );
+		$this->assertFileDoesNotExist( $stale );
+		file_put_contents( $stale, 'new peer bytes' );
+		$last = $this->restorer->restore_slice( $first['cursor'], $config, microtime( true ) + 60 );
+		$this->assertNull( $last['error'] );
+		$this->assertTrue( $last['done'] );
+		$this->assertSame( 'new peer bytes', file_get_contents( $stale ), 'The same request must not sweep a directory twice.' );
+		$this->assertSame( 'keep', file_get_contents( $directory . '/.ordinary' ) );
+		$this->assertSame( 'keep', file_get_contents( $directory . '/.mainwp-restore-nothex.tmp' ) );
+		$this->assertDirectoryExists( $directory . '/.mainwp-restore-dead.tmp' );
+		$this->assertTrue( is_link( $directory . '/.mainwp-restore-beef.tmp' ) );
+		$this->assertSame( 'keep', file_get_contents( $outside ) );
+		$this->assertSame( 'one', file_get_contents( $directory . '/one.txt' ) );
+		$this->assertSame( 'two', file_get_contents( $directory . '/two.txt' ) );
 	}
 
 	public function test_replacement_preserves_owner_and_group() {
@@ -503,20 +620,27 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertSame( $group, filegroup( $target ) );
 	}
 
-	public function test_temp_open_failure_names_parent_directory() {
-		$parent = $this->extract_to . '/locked';
-		mkdir( $parent );
-		file_put_contents( $parent . '/existing.txt', 'original' );
+	public static function temp_open_parents() {
+		return array( 'nested' => array( 'locked/existing.txt', 'locked' ), 'root' => array( 'index.php', 'the site root' ) );
+	}
+
+	/** @dataProvider temp_open_parents */
+	public function test_temp_open_failure_names_parent_directory( $entry, $label ) {
+		$parent = dirname( $this->extract_to . '/' . $entry );
+		if ( ! is_dir( $parent ) ) {
+			mkdir( $parent );
+		}
+		file_put_contents( $this->extract_to . '/' . $entry, 'original' );
 		chmod( $parent, 0555 );
 		try {
 			if ( is_writable( $parent ) ) {
 				$this->markTestSkipped( 'Filesystem does not enforce directory permissions.' );
 			}
-			$part = $this->make_zip( 'locked.zip', array( 'locked/existing.txt' => 'replacement' ) );
+			$part = $this->make_zip( 'locked.zip', array( $entry => 'replacement' ) );
 			$result = $this->run_all( $this->config( array( $part ) ) );
 			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
-			$this->assertSame( 'Could not create a temporary file in locked; the restore needs write permission on that directory.', $result['error'] );
-			$this->assertSame( 'original', file_get_contents( $parent . '/existing.txt' ) );
+			$this->assertSame( 'Could not create a temporary file in ' . $label . '; the restore needs write permission on that directory.', $result['error'] );
+			$this->assertSame( 'original', file_get_contents( $this->extract_to . '/' . $entry ) );
 		} finally {
 			chmod( $parent, 0755 );
 		}

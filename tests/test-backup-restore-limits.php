@@ -180,25 +180,43 @@ class BackupRestoreLimitsTest extends WP_UnitTestCase {
 		}
 	}
 
-	public static function checkpoint_outcomes() {
-		return array( 'owned' => array( false ), 'lost' => array( true ) );
+	/** @dataProvider archive_formats */
+	public function test_entries_do_not_checkpoint_individually( $format ) {
+		$part = $this->make_archive( $format, array( 'one.txt' => 'one', 'two.txt' => 'two', 'three.txt' => 'three' ) );
+		$config = $this->config( array( $part ) );
+		$calls = 0;
+		$config['checkpoint_cursor'] = function () use ( &$calls ) {
+			++$calls;
+			return true;
+		};
+		$result = $this->restorer->restore_slice( array(), $config, microtime( true ) + 60 );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( 3, $result['cursor']['entries'] );
+		$this->assertSame( 0, $calls );
+		$this->assertArrayNotHasKey( 'pending_temp', $result['cursor'] );
 	}
 
-	/** @dataProvider checkpoint_outcomes */
-	public function test_file_runner_checkpoints_before_entry_write( $abandon ) {
+	public function test_file_runner_checkpoints_only_at_slice_yield() {
 		$runner = new class() extends MainWP_Child_Restore_Task_Runner {
 			public $root;
-			public $abandon;
 			public $saved;
-			public $temp_existed;
+			public $calls = 0;
 			public $final_state;
 			protected function site_root() {
 				return $this->root;
 			}
+			protected function file_restorer() {
+				return new class() extends MainWP_Child_Backup_File_Restorer {
+					public function restore_slice( $cursor, $config, $deadline ) {
+						return parent::restore_slice( $cursor, $config, 0 );
+					}
+				};
+			}
 			protected function checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, $then_yield ) {
-				$this->saved = json_decode( wp_json_encode( $sub_state ), true );
-				$this->temp_existed = file_exists( $this->saved['file_restore']['part_cursor']['pending_temp'] );
-				return $this->slice_result( $this->abandon ? $version : $version + 1, $this->abandon, $this->abandon );
+				++$this->calls;
+				$this->saved = $sub_state;
+				return $this->slice_result( $version + 1, $then_yield );
 			}
 			protected function advance_phase( $task, $version, $sub_state, $backup_dir ) {
 				$this->final_state = $sub_state;
@@ -206,11 +224,10 @@ class BackupRestoreLimitsTest extends WP_UnitTestCase {
 			}
 		};
 		$runner->root = $this->extract_to;
-		$runner->abandon = $abandon;
 		$task = (object) array( 'task_id' => 'checkpoint-test' );
 		$scratch = $runner->scratch_dir( $task->task_id, $this->dir );
 		mkdir( $scratch );
-		$part = $this->make_archive( 'zip', array( 'ordinary.txt' => 'replacement' ) );
+		$part = $this->make_archive( 'zip', array( 'one.txt' => 'one', 'two.txt' => 'two' ) );
 		copy( $part, $scratch . basename( $part ) );
 		$state = array( 'params' => array( 'artifacts' => array( array(
 			'role' => 'part', 'file' => basename( $part ), 'sha256' => hash_file( 'sha256', $part ),
@@ -218,18 +235,18 @@ class BackupRestoreLimitsTest extends WP_UnitTestCase {
 		$method = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'run_restoring_files' );
 		$method->setAccessible( true );
 		$result = $method->invoke( $runner, $task, 1, $state, time() + 60, $this->dir );
-		$this->assertFalse( $runner->temp_existed );
-		$this->assertSame( 0, $runner->saved['file_restore']['part_cursor']['entries'] );
-		$this->assertSame( $this->extract_to . '/.mainwp-restore-' . md5( 'ordinary.txt' ) . '.tmp', $runner->saved['file_restore']['part_cursor']['pending_temp'] );
-		$this->assertSame( $abandon, $result['abandon'] );
-		if ( $abandon ) {
-			$this->assertSame( 1, $result['version'] );
-			$this->assertFileDoesNotExist( $this->extract_to . '/ordinary.txt' );
-		} else {
-			$this->assertSame( 2, $result['version'] );
-			$this->assertSame( '', $runner->final_state['file_restore']['part_cursor']['pending_temp'] );
-			$this->assertSame( 'replacement', file_get_contents( $this->extract_to . '/ordinary.txt' ) );
-		}
+		$this->assertSame( 1, $runner->calls );
+		$this->assertSame( 2, $result['version'] );
+		$this->assertSame( 1, $runner->saved['file_restore']['part_cursor']['entries'] );
+		$this->assertSame( 1, $runner->saved['file_restore']['part_cursor']['entry_index'] );
+		$this->assertArrayNotHasKey( 'pending_temp', $runner->saved['file_restore']['part_cursor'] );
+		$this->assertSame( 'one', file_get_contents( $this->extract_to . '/one.txt' ) );
+		$this->assertFileDoesNotExist( $this->extract_to . '/two.txt' );
+		$result = $method->invoke( $runner, $task, $result['version'], $runner->saved, time() + 60, $this->dir );
+		$this->assertSame( 1, $runner->calls );
+		$this->assertSame( 2, $result['version'] );
+		$this->assertSame( 2, $runner->final_state['file_restore']['part_cursor']['entries'] );
+		$this->assertSame( 'two', file_get_contents( $this->extract_to . '/two.txt' ) );
 		$this->assertSame( array(), glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) );
 	}
 
@@ -238,28 +255,21 @@ class BackupRestoreLimitsTest extends WP_UnitTestCase {
 	}
 
 	/** @dataProvider cursor_storage */
-	public function test_terminal_cleanup_removes_persisted_pending_temp( $sidecar ) {
-		$part = $this->make_archive( 'zip', array( 'ordinary.txt' => 'replacement' ) );
-		$config = $this->config( array( $part ) );
-		$saved = null;
-		$config['checkpoint_cursor'] = function ( $cursor ) use ( &$saved, $sidecar ) {
-			$this->assertFileDoesNotExist( $cursor['pending_temp'] );
-			$this->assertSame( 0, $cursor['entries'] );
-			$state = array( 'file_restore' => array( 'part_cursor' => $cursor ) );
-			if ( $sidecar ) {
-				$state['padding'] = str_repeat( 'a', MainWP_Child_Backup_Task::SUB_STATE_INLINE_MAX );
-			}
-			$saved = MainWP_Child_Backup_Task::instance()->write_sub_state( 'pending-test', $state, $this->dir, 1 );
-			$this->assertNotFalse( $saved );
-			return true;
-		};
-		$this->restorer->limits = array( 'expanded_bytes' => 3 );
-		$result = $this->restorer->restore_slice( array(), $config, microtime( true ) + 60 );
-		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+	public function test_legacy_pending_temp_is_ignored_by_restore_and_cleanup( $sidecar ) {
+		$legacy = $this->dir . '/legacy.txt';
+		file_put_contents( $legacy, 'keep legacy path' );
+		$state = array( 'file_restore' => array( 'part_cursor' => array( 'pending_temp' => $legacy ) ) );
+		if ( $sidecar ) {
+			$state['padding'] = str_repeat( 'a', MainWP_Child_Backup_Task::SUB_STATE_INLINE_MAX );
+		}
+		$saved = MainWP_Child_Backup_Task::instance()->write_sub_state( 'legacy-test', $state, $this->dir, 1 );
+		$this->assertNotFalse( $saved );
 		$state = MainWP_Child_Backup_Task::instance()->read_sub_state( (object) array( 'sub_state' => $saved ), $this->dir );
-		$temp = $state['file_restore']['part_cursor']['pending_temp'];
-		$this->assertSame( $temp, $result['cursor']['pending_temp'] );
-		file_put_contents( $temp, 'interrupted output' );
+		$part = $this->make_archive( 'zip', array( 'ordinary.txt' => 'replacement' ) );
+		$result = $this->restorer->restore_slice( $state['file_restore']['part_cursor'], $this->config( array( $part ) ), microtime( true ) + 60 );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( 'replacement', file_get_contents( $this->extract_to . '/ordinary.txt' ) );
 		$runner = new class() extends MainWP_Child_Restore_Task_Runner {
 			protected function restore_engine() {
 				return new class() {
@@ -269,8 +279,8 @@ class BackupRestoreLimitsTest extends WP_UnitTestCase {
 		};
 		$method = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'terminal_cleanup' );
 		$method->setAccessible( true );
-		$method->invoke( $runner, (object) array( 'task_id' => 'pending-test' ), $state, $this->dir );
-		$this->assertFileDoesNotExist( $temp );
+		$method->invoke( $runner, (object) array( 'task_id' => 'legacy-test' ), $state, $this->dir );
+		$this->assertSame( 'keep legacy path', file_get_contents( $legacy ) );
 		$method->invoke( $runner, (object) array( 'task_id' => 'old-cursor' ), array(), $this->dir );
 	}
 
