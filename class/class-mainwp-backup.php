@@ -804,6 +804,30 @@ class MainWP_Backup {
     }
 
     /**
+     * Protect clone dump fragments from concurrent backup cleanup.
+     *
+     * @param array       $excludes           Paths excluded from the archive.
+     * @param string|bool $file               Archive filename prefix.
+     * @param bool        $include_core_files Whether to include WordPress core files.
+     * @param string      $method             Archive format.
+     *
+     * @return array|false Archive details, or false on failure.
+     * @throws MainWP_Exception When another backup is active or the archive fails.
+     */
+    public function create_clone_backup( array $excludes, $file, $include_core_files, $method ) {
+        $this->assert_no_active_spine_task();
+        $token = $this->acquire_backup_mutex();
+
+        try {
+            $pid = MainWP_Helper::sanitize_filename( 'clone-' . wp_generate_uuid4() );
+            return $this->create_full_backup( $excludes, $file, true, $include_core_files, 0, false, false, false, false, $method, $pid );
+        } finally {
+            MainWP_Child_Backup_Mutex::release( $token );
+            $this->mutex_owner = '';
+        }
+    }
+
+    /**
      * Perform a backup.
      *
      * @param bool $write Whether or not to execute MainWP_Helper::write(), Default: true.
