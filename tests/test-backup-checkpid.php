@@ -410,6 +410,36 @@ class BackupCheckpidTest extends WP_UnitTestCase {
 		$this->assertSame( $before + 1, $backup->leases );
 	}
 
+	public function test_close_zip_archive_discards_pending_entries_after_lease_loss() {
+		$backup = new class() extends MainWP_Backup {
+			public function extend_archive_mutex_lease() {
+				throw new RuntimeException( 'lease lost' );
+			}
+		};
+		$archive = $this->scratch . '/pending.zip';
+		$input = $this->scratch . '/input.txt';
+		file_put_contents( $input, 'pending entry' );
+		$zip = new ZipArchive();
+		$this->assertTrue( $zip->open( $archive, ZipArchive::CREATE ) );
+		$this->assertTrue( $zip->addFile( $input, 'input.txt' ) );
+		$slot = new ReflectionProperty( MainWP_Backup::class, 'zip' );
+		$slot->setAccessible( true );
+		$slot->setValue( $backup, $zip );
+		$this->assertFileDoesNotExist( $archive );
+		try {
+			$backup->close_zip_archive();
+			$this->fail( 'Lost ownership must interrupt archive finalization.' );
+		} catch ( RuntimeException $e ) {
+			$this->assertSame( 'lease lost', $e->getMessage() );
+		}
+		$resolved = $slot->getValue( $backup ) === null;
+		unset( $zip, $backup );
+		gc_collect_cycles();
+		clearstatcache( true, $archive );
+		$this->assertFileDoesNotExist( $archive );
+		$this->assertTrue( $resolved, 'The failed handle must be cleared before rethrowing.' );
+	}
+
 	public function test_pid_zero_and_empty_sanitized_value() {
 		$backup = new class() extends MainWP_Backup {
 			public function create_full_backup( $excludes = array(), $filePrefix = '', $addConfig = true, $includeCoreFiles = true, $file_descriptors = 0, $fileSuffix = false, $excludezip = false, $excludenonwp = false, $loadFilesBeforeZip = true, $ext = 'zip', $pid = false, $append = false ) {

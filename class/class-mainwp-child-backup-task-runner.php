@@ -458,6 +458,11 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             }
         } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - any engine failure must reach a terminal phase.
             $code = ( $e instanceof MainWP_Exception ) ? $e->get_message_error_code() : '';
+            if ( $is_backup ) {
+                // A mid-slice takeover makes the entry-time flag unsafe for shared scratch cleanup.
+                $holder     = MainWP_Child_Backup_Mutex::holder();
+                $mutex_held = null !== $holder && $holder['owner'] === $task_id;
+            }
 
             // Capture the cursor BEFORE the failure checkpoint replaces it
             // with the error: it holds the only record of which files this

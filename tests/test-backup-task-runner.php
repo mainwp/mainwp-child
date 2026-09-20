@@ -314,6 +314,9 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		}
 		global $wpdb;
 		$wpdb->query( 'DELETE FROM ' . MainWP_Child_Backup_Task::instance()->get_table_name() ); // phpcs:ignore -- test cleanup.
+		$touch = new ReflectionProperty( MainWP_Child_Backup_Task::instance(), 'last_touch' );
+		$touch->setAccessible( true );
+		$touch->setValue( MainWP_Child_Backup_Task::instance(), 0 );
 		foreach ( (array) glob( $this->backup_dir . '/*' ) as $file ) {
 			unlink( $file );
 		}
@@ -619,6 +622,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		try {
 			foreach ( array( 1, 2 ) as $tier ) {
 				foreach ( array( false, true ) as $foreign ) {
+					$successor_id = null;
 					$task_id = $this->create_task( 'full' );
 					$this->runner->stubs['tier1_available'] = 1 === $tier;
 					$method = new ReflectionMethod( MainWP_Child_Backup_Task_Runner::class, 'dump_tier' . $tier );
@@ -626,11 +630,13 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 					$this->runner->stubs['dump_tier' . $tier] = function ( ...$args ) use ( $method ) {
 						return $method->invokeArgs( $this->runner, $args );
 					};
-					$dumper->invoke = function ( $heartbeat ) use ( $task_id, $foreign, $wpdb ) {
+					$dumper->invoke = function ( $heartbeat ) use ( $task_id, $foreign, $wpdb, &$successor_id ) {
 						$this->assertIsCallable( $heartbeat );
 						if ( $foreign ) {
 							MainWP_Child_Backup_Mutex::release( $task_id );
-							$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'foreign-dumper', 300 ) );
+							$successor_id = $this->create_task( 'full' );
+							file_put_contents( $this->backup_dir . '/files.list.staged', 'successor manifest' );
+							file_put_contents( $this->backup_dir . '/walk-run-successor', 'successor walk' );
 							$heartbeat();
 							$this->fail( 'Lost ownership must interrupt the dump.' );
 						}
@@ -655,9 +661,14 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 					if ( $foreign ) {
 						$state = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $this->backup_dir );
 						$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_ALREADY_RUNNING, $state['error']['code'] );
+						$this->assertFileExists( $this->backup_dir . '/files.list.staged' );
+						$this->assertFileExists( $this->backup_dir . '/walk-run-successor' );
+						$this->assertSame( $successor_id, MainWP_Child_Backup_Mutex::holder()['owner'] );
+						unlink( $this->backup_dir . '/files.list.staged' );
+						unlink( $this->backup_dir . '/walk-run-successor' );
+						MainWP_Child_Backup_Mutex::release( $successor_id );
 					}
 					MainWP_Child_Backup_Mutex::release( $task_id );
-					MainWP_Child_Backup_Mutex::release( 'foreign-dumper' );
 				}
 			}
 		} finally {

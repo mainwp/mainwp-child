@@ -1278,9 +1278,20 @@ class MainWP_Backup {
      * its result reports success over a corrupt or missing archive.
      *
      * @throws MainWP_Exception When the archive could not be finalized.
+     * @throws \Throwable When the archive mutex lease cannot be extended.
      */
     public function close_zip_archive() {
-        $this->extend_archive_mutex_lease();
+        try {
+            $this->extend_archive_mutex_lease();
+        } catch ( \Throwable $e ) {
+            if ( $this->zip instanceof \ZipArchive ) {
+                // The destructor would publish pending entries after the caller deletes the failed archive.
+                $this->zip->unchangeAll();
+                @$this->zip->close(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- preserve the lease failure after discarding pending changes.
+                $this->zip = null;
+            }
+            throw $e;
+        }
         $result = false;
         if ( $this->zip instanceof \ZipArchive ) {
             $result = @$this->zip->close(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failure is converted to a coded exception below.
