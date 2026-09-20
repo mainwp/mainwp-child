@@ -458,6 +458,68 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'existing.txt', $result['error'] );
 		$this->assertSame( 'original bytes', file_get_contents( $target ) );
 		$this->assertSame( array(), glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) );
+		$temp = $this->extract_to . '/.mainwp-restore-' . md5( 'existing.txt' ) . '.tmp';
+		$this->assertSame( $temp, $result['cursor']['pending_temp'] );
+		$config = $this->config( array( $part ) );
+		$checkpoints = array();
+		$config['checkpoint_cursor'] = function ( $cursor ) use ( &$checkpoints, $temp ) {
+			$this->assertSame( $temp, $cursor['pending_temp'] );
+			$checkpoints[] = json_decode( wp_json_encode( $cursor ), true );
+			return true;
+		};
+		for ( $attempt = 0; $attempt < 2; ++$attempt ) {
+			file_put_contents( $temp, 'interrupted temporary output' );
+			$result = $this->restorer->restore_slice( array(), $config, microtime( true ) + 60 );
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+			$this->assertSame( $temp, $result['cursor']['pending_temp'] );
+			$this->assertLessThanOrEqual( 1, count( glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) ) );
+		}
+		file_put_contents( $temp, 'interrupted temporary output' );
+		$this->restorer = new MainWP_Child_Backup_File_Restorer();
+		$result = $this->restorer->restore_slice( $checkpoints[1], $config, microtime( true ) + 60 );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( '', $result['cursor']['pending_temp'] );
+		$this->assertSame( 'replacement', file_get_contents( $target ) );
+		$this->assertSame( array(), glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) );
+	}
+
+	public function test_replacement_preserves_owner_and_group() {
+		if ( ! function_exists( 'posix_geteuid' ) || 0 !== posix_geteuid() ) {
+			$this->markTestSkipped( 'Changing fixture ownership requires root.' );
+		}
+		$target = $this->extract_to . '/owned.txt';
+		file_put_contents( $target, 'original' );
+		$this->assertTrue( chown( $target, 65534 ) );
+		$this->assertTrue( chgrp( $target, 65534 ) );
+		clearstatcache( true, $target );
+		$owner = fileowner( $target );
+		$group = filegroup( $target );
+		$part = $this->make_zip( 'owned.zip', array( 'owned.txt' => 'replacement' ) );
+		$result = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertNull( $result['error'] );
+		clearstatcache( true, $target );
+		$this->assertSame( $owner, fileowner( $target ) );
+		$this->assertSame( $group, filegroup( $target ) );
+	}
+
+	public function test_temp_open_failure_names_parent_directory() {
+		$parent = $this->extract_to . '/locked';
+		mkdir( $parent );
+		file_put_contents( $parent . '/existing.txt', 'original' );
+		chmod( $parent, 0555 );
+		try {
+			if ( is_writable( $parent ) ) {
+				$this->markTestSkipped( 'Filesystem does not enforce directory permissions.' );
+			}
+			$part = $this->make_zip( 'locked.zip', array( 'locked/existing.txt' => 'replacement' ) );
+			$result = $this->run_all( $this->config( array( $part ) ) );
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+			$this->assertSame( 'Could not create a temporary file in locked; the restore needs write permission on that directory.', $result['error'] );
+			$this->assertSame( 'original', file_get_contents( $parent . '/existing.txt' ) );
+		} finally {
+			chmod( $parent, 0755 );
+		}
 	}
 
 	/**

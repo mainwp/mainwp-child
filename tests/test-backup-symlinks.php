@@ -211,6 +211,73 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 		}
 	}
 
+	public static function full_engines() {
+		return array( 'zip' => array( 'zip' ), 'tar' => array( 'tar' ) );
+	}
+
+	/** @dataProvider full_engines */
+	public function test_full_engine_excludes_root_file_link_target( $format ) {
+		$tree = $this->link_tree();
+		$excludes = $this->excluded_link_tree( $tree );
+		$link = ABSPATH . 'mwp-root-link-' . uniqid() . '.txt';
+		$keep = ABSPATH . 'mwp-root-keep-' . uniqid() . '.txt';
+		symlink( $this->scratch . '/excluded/backup.txt', $link );
+		file_put_contents( $keep, 'included bytes' );
+		try {
+			foreach ( glob( ABSPATH . '*' ) as $node ) {
+				if ( $node !== $link && $node !== $keep ) {
+					$excludes[] = str_replace( ABSPATH, '', $node );
+				}
+			}
+			$backup = new class() extends MainWP_Backup {
+				public function extend_archive_mutex_lease() {}
+				public function get_or_create_db_dump_files( $filepath_prefix, &$archiver = null ) {
+					return array();
+				}
+			};
+			$archive = $this->external . '/full.' . $format;
+			if ( 'zip' === $format ) {
+				$this->assertTrue( $backup->create_zip_full_backup( $archive, $excludes, false, true, false, false ) );
+				$zip = new ZipArchive();
+				$this->assertTrue( $zip->open( $archive ) );
+				$this->assertFalse( $zip->locateName( basename( $link ) ) );
+				$this->assertSame( 'included bytes', $zip->getFromName( basename( $keep ) ) );
+				$zip->close();
+			} else {
+				$tar = new Tar_Archiver( $backup, 'tar' );
+				$this->assertTrue( $tar->create_full_backup( $archive, $excludes, false, true, false, false ) );
+				$phar = new PharData( $archive );
+				$this->assertFalse( isset( $phar[ basename( $link ) ] ) );
+				$this->assertSame( 'included bytes', $phar[ basename( $keep ) ]->getContent() );
+			}
+		} finally {
+			unlink( $link );
+			unlink( $keep );
+		}
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_exclusion_helper_matches_resolved_root() {
+		$root = $this->scratch . '/real-root';
+		mkdir( $root . '/excluded', 0755, true );
+		file_put_contents( $root . '/excluded/backup.txt', 'excluded bytes' );
+		file_put_contents( $root . '/keep.txt', 'included bytes' );
+		$link = $this->scratch . '/linked-root';
+		symlink( $root, $link );
+		symlink( $root . '/excluded/backup.txt', $root . '/alias.txt' );
+		// Isolate the helper's root spelling without moving the WordPress install.
+		define( 'MainWP\\Child\\ABSPATH', $link . '/' );
+		$this->assertNotSame( $link . '/', trailingslashit( realpath( $link ) ) );
+		$excludes = array( 'excluded' );
+		$this->assertTrue( MainWP_Backup::excluded_by_path_or_target( $excludes, $link . '/excluded/backup.txt' ) );
+		$this->assertTrue( MainWP_Backup::excluded_by_path_or_target( $excludes, $link . '/alias.txt' ) );
+		$this->assertTrue( MainWP_Backup::excluded_by_path_or_target( $excludes, realpath( $root . '/excluded/backup.txt' ) ) );
+		$this->assertFalse( MainWP_Backup::excluded_by_path_or_target( $excludes, $link . '/keep.txt' ) );
+	}
+
 	public function test_zip_descends_links_and_records_refusals() {
 		if ( ! class_exists( 'ZipArchive' ) ) {
 			$this->markTestSkipped( 'ZipArchive unavailable.' );

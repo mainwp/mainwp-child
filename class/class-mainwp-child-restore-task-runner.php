@@ -1463,16 +1463,31 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 continue;
             }
 
-            $outcome = $restorer->restore_slice(
+            $checkpoint_abandoned = false;
+            $outcome              = $restorer->restore_slice(
                 $cursor['part_cursor'],
                 array(
-                    'parts'      => array( $path ),
-                    'hashes'     => array( $op['file'] => isset( $hashes[ $op['file'] ] ) ? $hashes[ $op['file'] ] : '' ),
-                    'extract_to' => $this->site_root(),
+                    'parts'             => array( $path ),
+                    'hashes'            => array( $op['file'] => isset( $hashes[ $op['file'] ] ) ? $hashes[ $op['file'] ] : '' ),
+                    'extract_to'        => $this->site_root(),
+                    'checkpoint_cursor' => function ( $part_cursor ) use ( $task, &$version, &$sub_state, &$cursor, $backup_dir, &$checkpoint_abandoned ) {
+                        $cursor['part_cursor']     = $part_cursor;
+                        $sub_state['file_restore'] = $cursor;
+                        $checkpoint = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
+                        $version = $checkpoint['version'];
+                        $checkpoint_abandoned = ! empty( $checkpoint['abandon'] );
+                        return ! $checkpoint_abandoned;
+                    },
                 ),
                 $deadline
             );
+            if ( $checkpoint_abandoned ) {
+                return $this->slice_result( $version, true, true );
+            }
             if ( null !== $outcome['error'] ) {
+                if ( ! empty( $outcome['cursor']['pending_temp'] ) ) {
+                    wp_delete_file( $outcome['cursor']['pending_temp'] );
+                }
                 throw new MainWP_Exception( esc_html( $outcome['error'] ), null, $outcome['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
             }
             if ( ! $outcome['done'] ) {
@@ -3060,6 +3075,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      */
     protected function terminal_cleanup( $task, $sub_state, $backup_dir ) {
         try {
+            if ( ! empty( $sub_state['file_restore']['part_cursor']['pending_temp'] ) ) {
+                wp_delete_file( $sub_state['file_restore']['part_cursor']['pending_temp'] );
+            }
             $engine = $this->restore_engine();
             if ( isset( $sub_state['params']['restore_id'] ) ) {
                 $engine->cleanup_tmp_tables( $sub_state['params']['restore_id'] );
@@ -3131,7 +3149,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             return;
         }
         if ( $depth > $this->removal_depth_limit() ) {
-            MainWP_Backup::record_skipped_path( $dir );
+            MainWP_Helper::log_debug( 'Restore cleanup depth limit reached: ' . $dir );
             return;
         }
         foreach ( (array) scandir( $dir ) as $entry ) {

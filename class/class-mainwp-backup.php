@@ -282,8 +282,10 @@ class MainWP_Backup {
      *
      * @return array|bool Action results on success, false on failure.
      *
-     * @throws \Exception Engine failures propagate; the partial archive is
-     *                    removed unless the failure is a budget interruption.
+     * @throws \Throwable Engine failures propagate, including the ValueError
+     *                     a closed ZipArchive handle raises on PHP 8; the
+     *                     partial archive is removed unless the failure is a
+     *                     budget interruption.
      *
      * @used-by MainWP_Backup::backup_full()
      *
@@ -391,11 +393,14 @@ class MainWP_Backup {
             if ( $success && null === $this->archiver ) {
                 $this->complete_pid_file();
             }
-        } catch ( \Exception $e ) {
+        } catch ( \Throwable $e ) {
             // Never leave a partial archive behind - a half-written file
             // looks like a backup and restores as corruption. A budget
             // interruption is the one exception: that partial archive is the
-            // resume point for the next slice.
+            // resume point for the next slice. Throwable, not Exception:
+            // close_zip_archive() rethrows the archive-lease failure
+            // unchanged, and a ValueError from a closed ZipArchive handle
+            // would otherwise skip this discard and publish the partial.
             if ( $this->should_discard_partial_on( $e ) && file_exists( $filepath ) ) {
                 unlink( $filepath ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- cleanup of partial archive.
             }
@@ -1650,7 +1655,7 @@ class MainWP_Backup {
                     }
                 }
 
-                if ( ! MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
+                if ( ! static::excluded_by_path_or_target( $excludes, $node ) ) {
                     if ( is_dir( $node ) ) {
                         $this->zip_add_dir( $node, $excludes, null, array( ABSPATH ) );
                     } elseif ( is_file( $node ) ) {
@@ -1794,7 +1799,17 @@ class MainWP_Backup {
             return true;
         }
         $real = realpath( $name );
-        return false !== $real && $real !== $name && MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $real ) );
+        if ( false === $real ) {
+            return false;
+        }
+        if ( $real !== $name && MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $real ) ) ) {
+            return true;
+        }
+        static $abspath_real = null;
+        if ( null === $abspath_real ) {
+            $abspath_real = realpath( ABSPATH );
+        }
+        return false !== $abspath_real && ABSPATH !== $abspath_real && MainWP_Helper::excluded_from_backup( $excludes, str_replace( trailingslashit( $abspath_real ), '', $real ) );
     }
 
     /**

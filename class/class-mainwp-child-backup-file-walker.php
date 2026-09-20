@@ -101,6 +101,13 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
     protected $root;
 
     /**
+     * Resolved walk root for target exclusions.
+     *
+     * @var string|false
+     */
+    protected $root_real;
+
+    /**
      * Exclude list of site-relative paths.
      *
      * @var array
@@ -209,6 +216,7 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
      */
     public function __construct( $root = null, $excludes = array(), $excludezip = false, $excludenonwp = false, $skip_dirs = array() ) {
         $this->root         = rtrim( null === $root ? ABSPATH : $root, '/' ) . '/';
+        $this->root_real    = realpath( $this->root );
         $this->excludes     = is_array( $excludes ) ? $excludes : array();
         $this->excludezip   = (bool) $excludezip;
         $this->excludenonwp = (bool) $excludenonwp;
@@ -628,10 +636,6 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
             return;
         }
 
-        if ( MainWP_Helper::excluded_from_backup( $this->excludes, $relpath ) ) {
-            return;
-        }
-
         if ( is_dir( $node ) ) {
             $this->stack[] = array(
                 'dir'      => $node,
@@ -652,6 +656,9 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
      * @return bool True when the node may be walked.
      */
     protected function is_walkable( $node ) {
+        if ( MainWP_Helper::excluded_from_backup( $this->excludes, substr( $node, strlen( $this->root ) ) ) ) {
+            return false;
+        }
         if ( ! MainWP_Backup::is_safe_backup_path( $node, array_merge( MainWP_Backup::default_backup_bases(), array( $this->root ) ), array_column( $this->stack, 'dir' ) ) ) {
             MainWP_Backup::record_skipped_path( $node );
             return false;
@@ -660,6 +667,13 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
         $real = realpath( $node );
         if ( false === $real ) {
             MainWP_Backup::record_skipped_path( $node );
+            return false;
+        }
+
+        if ( MainWP_Helper::excluded_from_backup( $this->excludes, str_replace( $this->root, '', $real ) ) ) {
+            return false;
+        }
+        if ( false !== $this->root_real && MainWP_Helper::excluded_from_backup( $this->excludes, str_replace( trailingslashit( $this->root_real ), '', $real ) ) ) {
             return false;
         }
 

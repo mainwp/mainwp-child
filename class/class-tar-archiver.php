@@ -445,7 +445,7 @@ class Tar_Archiver {
                     }
                 }
 
-                if ( ! MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
+                if ( ! MainWP_Backup::excluded_by_path_or_target( $excludes, $node ) ) {
                     if ( is_dir( $node ) ) {
                         $this->add_dir( $node, $excludes, array( ABSPATH ) );
                     } elseif ( is_file( $node ) ) {

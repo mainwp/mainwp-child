@@ -35,6 +35,20 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.OpeningBraceSameLine.ContentAfterBrace -- NOSONAR.
 
+    /**
+     * Cursor persistence callback for the current slice.
+     *
+     * @var callable|null
+     */
+    private $checkpoint_cursor;
+
+    /**
+     * Whether compressed preparation refused the extraction limits.
+     *
+     * @var bool
+     */
+    protected $preparation_limit_exceeded = false;
+
     const MAX_EXTRACT_ENTRIES        = 2000000;
     const MAX_EXPANDED_BYTES         = 68719476736;
     const MAX_COMPRESSION_RATIO      = 200;
@@ -59,7 +73,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      *
      * @param array     $cursor   Resume cursor (empty array on first call).
      * @param array     $config   { parts: string[], hashes: array<string,string>
-     *                            keyed by basename, extract_to: string }.
+     *                            keyed by basename, extract_to: string,
+     *                            checkpoint_cursor?: callable }.
      * @param float|int $deadline Absolute epoch the slice must yield by.
      *
      * @return array { done: bool, cursor: array, error: string|null,
@@ -72,14 +87,16 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 'entry_index'    => 0,
                 'entries'        => 0,
                 'expanded_bytes' => 0,
+                'pending_temp'   => '',
             ),
             is_array( $cursor ) ? $cursor : array()
         );
 
-        $parts      = $config['parts'];
-        $extract_to = $config['extract_to'];
-        $did_work   = false;
-        $part_count = count( $parts );
+        $this->checkpoint_cursor = isset( $config['checkpoint_cursor'] ) ? $config['checkpoint_cursor'] : null;
+        $parts                   = $config['parts'];
+        $extract_to              = $config['extract_to'];
+        $did_work                = false;
+        $part_count              = count( $parts );
 
         while ( $cursor['part_index'] < $part_count ) {
             $part = $parts[ $cursor['part_index'] ];
@@ -188,9 +205,13 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         // Phar reads of compressed tars are unreliable across PHP builds
         // (8.4 returns empty entry streams), so compressed parts decompress
         // to a plain .tar first; the plain-tar reader is solid everywhere.
-        $timed_out = false;
-        $plain     = $this->plain_tar_for( $part, $deadline, $timed_out );
+        $this->preparation_limit_exceeded = false;
+        $timed_out                        = false;
+        $plain                            = $this->plain_tar_for( $part, $deadline, $timed_out );
         if ( null === $plain ) {
+            if ( $this->preparation_limit_exceeded ) {
+                return $this->result( false, $cursor, 'The compressed archive ' . basename( $part ) . ' expands beyond the restore size limit.', MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+            }
             if ( $timed_out ) {
                 if ( $did_work ) {
                     // A prior part spent most of this slice; retry the
@@ -373,6 +394,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 $close( $in );
                 fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- discard decompression that exceeds extraction limits.
                 wp_delete_file( $compressed_tmp );
+                $this->preparation_limit_exceeded = true;
                 return null;
             }
         }
@@ -569,7 +591,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      *
      * @throws MainWP_Exception When the archive exceeds the entry limit.
      *
-     * @return array<int,array{name:string,dir:bool,phar_url:string}> Sorted entries.
+     * @return array<int,array{name:string,dir:bool,phar_url:string,size:int}> Sorted entries.
      */
     private function tar_entry_names( $phar ) {
         $prefix  = 'phar://' . $phar->getPath() . '/';
@@ -722,15 +744,31 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @throws \Throwable After discarding failed temporary output.
      */
     private function write_entry_stream( $stream, $target, &$cursor, $compressed, $entry_name ) {
-        $temp  = dirname( $target ) . '/.mainwp-restore-' . bin2hex( random_bytes( 6 ) ) . '.tmp';
-        $perms = ( ! is_link( $target ) && is_file( $target ) ) ? @fileperms( $target ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- preserve regular-file permissions without following a leaf link.
+        $temp  = dirname( $target ) . '/.mainwp-restore-' . md5( $entry_name ) . '.tmp';
+        $perms = false;
+        $owner = false;
+        $group = false;
+        if ( ! is_link( $target ) && is_file( $target ) ) {
+            // phpcs:disable WordPress.PHP.NoSilencedErrors.Discouraged -- metadata reads can fail without preventing replacement.
+            $perms = @fileperms( $target );
+            $owner = @fileowner( $target );
+            $group = @filegroup( $target );
+            // phpcs:enable WordPress.PHP.NoSilencedErrors.Discouraged
+        }
         // A false read must not become chmod( 0 ), which would leave the
         // restored file unreadable; fall through to the creation default.
-        $mode = false === $perms ? null : ( $perms & 0777 );
-        $out  = @fopen( $temp, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- open failure leaves the live target untouched.
+        $mode                   = false === $perms ? null : ( $perms & 0777 );
+        $cursor['pending_temp'] = $temp;
+        $pending_cursor         = $cursor;
+        // A killed write retries this entry, so it has not yet consumed an entry slot.
+        --$pending_cursor['entries'];
+        if ( is_callable( $this->checkpoint_cursor ) && false === call_user_func( $this->checkpoint_cursor, $pending_cursor ) ) {
+            throw new \Exception( 'Could not checkpoint the restore entry.' );
+        }
+        $out = is_link( $temp ) ? false : @fopen( $temp, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- open failure leaves the live target untouched.
         try {
             if ( false === $out ) {
-                throw new \Exception( sprintf( 'Could not write extracted file: %s.', esc_html( $entry_name ) ) );
+                throw new \Exception( sprintf( 'Could not create a temporary file in %s; the restore needs write permission on that directory.', esc_html( dirname( $entry_name ) ) ) );
             }
             $this->copy_bounded_entry( $stream, $out, $cursor, $compressed, $entry_name );
             $closed = fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- finish the temporary file before promotion.
@@ -744,6 +782,17 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             if ( ! @rename( $temp, $target ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- same-directory atomic replacement never follows a leaf link.
                 throw new \Exception( sprintf( 'Could not write extracted file: %s.', esc_html( $entry_name ) ) );
             }
+            $cursor['pending_temp'] = '';
+            clearstatcache( true, $target );
+            // Ownership changes may be denied to PHP; restored bytes and mode remain valid.
+            // phpcs:disable WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions -- native ownership preservation is best effort.
+            if ( false !== $owner && @fileowner( $target ) !== $owner ) {
+                @chown( $target, $owner );
+            }
+            if ( false !== $group && @filegroup( $target ) !== $group ) {
+                @chgrp( $target, $group );
+            }
+            // phpcs:enable WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions
         } catch ( \Throwable $e ) {
             if ( is_resource( $out ) ) {
                 fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- close before discarding failed output.

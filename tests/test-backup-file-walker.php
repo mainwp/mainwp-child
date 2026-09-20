@@ -323,6 +323,16 @@ class BackupFileWalkerTest extends WP_UnitTestCase {
 		$this->assertContains( 'wp-content/uploads/link.jpg', $relpaths );
 	}
 
+	public function test_user_exclude_applies_to_link_target() {
+		symlink( $this->root . '/wp-content/cache/page.html', $this->root . '/linked-page.html' );
+		symlink( $this->root . '/wp-content/cache', $this->root . '/linked-cache' );
+		$this->walker( array( 'wp-content/cache' ) )->emit_sidecars( $this->backup_dir );
+		$relpaths = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
+		$this->assertNotContains( 'linked-page.html', $relpaths );
+		$this->assertNotContains( 'linked-cache/page.html', $relpaths );
+		$this->assertContains( 'wp-content/uploads/photo.jpg', $relpaths );
+	}
+
 	/**
 	 * Excluded relpaths prune the whole subtree, matching the archive
 	 * traversal's exclude semantics.

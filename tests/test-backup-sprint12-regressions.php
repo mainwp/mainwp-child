@@ -174,4 +174,47 @@ class BackupSprint12RegressionsTest extends WP_UnitTestCase {
 			$slot->setValue( null, $original );
 		}
 	}
+
+	/**
+	 * close_zip_archive() rethrows the archive-lease failure unchanged, and on
+	 * PHP 8 a closed or never-opened ZipArchive handle raises ValueError, which
+	 * is an Error and not an Exception. create_full_backup()'s discard arm has
+	 * to catch Throwable or that failure publishes the partial archive it was
+	 * written to delete.
+	 */
+	public function test_error_from_the_close_path_still_discards_the_partial_archive() {
+		$backup = new class() extends MainWP_Backup {
+			public $root;
+			public function get_or_create_db_dump_files( $prefix, &$archiver = null ) {
+				$this->allowed_backup_bases = array( $this->root );
+				return array( $this->root . '/only.sql.php' );
+			}
+			public function add_config() {
+			}
+			public function close_zip_archive() {
+				$this->zip = null;
+				throw new \ValueError( 'Invalid or uninitialized Zip object' );
+			}
+		};
+		$scratch = sys_get_temp_dir() . '/mwp-throwable-discard-' . wp_generate_uuid4();
+		mkdir( $scratch, 0755, true );
+		$backup->root = $scratch;
+		file_put_contents( $scratch . '/only.sql.php', 'one entry' );
+		$name = 'throwable-' . wp_generate_uuid4() . '.zip';
+		$dirs = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' );
+		$archive = $dirs[0] . $name;
+
+		$caught = null;
+		try {
+			$backup->create_full_backup( array(), '', true, true, 0, $name, false, false, true, 'zip', false, true );
+		} catch ( \Throwable $e ) {
+			$caught = $e;
+		}
+
+		unlink( $scratch . '/only.sql.php' );
+		rmdir( $scratch );
+
+		$this->assertInstanceOf( \ValueError::class, $caught, 'The Error must reach the caller unchanged.' );
+		$this->assertFileDoesNotExist( $archive, 'An Error on the close path must discard the partial archive.' );
+	}
 }
