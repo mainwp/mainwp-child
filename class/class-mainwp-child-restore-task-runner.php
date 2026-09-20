@@ -1470,6 +1470,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                     'parts'             => array( $path ),
                     'hashes'            => array( $op['file'] => isset( $hashes[ $op['file'] ] ) ? $hashes[ $op['file'] ] : '' ),
                     'extract_to'        => $this->site_root(),
+                    'temp_owner'        => substr( hash( 'sha256', $task->task_id ), 0, 16 ),
                     'checkpoint_cursor' => function ( $part_cursor ) use ( $task, &$version, &$sub_state, &$cursor, $backup_dir, &$checkpoint_abandoned ) {
                         $cursor['part_cursor']     = $part_cursor;
                         $sub_state['file_restore'] = $cursor;
@@ -2682,6 +2683,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 'parts'      => array( $scratch . $db_artifact['file'] ),
                 'hashes'     => array( $db_artifact['file'] => isset( $hashes[ $db_artifact['file'] ] ) ? $hashes[ $db_artifact['file'] ] : '' ),
                 'extract_to' => $db_dir,
+                'temp_owner' => substr( hash( 'sha256', $task->task_id ), 0, 16 ),
             ),
             $deadline
         );

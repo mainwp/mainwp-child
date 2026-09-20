@@ -307,6 +307,18 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		return $result;
 	}
 
+	protected function run_sliced( $config ) {
+		$result = array( 'cursor' => array() );
+		$slices = 0;
+		do {
+			$this->restorer = new MainWP_Child_Backup_File_Restorer();
+			$result = $this->restorer->restore_slice( $result['cursor'], $config, 0 );
+			++$slices;
+		} while ( ! $result['done'] && null === $result['error'] && $slices < 100 );
+		$result['slices'] = $slices;
+		return $result;
+	}
+
 	/**
 	 * Entries land at their validated paths with intact content.
 	 */
@@ -459,9 +471,9 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertSame( 'original bytes', file_get_contents( $target ) );
 		$this->assertSame( array(), glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) );
 		$this->assertArrayNotHasKey( 'pending_temp', $result['cursor'] );
-		$config = $this->config( array( $part ) );
+		$config = $this->config( array( $part ), array( 'temp_owner' => 'abc123' ) );
 		for ( $attempt = 0; $attempt < 2; ++$attempt ) {
-			$temp = $this->extract_to . '/.mainwp-restore-' . bin2hex( random_bytes( 8 ) ) . '.tmp';
+			$temp = $this->extract_to . '/.mainwp-restore-abc123-' . bin2hex( random_bytes( 8 ) ) . '.tmp';
 			file_put_contents( $temp, 'interrupted temporary output' );
 			$this->restorer = new class() extends MainWP_Child_Backup_File_Restorer {
 				protected function extraction_limits() {
@@ -495,6 +507,69 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		foreach ( $entries as $entry => $content ) {
 			$this->assertSame( $content, file_get_contents( $this->extract_to . '/' . $entry ), $entry );
 		}
+	}
+
+	/** @dataProvider data_read_only_target_formats */
+	public function test_archive_temp_named_member_survives_new_restorer_each_slice( $format ) {
+		$name = 'dir/.mainwp-restore-' . md5( 'archived member' ) . '.tmp';
+		$entries = array( $name => 'member', 'dir/one.txt' => 'one', 'dir/two.txt' => 'two' );
+		$part = 'zip' === $format
+			? $this->make_zip( 'sliced.zip', $entries )
+			: $this->make_tar( 'sliced.tar', $entries );
+		$result = $this->run_sliced( $this->config( array( $part ), array( 'temp_owner' => 'abc123' ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertGreaterThanOrEqual( 3, $result['slices'], 'At least two boundaries must separate fresh restorer instances.' );
+		$this->assertFileExists( $this->extract_to . '/' . $name );
+		foreach ( $entries as $entry => $content ) {
+			$this->assertSame( $content, file_get_contents( $this->extract_to . '/' . $entry ), $entry );
+		}
+	}
+
+	public static function reserved_temp_names() {
+		return array(
+			'legacy' => array( '.mainwp-restore-0123abcdef.tmp', true ),
+			'owned' => array( '.mainwp-restore-abc123-0123456789abcdef.tmp', true ),
+			'uppercase legacy' => array( '.mainwp-restore-ABCDEF.tmp', false ),
+			'uppercase owner' => array( '.mainwp-restore-ABCDEF-0123456789abcdef.tmp', false ),
+			'uppercase suffix token' => array( '.mainwp-restore-abc123-ABCDEF.tmp', false ),
+			'missing suffix' => array( '.mainwp-restore-abc123-0123456789abcdef', false ),
+			'extra segment' => array( '.mainwp-restore-abc123-0123456789abcdef-dead.tmp', false ),
+			'plain tmp' => array( '.tmp', false ),
+			'trailing newline' => array( ".mainwp-restore-abc123.tmp\n", false ),
+		);
+	}
+
+	/** @dataProvider reserved_temp_names */
+	public function test_reserved_temp_name_matches_only_supported_forms( $name, $reserved ) {
+		$this->assertSame( $reserved, MainWP_Child_Backup_File_Restorer::is_reserved_temp_name( $name ) );
+	}
+
+	public function test_unconfigured_owner_is_random_and_stable_per_restorer() {
+		$part = $this->make_zip( 'owners.zip', array( 'one.txt' => 'one', 'two.txt' => 'two' ) );
+		$owners = array();
+		for ( $i = 0; $i < 2; ++$i ) {
+			$this->restorer = new class() extends MainWP_Child_Backup_File_Restorer {
+				public $names = array();
+				protected function entry_temp_path( $target ) {
+					$path = parent::entry_temp_path( $target );
+					$this->names[] = basename( $path );
+					return $path;
+				}
+			};
+			$result = $this->run_all( $this->config( array( $part ) ) );
+			$this->assertNull( $result['error'] );
+			$this->assertTrue( $result['done'] );
+			$this->assertCount( 2, $this->restorer->names );
+			$tokens = array();
+			foreach ( $this->restorer->names as $name ) {
+				$this->assertSame( 1, preg_match( '/^\.mainwp-restore-([0-9a-f]+)-[0-9a-f]{16}\.tmp$/', $name, $matches ) );
+				$tokens[] = $matches[1];
+			}
+			$this->assertSame( $tokens[0], $tokens[1] );
+			$owners[] = $tokens[0];
+		}
+		$this->assertNotSame( $owners[0], $owners[1] );
 	}
 
 	public static function temp_collisions() {
@@ -564,25 +639,81 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$part = $this->make_zip( 'collision.zip', array( 'file.txt' => 'restored bytes' ) );
 		$result = $this->run_all( $this->config( array( $part ) ) );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
-		$this->assertSame( 'Could not create a temporary file in the site root; the restore needs write permission on that directory.', $result['error'] );
+		$this->assertSame( 'Could not create a temporary file in the site root: three generated names already existed; another restore may be running on this site.', $result['error'] );
 		$this->assertSame( 3, $this->restorer->attempts );
 		$this->assertSame( 'peer bytes', file_get_contents( $peer ) );
 		$this->assertSame( 'live bytes', file_get_contents( $this->extract_to . '/file.txt' ) );
 	}
 
-	public function test_directory_sweep_is_guarded_and_runs_once() {
+	public static function sweep_candidates() {
+		return array(
+			'own closed file' => array( '.mainwp-restore-abc123-0123456789abcdef.tmp', 'file', true ),
+			'own open file' => array( '.mainwp-restore-abc123-0123456789abcdef.tmp', 'open', true ),
+			'foreign file' => array( '.mainwp-restore-def456-0123456789abcdef.tmp', 'file', false ),
+			'owner prefix only' => array( '.mainwp-restore-abc1230-0123456789abcdef.tmp', 'file', false ),
+			'legacy file' => array( '.mainwp-restore-0123456789abcdef.tmp', 'file', false ),
+			'own symlink' => array( '.mainwp-restore-abc123-0123456789abcdef.tmp', 'link', false ),
+			'own directory' => array( '.mainwp-restore-abc123-0123456789abcdef.tmp', 'directory', false ),
+			'unrelated dotfile' => array( '.ordinary', 'file', false ),
+			'malformed name' => array( '.mainwp-restore-abc123-nothex.tmp', 'file', false ),
+		);
+	}
+
+	/** @dataProvider sweep_candidates */
+	public function test_sweep_removes_only_own_regular_temps( $name, $type, $deleted ) {
 		$directory = $this->extract_to . '/dir';
 		mkdir( $directory );
-		$stale = $directory . '/.mainwp-restore-abc123.tmp';
-		file_put_contents( $stale, 'abandoned bytes' );
-		file_put_contents( $directory . '/.ordinary', 'keep' );
-		file_put_contents( $directory . '/.mainwp-restore-nothex.tmp', 'keep' );
-		mkdir( $directory . '/.mainwp-restore-dead.tmp' );
+		$path = $directory . '/' . $name;
 		$outside = $this->dir . '/outside.txt';
 		file_put_contents( $outside, 'keep' );
-		symlink( $outside, $directory . '/.mainwp-restore-beef.tmp' );
-		$part = $this->make_zip( 'sweep.zip', array( 'dir/one.txt' => 'one', 'dir/two.txt' => 'two' ) );
-		$config = $this->config( array( $part ) );
+		$handle = null;
+		if ( 'link' === $type ) {
+			symlink( $outside, $path );
+		} elseif ( 'directory' === $type ) {
+			mkdir( $path );
+		} else {
+			file_put_contents( $path, 'keep' );
+			if ( 'open' === $type ) {
+				$handle = fopen( $path, 'rb' );
+				$this->assertIsResource( $handle );
+			}
+		}
+		try {
+			$part = $this->make_zip( 'sweep.zip', array( 'dir/file.txt' => 'restored' ) );
+			$result = $this->run_all( $this->config( array( $part ), array( 'temp_owner' => 'abc123' ) ) );
+			$this->assertNull( $result['error'] );
+			$this->assertTrue( $result['done'] );
+			clearstatcache( true, $path );
+			if ( $deleted ) {
+				$this->assertFileDoesNotExist( $path );
+			} elseif ( 'directory' === $type ) {
+				$this->assertDirectoryExists( $path );
+			} else {
+				$this->assertSame( 'keep', file_get_contents( $path ) );
+				$this->assertSame( 'link' === $type, is_link( $path ) );
+			}
+			$this->assertSame( 'keep', file_get_contents( $outside ) );
+			$this->assertSame( 'restored', file_get_contents( $directory . '/file.txt' ) );
+		} finally {
+			if ( is_resource( $handle ) ) {
+				fclose( $handle );
+			}
+		}
+	}
+
+	public static function directory_aliases() {
+		return array( 'dot' => array( 'a/./b/y' ), 'repeated slash' => array( 'a//b/y' ) );
+	}
+
+	/** @dataProvider directory_aliases */
+	public function test_directory_sweep_runs_once_for_normalised_path( $alias ) {
+		$directory = $this->extract_to . '/a/b';
+		mkdir( $directory, 0777, true );
+		$this->assertSame( $this->extract_to . '/' . $alias, MainWP_Child_Backup_File_Restorer::validate_extract_path( $alias, $this->extract_to ) );
+		$stale = $directory . '/.mainwp-restore-abc123-0123456789abcdef.tmp';
+		file_put_contents( $stale, 'abandoned bytes' );
+		$part = $this->make_zip( 'sweep.zip', array( 'a/b/x' => 'one', $alias => 'two' ) );
+		$config = $this->config( array( $part ), array( 'temp_owner' => 'abc123' ) );
 		$first = $this->restorer->restore_slice( array(), $config, 0 );
 		$this->assertNull( $first['error'] );
 		$this->assertFalse( $first['done'] );
@@ -592,13 +723,61 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertNull( $last['error'] );
 		$this->assertTrue( $last['done'] );
 		$this->assertSame( 'new peer bytes', file_get_contents( $stale ), 'The same request must not sweep a directory twice.' );
-		$this->assertSame( 'keep', file_get_contents( $directory . '/.ordinary' ) );
-		$this->assertSame( 'keep', file_get_contents( $directory . '/.mainwp-restore-nothex.tmp' ) );
-		$this->assertDirectoryExists( $directory . '/.mainwp-restore-dead.tmp' );
-		$this->assertTrue( is_link( $directory . '/.mainwp-restore-beef.tmp' ) );
-		$this->assertSame( 'keep', file_get_contents( $outside ) );
-		$this->assertSame( 'one', file_get_contents( $directory . '/one.txt' ) );
-		$this->assertSame( 'two', file_get_contents( $directory . '/two.txt' ) );
+		$this->assertSame( 'one', file_get_contents( $directory . '/x' ) );
+		$this->assertSame( 'two', file_get_contents( $directory . '/y' ) );
+	}
+
+	public static function promotion_failures() {
+		return array(
+			'vanished temp' => array( 'vanished', 'The temporary file for file.txt was removed before it could be promoted; another restore worker may be running on this site.' ),
+			'failed rename' => array( 'rename', 'Could not write extracted file: file.txt.' ),
+			'failed chmod' => array( 'chmod', 'Could not write extracted file: file.txt.' ),
+		);
+	}
+
+	/** @dataProvider promotion_failures */
+	public function test_promotion_failure_distinguishes_vanished_temp( $failure, $message ) {
+		$this->restorer = new class( $failure ) extends MainWP_Child_Backup_File_Restorer {
+			private $failure;
+			private $temp;
+			private $target;
+			public function __construct( $failure ) {
+				$this->failure = $failure;
+			}
+			protected function entry_temp_path( $target ) {
+				$this->target = $target;
+				$this->temp = parent::entry_temp_path( $target );
+				return $this->temp;
+			}
+			protected function extraction_limits() {
+				if ( null !== $this->temp ) {
+					// The stream is open by the time the byte budget is checked.
+					if ( 'rename' === $this->failure ) {
+						mkdir( $this->target );
+					} else {
+						unlink( $this->temp );
+					}
+				}
+				return parent::extraction_limits();
+			}
+		};
+		$target = $this->extract_to . '/file.txt';
+		if ( 'chmod' === $failure ) {
+			file_put_contents( $target, 'live bytes' );
+		}
+		$part = $this->make_zip( 'promotion.zip', array( 'file.txt' => 'replacement' ) );
+		$result = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertFalse( $result['done'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertSame( $message, $result['error'] );
+		$this->assertSame( array(), glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) );
+		if ( 'chmod' === $failure ) {
+			$this->assertSame( 'live bytes', file_get_contents( $target ) );
+		} elseif ( 'rename' === $failure ) {
+			$this->assertDirectoryExists( $target );
+		} else {
+			$this->assertFileDoesNotExist( $target );
+		}
 	}
 
 	public function test_replacement_preserves_owner_and_group() {

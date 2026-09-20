@@ -18,6 +18,17 @@
  * later parts overwrite the base, and tombstones delete files through
  * the same path discipline.
  *
+ * The .mainwp-restore-*.tmp name is reserved for owner-tagged extraction
+ * temps; backup walkers exclude both legacy and owner-tagged forms from
+ * every archive so interrupted output cannot become backup data. Before
+ * writing into a directory, the sweep reclaims only this task's own temps.
+ * Foreign and legacy names are never swept, and archived members with
+ * reserved names are restored as is. If a restore never resumes, its temp
+ * remains until an operator removes it: at most one per dead worker, bounded
+ * by the entry byte cap, attributable by its owner token, and never archived.
+ * Terminal reclamation would require durable directory tracking or reopening
+ * archives on a failure path.
+ *
  * @package MainWP\Child
  */
 
@@ -50,6 +61,13 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     private $swept_directories = array();
 
     /**
+     * Stable task token, or a random token for this standalone restorer.
+     *
+     * @var string|null
+     */
+    private $temp_owner;
+
+    /**
      * Whether compressed preparation refused the extraction limits.
      *
      * @var bool
@@ -60,6 +78,19 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     const MAX_EXPANDED_BYTES         = 68719476736;
     const MAX_COMPRESSION_RATIO      = 200;
     const RATIO_MIN_COMPRESSED_BYTES = 65536;
+    const TEMP_PREFIX                = '.mainwp-restore-';
+    const TEMP_SUFFIX                = '.tmp';
+
+    /**
+     * Identify reserved legacy and owner-tagged basenames for backup exclusion.
+     *
+     * @param string $basename File basename.
+     *
+     * @return bool Whether the name is reserved.
+     */
+    public static function is_reserved_temp_name( $basename ) {
+        return (bool) preg_match( '/^' . preg_quote( self::TEMP_PREFIX, '/' ) . '[0-9a-f]+(?:-[0-9a-f]+)?' . preg_quote( self::TEMP_SUFFIX, '/' ) . '\z/', $basename );
+    }
 
     /**
      * Allow small fixtures to exercise the production bounds.
@@ -81,7 +112,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @param array     $cursor   Resume cursor (empty array on first call).
      * @param array     $config   { parts: string[], hashes: array<string,string>
      *                            keyed by basename, extract_to: string,
-     *                            checkpoint_cursor?: callable }.
+     *                            checkpoint_cursor?: callable,
+     *                            temp_owner?: string (lowercase hex, stable per task) }.
      * @param float|int $deadline Absolute epoch the slice must yield by.
      *
      * @return array { done: bool, cursor: array, error: string|null,
@@ -97,6 +129,14 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             ),
             is_array( $cursor ) ? $cursor : array()
         );
+
+        if ( null === $this->temp_owner ) {
+            $temp_owner = isset( $config['temp_owner'] ) ? $config['temp_owner'] : bin2hex( random_bytes( 8 ) );
+            if ( ! is_string( $temp_owner ) || ! preg_match( '/^[0-9a-f]+\z/', $temp_owner ) ) {
+                return $this->result( false, $cursor, 'Invalid restore temporary file owner.', MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+            }
+            $this->temp_owner = $temp_owner;
+        }
 
         $this->checkpoint_cursor = isset( $config['checkpoint_cursor'] ) ? $config['checkpoint_cursor'] : null;
         $parts                   = $config['parts'];
@@ -750,7 +790,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @throws \Throwable After discarding failed temporary output.
      */
     private function write_entry_stream( $stream, $target, &$cursor, $compressed, $entry_name ) {
-        $this->sweep_entry_temps( dirname( $target ) );
+        $directory = dirname( $target );
+        $this->sweep_entry_temps( $directory );
         $perms = false;
         $owner = false;
         $group = false;
@@ -771,6 +812,9 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         }
         if ( false === $out ) {
             $parent = dirname( $entry_name );
+            if ( is_writable( $directory ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- diagnose exclusive creation in the validated directory.
+                throw new \Exception( sprintf( 'Could not create a temporary file in %s: three generated names already existed; another restore may be running on this site.', '.' === $parent ? 'the site root' : esc_html( $parent ) ) );
+            }
             throw new \Exception( sprintf( 'Could not create a temporary file in %s; the restore needs write permission on that directory.', '.' === $parent ? 'the site root' : esc_html( $parent ) ) );
         }
         try {
@@ -784,6 +828,10 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 throw new \Exception( sprintf( 'Could not write extracted file: %s.', esc_html( $entry_name ) ) );
             }
             if ( ! @rename( $temp, $target ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- same-directory atomic replacement never follows a leaf link.
+                clearstatcache( true, $temp );
+                if ( ! file_exists( $temp ) ) {
+                    throw new \Exception( sprintf( 'The temporary file for %s was removed before it could be promoted; another restore worker may be running on this site.', esc_html( $entry_name ) ) );
+                }
                 throw new \Exception( sprintf( 'Could not write extracted file: %s.', esc_html( $entry_name ) ) );
             }
             clearstatcache( true, $target );
@@ -813,23 +861,44 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @return string Temporary path.
      */
     protected function entry_temp_path( $target ) {
-        return dirname( $target ) . '/.mainwp-restore-' . bin2hex( random_bytes( 8 ) ) . '.tmp';
+        return dirname( $target ) . '/' . self::TEMP_PREFIX . $this->temp_owner . '-' . bin2hex( random_bytes( 8 ) ) . self::TEMP_SUFFIX;
     }
 
     /**
-     * Reclaim abandoned regular temps once per directory in this request.
+     * Match only names attributable to this restore task.
+     *
+     * @param string $basename File basename.
+     *
+     * @return bool Whether this task owns the temp name.
+     */
+    private function is_owned_temp_name( $basename ) {
+        return self::is_reserved_temp_name( $basename ) && 0 === strpos( $basename, self::TEMP_PREFIX . $this->temp_owner . '-' );
+    }
+
+    /**
+     * Reclaim this task's regular temps, including a dead peer's open file.
+     *
+     * Age cannot distinguish abandoned temps from restored members, whose
+     * mtimes are fresh. Ownership makes repeated sweeps across slices safe;
+     * the once-per-object directory guard only avoids redundant scans.
      *
      * @param string $directory Validated target directory.
      */
     private function sweep_entry_temps( $directory ) {
+        $resolved  = realpath( $directory );
+        $directory = false === $resolved ? $directory : $resolved;
         if ( isset( $this->swept_directories[ $directory ] ) ) {
             return;
         }
         $this->swept_directories[ $directory ] = true;
-        foreach ( (array) glob( $directory . '/.mainwp-restore-*.tmp' ) as $temp ) {
-            if ( preg_match( '/^\.mainwp-restore-[0-9a-f]+\.tmp$/', basename( $temp ) ) && ! is_link( $temp ) && is_file( $temp ) ) {
-                wp_delete_file( $temp );
+        foreach ( (array) glob( $directory . '/' . self::TEMP_PREFIX . '*' . self::TEMP_SUFFIX ) as $temp ) {
+            if ( ! $this->is_owned_temp_name( basename( $temp ) ) ) {
+                continue;
             }
+            if ( is_link( $temp ) || ! is_file( $temp ) ) {
+                continue;
+            }
+            wp_delete_file( $temp );
         }
     }
 

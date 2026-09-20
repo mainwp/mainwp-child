@@ -250,6 +250,65 @@ class BackupRestoreLimitsTest extends WP_UnitTestCase {
 		$this->assertSame( array(), glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) );
 	}
 
+	public function test_file_runner_preserves_temp_named_member_across_owned_slices() {
+		$runner = new class() extends MainWP_Child_Restore_Task_Runner {
+			public $root;
+			public $saved;
+			public $final_state;
+			public $restorers = array();
+			protected function site_root() {
+				return $this->root;
+			}
+			protected function file_restorer() {
+				$restorer = new class() extends MainWP_Child_Backup_File_Restorer {
+					public $config;
+					public function restore_slice( $cursor, $config, $deadline ) {
+						$this->config = $config;
+						return parent::restore_slice( $cursor, $config, 0 );
+					}
+				};
+				$this->restorers[] = $restorer;
+				return $restorer;
+			}
+			protected function checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, $then_yield ) {
+				$this->saved = $sub_state;
+				return $this->slice_result( $version + 1, $then_yield );
+			}
+			protected function advance_phase( $task, $version, $sub_state, $backup_dir ) {
+				$this->final_state = $sub_state;
+				return $this->slice_result( $version, true );
+			}
+		};
+		$runner->root = $this->extract_to;
+		$task = (object) array( 'task_id' => 'owned-slices-test' );
+		$scratch = $runner->scratch_dir( $task->task_id, $this->dir );
+		mkdir( $scratch );
+		$name = 'dir/.mainwp-restore-' . md5( 'archived member' ) . '.tmp';
+		$part = $this->make_archive( 'zip', array( $name => 'member', 'dir/later.txt' => 'later' ) );
+		copy( $part, $scratch . basename( $part ) );
+		$state = array( 'params' => array( 'artifacts' => array( array(
+			'role' => 'part', 'file' => basename( $part ), 'sha256' => hash_file( 'sha256', $part ),
+		) ) ) );
+		$method = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'run_restoring_files' );
+		$method->setAccessible( true );
+		$result = $method->invoke( $runner, $task, 1, $state, time() + 60, $this->dir );
+		$this->assertSame( 2, $result['version'] );
+		$this->assertSame( 1, $runner->saved['file_restore']['part_cursor']['entries'] );
+		$this->assertSame( 'member', file_get_contents( $this->extract_to . '/' . $name ) );
+		$this->assertFileDoesNotExist( $this->extract_to . '/dir/later.txt' );
+		$method->invoke( $runner, $task, $result['version'], $runner->saved, time() + 60, $this->dir );
+		$this->assertSame( 2, $runner->final_state['file_restore']['part_cursor']['entries'] );
+		$this->assertFileExists( $this->extract_to . '/' . $name );
+		$this->assertSame( 'member', file_get_contents( $this->extract_to . '/' . $name ) );
+		$this->assertSame( 'later', file_get_contents( $this->extract_to . '/dir/later.txt' ) );
+		$this->assertCount( 2, $runner->restorers );
+		$this->assertNotSame( $runner->restorers[0], $runner->restorers[1] );
+		foreach ( $runner->restorers as $restorer ) {
+			$this->assertArrayHasKey( 'temp_owner', $restorer->config );
+			$this->assertSame( substr( hash( 'sha256', $task->task_id ), 0, 16 ), $restorer->config['temp_owner'] );
+		}
+	}
+
 	public static function cursor_storage() {
 		return array( 'inline' => array( false ), 'sidecar' => array( true ) );
 	}

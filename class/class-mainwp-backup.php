@@ -1795,7 +1795,7 @@ class MainWP_Backup {
      * @return bool Whether either path is excluded.
      */
     public static function excluded_by_path_or_target( $excludes, $name ) {
-        if ( preg_match( '/^\.mainwp-restore-[0-9a-f]+\.tmp$/', basename( $name ) ) ) {
+        if ( MainWP_Child_Backup_File_Restorer::is_reserved_temp_name( basename( $name ) ) ) {
             return true;
         }
         if ( MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $name ) ) ) {
@@ -1805,7 +1805,7 @@ class MainWP_Backup {
         if ( false === $real ) {
             return false;
         }
-        if ( preg_match( '/^\.mainwp-restore-[0-9a-f]+\.tmp$/', basename( $real ) ) ) {
+        if ( MainWP_Child_Backup_File_Restorer::is_reserved_temp_name( basename( $real ) ) ) {
             return true;
         }
         if ( $real !== $name && MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $real ) ) ) {
