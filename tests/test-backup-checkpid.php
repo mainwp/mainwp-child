@@ -6,6 +6,7 @@
  */
 
 use MainWP\Child\MainWP_Backup;
+use MainWP\Child\MainWP_Child_Backup_Mutex;
 
 /**
  * Tests for backup stall detection.
@@ -134,4 +135,83 @@ class BackupCheckpidTest extends WP_UnitTestCase {
 	public function test_is_pid_lock_fresh_false_when_no_pid_files() {
 		$this->assertFalse( MainWP_Backup::is_pid_lock_fresh( $this->scratch ) );
 	}
+
+	public function test_zip_full_entry_creates_and_refreshes_pid_with_a_tiny_driver() {
+		$backup = new class() extends MainWP_Backup {
+			public $pid_path;
+			public $observed = array();
+
+			public function check_zip_support() {
+				return true;
+			}
+
+			public function create_zip_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp ) {
+				$this->pid_path = $this->pid_file;
+				$this->observed['exists'] = is_file( $this->pid_file );
+				$this->observed['content'] = file_get_contents( $this->pid_file );
+				$old = time() - 100;
+				touch( $this->pid_file, $old );
+				$this->heartbeat();
+				clearstatcache( true, $this->pid_file );
+				$this->observed['throttled'] = filemtime( $this->pid_file );
+				$this->heartbeat_at = time() - 41;
+				$this->heartbeat();
+				clearstatcache( true, $this->pid_file );
+				$this->observed['refreshed'] = filemtime( $this->pid_file ) > $old;
+				$this->observed['old'] = $old;
+				$this->observed['path'] = $filepath;
+				file_put_contents( $filepath, 'tiny archive fixture' );
+				return true;
+			}
+		};
+		$pid = 'zip-heartbeat-' . wp_generate_uuid4();
+		try {
+			$result = $backup->create_full_backup( array(), $pid, true, true, 0, false, false, false, true, 'zip', $pid );
+			$this->assertIsArray( $result );
+			$this->assertTrue( $backup->observed['exists'] );
+			$this->assertSame( $backup->observed['path'], $backup->observed['content'] );
+			$this->assertSame( $backup->observed['old'], $backup->observed['throttled'] );
+			$this->assertTrue( $backup->observed['refreshed'] );
+			$this->assertSame( 'busy', $backup->get_checkpid_status( filemtime( $backup->pid_path ), dirname( $backup->pid_path ) ) );
+		} finally {
+			if ( is_file( $backup->pid_path ) ) {
+				unlink( $backup->pid_path );
+			}
+			if ( isset( $backup->observed['path'] ) && is_file( $backup->observed['path'] ) ) {
+				unlink( $backup->observed['path'] );
+			}
+		}
+	}
+
+	public function test_legacy_heartbeat_refreshes_without_pid_and_stops_after_takeover() {
+		$backup = new class() extends MainWP_Backup {
+			public function own( $owner ) {
+				$this->mutex_owner = $owner;
+				$this->heartbeat_at = 0;
+			}
+		};
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'heartbeat-owner', 300 ) );
+		$backup->own( 'heartbeat-owner' );
+		$before = MainWP_Child_Backup_Mutex::holder();
+		try {
+			$backup->heartbeat();
+			$this->assertGreaterThan( $before['expires_at'], MainWP_Child_Backup_Mutex::holder()['expires_at'] );
+			MainWP_Child_Backup_Mutex::release( 'heartbeat-owner' );
+			$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'successor', 3600 ) );
+			$backup->own( 'heartbeat-owner' );
+			try {
+				$backup->heartbeat();
+				$this->fail( 'A displaced writer must stop.' );
+			} catch ( \MainWP\Child\MainWP_Exception $e ) {
+				$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+			}
+			$this->assertSame( 'successor', MainWP_Child_Backup_Mutex::holder()['owner'] );
+		} finally {
+			$holder = MainWP_Child_Backup_Mutex::holder();
+			if ( null !== $holder ) {
+				MainWP_Child_Backup_Mutex::release( $holder['owner'] );
+			}
+		}
+	}
+
 }

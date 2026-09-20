@@ -403,4 +403,67 @@ class DbDumperTest extends WP_UnitTestCase {
 			$this->assertSame( 0, $flags );
 		}
 	}
+
+	public function test_tier1_heartbeat_runs_after_every_table() {
+		$prefix = $this->scratch . '/heartbeat-tier1';
+		$seen = array();
+		$result = MainWP_Backup_Db_Dumper::instance()->dump_to_files(
+			$prefix,
+			null,
+			function () use ( $prefix, &$seen ) {
+				$seen[] = count( (array) glob( $prefix . '-*.sql.php' ) );
+			}
+		);
+		$this->assertNotEmpty( $result['files'] );
+		foreach ( range( 1, count( $result['files'] ) ) as $count ) {
+			$this->assertContains( $count, $seen, 'Each completed table must heartbeat before the next one.' );
+		}
+	}
+
+	public function test_tier2_heartbeat_runs_after_every_table() {
+		$prefix = $this->scratch . '/heartbeat-tier2';
+		$seen = array();
+		$result = MainWP_Backup_Db_Dumper::instance()->dump_tier2_slice(
+			$prefix,
+			null,
+			3600,
+			function () use ( $prefix, &$seen ) {
+				$seen[] = count( (array) glob( $prefix . '-*.sql.php' ) );
+			}
+		);
+		$this->assertTrue( $result['done'] );
+		$this->assertNotEmpty( $result['files'] );
+		foreach ( range( 1, count( $result['files'] ) ) as $count ) {
+			$this->assertContains( $count, $seen, 'Each completed table must heartbeat before the next one.' );
+		}
+	}
+
+	public function test_streamed_writes_heartbeat_every_five_megabytes_and_propagate_loss() {
+		$dumper = new MainWP_Backup_Db_Dumper();
+		$write = new ReflectionMethod( $dumper, 'write_checked' );
+		$write->setAccessible( true );
+		$fh = fopen( $this->scratch . '/heartbeat-stream', 'w' );
+		$calls = 0;
+		$heartbeat = function () use ( &$calls ) { ++$calls; };
+		try {
+			for ( $i = 0; $i < 4; ++$i ) {
+				$write->invoke( $dumper, $fh, str_repeat( 'a', 1024 * 1024 ), $heartbeat );
+			}
+			$this->assertSame( 0, $calls );
+			$write->invoke( $dumper, $fh, str_repeat( 'a', 1024 * 1024 ), $heartbeat );
+			$this->assertSame( 1, $calls );
+			$write->invoke( $dumper, $fh, str_repeat( 'a', 10 * 1024 * 1024 ), $heartbeat );
+			$this->assertSame( 3, $calls );
+			$failure = new \MainWP\Child\MainWP_Exception( 'Ownership lost', null, \MainWP\Child\MainWP_Backup_Error::ERR_ALREADY_RUNNING );
+			try {
+				$write->invoke( $dumper, $fh, str_repeat( 'a', 5 * 1024 * 1024 ), function () use ( $failure ) { throw $failure; } );
+				$this->fail( 'The writer must stop when its heartbeat fails.' );
+			} catch ( \MainWP\Child\MainWP_Exception $e ) {
+				$this->assertSame( $failure, $e );
+			}
+		} finally {
+			fclose( $fh );
+		}
+	}
+
 }

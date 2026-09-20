@@ -126,6 +126,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      *
      * @throws MainWP_Exception On an unknown type, an already-active task
      *                          (the single-backup invariant), or a failed insert.
+     * @throws \Throwable Engine preparation failures after releasing the mutex.
      *
      * @return string Task id.
      */
@@ -133,9 +134,6 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         if ( ! in_array( $type, array( 'full', 'db', 'files', 'incremental' ), true ) ) {
             throw new MainWP_Exception( 'Unknown backup type requested for the backup task.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
         }
-
-        $params = $this->resolve_staged_manifest( $type, is_array( $params ) ? $params : array() );
-        $params = $this->spill_parent_manifest( $params );
 
         $spine = MainWP_Child_Backup_Task::instance();
         $spine->install();
@@ -147,19 +145,32 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         // backup. Reclaim only clears deadline-expired tasks, never a live one.
         $spine->reclaim_expired_tasks();
 
-        if ( false !== get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ) || ! empty( $spine->get_active_tasks() ) ) {
+        if ( ! empty( $spine->get_active_tasks() ) ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
         }
 
-        // Keep honoring pid files from legacy tar requests that began before
-        // the running marker was available.
-        if ( MainWP_Backup::is_pid_lock_fresh( $this->backup_dir() ) ) {
-            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        $task_id = 'task-' . time() . '-' . strtolower( wp_generate_password( 12, false ) );
+        $held    = MainWP_Child_Backup_Mutex::acquire( 'native', $task_id, MainWP_Child_Backup_Mutex::NATIVE_TTL );
+        if ( true !== $held ) {
+            $engine = is_array( $held ) ? $held['engine'] : '';
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) . ' ' . $engine ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message and holder.
         }
 
-        $task_id = $spine->create_task( $type, array( 'params' => is_array( $params ) ? $params : array() ) );
-        if ( false === $task_id ) {
-            throw new MainWP_Exception( 'The backup task could not be created on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+        try {
+            // Older legacy requests may have a pid file without a mutex.
+            $backup_dir = $this->backup_dir();
+            if ( MainWP_Backup::is_pid_lock_fresh( $backup_dir ) ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+            }
+            $spine->sweep_stale_markers( $backup_dir );
+            $params = $this->resolve_staged_manifest( $type, is_array( $params ) ? $params : array() );
+            $params = $this->spill_parent_manifest( $params );
+            if ( false === $spine->create_task( $type, array( 'params' => $params ), null, null, $task_id ) ) {
+                throw new MainWP_Exception( 'The backup task could not be created on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+            }
+        } catch ( \Throwable $e ) {
+            MainWP_Child_Backup_Mutex::release( $task_id );
+            throw $e;
         }
 
         return $task_id;
@@ -261,7 +272,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             array(
                 'phase'     => MainWP_Child_Backup_Task::PHASE_FAILED,
                 'sub_state' => $cancelled_state,
-            )
+            ),
+            false
         );
         if ( false === $new_version ) {
             // Something else wrote the row between the acquire and the
@@ -283,7 +295,11 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             );
         }
 
-        $spine->delete_sidecar( $task_id, $backup_dir );
+        try {
+            $spine->delete_sidecar( $task_id, $backup_dir );
+        } finally {
+            MainWP_Child_Backup_Mutex::release( $task_id );
+        }
         $spine->release_lease( $task_id, 'cancel', $new_version );
 
         return array(
@@ -377,6 +393,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @param bool   $lease_pre_held True when the caller already holds the lease (watchdog path).
      *
      * @return object|null Fresh task row after the slice.
+     * @throws MainWP_Exception Ownership loss is caught and checkpointed as failure.
      */
     public function advance_one_slice( $task, $owner, $lease_pre_held = false ) { // phpcs:ignore -- NOSONAR - slice loop with failure handling.
         $spine   = MainWP_Child_Backup_Task::instance();
@@ -402,12 +419,21 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         $this->current_task_id = $task_id;
-        $backup_dir            = $this->backup_dir();
+        $backup_dir            = '';
+        $mutex_held            = false;
+        $is_backup             = ! MainWP_Child_Backup_Task::is_restore_type( $task->type );
         $deadline              = time() + $this->slice_budget();
         $abandoned             = false;
 
         try {
-            $guard = 0;
+            if ( $is_backup ) {
+                $mutex_held = MainWP_Child_Backup_Mutex::refresh( $task_id, MainWP_Child_Backup_Mutex::NATIVE_TTL );
+                if ( ! $mutex_held ) {
+                    throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+                }
+            }
+            $backup_dir = $this->backup_dir();
+            $guard      = 0;
             while ( ++$guard <= 10 ) {
                 $task = $spine->get_task( $task_id );
                 if ( null === $task || MainWP_Child_Backup_Task::is_terminal_phase( $task->phase ) ) {
@@ -441,7 +467,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             // lease - otherwise a runner that lost its lease would overwrite
             // the new holder's state and delete its artifacts.
             $failed_row = $spine->get_task( $task_id );
-            $pre_fail   = null !== $failed_row ? $spine->read_sub_state( $failed_row, $backup_dir ) : null;
+            $pre_fail   = ( ! $is_backup || $mutex_held ) && null !== $failed_row ? $spine->read_sub_state( $failed_row, $backup_dir ) : null;
             if ( ! is_array( $pre_fail ) && isset( $sub_state ) && is_array( $sub_state ) ) {
                 $pre_fail = $sub_state;
             }
@@ -458,12 +484,21 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                             'code'    => $code,
                         ),
                     ),
-                )
+                ),
+                false
             );
             if ( false !== $new_version ) {
                 $version = $new_version;
-                $this->cleanup_failed_task_artifacts( $task_id, $pre_fail, $backup_dir );
-                $spine->delete_sidecar( $task_id, $backup_dir );
+                try {
+                    if ( ! $is_backup || $mutex_held ) {
+                        $this->cleanup_failed_task_artifacts( $task_id, $pre_fail, $backup_dir );
+                        $spine->delete_sidecar( $task_id, $backup_dir );
+                    }
+                } finally {
+                    if ( $is_backup ) {
+                        MainWP_Child_Backup_Mutex::release( $task_id );
+                    }
+                }
             }
         }
 
@@ -548,11 +583,6 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         $params = isset( $sub_state['params'] ) && is_array( $sub_state['params'] ) ? $sub_state['params'] : array();
 
         if ( empty( $sub_state['db_prefix'] ) ) {
-            // Legacy archives may still be reading fragments under this dump prefix.
-            if ( false !== get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ) ) {
-                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
-            }
-
             global $wpdb;
             $sub_state['db_prefix'] = $this->build_db_prefix( $task, $params, $backup_dir );
             $tables                 = $wpdb->get_col( "SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'", 0 ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- match the dumper's table inventory.
@@ -1206,24 +1236,31 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             array(
                 'phase'     => $next,
                 'sub_state' => $serialized,
-            )
+            ),
+            false
         );
         if ( false === $new_version ) {
             return $this->slice_result( $version, true, true );
         }
 
         if ( MainWP_Child_Backup_Task::is_terminal_phase( $next ) ) {
-            if ( MainWP_Child_Backup_Task::PHASE_COMPLETED === $next && ! empty( $sub_state['manifest'] ) ) {
-                // The run that emitted staged manifest sidecars finished -
-                // promote them as the snapshot the next incremental diffs
-                // against. A failed run never reaches this, so the previous
-                // snapshot's manifest stays usable.
-                $this->promote_manifest_sidecars( $backup_dir );
+            try {
+                if ( MainWP_Child_Backup_Task::PHASE_COMPLETED === $next && ! empty( $sub_state['manifest'] ) ) {
+                    // The run that emitted staged manifest sidecars finished -
+                    // promote them as the snapshot the next incremental diffs
+                    // against. A failed run never reaches this, so the previous
+                    // snapshot's manifest stays usable.
+                    $this->promote_manifest_sidecars( $backup_dir );
+                }
+                // The sliced walk keeps its run files until the task ends so a
+                // resumed merge can always re-read them; sweep them now.
+                $this->cleanup_walk_runs( $backup_dir );
+                $spine->delete_sidecar( $task->task_id, $backup_dir );
+            } finally {
+                if ( ! MainWP_Child_Backup_Task::is_restore_type( $task->type ) ) {
+                    MainWP_Child_Backup_Mutex::release( $task->task_id );
+                }
             }
-            // The sliced walk keeps its run files until the task ends so a
-            // resumed merge can always re-read them; sweep them now.
-            $this->cleanup_walk_runs( $backup_dir );
-            $spine->delete_sidecar( $task->task_id, $backup_dir );
         }
 
         return $this->slice_result( $new_version, false );
@@ -1365,8 +1402,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     /**
      * Stable dump file prefix for this task.
      *
-     * A full backup uses the bare prefix the legacy archiver paths expect;
-     * a db backup gets the legacy timestamped name.
+     * Full backups must never adopt fragments left by another task.
      *
      * @param object $task       Task row.
      * @param array  $params     Backup params.
@@ -1377,7 +1413,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     protected function build_db_prefix( $task, $params, $backup_dir ) {
         $dir = rtrim( $backup_dir, '/' ) . '/';
         if ( 'full' === $task->type ) {
-            return $dir . 'dbBackup';
+            return $dir . 'dbBackup-' . $task->task_id;
         }
         $name = isset( $params['file'] ) && '' !== $params['file'] ? $params['file'] . '-' : '';
         return $dir . 'dbBackup-' . $name . time();

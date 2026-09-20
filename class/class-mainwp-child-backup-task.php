@@ -248,22 +248,23 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * sits in a non-terminal phase on a low-traffic child whose cron never
      * fires.
      *
-     * @param string   $type             Task type (full/db/files/incremental/restore/restore_db).
-     * @param array    $sub_state        Initial resume cursor.
-     * @param int|null $max_resumes      Resume cap override (restore tasks
+     * @param string      $type             Task type (full/db/files/incremental/restore/restore_db).
+     * @param array       $sub_state        Initial resume cursor.
+     * @param int|null    $max_resumes      Resume cap override (restore tasks
      *                                   span more slices than a backup).
-     * @param int|null $deadline_seconds Wall-clock horizon override, for
+     * @param int|null    $deadline_seconds Wall-clock horizon override, for
      *                                   work that scales with payload size.
+     * @param string|null $task_id          Task id reserved by the engine mutex, or null to generate one.
      *
      * @return string|false Task id, or false on insert failure.
      */
-    public function create_task( $type = 'full', $sub_state = array(), $max_resumes = null, $deadline_seconds = null ) {
+    public function create_task( $type = 'full', $sub_state = array(), $max_resumes = null, $deadline_seconds = null, $task_id = null ) {
         global $wpdb;
 
         $this->install();
 
         $max_resumes = null === $max_resumes ? self::DEFAULT_MAX_RESUMES : (int) $max_resumes;
-        $task_id     = 'task-' . time() . '-' . strtolower( wp_generate_password( 12, false ) );
+        $task_id     = null === $task_id ? 'task-' . time() . '-' . strtolower( wp_generate_password( 12, false ) ) : $task_id;
         $deadline    = null === $deadline_seconds ? self::WALL_CLOCK_WINDOW_SECONDS : (int) $deadline_seconds;
 
         $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- dedicated spine table.
@@ -394,13 +395,14 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     /**
      * Checkpoint task state with a compare-and-swap on version.
      *
-     * @param string $task_id Task id.
-     * @param int    $version Version the caller last observed.
-     * @param array  $fields  Allowed: phase, sub_state (array), resume_count.
+     * @param string $task_id       Task id.
+     * @param int    $version       Version the caller last observed.
+     * @param array  $fields        Allowed: phase, sub_state (array), resume_count.
+     * @param bool   $release_mutex False while the terminal caller still has shared-file cleanup.
      *
      * @return int|false The new version on success, false when the version was stale.
      */
-    public function checkpoint( $task_id, $version, $fields ) {
+    public function checkpoint( $task_id, $version, $fields, $release_mutex = true ) {
         global $wpdb;
 
         $sets = array( 'last_progress_at = NOW()', 'version = version + 1' );
@@ -430,6 +432,13 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                 $args
             )
         );
+
+        if ( 1 === $result && $release_mutex && isset( $fields['phase'] ) && self::is_terminal_phase( $fields['phase'] ) ) {
+            $task = $this->get_task( $task_id );
+            if ( null !== $task && ! self::is_restore_type( $task->type ) ) {
+                MainWP_Child_Backup_Mutex::release( $task_id );
+            }
+        }
 
         return ( 1 === $result ) ? $version + 1 : false;
     }
@@ -718,9 +727,13 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         // sidecar survives until the delete below) - plus the walk-run
         // scratch and the sidecar this path used to leave behind.
         if ( 1 === $result && ! self::is_restore_type( $task->type ) ) {
-            $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
-            MainWP_Child_Backup_Task_Runner::instance()->cleanup_failed_task_artifacts( $task_id, $this->read_sub_state( $task, $dirs[0] ), $dirs[0] );
-            $this->delete_sidecar( $task_id, $dirs[0] );
+            try {
+                $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
+                MainWP_Child_Backup_Task_Runner::instance()->cleanup_failed_task_artifacts( $task_id, $this->read_sub_state( $task, $dirs[0] ), $dirs[0] );
+                $this->delete_sidecar( $task_id, $dirs[0] );
+            } finally {
+                MainWP_Child_Backup_Mutex::release( $task_id );
+            }
         }
 
         return 1 === $result;

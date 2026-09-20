@@ -8,6 +8,7 @@
 use MainWP\Child\MainWP_Backup_Db_Restore_Engine;
 use MainWP\Child\MainWP_Backup_Error;
 use MainWP\Child\MainWP_Child_Backup_Task;
+use MainWP\Child\MainWP_Child_Backup_Mutex;
 use MainWP\Child\MainWP_Child_Backup_Task_Runner;
 use MainWP\Child\MainWP_Child_Callable;
 use MainWP\Child\MainWP_Child_Restore_Task_Runner;
@@ -1454,6 +1455,32 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'woo_merge', $sub_state );
 		$this->assertContains( 'begin_maintenance', $this->runner->fake_engine->calls );
 		$this->assertContains( 'exit_maintenance', $this->runner->fake_engine->calls );
+	}
+
+	public function test_restore_slice_advances_without_a_backup_mutex() {
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$before = $this->spine->get_task( $task_id );
+		$this->assertTrue( MainWP_Child_Backup_Task::is_restore_type( $before->type ) );
+		$mutex_queries = array();
+		$record_mutex_query = function ( $sql ) use ( &$mutex_queries ) {
+			if ( false !== strpos( $sql, MainWP_Child_Backup_Mutex::OPTION_NAME ) ) {
+				$mutex_queries[] = $sql;
+			}
+			return $sql;
+		};
+		add_filter( 'query', $record_mutex_query );
+		try {
+			$after = $this->runner->advance_one_slice( $before, 'dashboard' );
+			$this->assertGreaterThan( (int) $before->version, (int) $after->version );
+			$this->assertNotSame( MainWP_Child_Backup_Task::PHASE_FAILED, $after->phase );
+			$completed = $this->drive( $task_id );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $completed->phase );
+			$this->assertSame( array(), $mutex_queries, 'Restore slices and terminal checkpoints must not access the backup mutex.' );
+		} finally {
+			remove_filter( 'query', $record_mutex_query );
+		}
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
 	}
 
 	/**

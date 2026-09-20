@@ -25,11 +25,39 @@ if ( ! defined( 'ABSPATH' ) ) {
 class MainWP_Backup {
 
     /**
-     * Shared marker for legacy dumps that native tasks could overwrite.
+     * Nested legacy entry points share the outer request's lock.
      *
      * @var string
      */
-    const LEGACY_RUNNING_TRANSIENT = 'mainwp_legacy_backup_running';
+    protected $mutex_owner = '';
+
+    /**
+     * Retries must find the original run's dump fragments.
+     *
+     * @var string|null
+     */
+    protected $db_run_id = null;
+
+    /**
+     * ZIP and tar use the same checkpid path.
+     *
+     * @var string|false
+     */
+    protected $pid_file = false;
+
+    /**
+     * Checkpid expects the archive path as its pid-file contents.
+     *
+     * @var string
+     */
+    protected $pid_content = '';
+
+    /**
+     * Pid writes and mutex refreshes share the legacy throttle.
+     *
+     * @var int
+     */
+    protected $heartbeat_at = 0;
 
     /**
      * Whether to exclude zip archives.
@@ -321,6 +349,11 @@ class MainWP_Backup {
         }
         $filepath = $backupdir . $file;
         $fileurl  = $file;
+
+        $this->pid_file     = $pid;
+        $this->pid_content  = $filepath;
+        $this->heartbeat_at = 0;
+        $this->heartbeat();
 
         if ( ! $addConfig ) {
             if ( ! in_array( str_replace( ABSPATH, '', WP_CONTENT_DIR ), $excludes, true ) && ! in_array( 'wp-admin', $excludes, true ) && ! in_array( WPINC, $excludes, true ) ) {
@@ -651,29 +684,67 @@ class MainWP_Backup {
     }
 
     /**
-     * Protect legacy dump fragments until the archive has consumed them.
+     * Keep nested backup_db() calls under the outer request's ownership.
      *
-     * @return string Owner token for the marker this call created.
+     * @return string Owner token.
+     * @throws MainWP_Exception When another engine owns the child.
      */
-    public static function set_legacy_backup_running() {
-        // A crashed request expires at the legacy engine's three-hour deadness threshold.
-        $token = uniqid( 'legacy_', true );
-        set_transient( self::LEGACY_RUNNING_TRANSIENT, $token, 10800 );
-        // MainWP_Helper::error() dies inside the guarded region, and finally does not run on exit.
-        register_shutdown_function( array( __CLASS__, 'clear_legacy_backup_running' ), $token );
-
+    protected function acquire_backup_mutex() {
+        $token = wp_generate_uuid4();
+        $held  = MainWP_Child_Backup_Mutex::acquire( 'legacy', $token, MainWP_Child_Backup_Mutex::LEGACY_TTL );
+        if ( true !== $held ) {
+            $engine = is_array( $held ) ? $held['engine'] : '';
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) . ' ' . $engine ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message and holder.
+        }
+        $this->mutex_owner  = $token;
+        $this->db_run_id    = null;
+        $this->pid_file     = false;
+        $this->heartbeat_at = 0;
+        // MainWP_Helper::error() exits, bypassing finally.
+        register_shutdown_function( array( MainWP_Child_Backup_Mutex::class, 'release' ), $token );
         return $token;
     }
 
     /**
-     * Release the fragments for a later native dump.
+     * Preserve the fragment set when Dashboard retries an append request.
      *
-     * @param string $token Owner token returned by set_legacy_backup_running().
+     * @param string $dir Dump directory.
+     * @return string Per-run dump prefix.
      */
-    public static function clear_legacy_backup_running( $token ) {
-        if ( get_transient( self::LEGACY_RUNNING_TRANSIENT ) === $token ) {
-            delete_transient( self::LEGACY_RUNNING_TRANSIENT );
+    public function db_dump_prefix( $dir ) {
+        if ( null === $this->db_run_id ) {
+            // phpcs:disable WordPress.Security.NonceVerification -- authenticated Dashboard dispatch.
+            $run_id = ! empty( $_POST['fileUID'] ) ? sanitize_text_field( wp_unslash( $_POST['fileUID'] ) ) : '';
+            if ( '' === $run_id && ! empty( $_POST['pid'] ) ) {
+                $run_id = sanitize_text_field( wp_unslash( $_POST['pid'] ) );
+            }
+            // phpcs:enable WordPress.Security.NonceVerification
+            $run_id          = sanitize_file_name( $run_id );
+            $this->db_run_id = '' !== $run_id ? $run_id : wp_generate_uuid4();
         }
+        return trailingslashit( $dir ) . 'dbBackup-' . $this->db_run_id;
+    }
+
+    /**
+     * Keep checkpid and mutex ownership live through dumping and archiving.
+     *
+     * @throws MainWP_Exception When ownership is lost or the pid cannot be written.
+     */
+    public function heartbeat() {
+        if ( time() - $this->heartbeat_at < 40 ) {
+            return;
+        }
+        if ( false !== $this->pid_file ) {
+            MainWP_Helper::get_wp_filesystem();
+            global $wp_filesystem;
+            if ( ! $wp_filesystem->put_contents( $this->pid_file, $this->pid_content ) ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_PERMISSIONS ) ), null, MainWP_Backup_Error::ERR_PERMISSIONS ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+            }
+        }
+        if ( '' !== $this->mutex_owner && ! MainWP_Child_Backup_Mutex::refresh( $this->mutex_owner, MainWP_Child_Backup_Mutex::LEGACY_TTL ) ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+        }
+        $this->heartbeat_at = time();
     }
 
     /**
@@ -682,6 +753,8 @@ class MainWP_Backup {
      * @param bool $write Whether or not to execute MainWP_Helper::write(), Default: true.
      *
      * @return array Array of information on the backup containing the type of backup performed, full, or DB & whether or not it was successful.
+     *
+     * @throws MainWP_Exception On a refused run when response writing is disabled.
      *
      * @uses \MainWP\Child\MainWP_Helper::set_limit() Set PHP Memory Limit and PHP Max Execution time values.
      * @uses \MainWP\Child\MainWP_Helper::end_session() End session and flush the output buffer.
@@ -700,18 +773,20 @@ class MainWP_Backup {
 
         try {
             $this->assert_no_active_spine_task();
-            $this->check_backup_readiness();
+            $token = $this->acquire_backup_mutex();
         } catch ( MainWP_Exception $e ) {
+            if ( ! $write ) {
+                throw $e;
+            }
             MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
         }
 
         // phpcs:disable WordPress.Security.NonceVerification -- authenticated Dashboard dispatch.
         $type = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
         // phpcs:enable WordPress.Security.NonceVerification
-        // Legacy refuses to start beside a native task whatever the type; hold the same line the other way.
-        $token = self::set_legacy_backup_running();
 
         try {
+            $this->check_backup_readiness();
             $timeout = $this->get_timeout_from_request();
             MainWP_Helper::set_limit( $timeout );
 
@@ -788,7 +863,8 @@ class MainWP_Backup {
         } catch ( MainWP_Exception $e ) {
             MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
         } finally {
-            self::clear_legacy_backup_running( $token );
+            MainWP_Child_Backup_Mutex::release( $token );
+            $this->mutex_owner = '';
         }
 
         if ( $write ) {
@@ -873,7 +949,11 @@ class MainWP_Backup {
      * @return array|bool $success Returns an array containing the Backup location & file size. Return FALSE on failure.
      */
     public function backup_db( $fileName = '', $ext = 'zip' ) {
-        $token = self::set_legacy_backup_running();
+        $owns_mutex = '' === $this->mutex_owner;
+        if ( $owns_mutex ) {
+            $this->assert_no_active_spine_task();
+            $this->acquire_backup_mutex();
+        }
         try {
             $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
             $dir       = $dirs[0];
@@ -910,7 +990,10 @@ class MainWP_Backup {
                 'filesize'  => filesize( $result['filepath'] ), // NOSONAR .
             );
         } finally {
-            self::clear_legacy_backup_running( $token );
+            if ( $owns_mutex ) {
+                MainWP_Child_Backup_Mutex::release( $this->mutex_owner );
+                $this->mutex_owner = '';
+            }
         }
     }
 
@@ -1430,9 +1513,10 @@ class MainWP_Backup {
                 $this->include_core_files( $nodes );
             }
 
-            $db_files = $this->get_or_create_db_dump_files( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup' );
+            $db_files = $this->get_or_create_db_dump_files( $this->db_dump_prefix( dirname( $filepath ) ) );
+            // Clone validation requires the fixed empty marker; table fragments retain their run id.
             foreach ( $db_files as $db_file ) {
-                $this->add_file_to_zipp( $db_file, basename( WP_CONTENT_DIR ) . '/' . basename( $db_file ) );
+                $this->add_file_to_zipp( $db_file, basename( WP_CONTENT_DIR ) . '/' . ( '.sql' === substr( $db_file, -4 ) ? 'dbBackup.sql' : basename( $db_file ) ) );
             }
 
             if ( file_exists( ABSPATH . '.htaccess' ) ) {
@@ -1665,7 +1749,7 @@ class MainWP_Backup {
         mkdir( $backupFolder ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
 
         // Create DB backup.
-        $db_files = $this->get_or_create_db_dump_files( $backupFolder . 'dbBackup' );
+        $db_files = $this->get_or_create_db_dump_files( $this->db_dump_prefix( $backupFolder ) );
 
         // Copy installation to backup folder.
         $nodes = glob( ABSPATH . '*' );
@@ -1711,7 +1795,7 @@ class MainWP_Backup {
         $this->copy_dir( $nodes, $excludes, $backupFolder, $excludenonwp, true );
 
         foreach ( $db_files as $db_file ) {
-            copy( $db_file, $backupFolder . basename( WP_CONTENT_DIR ) . '/' . basename( $db_file ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated // NOSONAR .
+            copy( $db_file, $backupFolder . basename( WP_CONTENT_DIR ) . '/' . ( '.sql' === substr( $db_file, -4 ) ? 'dbBackup.sql' : basename( $db_file ) ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated // NOSONAR .
             wp_delete_file( $db_file ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated // NOSONAR.
         }
 
@@ -1771,6 +1855,7 @@ class MainWP_Backup {
             return;
         }
 
+        $this->heartbeat();
         if ( $this->zip instanceof \ZipArchive ) {
             $this->zip->addEmptyDir( str_replace( ABSPATH, '', $path ) );
         } else {
@@ -1879,6 +1964,7 @@ class MainWP_Backup {
             return false;
         }
 
+        $this->heartbeat();
         $this->zipArchiveSizeCount += filesize( $path );
         ++$this->gcCnt;
 
@@ -1965,7 +2051,7 @@ class MainWP_Backup {
         // paginated dump on the shared handle (not point-in-time).
         $preflight = $dumper->check_dedicated_connection();
         if ( $preflight['ok'] ) {
-            $db_files = $dumper->dump_to_files( $filepath_prefix );
+            $db_files = $dumper->dump_to_files( $filepath_prefix, null, array( $this, 'heartbeat' ) );
             $db_files = $db_files['files'];
         } else {
             $cursor = null;
@@ -1973,7 +2059,7 @@ class MainWP_Backup {
                 if ( null !== $archiver ) {
                     $archiver->update_pid_file();
                 }
-                $slice  = $dumper->dump_tier2_slice( $filepath_prefix, $cursor, 45 );
+                $slice  = $dumper->dump_tier2_slice( $filepath_prefix, $cursor, 45, array( $this, 'heartbeat' ) );
                 $cursor = $slice['cursor'];
             } while ( ! $slice['done'] );
             $db_files = $slice['files'];

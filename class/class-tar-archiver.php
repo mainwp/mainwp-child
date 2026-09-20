@@ -318,21 +318,14 @@ class Tar_Archiver {
      * @return bool Return false on failure, true on success.
      */
     public function update_pid_file() {
-        if ( false === $this->pidFile ) {
-            return false;
-        }
         if ( time() - $this->pidUpdated < 40 ) {
             return false;
         }
-
-        /**
-         * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
-         *
-         * @global object $wp_filesystem Filesystem object.
-         */
-        global $wp_filesystem;
-
-        $wp_filesystem->put_contents( $this->pidFile, $this->pidContent );
+        $this->backup->heartbeat();
+        if ( false !== $this->pidFile ) {
+            global $wp_filesystem;
+            $wp_filesystem->put_contents( $this->pidFile, $this->pidContent );
+        }
         $this->pidUpdated = time();
 
         return true;
@@ -431,10 +424,10 @@ class Tar_Archiver {
                 $this->include_core_files( $nodes );
             }
 
-            $db_files = $this->backup->get_or_create_db_dump_files( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup', $this );
+            $db_files = $this->backup->get_or_create_db_dump_files( $this->backup->db_dump_prefix( dirname( $filepath ) ), $this );
 
             foreach ( $db_files as $db_file ) {
-                $this->add_file( $db_file, basename( WP_CONTENT_DIR ) . '/' . basename( $db_file ) );
+                $this->add_file( $db_file, basename( WP_CONTENT_DIR ) . '/' . ( '.sql' === substr( $db_file, -4 ) ? 'dbBackup.sql' : basename( $db_file ) ) );
             }
 
             if ( file_exists( ABSPATH . '.htaccess' ) ) {

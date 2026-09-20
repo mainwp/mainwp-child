@@ -6,6 +6,7 @@
  */
 
 use MainWP\Child\MainWP_Backup;
+use MainWP\Child\MainWP_Child_Backup_Mutex;
 use MainWP\Child\MainWP_Backup_Error;
 use MainWP\Child\MainWP_Backup_Budget_Exception;
 use MainWP\Child\MainWP_Child_Backup_Task;
@@ -307,7 +308,10 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	 * Drop spine rows and the scratch dir.
 	 */
 	public function tear_down() {
-		delete_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT );
+		$holder = MainWP_Child_Backup_Mutex::holder();
+		if ( null !== $holder ) {
+			MainWP_Child_Backup_Mutex::release( $holder['owner'] );
+		}
 		global $wpdb;
 		$wpdb->query( 'DELETE FROM ' . MainWP_Child_Backup_Task::instance()->get_table_name() ); // phpcs:ignore -- test cleanup.
 		foreach ( (array) glob( $this->backup_dir . '/*' ) as $file ) {
@@ -359,7 +363,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	 * @return string Task id.
 	 */
 	protected function create_task( $type = 'db' ) {
-		return MainWP_Child_Backup_Task::instance()->create_task(
+		$task_id = MainWP_Child_Backup_Task::instance()->create_task(
 			$type,
 			array(
 				'params' => array(
@@ -373,6 +377,8 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 				),
 			)
 		);
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', $task_id, 3600 ) );
+		return $task_id;
 	}
 
 	/**
@@ -452,7 +458,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame(
 			array(
 				$this->backup_dir . '/dbBackup-table1.sql.php',
-				$this->backup_dir . '/dbBackup.sql', // The legacy completion marker travels with the dump set.
+				$this->backup_dir . '/dbBackup-' . $task_id . '.sql', // The completion marker shares the task's scratch prefix.
 			),
 			$archiver_call[5],
 			'The archiver must receive the dump files produced by the dump phase'
@@ -471,10 +477,10 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	/**
 	 * Legacy work has no task row for the native creation guard to find.
 	 */
-	public function test_create_task_refuses_legacy_running_marker() {
+	public function test_create_task_refuses_legacy_mutex() {
 		$spine = MainWP_Child_Backup_Task::instance();
 		$this->assertEmpty( $spine->get_active_tasks() );
-		MainWP_Backup::set_legacy_backup_running();
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'legacy-owner', 300 ) );
 
 		try {
 			$this->runner->create_task_for_params( 'full', array() );
@@ -488,13 +494,14 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	/**
 	 * Legacy work starting after task creation must keep its queued fragments.
 	 */
-	public function test_fresh_dump_refuses_legacy_marker_without_deleting_fragments() {
+	public function test_fresh_dump_refuses_legacy_mutex_without_deleting_fragments() {
 		global $wpdb;
 		$fragment = $this->backup_dir . '/dbBackup-' . \MainWP\Child\MainWP_Helper::sanitize_filename( $wpdb->posts ) . '.sql.php';
 		file_put_contents( $fragment, 'legacy dump' );
 		file_put_contents( $fragment . '.tmp', 'legacy partial' );
 		$task_id = $this->runner->create_task_for_params( 'full', array() );
-		MainWP_Backup::set_legacy_backup_running();
+		$this->assertTrue( MainWP_Child_Backup_Mutex::release( $task_id ) );
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'legacy-owner', 300 ) );
 
 		$task = $this->advance( $task_id );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
@@ -511,10 +518,10 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	 */
 	public function test_fresh_dump_rewrites_stale_target_fragment() {
 		global $wpdb;
-		$fragment = $this->backup_dir . '/dbBackup-' . \MainWP\Child\MainWP_Helper::sanitize_filename( $wpdb->posts ) . '.sql.php';
+		$task_id = $this->create_task( 'full' );
+		$fragment = $this->backup_dir . '/dbBackup-' . $task_id . '-' . \MainWP\Child\MainWP_Helper::sanitize_filename( $wpdb->posts ) . '.sql.php';
 		file_put_contents( $fragment, 'stale dump' );
 		file_put_contents( $fragment . '.tmp', 'stale partial' );
-		$task_id = $this->create_task( 'full' );
 
 		$this->runner->stubs['dump_tier1'] = function ( $prefix ) use ( $task_id, $fragment ) {
 			$spine     = MainWP_Child_Backup_Task::instance();
@@ -534,9 +541,9 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A persisted dump prefix keeps completed fragments and the open partial resumable.
+	 * A foreign engine owner also stops a dump with a persisted cursor.
 	 */
-	public function test_resumed_dump_preserves_existing_target_fragments() {
+	public function test_resumed_dump_refuses_foreign_mutex_without_deleting_fragments() {
 		global $wpdb;
 		$prefix   = $this->backup_dir . '/dbBackup';
 		$fragment = $prefix . '-' . \MainWP\Child\MainWP_Helper::sanitize_filename( $wpdb->posts ) . '.sql.php';
@@ -562,10 +569,12 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 			);
 		};
 
-		MainWP_Backup::set_legacy_backup_running();
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'legacy-owner', 300 ) );
 		$task = $this->advance( $task_id );
-		$this->assertSame( MainWP_Child_Backup_Task::PHASE_DUMPING_DB, $task->phase );
-		$this->assertContains( 'dump_tier2', $this->runner->seam_names() );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, MainWP_Child_Backup_Task::instance()->status_payload( $task )['error_code'] );
+		$this->assertSame( array(), $this->runner->seam_names() );
+		$this->assertSame( 'legacy-owner', MainWP_Child_Backup_Mutex::holder()['owner'] );
 		$this->assertSame( 'completed table', file_get_contents( $fragment ) );
 		$this->assertSame( 'partial table', file_get_contents( $fragment . '.tmp' ) );
 	}
@@ -575,8 +584,9 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	 */
 	public function test_fresh_dump_preserves_other_fragment_names() {
 		global $wpdb;
+		$task_id = $this->create_task( 'full' );
 		$table    = \MainWP\Child\MainWP_Helper::sanitize_filename( $wpdb->posts );
-		$fragment = $this->backup_dir . '/dbBackup-' . $table . '.sql.php';
+		$fragment = $this->backup_dir . '/dbBackup-' . $task_id . '-' . $table . '.sql.php';
 		$others   = array(
 			$this->backup_dir . '/dbBackup-1700000000-' . $table . '.sql.php',
 			$this->backup_dir . '/dbBackup-not_a_dump_table.sql.php',
@@ -584,7 +594,6 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		foreach ( array_merge( array( $fragment, $fragment . '.tmp' ), $others ) as $file ) {
 			file_put_contents( $file, 'existing dump' );
 		}
-		$task_id = $this->create_task( 'full' );
 		$this->runner->stubs['tier1_available'] = false;
 		$this->runner->stubs['dump_tier2']      = function ( $prefix, $cursor ) use ( $task_id, $fragment ) {
 			$spine     = MainWP_Child_Backup_Task::instance();
@@ -775,7 +784,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	public function test_manifest_walk_exception_marks_failed() {
 		$this->runner->stubs['walk_manifest_slice'] = new \RuntimeException( 'walk exploded' );
 		$spine   = MainWP_Child_Backup_Task::instance();
-		$task_id = $spine->create_task( 'full', array( 'params' => array( 'ext' => 'tar', 'emit_manifest' => true ) ) );
+		$task_id = $this->runner->create_task_for_params( 'full', array( 'ext' => 'tar', 'emit_manifest' => true ) );
 		$this->assertFileExists( $this->backup_dir . '/backup-artifact.tar' );
 
 		$task = $this->advance( $task_id );
@@ -793,7 +802,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	public function test_manifest_walk_exception_preserves_error_code() {
 		$this->runner->stubs['walk_manifest_slice'] = new MainWP_Exception( 'no dir', null, MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE );
 		$spine   = MainWP_Child_Backup_Task::instance();
-		$task_id = $spine->create_task( 'full', array( 'params' => array( 'ext' => 'tar', 'emit_manifest' => true ) ) );
+		$task_id = $this->runner->create_task_for_params( 'full', array( 'ext' => 'tar', 'emit_manifest' => true ) );
 		$this->assertFileExists( $this->backup_dir . '/backup-artifact.tar' );
 
 		$task = $this->advance( $task_id );
@@ -834,9 +843,16 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 			'total_bytes' => 2048,
 		);
 		$spine   = MainWP_Child_Backup_Task::instance();
-		$task_id = $spine->create_task( 'full', array( 'params' => array( 'ext' => 'tar', 'emit_manifest' => true ) ) );
+		$task_id = $this->runner->create_task_for_params( 'full', array( 'ext' => 'tar', 'emit_manifest' => true ) );
+
+		$this->runner->stubs['promote_manifest_sidecars'] = function () use ( $spine, $task_id ) {
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $spine->get_task( $task_id )->phase );
+			$this->assertSame( $task_id, MainWP_Child_Backup_Mutex::holder()['owner'] );
+			return true;
+		};
 
 		$task = $this->advance( $task_id );
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
 		$sub_state = $spine->read_sub_state( $task, $this->backup_dir );
@@ -1498,6 +1514,113 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 			$this->assertSame( $new_holder->version, $task->version, 'The stale runner must neither checkpoint nor release the new lease' );
 			$this->assertSame( $new_holder->sub_state, $task->sub_state );
 			$this->assertFileExists( $artifact, 'The new holder\'s artifacts must survive' );
+			// The task is left non-terminal by design, so nothing releases its mutex for the next lane.
+			MainWP_Child_Backup_Mutex::release( $task_id );
 		}
 	}
+
+	public function test_task_creation_reserves_final_owner_and_terminal_checkpoint_releases() {
+		$spine = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->runner->create_task_for_params( 'full', array() );
+		$this->assertSame( 'native', MainWP_Child_Backup_Mutex::holder()['engine'] );
+		$this->assertSame( $task_id, MainWP_Child_Backup_Mutex::holder()['owner'] );
+		$this->assertFalse( $spine->checkpoint( $task_id, 99, array( 'phase' => MainWP_Child_Backup_Task::PHASE_FAILED ) ) );
+		$this->assertSame( $task_id, MainWP_Child_Backup_Mutex::holder()['owner'] );
+		$this->assertSame( 1, $spine->checkpoint( $task_id, 0, array( 'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED ) ) );
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+	}
+
+	public function test_cancel_and_deadline_failure_release_mutex() {
+		$spine = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->runner->create_task_for_params( 'full', array() );
+		$this->runner->cancel_backup_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $spine->get_task( $task_id )->phase );
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+
+		$task_id = $this->runner->create_task_for_params( 'full', array() );
+		global $wpdb;
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET max_wall_clock_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $task_id ) );
+		$this->assertTrue( $spine->enforce_wall_clock_deadline( $task_id ) );
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+	}
+
+	public function test_failed_insert_and_fresh_pid_refusal_release_mutex() {
+		$fail_insert = function ( $sql ) {
+			if ( 0 === strpos( $sql, 'INSERT INTO ' . MainWP_Child_Backup_Task::instance()->get_table_name() . ' ' ) ) {
+				return 'SELECT 1 WHERE 1 = 0';
+			}
+			return $sql;
+		};
+		add_filter( 'query', $fail_insert );
+		try {
+			$this->runner->create_task_for_params( 'full', array() );
+			$this->fail( 'A failed insert must refuse creation.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+		} finally {
+			remove_filter( 'query', $fail_insert );
+		}
+		file_put_contents( $this->backup_dir . '/backup-old-worker.pid', 'old worker' );
+		try {
+			$this->runner->create_task_for_params( 'full', array() );
+			$this->fail( 'A fresh legacy pid must refuse creation.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+			$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+		}
+	}
+
+	public function test_new_full_dump_does_not_adopt_another_tasks_fragment() {
+		global $wpdb;
+		$dumper = \MainWP\Child\MainWP_Backup_Db_Dumper::instance();
+		$preflight = $dumper->check_dedicated_connection();
+		$this->assertTrue( $preflight['ok'] );
+		$stale = $this->backup_dir . '/dbBackup-task-dead-' . \MainWP\Child\MainWP_Helper::sanitize_filename( $wpdb->posts ) . '.sql.php';
+		file_put_contents( $stale, 'dead run contents' );
+		$task_id = $this->runner->create_task_for_params( 'full', array( 'ext' => 'tar' ) );
+		$this->runner->stubs['dump_tier1'] = function ( $prefix ) use ( $dumper, $task_id, $wpdb, $stale ) {
+			$this->assertSame( $this->backup_dir . '/dbBackup-' . $task_id, $prefix );
+			$result = $dumper->dump_to_files( $prefix );
+			$fresh = $prefix . '-' . \MainWP\Child\MainWP_Helper::sanitize_filename( $wpdb->posts ) . '.sql.php';
+			$this->assertContains( $fresh, $result['files'] );
+			$this->assertFileExists( $fresh );
+			$this->assertStringContainsString( 'CREATE TABLE', file_get_contents( $fresh ) );
+			$this->assertNotContains( $stale, $result['files'] );
+			return $result['files'];
+		};
+		$task = $this->advance( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 'dead run contents', file_get_contents( $stale ) );
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+	}
+
+	public function test_watchdog_resume_cap_releases_mutex() {
+		global $wpdb;
+		$spine = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->runner->create_task_for_params( 'full', array() );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET resume_count = max_resumes, last_progress_at = DATE_SUB(NOW(), INTERVAL 10 MINUTE) WHERE task_id = %s', $task_id ) );
+		\MainWP\Child\MainWP_Child_Backup_Watchdog::instance()->check_tasks( 0 );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $spine->get_task( $task_id )->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_STALLED, $spine->status_payload( $spine->get_task( $task_id ) )['error_code'] );
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+	}
+
+	public function test_creation_sweeps_stale_fragments_only_after_acquiring_mutex() {
+		$fragment = $this->backup_dir . '/dbBackup-dead-run.sql.php';
+		file_put_contents( $fragment, 'dead dump' );
+		touch( $fragment, time() - 14400 );
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'legacy-owner', 300 ) );
+		try {
+			$this->runner->create_task_for_params( 'full', array() );
+			$this->fail( 'A foreign owner must block the sweep.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+			$this->assertFileExists( $fragment );
+		}
+		MainWP_Child_Backup_Mutex::release( 'legacy-owner' );
+		$task_id = $this->runner->create_task_for_params( 'full', array() );
+		$this->assertSame( $task_id, MainWP_Child_Backup_Mutex::holder()['owner'] );
+		$this->assertFileDoesNotExist( $fragment );
+	}
+
 }

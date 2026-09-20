@@ -77,6 +77,13 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
     protected static $datetime_types = array( 'date', 'datetime', 'timestamp', 'time', 'year' );
 
     /**
+     * Streaming heartbeat cadence.
+     *
+     * @var int Bytes streamed since the last heartbeat.
+     */
+    protected $heartbeat_bytes = 0;
+
+    /**
      * Get the singleton instance.
      *
      * @return MainWP_Backup_Db_Dumper
@@ -228,9 +235,10 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
      * Tier-1 dump: consistent snapshot of every base table into per-table
      * guarded .sql.php files.
      *
-     * @param string   $filepath_prefix Per-table file prefix (legacy dbBackup naming).
-     * @param int|null $time_budget     Seconds of dump work allowed; checked at
+     * @param string        $filepath_prefix Per-table file prefix (legacy dbBackup naming).
+     * @param int|null      $time_budget     Seconds of dump work allowed; checked at
      *                                  table boundaries. Null for unbounded.
+     * @param callable|null $heartbeat       Optional liveness callback.
      *
      * @return array{files:string[],consistency:string,non_innodb_tables:string[],has_foreign_keys:bool,tier:int}
      *
@@ -238,8 +246,9 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
      * @throws MainWP_Exception On any dump failure (partials cleaned up, credentials scrubbed).
      * @throws \Exception Internal failures, wrapped into MainWP_Exception before leaving this method.
      */
-    public function dump_to_files( $filepath_prefix, $time_budget = null ) { //phpcs:ignore -- NOSONAR - complexity required for cleanup-on-failure semantics.
+    public function dump_to_files( $filepath_prefix, $time_budget = null, $heartbeat = null ) { //phpcs:ignore -- NOSONAR - complexity required for cleanup-on-failure semantics.
         $this->assert_supported_topology();
+        $this->heartbeat_bytes = 0;
 
         $start  = time();
         $mysqli = $this->open_dedicated_connection();
@@ -298,8 +307,11 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 if ( null !== $time_budget && ( time() - $start ) >= $time_budget ) {
                     throw new MainWP_Backup_Budget_Exception( 'Tier-1 snapshot dump exceeded its time budget.', null, MainWP_Backup_Error::ERR_DB_QUERY_FAILED );
                 }
-                $files[] = $this->dump_table_snapshot( $mysqli, $table, $filepath_prefix, $first ? $meta : null );
+                $files[] = $this->dump_table_snapshot( $mysqli, $table, $filepath_prefix, $first ? $meta : null, $heartbeat );
                 $first   = false;
+                if ( null !== $heartbeat ) {
+                    call_user_func( $heartbeat );
+                }
                 set_time_limit( 600 ); // phpcs:ignore -- per-table timer reset so long dumps survive max_execution_time.
             }
 
@@ -339,16 +351,17 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
     /**
      * Dump one table from the snapshot connection into its guarded file.
      *
-     * @param \mysqli    $mysqli Dedicated connection holding the snapshot.
-     * @param string     $table  Table name.
-     * @param string     $prefix File path prefix.
-     * @param array|null $meta   Backup metadata banner (first file only).
+     * @param \mysqli       $mysqli    Dedicated connection holding the snapshot.
+     * @param string        $table     Table name.
+     * @param string        $prefix    File path prefix.
+     * @param array|null    $meta      Backup metadata banner (first file only).
+     * @param callable|null $heartbeat Optional liveness callback.
      *
      * @return string Final file path.
      *
      * @throws \Exception On any read/write failure.
      */
-    protected function dump_table_snapshot( $mysqli, $table, $prefix, $meta ) { //phpcs:ignore -- NOSONAR - streaming dump loop.
+    protected function dump_table_snapshot( $mysqli, $table, $prefix, $meta, $heartbeat = null ) { //phpcs:ignore -- NOSONAR - streaming dump loop.
         //phpcs:disable WordPress.DB, WordPress.WP.AlternativeFunctions -- raw mysqli + stream writes are the point.
         $final = $prefix . '-' . MainWP_Helper::sanitize_filename( $table ) . '.sql.php';
         if ( file_exists( $final ) ) {
@@ -380,12 +393,12 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         }
 
         try {
-            $this->write_checked( $fh, '<?php exit(); ?>' );
+            $this->write_checked( $fh, '<?php exit(); ?>', $heartbeat );
             if ( null !== $meta ) {
-                $this->write_checked( $fh, "\n" . $this->build_banner( $meta ) );
+                $this->write_checked( $fh, "\n" . $this->build_banner( $meta ), $heartbeat );
             }
 
-            $this->write_checked( $fh, "\n\nDROP TABLE IF EXISTS `" . $table . '`;' );
+            $this->write_checked( $fh, "\n\nDROP TABLE IF EXISTS `" . $table . '`;', $heartbeat );
 
             $res = $mysqli->query( 'SHOW CREATE TABLE `' . $table . '`' );
             if ( false === $res ) {
@@ -393,7 +406,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             }
             $create = $res->fetch_row();
             $res->free();
-            $this->write_checked( $fh, "\n" . $create[1] . ";\n" );
+            $this->write_checked( $fh, "\n" . $create[1] . ";\n", $heartbeat );
 
             $select_list = array();
             $insert_cols = array();
@@ -442,7 +455,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                     $batch .= ', ' . $tuple;
                 }
                 if ( strlen( $batch ) >= self::BATCH_BYTES ) {
-                    $this->write_checked( $fh, "\n" . $batch . ';' );
+                    $this->write_checked( $fh, "\n" . $batch . ';', $heartbeat );
                     $batch = '';
                 }
             }
@@ -451,7 +464,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 throw new \Exception( "Reading table `$table` failed mid-stream: " . $mysqli->error );
             }
             if ( '' !== $batch ) {
-                $this->write_checked( $fh, "\n" . $batch . ';' );
+                $this->write_checked( $fh, "\n" . $batch . ';', $heartbeat );
             }
 
             fflush( $fh );
@@ -482,17 +495,20 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
      * Each call performs at least one unit of work (table header, row chunk,
      * or table finalize) and returns once the time budget is spent.
      *
-     * @param string     $filepath_prefix File path prefix.
-     * @param array|null $cursor          Cursor from the previous slice, null to start.
-     * @param int        $time_budget     Seconds of work per slice.
+     * @param string        $filepath_prefix File path prefix.
+     * @param array|null    $cursor          Cursor from the previous slice, null to start.
+     * @param int           $time_budget     Seconds of work per slice.
+     * @param callable|null $heartbeat       Optional liveness callback.
      *
      * @return array{done:bool,cursor:array,files:string[],tier:int,consistency:string}
      *
      * @throws MainWP_Exception On read/write failure.
+     * @throws \Exception Propagates callback and streaming failures.
      */
-    public function dump_tier2_slice( $filepath_prefix, $cursor, $time_budget = 45 ) { //phpcs:ignore -- NOSONAR - resumable slice loop.
+    public function dump_tier2_slice( $filepath_prefix, $cursor, $time_budget = 45, $heartbeat = null ) { //phpcs:ignore -- NOSONAR - resumable slice loop.
         global $wpdb;
-        $start = time();
+        $start                 = time();
+        $this->heartbeat_bytes = 0;
 
         if ( null === $cursor || ! is_array( $cursor ) ) {
             // A whole-DB Tier-2 dump reads $wpdb, which on a sharded/replicated
@@ -537,13 +553,13 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             // up; restarting the table rewrites its header instead of appending rows
             // to a headerless file.
             if ( ! $cursor['started'] || ! file_exists( $tmp ) ) {
-                $this->tier2_start_table( $table, $tmp, $cursor );
+                $this->tier2_start_table( $table, $tmp, $cursor, $heartbeat );
                 $worked = true;
                 continue;
             }
 
             try {
-                $finished_rows = $this->tier2_dump_chunk( $table, $tmp, $cursor );
+                $finished_rows = $this->tier2_dump_chunk( $table, $tmp, $cursor, $heartbeat );
             } catch ( \Exception $e ) {
                 // The task does not resume past this throw, so the finished tables of
                 // this run and the open fragment would otherwise sit in the backup
@@ -570,6 +586,9 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 $cursor['pk_col']  = null;
                 $cursor['last_id'] = 0;
                 $cursor['offset']  = 0;
+                if ( null !== $heartbeat ) {
+                    call_user_func( $heartbeat );
+                }
             }
         }
 
@@ -620,20 +639,21 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
      * Tier-2: write the table header (guard, banner, DROP, CREATE) and detect
      * the pagination strategy.
      *
-     * @param string $table  Table name.
-     * @param string $tmp    Temp file path.
-     * @param array  $cursor Cursor (modified in place).
+     * @param string        $table     Table name.
+     * @param string        $tmp       Temp file path.
+     * @param array         $cursor    Cursor (modified in place).
+     * @param callable|null $heartbeat Optional liveness callback.
      *
      * @throws MainWP_Exception On write failure.
      */
-    protected function tier2_start_table( $table, $tmp, &$cursor ) {
+    protected function tier2_start_table( $table, $tmp, &$cursor, $heartbeat = null ) {
         global $wpdb;
         //phpcs:disable WordPress.DB, WordPress.WP.AlternativeFunctions -- paginated dump on the shared handle, stream writes.
         $fh = fopen( $tmp, 'w' );
         if ( false === $fh ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_PERMISSIONS ) ), null, MainWP_Backup_Error::ERR_PERMISSIONS ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
         }
-        $this->write_checked( $fh, '<?php exit(); ?>' );
+        $this->write_checked( $fh, '<?php exit(); ?>', $heartbeat );
         if ( ! empty( $cursor['first'] ) ) {
             $meta = array(
                 'has_foreign_keys'  => null, // Unknown without the snapshot inventory; restore uses the grep probe.
@@ -641,12 +661,12 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 'non_innodb_tables' => array(),
                 'tier'              => 2,
             );
-            $this->write_checked( $fh, "\n" . $this->build_banner( $meta ) );
+            $this->write_checked( $fh, "\n" . $this->build_banner( $meta ), $heartbeat );
             $cursor['first'] = false;
         }
-        $this->write_checked( $fh, "\n\nDROP TABLE IF EXISTS `" . $table . '`;' );
+        $this->write_checked( $fh, "\n\nDROP TABLE IF EXISTS `" . $table . '`;', $heartbeat );
         $create = $wpdb->get_row( 'SHOW CREATE TABLE `' . $table . '`', ARRAY_N ); // phpcs:ignore -- schema read.
-        $this->write_checked( $fh, "\n" . $create[1] . ";\n" );
+        $this->write_checked( $fh, "\n" . $create[1] . ";\n", $heartbeat );
         fclose( $fh );
 
         // Pagination strategy: single integer PK gets deterministic PK-seek;
@@ -673,15 +693,16 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
     /**
      * Tier-2: dump one chunk of rows. Returns true when the table is done.
      *
-     * @param string $table  Table name.
-     * @param string $tmp    Temp file path (appended to).
-     * @param array  $cursor Cursor (modified in place).
+     * @param string        $table     Table name.
+     * @param string        $tmp       Temp file path (appended to).
+     * @param array         $cursor    Cursor (modified in place).
+     * @param callable|null $heartbeat Optional liveness callback.
      *
      * @return bool True when no more rows remain for this table.
      *
      * @throws MainWP_Exception On read/write failure.
      */
-    protected function tier2_dump_chunk( $table, $tmp, &$cursor ) { //phpcs:ignore -- NOSONAR - chunked dump loop.
+    protected function tier2_dump_chunk( $table, $tmp, &$cursor, $heartbeat = null ) { //phpcs:ignore -- NOSONAR - chunked dump loop.
         global $wpdb;
         //phpcs:disable WordPress.DB, WordPress.WP.AlternativeFunctions -- paginated dump on the shared handle, stream writes.
         $columns = $this->get_column_map(
@@ -784,12 +805,12 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 $batch .= ', ' . $tuple;
             }
             if ( strlen( $batch ) >= self::BATCH_BYTES ) {
-                $this->write_checked( $fh, "\n" . $batch . ';' );
+                $this->write_checked( $fh, "\n" . $batch . ';', $heartbeat );
                 $batch = '';
             }
         }
         if ( '' !== $batch ) {
-            $this->write_checked( $fh, "\n" . $batch . ';' );
+            $this->write_checked( $fh, "\n" . $batch . ';', $heartbeat );
         }
         fflush( $fh );
         fclose( $fh );
@@ -908,15 +929,21 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
      * Write to the dump file with the result checked - a short or failed
      * write means the disk filled mid-dump.
      *
-     * @param resource $fh   Open file handle.
-     * @param string   $data Data to write.
+     * @param resource      $fh        Open file handle.
+     * @param string        $data      Data to write.
+     * @param callable|null $heartbeat Optional liveness callback.
      *
      * @throws MainWP_Exception When the write fails or is short.
      */
-    protected function write_checked( $fh, $data ) {
+    protected function write_checked( $fh, $data, $heartbeat = null ) {
         $written = fwrite( $fh, $data ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- streaming dump writes.
         if ( false === $written || $written < strlen( $data ) ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) ), null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+        }
+        $this->heartbeat_bytes += $written;
+        while ( null !== $heartbeat && $this->heartbeat_bytes >= 5 * 1024 * 1024 ) {
+            call_user_func( $heartbeat );
+            $this->heartbeat_bytes -= 5 * 1024 * 1024;
         }
     }
 }

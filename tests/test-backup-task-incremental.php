@@ -6,6 +6,7 @@
  */
 
 use MainWP\Child\MainWP_Backup_Error;
+use MainWP\Child\MainWP_Child_Backup_Mutex;
 use MainWP\Child\MainWP_Child_Backup_Incremental_Zip_Writer;
 use MainWP\Child\MainWP_Child_Backup_Task;
 use MainWP\Child\MainWP_Exception;
@@ -78,6 +79,10 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 	 * Drop spine rows and the scratch dirs.
 	 */
 	public function tear_down() {
+		$holder = MainWP_Child_Backup_Mutex::holder();
+		if ( null !== $holder ) {
+			MainWP_Child_Backup_Mutex::release( $holder['owner'] );
+		}
 		global $wpdb;
 		$wpdb->query( 'DELETE FROM ' . MainWP_Child_Backup_Task::instance()->get_table_name() ); // phpcs:ignore -- test cleanup.
 		$this->rrmdir( $this->backup_dir );
@@ -119,7 +124,7 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 	 * @return string Task id.
 	 */
 	protected function create_task( $type, $extra = array() ) {
-		return MainWP_Child_Backup_Task::instance()->create_task(
+		$task_id = MainWP_Child_Backup_Task::instance()->create_task(
 			$type,
 			array(
 				'params' => array_merge(
@@ -136,6 +141,8 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 				),
 			)
 		);
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', $task_id, 3600 ) );
+		return $task_id;
 	}
 
 	/**

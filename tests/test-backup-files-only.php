@@ -7,6 +7,9 @@
  */
 
 use MainWP\Child\MainWP_Backup;
+use MainWP\Child\MainWP_Backup_Error;
+use MainWP\Child\MainWP_Child_Backup_Mutex;
+use MainWP\Child\MainWP_Child_Backup_Task;
 use MainWP\Child\MainWP_Exception;
 
 /**
@@ -71,6 +74,10 @@ class BackupFilesOnlyTest extends WP_UnitTestCase {
 	 * Clear the prepared set and scratch.
 	 */
 	public function tear_down() {
+		$holder = MainWP_Child_Backup_Mutex::holder();
+		if ( null !== $holder ) {
+			MainWP_Child_Backup_Mutex::release( $holder['owner'] );
+		}
 		MainWP_Backup::get()->set_prepared_db_files( null );
 		foreach ( (array) glob( $this->dir . '/*' ) as $file ) {
 			unlink( $file );
@@ -136,11 +143,11 @@ class BackupFilesOnlyTest extends WP_UnitTestCase {
 	/**
 	 * Both legacy dump entries must protect fragments through archive completion.
 	 *
-	 * @dataProvider legacy_marker_runs
+	 * @dataProvider legacy_mutex_runs
 	 * @param string $type   Backup type.
 	 * @param bool   $throws Whether the engine fails.
 	 */
-	public function test_legacy_marker_covers_run_and_clears_afterward( $type, $throws ) {
+	public function test_legacy_mutex_covers_run_and_clears_afterward( $type, $throws ) {
 		$backup = new class() extends MainWP_Backup {
 			public $during_backup;
 
@@ -156,17 +163,13 @@ class BackupFilesOnlyTest extends WP_UnitTestCase {
 		file_put_contents( $artifact, 'archive' );
 		$failure    = 'db' === $type ? new MainWP_Exception( 'Legacy archive failed.', null, '' ) : new RuntimeException( 'Legacy archive failed.' );
 		$called     = false;
-		$ttl        = null;
-		$record_ttl = function ( $expiration ) use ( &$ttl ) {
-			$ttl = $expiration;
-			return $expiration;
-		};
-		$backup->during_backup = function () use ( $throws, $failure, $artifact, &$called, &$ttl ) {
+		$backup->during_backup = function () use ( $throws, $failure, $artifact, &$called ) {
 			$called = true;
-			$marker = get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT );
-			$this->assertIsString( $marker );
-			$this->assertNotSame( '', $marker );
-			$this->assertSame( 10800, $ttl );
+			$holder = MainWP_Child_Backup_Mutex::holder();
+			$this->assertSame( 'legacy', $holder['engine'] );
+			$this->assertNotSame( '', $holder['owner'] );
+			$this->assertGreaterThan( time(), $holder['expires_at'] );
+			$this->assertLessThanOrEqual( time() + 300, $holder['expires_at'] );
 			if ( $throws ) {
 				throw $failure;
 			}
@@ -177,10 +180,9 @@ class BackupFilesOnlyTest extends WP_UnitTestCase {
 			);
 		};
 		$original_post   = $_POST;
-		$_POST['type']    = $type;
+		$_POST['type']    = 'nested_db' === $type ? 'db' : $type;
 		$_POST['fileUID'] = '';
-		$this->assertFalse( get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ) );
-		add_filter( 'expiration_of_transient_' . MainWP_Backup::LEGACY_RUNNING_TRANSIENT, $record_ttl );
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
 		// The legacy entry ends with ob_end_flush(); give it a buffer of ours to close so
 		// PHPUnit's own buffer survives, then restore the level we started at.
 		$ob_level = ob_get_level();
@@ -193,17 +195,15 @@ class BackupFilesOnlyTest extends WP_UnitTestCase {
 					$result = $backup->backup( false );
 				}
 				$this->assertFalse( $throws, 'The engine exception must propagate.' );
-				$this->assertSame( 'legacy.zip', $result[ 'db' === $type ? 'file' : 'full' ] );
+				$this->assertSame( 'legacy.zip', $result[ 'db' === $type ? 'file' : ( 'nested_db' === $type ? 'db' : 'full' ) ] );
 			} catch ( Exception $e ) {
 				$this->assertTrue( $throws );
 				$this->assertSame( $failure, $e );
 			}
 			$this->assertTrue( $called, 'The legacy engine seam must run.' );
-			$this->assertFalse( get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ) );
+			$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
 		} finally {
 			$_POST = $original_post;
-			remove_filter( 'expiration_of_transient_' . MainWP_Backup::LEGACY_RUNNING_TRANSIENT, $record_ttl );
-			MainWP_Backup::clear_legacy_backup_running( (string) get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ) );
 			while ( ob_get_level() > $ob_level ) {
 				ob_end_clean();
 			}
@@ -213,33 +213,27 @@ class BackupFilesOnlyTest extends WP_UnitTestCase {
 	/**
 	 * @return array Legacy entry points and completion paths.
 	 */
-	public function legacy_marker_runs() {
+	public function legacy_mutex_runs() {
 		return array(
 			'full success'   => array( 'full', false ),
 			'full exception' => array( 'full', true ),
 			'db success'     => array( 'db', false ),
+			'nested db'      => array( 'nested_db', false ),
 			'db exception'   => array( 'db', true ),
 			'files success'  => array( 'files', false ),
 		);
 	}
 
 	/**
-	 * A marker set by one request cannot be cleared by another request's token.
+	 * A mutex held by one request cannot be cleared by another request's token.
 	 */
-	public function test_legacy_marker_clears_only_for_its_own_token() {
-		try {
-			$token = MainWP_Backup::set_legacy_backup_running();
-			$this->assertIsString( $token );
-			$this->assertSame( $token, get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ) );
-
-			MainWP_Backup::clear_legacy_backup_running( 'some-other-token' );
-			$this->assertSame( $token, get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ), 'A foreign token must not clear the marker.' );
-
-			MainWP_Backup::clear_legacy_backup_running( $token );
-			$this->assertFalse( get_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT ) );
-		} finally {
-			delete_transient( MainWP_Backup::LEGACY_RUNNING_TRANSIENT );
-		}
+	public function test_legacy_mutex_clears_only_for_its_own_token() {
+		$token = wp_generate_uuid4();
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', $token, 300 ) );
+		$this->assertFalse( MainWP_Child_Backup_Mutex::release( 'some-other-token' ) );
+		$this->assertSame( $token, MainWP_Child_Backup_Mutex::holder()['owner'] );
+		$this->assertTrue( MainWP_Child_Backup_Mutex::release( $token ) );
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
 	}
 
 	/**
@@ -257,5 +251,50 @@ class BackupFilesOnlyTest extends WP_UnitTestCase {
 
 		$files = $backup->get_or_create_db_dump_files( $this->dir . '/dbBackup' );
 		$this->assertNotEmpty( $files, 'The prepared set must reset after the files dispatch.' );
+	}
+
+	public function test_legacy_backup_refuses_native_mutex_before_filesystem_work() {
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'native-owner', 3600 ) );
+		$backup = new Files_Only_Legacy_Backup();
+		try {
+			$backup->backup( false );
+			$this->fail( 'A native owner must refuse the legacy entry.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+			$this->assertStringContainsString( 'native', $e->getMessage() );
+		}
+		$this->assertFalse( $backup->backup_full_called );
+		$this->assertSame( 'native-owner', MainWP_Child_Backup_Mutex::holder()['owner'] );
+	}
+
+	public function test_legacy_state_guard_refuses_a_live_native_row() {
+		$spine = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full' );
+		try {
+			( new MainWP_Backup() )->assert_no_active_spine_task();
+			$this->fail( 'A live row must refuse legacy even without a mutex.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+		} finally {
+			$spine->checkpoint( $task_id, 0, array( 'phase' => MainWP_Child_Backup_Task::PHASE_FAILED ) );
+		}
+	}
+
+	public function test_legacy_prefix_survives_append_requests_and_prefers_file_uid() {
+		$original = $_POST;
+		try {
+			$_POST['fileUID'] = 'run-one';
+			$_POST['pid'] = '123';
+			$prefix = ( new MainWP_Backup() )->db_dump_prefix( $this->dir );
+			$_POST['append'] = '1';
+			$this->assertSame( $prefix, ( new MainWP_Backup() )->db_dump_prefix( $this->dir ) );
+			$this->assertSame( $this->dir . '/dbBackup-run-one', $prefix );
+			unset( $_POST['fileUID'] );
+			$this->assertSame( $this->dir . '/dbBackup-123', ( new MainWP_Backup() )->db_dump_prefix( $this->dir ) );
+			unset( $_POST['pid'] );
+			$this->assertNotSame( ( new MainWP_Backup() )->db_dump_prefix( $this->dir ), ( new MainWP_Backup() )->db_dump_prefix( $this->dir ) );
+		} finally {
+			$_POST = $original;
+		}
 	}
 }

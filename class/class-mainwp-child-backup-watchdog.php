@@ -176,7 +176,8 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
                                 'code'    => MainWP_Backup_Error::ERR_STALLED,
                             ),
                         ),
-                    )
+                    ),
+                    false
                 );
 
                 // A forced-terminal restore leaves tmp tables, the maintenance
@@ -193,9 +194,13 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
                 // the pre-fail $task (its sidecar survives until the delete
                 // below) - plus the walk-run scratch and the sidecar.
                 if ( false !== $capped && ! MainWP_Child_Backup_Task::is_restore_type( $task->type ) ) {
-                    $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
-                    MainWP_Child_Backup_Task_Runner::instance()->cleanup_failed_task_artifacts( $task->task_id, $spine->read_sub_state( $task, $dirs[0] ), $dirs[0] );
-                    $spine->delete_sidecar( $task->task_id, $dirs[0] );
+                    try {
+                        $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
+                        MainWP_Child_Backup_Task_Runner::instance()->cleanup_failed_task_artifacts( $task->task_id, $spine->read_sub_state( $task, $dirs[0] ), $dirs[0] );
+                        $spine->delete_sidecar( $task->task_id, $dirs[0] );
+                    } finally {
+                        MainWP_Child_Backup_Mutex::release( $task->task_id );
+                    }
                 }
                 continue;
             }
