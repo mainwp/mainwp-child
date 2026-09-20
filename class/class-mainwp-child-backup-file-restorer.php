@@ -600,8 +600,20 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @return string Result text.
      */
     protected function archive_open_error( $e, $part, $plain ) {
-        $message = preg_replace( '/[\x00-\x1F\x7F]/', '', $e->getMessage() );
-        $message = str_replace( array( $plain, $part ), array( basename( $plain ), basename( $part ) ), $message );
+        $message = str_replace( array( $plain, $part ), array( basename( $plain ), basename( $part ) ), $e->getMessage() );
+        $message = $this->reduce_host_paths( $message );
+
+        return 'Could not open archive: ' . basename( $part ) . ' (' . get_class( $e ) . ': ' . $message . ')';
+    }
+
+    /**
+     * Reduce host paths and keep error text safe to render after truncation.
+     *
+     * @param string $message Host error text.
+     * @return string Reduced UTF-8 text.
+     */
+    private function reduce_host_paths( $message ) {
+        $message = preg_replace( '/[\x00-\x1F\x7F]/', '', $message );
         $message = preg_replace( '~/(?:[^\s/"\'<>()[\]{}]+/)+([^\s/"\'<>()[\]{}]+)~', '$1', $message );
         // Backslash paths take a second pass: a Windows or UNC path reported by
         // PHP survives the forward-slash collapse above and would carry the host
@@ -611,8 +623,10 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         // invalid UTF-8 as the empty string - which would hide the very cause
         // this message exists to report.
         $message = mb_substr( (string) $message, 0, 300 );
-
-        return 'Could not open archive: ' . basename( $part ) . ' (' . get_class( $e ) . ': ' . $message . ')';
+        if ( ! mb_check_encoding( $message, 'UTF-8' ) ) {
+            $message = mb_convert_encoding( $message, 'UTF-8', 'UTF-8' );
+        }
+        return $message;
     }
 
     /**
@@ -864,7 +878,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             // PHP includes the absolute temporary path before the stream error.
             $cause = preg_replace( '/^.*(?:Failed to open stream: |failed to open stream: )/s', '', $error['message'] );
             $cause = str_replace( array( $temp, $directory ), array( basename( $temp ), $where ), $cause );
-            $why   = $cause;
+            $why   = $this->reduce_host_paths( $cause );
         } elseif ( is_writable( $directory ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- fallback when PHP recorded no open error.
             $why = 'temporary file creation failed; check available disk space and filesystem restrictions.';
         } else {

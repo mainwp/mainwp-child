@@ -692,7 +692,8 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$part = $this->make_zip( 'collision.zip', array( 'file.txt' => 'restored bytes' ) );
 		$result = $this->run_all( $this->config( array( $part ) ) );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
-		$this->assertSame( 'Could not create a temporary file in the site root: File exists', $result['error'] );
+		$this->assertStringStartsWith( 'Could not create a temporary file in the site root: ', $result['error'] );
+		$this->assertStringNotContainsString( 'three generated names already existed; another restore may be running on this site.', $result['error'] );
 		$this->assertSame( 3, $this->restorer->attempts );
 		$this->assertSame( 'peer bytes', file_get_contents( $peer ) );
 		$this->assertSame( 'live bytes', file_get_contents( $this->extract_to . '/file.txt' ) );
@@ -797,6 +798,8 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 				}
 			}
 		}
+		$rows['open-basedir-error'] = array( true, false, 'open-basedir', 'Could not create a temporary file in the site root: ' );
+		$rows['invalid-utf8-error'] = array( true, false, 'invalid-utf8', 'Could not create a temporary file in the site root: ' );
 		$rows['non-writable-no-errno'] = array( true, false, 'permissions', 'Could not create a temporary file in the site root: the restore needs write permission on that directory.' );
 		$rows['writable-no-errno'] = array( true, false, 'no-errno', 'Could not create a temporary file in the site root: temporary file creation failed; check available disk space and filesystem restrictions.' );
 		$rows['missing-directory'] = array( false, false, 'missing', 'Could not create a temporary file in the site root: the directory no longer exists.' );
@@ -812,7 +815,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$peer = $this->extract_to . '/peer';
 		if ( 'create' === $failure ) {
 			file_put_contents( $peer, 'peer bytes' );
-		} elseif ( in_array( $failure, array( 'permissions', 'no-errno' ), true ) ) {
+		} elseif ( in_array( $failure, array( 'permissions', 'no-errno', 'open-basedir', 'invalid-utf8' ), true ) ) {
 			symlink( $target, $peer );
 		}
 		ExtractionMatrixStream::$directory = $this->extract_to;
@@ -820,20 +823,36 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		ExtractionMatrixStream::$vanished = $vanished;
 		ExtractionMatrixStream::$calls = array();
 		$this->assertTrue( stream_wrapper_register( 'extractmatrix', ExtractionMatrixStream::class ) );
-		$restorer = new class( $failure, $peer ) extends MainWP_Child_Backup_File_Restorer {
+		$denied_temp = '/var/www/vhosts/example.com/httpdocs/wp-content/uploads/.mainwp-restore-ab12-first.tmp';
+		$allowed_paths = '/var/www/vhosts/example.com/:/tmp/';
+		$recorded_error = 'open-basedir' === $failure
+			? 'fopen(): open_basedir restriction in effect. File(' . $denied_temp . ') is not within the allowed path(s): (' . $allowed_paths . ')'
+			: "fopen(): denied filename bad-\xff-name";
+		$restorer = new class( $failure, $peer, $recorded_error ) extends MainWP_Child_Backup_File_Restorer {
 			public $attempts = 0;
 			private $failure;
 			private $peer;
-			public function __construct( $failure, $peer ) {
+			private $recorded_error;
+			public function __construct( $failure, $peer, $recorded_error ) {
 				$this->failure = $failure;
 				$this->peer = $peer;
+				$this->recorded_error = $recorded_error;
 			}
 			protected function entry_temp_path( $target ) {
 				++$this->attempts;
+				if ( 1 === $this->attempts && in_array( $this->failure, array( 'open-basedir', 'invalid-utf8' ), true ) ) {
+					// Later symlink refusals leave the first attempt's recorded error intact.
+					set_error_handler( static function () { return false; } );
+					try {
+						@trigger_error( $this->recorded_error, E_USER_WARNING );
+					} finally {
+						restore_error_handler();
+					}
+				}
 				if ( 'create' === $this->failure ) {
 					return $this->peer . '/temp';
 				}
-				if ( in_array( $this->failure, array( 'permissions', 'no-errno' ), true ) ) {
+				if ( in_array( $this->failure, array( 'permissions', 'no-errno', 'open-basedir', 'invalid-utf8' ), true ) ) {
 					return $this->peer;
 				}
 				return dirname( $target ) . '/.mainwp-restore-abc123-0123456789abcdef.tmp';
@@ -853,7 +872,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			}
 			$method = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'write_entry_stream' );
 			$method->setAccessible( true );
-			$path = in_array( $failure, array( 'permissions', 'no-errno' ), true ) ? $target : 'extractmatrix://root/file.txt';
+			$path = in_array( $failure, array( 'permissions', 'no-errno', 'open-basedir', 'invalid-utf8' ), true ) ? $target : 'extractmatrix://root/file.txt';
 			if ( 'missing' === $failure ) {
 				$path = $this->extract_to . '/missing/file.txt';
 			}
@@ -863,11 +882,22 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			} catch ( Exception $e ) {
 				$actual = $e->getMessage();
 			}
-			if ( 'create' === $failure ) {
+			if ( in_array( $failure, array( 'create', 'open-basedir', 'invalid-utf8' ), true ) ) {
 				$this->assertIsString( $actual );
 				$this->assertStringStartsWith( $message, $actual );
 				$cause = trim( substr( $actual, strlen( $message ) ) );
 				$this->assertNotSame( '', $cause );
+				$this->assertNotSame( 'three generated names already existed; another restore may be running on this site.', $cause );
+				if ( 'open-basedir' === $failure ) {
+					$this->assertStringNotContainsString( $denied_temp, $actual );
+					$this->assertStringNotContainsString( dirname( $target ), $actual );
+					$this->assertStringNotContainsString( $allowed_paths, $actual );
+					$this->assertStringNotContainsString( '/var/www/vhosts/example.com/', $actual );
+					$this->assertStringContainsString( 'open_basedir restriction in effect', $cause );
+				} elseif ( 'invalid-utf8' === $failure ) {
+					$this->assertTrue( mb_check_encoding( $actual, 'UTF-8' ) );
+					$this->assertStringContainsString( 'denied filename', $cause );
+				}
 				$this->assertNotSame( 'temporary file creation failed; check available disk space and filesystem restrictions.', $cause );
 				$this->assertNotSame( 'the restore needs write permission on that directory.', $cause );
 			} else {
@@ -881,7 +911,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			} else {
 				$this->assertFileDoesNotExist( $target );
 			}
-			$creation_failed = in_array( $failure, array( 'create', 'permissions', 'no-errno', 'missing' ), true );
+			$creation_failed = in_array( $failure, array( 'create', 'permissions', 'no-errno', 'missing', 'open-basedir', 'invalid-utf8' ), true );
 			$this->assertSame( $creation_failed ? 3 : 1, $restorer->attempts );
 			$expected_calls = $creation_failed ? array() : ( $exists ? array( 'chmod' ) : array() );
 			if ( ! $creation_failed && ( ! $exists || ( ! $vanished && 'chmod' !== $failure ) ) ) {
@@ -951,7 +981,8 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			$part = $this->make_zip( 'locked.zip', array( $entry => 'replacement' ) );
 			$result = $this->run_all( $this->config( array( $part ) ) );
 			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
-			$this->assertSame( 'Could not create a temporary file in ' . $label . ': Permission denied', $result['error'] );
+			$this->assertStringStartsWith( 'Could not create a temporary file in ' . $label . ': ', $result['error'] );
+			$this->assertStringNotContainsString( 'three generated names already existed; another restore may be running on this site.', $result['error'] );
 			$this->assertSame( 'original', file_get_contents( $this->extract_to . '/' . $entry ) );
 		} finally {
 			chmod( $parent, 0755 );

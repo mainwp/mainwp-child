@@ -1049,7 +1049,9 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * legacy pid, defers all four patterns, including .done and staged
      * manifests: housekeeping can wait until the next prune, and a clone holds
      * the mutex without a task row. An expired holder is dead litter, not a
-     * live run, so it does not defer. Active task files remain protected.
+     * live run, so it does not defer. Equality at expiry remains live to match
+     * acquire()'s strictly-earlier-than-now takeover test. Active task files
+     * remain protected.
      * Archives are never touched, whatever their age - artifact deletion is
      * prune_task's job and only ever by name.
      *
@@ -1059,7 +1061,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      */
     public function sweep_stale_markers( $backup_dir, $age_seconds = 10800, $caller_owner = null ) {
         $holder = MainWP_Child_Backup_Mutex::holder();
-        if ( ( null !== $holder && $holder['expires_at'] > time() && $holder['owner'] !== $caller_owner ) || MainWP_Backup::is_pid_lock_fresh( $backup_dir ) ) {
+        if ( ( null !== $holder && $holder['expires_at'] >= time() && $holder['owner'] !== $caller_owner ) || MainWP_Backup::is_pid_lock_fresh( $backup_dir ) ) {
             return;
         }
         $patterns = array( 'backup-*.pid', 'backup-*.done', 'dbBackup-*.sql*', 'manifest-staged-*.list' );

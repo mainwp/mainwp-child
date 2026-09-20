@@ -163,13 +163,14 @@ class CloneBackupMutexTest extends WP_UnitTestCase {
 
 	public static function sweep_nonblocking_holders() {
 		return array(
-			'expired holder' => array( -1, null ),
-			'caller owns live holder' => array( 3600, 'sweep-owner' ),
+			'expired holder' => array( -1, null, false ),
+			'expiry equals now' => array( 0, null, true ),
+			'caller owns live holder' => array( 3600, 'sweep-owner', false ),
 		);
 	}
 
 	/** @dataProvider sweep_nonblocking_holders */
-	public function test_stale_sweep_allows_expired_or_caller_owned_mutex( $ttl, $caller_owner ) {
+	public function test_stale_sweep_allows_expired_or_caller_owned_mutex( $ttl, $caller_owner, $deferred ) {
 		$fragment = $this->backup_dir . 'dbBackup-dead-run.sql';
 		file_put_contents( $fragment, 'stale fragment' );
 		touch( $fragment, time() - 4 * 3600 );
@@ -180,7 +181,14 @@ class CloneBackupMutexTest extends WP_UnitTestCase {
 		$this->assertNotNull( $holder );
 		$this->assertFalse( MainWP_Backup::is_pid_lock_fresh( $this->backup_dir ) );
 		$spine->sweep_stale_markers( $this->backup_dir, 10800, $caller_owner );
-		$this->assertFileDoesNotExist( $fragment );
+		if ( 0 === $ttl && time() !== $holder['expires_at'] ) {
+			$this->markTestSkipped( 'The clock crossed a second during the expiry-boundary check.' );
+		}
+		if ( $deferred ) {
+			$this->assertFileExists( $fragment );
+		} else {
+			$this->assertFileDoesNotExist( $fragment );
+		}
 		$this->assertSame( $holder, MainWP_Child_Backup_Mutex::holder() );
 	}
 
