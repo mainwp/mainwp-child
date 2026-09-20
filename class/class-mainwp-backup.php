@@ -1431,8 +1431,9 @@ class MainWP_Backup {
     }
 
     /**
-     * Sum the size and count of all regular files under a directory, skipping
-     * symlinks.
+     * Sum the size and count of the files an archive would store under a directory,
+     * following the links the walkers accept. A link and its in-tree target both
+     * count, because the archive stores both paths.
      *
      * @param string $dir Directory to measure.
      *
@@ -1441,21 +1442,52 @@ class MainWP_Backup {
     private static function get_directory_inventory( $dir ) {
         $bytes = 0;
         $count = 0;
-        try {
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ),
-                \RecursiveIteratorIterator::LEAVES_ONLY,
-                \RecursiveIteratorIterator::CATCH_GET_CHILD
-            );
-            foreach ( $iterator as $file ) {
-                if ( $file->isFile() && ! $file->isLink() ) {
-                    $bytes += (int) $file->getSize();
-                    ++$count;
-                }
+        $bases = array_merge( static::default_backup_bases(), array( $dir ) );
+        $stack = array(
+            array(
+                'dir'       => $dir,
+                'ancestors' => array(),
+            ),
+        );
+        while ( ! empty( $stack ) ) {
+            $frame = array_pop( $stack );
+            if ( count( $frame['ancestors'] ) > MainWP_Child_Restore_Task_Runner::MAX_REMOVAL_DEPTH ) {
+                continue;
             }
-        } catch ( \Exception $e ) {
-            // Unreadable subtree - the walk is best-effort for an estimate.
-            unset( $e );
+            $real = realpath( $frame['dir'] );
+            if ( false === $real || MainWP_Child_Backup_File_Restorer::is_reserved_temp_name( basename( $frame['dir'] ) ) || MainWP_Child_Backup_File_Restorer::is_reserved_temp_name( basename( $real ) ) ) {
+                continue;
+            }
+            $ancestors   = $frame['ancestors'];
+            $ancestors[] = $real;
+            try {
+                $iterator = new \DirectoryIterator( $frame['dir'] );
+                foreach ( $iterator as $file ) {
+                    if ( $file->isDot() || MainWP_Child_Backup_File_Restorer::is_reserved_temp_name( $file->getFilename() ) ) {
+                        continue;
+                    }
+                    $path = $file->getPathname();
+                    if ( $file->isLink() && ! static::is_safe_backup_path( $path, $bases, $ancestors ) ) {
+                        continue;
+                    }
+                    $real = realpath( $path );
+                    if ( false === $real || MainWP_Child_Backup_File_Restorer::is_reserved_temp_name( basename( $real ) ) ) {
+                        continue;
+                    }
+                    if ( $file->isDir() ) {
+                        $stack[] = array(
+                            'dir'       => $path,
+                            'ancestors' => $ancestors,
+                        );
+                    } elseif ( $file->isFile() ) {
+                        $bytes += (int) $file->getSize();
+                        ++$count;
+                    }
+                }
+            } catch ( \Exception $e ) {
+                // An unreadable subtree must not discard the rest of the estimate.
+                unset( $e );
+            }
         }
         return array(
             'bytes' => $bytes,

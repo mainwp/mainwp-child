@@ -138,6 +138,105 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 		$this->assertFalse( MainWP_Backup::is_safe_backup_path( $tree . '/uploads', array( $tree ) ) );
 	}
 
+	public function test_directory_inventory_link_matrix() {
+		$tree = $this->link_tree();
+		file_put_contents( $tree . '/a/a.txt', 'a bytes' );
+		file_put_contents( $tree . '/b/b.txt', 'b bytes' );
+		$method = new ReflectionMethod( MainWP_Backup::class, 'get_directory_inventory' );
+		$method->setAccessible( true );
+		$directory_bytes = strlen( 'directory bytesordinary dotfiledotfile sentinel' );
+		$expected = array(
+			'bytes' => 2 * strlen( 'target bytes' ) + 2 * $directory_bytes + strlen( 'upload bytes' ) + 2 * strlen( 'a bytesb bytes' ),
+			'count' => 13,
+		);
+		$this->assertSame( $expected, $method->invoke( null, $tree ) );
+		$cases = array(
+			'linked.txt'  => array( strlen( 'target bytes' ), 1 ),
+			'linked-dir'  => array( $directory_bytes, 3 ),
+			'uploads'     => array( strlen( 'upload bytes' ), 1 ),
+			'outside.txt' => array( 0, 0 ),
+			'outside-dir' => array( 0, 0 ),
+			'dangling'    => array( 0, 0 ),
+			'dir/loop'    => array( 0, 0 ),
+			'a/to-b'      => array( strlen( 'b bytes' ), 1 ),
+			'b/to-a'      => array( strlen( 'a bytes' ), 1 ),
+			'temp-alias.txt' => array( 0, 0 ),
+		);
+		foreach ( $cases as $path => $effect ) {
+			$target = readlink( $tree . '/' . $path );
+			unlink( $tree . '/' . $path );
+			try {
+				$this->assertSame(
+					array( 'bytes' => $expected['bytes'] - $effect[0], 'count' => $expected['count'] - $effect[1] ),
+					$method->invoke( null, $tree ),
+					$path
+				);
+			} finally {
+				symlink( $target, $tree . '/' . $path );
+			}
+		}
+		foreach ( array( '.mainwp-restore-abc123.tmp', '.mainwp-restore-ab12-cd34.tmp' ) as $name ) {
+			file_put_contents( $tree . '/' . $name, 'excluded temp bytes' );
+			$this->assertSame( $expected, $method->invoke( null, $tree ), $name );
+		}
+		$this->assertSame( array(), MainWP_Backup::get_skipped_paths() );
+	}
+
+	public function test_directory_inventory_depth_limit() {
+		$method = new ReflectionMethod( MainWP_Backup::class, 'get_directory_inventory' );
+		$method->setAccessible( true );
+		$dir = $this->scratch;
+		for ( $depth = 1; $depth <= MainWP\Child\MainWP_Child_Restore_Task_Runner::MAX_REMOVAL_DEPTH; ++$depth ) {
+			$dir .= '/d';
+			mkdir( $dir );
+		}
+		file_put_contents( $dir . '/included.txt', 'included' );
+		mkdir( $dir . '/beyond' );
+		file_put_contents( $dir . '/beyond/excluded.txt', 'excluded' );
+		$this->assertSame( array( 'bytes' => 8, 'count' => 1 ), $method->invoke( null, $this->scratch ) );
+	}
+
+	public function test_directory_inventory_skips_unreadable_directories() {
+		$method = new ReflectionMethod( MainWP_Backup::class, 'get_directory_inventory' );
+		$method->setAccessible( true );
+		$this->assertSame( array( 'bytes' => 0, 'count' => 0 ), $method->invoke( null, $this->scratch . '/missing' ) );
+		mkdir( $this->scratch . '/unreadable' );
+		file_put_contents( $this->scratch . '/unreadable/hidden.txt', 'hidden' );
+		file_put_contents( $this->scratch . '/visible.txt', 'visible' );
+		chmod( $this->scratch . '/unreadable', 0000 );
+		try {
+			if ( is_readable( $this->scratch . '/unreadable' ) ) {
+				$this->markTestSkipped( 'This user can read directories with mode 0000.' );
+			}
+			$this->assertSame( array( 'bytes' => 7, 'count' => 1 ), $method->invoke( null, $this->scratch ) );
+		} finally {
+			chmod( $this->scratch . '/unreadable', 0755 );
+		}
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_estimate_backup_size_includes_linked_content() {
+		$content = $this->scratch . '/content';
+		mkdir( $content );
+		file_put_contents( $this->external . '/uploads/photo.txt', 'linked content bytes' );
+		symlink( $this->external . '/uploads', $content . '/uploads' );
+		define( 'MainWP\Child\WP_CONTENT_DIR', $content );
+		delete_transient( 'mainwp_backup_content_inventory' );
+		try {
+			$db_only = MainWP_Backup::get()->estimate_backup_size( false );
+			$this->assertSame( $db_only + strlen( 'linked content bytes' ), MainWP_Backup::get()->estimate_backup_size( true ) );
+			$this->assertSame(
+				array( 'bytes' => strlen( 'linked content bytes' ), 'count' => 1 ),
+				get_transient( 'mainwp_backup_content_inventory' )
+			);
+		} finally {
+			delete_transient( 'mainwp_backup_content_inventory' );
+		}
+	}
+
 	/**
 	 * Paths that resolve outside the allowed bases are rejected.
 	 */
@@ -270,11 +369,16 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 		}
 	}
 
+	public static function root_suffixes() {
+		return array( 'no trailing slash' => array( '' ), 'trailing slash' => array( '/' ) );
+	}
+
 	/**
+	 * @dataProvider root_suffixes
 	 * @runInSeparateProcess
 	 * @preserveGlobalState disabled
 	 */
-	public function test_exclusion_helper_matches_resolved_root() {
+	public function test_exclusion_helper_matches_resolved_root( $suffix ) {
 		$root = $this->scratch . '/real-root';
 		mkdir( $root . '/excluded', 0755, true );
 		file_put_contents( $root . '/excluded/backup.txt', 'excluded bytes' );
@@ -283,7 +387,7 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 		symlink( $root, $link );
 		symlink( $root . '/excluded/backup.txt', $root . '/alias.txt' );
 		// Isolate the helper's root spelling without moving the WordPress install.
-		define( 'MainWP\\Child\\ABSPATH', $link . '/' );
+		define( 'MainWP\\Child\\ABSPATH', $link . $suffix );
 		$this->assertNotSame( $link . '/', trailingslashit( realpath( $link ) ) );
 		$excludes = array( 'excluded' );
 		$this->assertTrue( MainWP_Backup::excluded_by_path_or_target( $excludes, $link . '/excluded/backup.txt' ) );
