@@ -436,6 +436,28 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertSame( 'ARCHIVE', file_get_contents( $target ) );
 		$this->assertFalse( is_link( $target ) );
 		$this->assertTrue( is_file( $target ) );
+		clearstatcache( true, $target );
+		$this->assertSame( 0444, fileperms( $target ) & 0777 );
+	}
+
+	/** @dataProvider data_read_only_target_formats */
+	public function test_mid_entry_failure_preserves_live_target( $format ) {
+		$this->restorer = new class() extends MainWP_Child_Backup_File_Restorer {
+			protected function extraction_limits() {
+				return array_merge( parent::extraction_limits(), array( 'expanded_bytes' => 3 ) );
+			}
+		};
+		$target = $this->extract_to . '/existing.txt';
+		file_put_contents( $target, 'original bytes' );
+		$part = 'zip' === $format
+			? $this->make_zip( 'part001.zip', array( 'existing.txt' => 'replacement' ) )
+			: $this->make_tar( 'part001.tar', array( 'existing.txt' => 'replacement' ) );
+		$result = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertSame( 3, $result['cursor']['expanded_bytes'] );
+		$this->assertStringContainsString( 'existing.txt', $result['error'] );
+		$this->assertSame( 'original bytes', file_get_contents( $target ) );
+		$this->assertSame( array(), glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) );
 	}
 
 	/**

@@ -197,11 +197,26 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 		}
 	}
 
+	private function excluded_link_tree( $tree ) {
+		$excluded = $this->scratch . '/excluded';
+		mkdir( $excluded );
+		file_put_contents( $excluded . '/backup.txt', 'excluded backup bytes' );
+		symlink( $excluded, $tree . '/backup-link' );
+		return array( str_replace( ABSPATH, '', $excluded ) );
+	}
+
+	private function assert_excluded_link_absent( $entries ) {
+		foreach ( array_keys( $entries ) as $entry ) {
+			$this->assertFalse( 'backup-link' === rtrim( $entry, '/' ) || 0 === strpos( $entry, 'backup-link/' ), $entry );
+		}
+	}
+
 	public function test_zip_descends_links_and_records_refusals() {
 		if ( ! class_exists( 'ZipArchive' ) ) {
 			$this->markTestSkipped( 'ZipArchive unavailable.' );
 		}
 		$tree = $this->link_tree();
+		$excludes = $this->excluded_link_tree( $tree );
 		$backup = $this->backup();
 		$zip = new ZipArchive();
 		$archive = $this->external . '/test.zip';
@@ -209,7 +224,7 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 		$slot = new ReflectionProperty( MainWP_Backup::class, 'zip' );
 		$slot->setAccessible( true );
 		$slot->setValue( $backup, $zip );
-		$backup->zip_add_dir( $tree, array() );
+		$backup->zip_add_dir( $tree, $excludes );
 		$this->assertTrue( $zip->close() );
 		$this->assertTrue( $zip->open( $archive ) );
 		$prefix = str_replace( ABSPATH, '', $tree ) . '/';
@@ -219,14 +234,16 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 		}
 		$zip->close();
 		$this->assert_link_entries( $entries, $tree );
+		$this->assert_excluded_link_absent( $entries );
 	}
 
 	public function test_tar_descends_links_and_records_refusals() {
 		$tree = $this->link_tree();
+		$excludes = $this->excluded_link_tree( $tree );
 		$archive = $this->external . '/test.tar';
 		$tar = new Tar_Archiver( $this->backup(), 'tar' );
 		$tar->create( $archive );
-		$tar->add_dir( $tree, array() );
+		$tar->add_dir( $tree, $excludes );
 		$tar->close();
 		$prefix = str_replace( ABSPATH, '', $tree ) . '/';
 		$entries = array();
@@ -242,14 +259,16 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 		}
 		fclose( $handle );
 		$this->assert_link_entries( $entries, $tree );
+		$this->assert_excluded_link_absent( $entries );
 	}
 
 	public function test_copy_descends_links_and_records_refusals() {
 		$tree = $this->link_tree();
+		$excludes = $this->excluded_link_tree( $tree );
 		$out = $this->external . '/copy';
 		$copied = $out . '/' . str_replace( ABSPATH, '', $tree );
 		mkdir( dirname( $copied ), 0755, true );
-		$this->backup()->copy_dir( array( $tree ), array(), $out . '/', false );
+		$this->backup()->copy_dir( array( $tree ), $excludes, $out . '/', false );
 		$entries = array();
 		$files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $copied, FilesystemIterator::SKIP_DOTS ) );
 		foreach ( $files as $file ) {
@@ -258,6 +277,7 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 			}
 		}
 		$this->assert_link_entries( $entries, $tree );
+		$this->assert_excluded_link_absent( $entries );
 	}
 
 	public function test_walker_descends_links_and_records_refusals_after_resume() {

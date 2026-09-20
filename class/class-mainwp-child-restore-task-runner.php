@@ -3124,8 +3124,6 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      *
      * @param string $dir   Directory.
      * @param int    $depth Depth below the cleanup root.
-     *
-     * @throws MainWP_Exception When the directory depth exceeds the limit.
      */
     private function rrmdir( $dir, $depth = 0 ) {
         if ( is_link( $dir ) ) {
@@ -3133,7 +3131,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             return;
         }
         if ( $depth > $this->removal_depth_limit() ) {
-            throw new MainWP_Exception( 'Restore directory removal depth limit exceeded.', null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- static internal message.
+            MainWP_Backup::record_skipped_path( $dir );
+            return;
         }
         foreach ( (array) scandir( $dir ) as $entry ) {
             if ( '.' === $entry || '..' === $entry ) {

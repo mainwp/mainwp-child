@@ -6,7 +6,7 @@
 use MainWP\Child\MainWP_Child_Backup_File_Restorer;
 use MainWP\Child\MainWP_Child_Restore_Task_Runner;
 use MainWP\Child\MainWP_Backup_Error;
-use MainWP\Child\MainWP_Exception;
+use MainWP\Child\MainWP_Backup;
 
 class LimitedBackupFileRestorer extends MainWP_Child_Backup_File_Restorer {
 
@@ -97,6 +97,7 @@ class BackupRestoreLimitsTest extends WP_UnitTestCase {
 		$this->assertNull( $first['error'] );
 		$result = $this->restorer->restore_slice( $first['cursor'], $config, microtime( true ) + 60 );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'], 'Entry-count cap must reject the second entry.' );
+		$this->assertStringContainsString( 'two.txt', $result['error'] );
 		$this->assertFileDoesNotExist( $this->extract_to . '/two.txt' );
 	}
 
@@ -110,7 +111,9 @@ class BackupRestoreLimitsTest extends WP_UnitTestCase {
 		$result = $this->restorer->restore_slice( $first['cursor'], $config, microtime( true ) + 60 );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'], 'Expanded-byte cap must reject cumulative output.' );
 		$this->assertSame( 7, $result['cursor']['expanded_bytes'] );
-		$this->assertSame( 3, filesize( $this->extract_to . '/two.txt' ) );
+		$this->assertFileDoesNotExist( $this->extract_to . '/two.txt' );
+		$this->assertSame( array(), glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) );
+		$this->assertStringContainsString( 'two.txt', $result['error'] );
 	}
 
 	public function test_compression_ratio_cap() {
@@ -127,17 +130,74 @@ class BackupRestoreLimitsTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $this->extract_to . '/large.txt' );
 	}
 
+	public static function compressed_limits() {
+		return array(
+			'bytes' => array( array( 'expanded_bytes' => 32 ) ),
+			'ratio' => array( array( 'ratio_min_bytes' => 1, 'ratio' => 2 ) ),
+		);
+	}
+
+	/** @dataProvider compressed_limits */
+	public function test_compressed_tar_preparation_enforces_limits( $limits ) {
+		$this->restorer->limits = $limits;
+		$part = $this->dir . '/ordinary.tar.gz';
+		file_put_contents( $part, gzencode( str_repeat( 'ordinary bytes ', 1000 ) ) );
+		$result = $this->restorer->restore_slice( array(), $this->config( array( $part ) ), microtime( true ) + 60 );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertStringContainsString( 'Could not decompress archive: ordinary.tar.gz', $result['error'] );
+		$this->assertSame( array(), glob( $this->dir . '/*.tar' ) );
+		$this->assertSame( array(), glob( $this->dir . '/*.tmp' ) );
+	}
+
+	public function test_ratio_threshold_is_inclusive_for_metadata_and_stream() {
+		$this->restorer->limits = array( 'ratio_min_bytes' => 65536, 'ratio' => 1 );
+		$cursor = array( 'entries' => 0, 'expanded_bytes' => 0 );
+		$check = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'check_entry_limits' );
+		$check->setAccessible( true );
+		try {
+			$check->invokeArgs( $this->restorer, array( 65537, 65536, &$cursor, 'ordinary.txt' ) );
+			$this->fail( 'The ratio threshold must include equality.' );
+		} catch ( \MainWP\Child\MainWP_Exception $e ) {
+			$this->assertStringContainsString( 'ordinary.txt', $e->getMessage() );
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $e->get_message_error_code() );
+		}
+		$stream = fopen( 'php://temp', 'w+b' );
+		$out = fopen( 'php://temp', 'w+b' );
+		fwrite( $stream, str_repeat( 'a', 65537 ) );
+		rewind( $stream );
+		$copy = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'copy_bounded_entry' );
+		$copy->setAccessible( true );
+		try {
+			$copy->invokeArgs( $this->restorer, array( $stream, $out, &$cursor, 65536, 'ordinary.txt' ) );
+			$this->fail( 'Streamed bytes must obey the inclusive ratio threshold.' );
+		} catch ( \MainWP\Child\MainWP_Exception $e ) {
+			$this->assertStringContainsString( 'ordinary.txt', $e->getMessage() );
+			$this->assertSame( 65536, $cursor['expanded_bytes'] );
+		} finally {
+			fclose( $stream );
+			fclose( $out );
+		}
+	}
+
 	public function test_rrmdir_depth_cap() {
 		$root = $this->dir . '/deep';
 		mkdir( $root . '/a/b/c', 0777, true );
 		file_put_contents( $root . '/a/b/c/keep.txt', 'keep' );
-		try {
-			$this->invoke_rrmdir( $root );
-			$this->fail( 'Directory depth cap must throw MainWP_Exception.' );
-		} catch ( MainWP_Exception $e ) {
-			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $e->get_message_error_code() );
-			$this->assertFileExists( $root . '/a/b/c/keep.txt' );
+		foreach ( array( '', '/a', '/a/b' ) as $level ) {
+			file_put_contents( $root . $level . '/remove.txt', 'remove' );
+			mkdir( $root . $level . '/empty' );
 		}
+		MainWP_Backup::reset_skipped_paths();
+		$this->invoke_rrmdir( $root );
+		foreach ( array( '', '/a', '/a/b' ) as $level ) {
+			$this->assertFileDoesNotExist( $root . $level . '/remove.txt' );
+		}
+		$this->assertDirectoryDoesNotExist( $root . '/empty' );
+		$this->assertDirectoryDoesNotExist( $root . '/a/empty' );
+		$this->assertDirectoryExists( $root . '/a/b/empty' );
+		$this->assertSame( 'keep', file_get_contents( $root . '/a/b/c/keep.txt' ) );
+		$this->assertContains( $root . '/a/b/c', MainWP_Backup::get_skipped_paths() );
+		MainWP_Backup::reset_skipped_paths();
 	}
 
 	public function test_rrmdir_unlinks_symlinks_without_following_them() {

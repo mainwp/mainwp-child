@@ -649,7 +649,7 @@ class Tar_Archiver {
                 continue;
             }
 
-            if ( ! MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $name ) ) ) {
+            if ( ! MainWP_Backup::excluded_by_path_or_target( $excludes, $name ) ) {
                 if ( $path->isLink() && $path->isDir() ) {
                     // RecursiveDirectoryIterator does not follow linked directories.
                     $this->add_dir( $name, $excludes, $descent_chain, $bases );

@@ -1782,6 +1782,22 @@ class MainWP_Backup {
     }
 
     /**
+     * Match exclusions against both the archive path and its resolved target.
+     *
+     * @param array  $excludes Files and directories to exclude.
+     * @param string $name     Filesystem path.
+     *
+     * @return bool Whether either path is excluded.
+     */
+    public static function excluded_by_path_or_target( $excludes, $name ) {
+        if ( MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $name ) ) ) {
+            return true;
+        }
+        $real = realpath( $name );
+        return false !== $real && $real !== $name && MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $real ) );
+    }
+
+    /**
      * Copy directory.
      *
      * @param array      $nodes        Default nodes.
@@ -1818,7 +1834,7 @@ class MainWP_Backup {
                 }
             }
 
-            if ( ! MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
+            if ( ! static::excluded_by_path_or_target( $excludes, $node ) ) {
                 if ( is_dir( $node ) ) {
                     $target_dir = str_replace( ABSPATH, $backupfolder, $node );
                     if ( ! file_exists( $target_dir ) && ! @mkdir( $target_dir ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.file_system_operations_mkdir -- failure converted to a coded exception below.
@@ -2029,7 +2045,7 @@ class MainWP_Backup {
                 continue;
             }
 
-            if ( ! MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $name ) ) ) {
+            if ( ! static::excluded_by_path_or_target( $excludes, $name ) ) {
                 if ( $path->isDir() ) {
                     $this->zip_add_dir( $name, $excludes, null, $descent_chain );
                 } else {
