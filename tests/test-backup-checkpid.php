@@ -141,6 +141,12 @@ class BackupCheckpidTest extends WP_UnitTestCase {
 			public $pid_path;
 			public $observed = array();
 
+			public function heartbeat_after_completion() {
+				$this->heartbeat_at = 0;
+				$this->heartbeat();
+				return $this->pid_file;
+			}
+
 			public function check_zip_support() {
 				return true;
 			}
@@ -158,6 +164,7 @@ class BackupCheckpidTest extends WP_UnitTestCase {
 				$this->heartbeat();
 				clearstatcache( true, $this->pid_file );
 				$this->observed['refreshed'] = filemtime( $this->pid_file ) > $old;
+				$this->observed['status'] = $this->get_checkpid_status( filemtime( $this->pid_file ), dirname( $this->pid_file ) );
 				$this->observed['old'] = $old;
 				$this->observed['path'] = $filepath;
 				file_put_contents( $filepath, 'tiny archive fixture' );
@@ -172,8 +179,19 @@ class BackupCheckpidTest extends WP_UnitTestCase {
 			$this->assertSame( $backup->observed['path'], $backup->observed['content'] );
 			$this->assertSame( $backup->observed['old'], $backup->observed['throttled'] );
 			$this->assertTrue( $backup->observed['refreshed'] );
-			$this->assertSame( 'busy', $backup->get_checkpid_status( filemtime( $backup->pid_path ), dirname( $backup->pid_path ) ) );
+			$this->assertSame( 'busy', $backup->observed['status'] );
+			$done = substr( $backup->pid_path, 0, -4 ) . '.done';
+			$this->assertFileExists( $done );
+			$this->assertSame( $backup->observed['path'], file_get_contents( $done ) );
+			$this->assertFileDoesNotExist( $backup->pid_path );
+			$this->assertFalse( MainWP_Backup::is_pid_lock_fresh( dirname( $backup->pid_path ) ) );
+			$this->assertFalse( $backup->heartbeat_after_completion() );
+			$this->assertFileDoesNotExist( $backup->pid_path );
 		} finally {
+			$done = substr( (string) $backup->pid_path, 0, -4 ) . '.done';
+			if ( is_file( $done ) ) {
+				unlink( $done );
+			}
 			if ( is_file( $backup->pid_path ) ) {
 				unlink( $backup->pid_path );
 			}

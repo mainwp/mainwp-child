@@ -374,6 +374,9 @@ class MainWP_Backup {
             } else {
                 $success = $this->create_zip_pcl_full_backup2( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp );
             }
+            if ( $success && null === $this->archiver ) {
+                $this->complete_pid_file();
+            }
         } catch ( \Exception $e ) {
             // Never leave a partial archive behind - a half-written file
             // looks like a backup and restores as corruption. A budget
@@ -390,6 +393,23 @@ class MainWP_Backup {
             'file'      => $fileurl,
             'filesize'  => filesize( $filepath ), // NOSONAR .
         ) : false;
+    }
+
+    /**
+     * Match tar's completion marker so finished ZIP runs no longer hold the pid gate.
+     *
+     * @return bool False when the run has no pid file.
+     */
+    private function complete_pid_file() {
+        if ( false === $this->pid_file ) {
+            return false;
+        }
+        global $wp_filesystem;
+
+        $wp_filesystem->move( $this->pid_file, substr( $this->pid_file, 0, -4 ) . '.done' );
+        $this->pid_file = false;
+
+        return true;
     }
 
     /**
