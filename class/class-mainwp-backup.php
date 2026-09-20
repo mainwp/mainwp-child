@@ -746,6 +746,21 @@ class MainWP_Backup {
     }
 
     /**
+     * Blocking archive calls cannot heartbeat, so their lease covers the request budget.
+     *
+     * @throws MainWP_Exception When ownership is lost.
+     */
+    public function extend_archive_mutex_lease() {
+        // Capped at the age the child already treats a run's litter as dead: the
+        // timeout presets go up to 20 hours, and a run killed without its shutdown
+        // hook would hold the mutex for the whole lease.
+        $ttl = min( max( MainWP_Child_Backup_Mutex::LEGACY_TTL, $this->get_timeout_from_request() ), 10800 );
+        if ( '' !== $this->mutex_owner && ! MainWP_Child_Backup_Mutex::refresh( $this->mutex_owner, $ttl ) ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+        }
+    }
+
+    /**
      * Keep checkpid and mutex ownership live through dumping and archiving.
      *
      * @throws MainWP_Exception When ownership is lost or the pid cannot be written.
@@ -949,7 +964,7 @@ class MainWP_Backup {
         }
 
         $ext = isset( $_POST['ext'] ) ? sanitize_text_field( wp_unslash( $_POST['ext'] ) ) : 'zip';
-        $pid = isset( $_POST['pid'] ) ? sanitize_text_field( wp_unslash( $_POST['pid'] ) ) : false;
+        $pid = ! empty( $_POST['pid'] ) ? MainWP_Helper::sanitize_filename( wp_unslash( $_POST['pid'] ) ) : false; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized via MainWP_Helper::sanitize_filename().
 
         $append = ( isset( $_POST['append'] ) && ( '1' === $_POST['append'] ) );
         // phpcs:enable WordPress.Security.NonceVerification
@@ -1087,7 +1102,9 @@ class MainWP_Backup {
         $this->zip = new \PclZip( $archive );
 
         $error = false;
+        $this->extend_archive_mutex_lease();
         foreach ( $files as $file ) {
+            $this->heartbeat();
             $rslt = $this->zip->add( $file, PCLZIP_OPT_REMOVE_PATH, dirname( $file ) );
             if ( empty( $rslt ) ) {
                 $error = true;
@@ -1705,6 +1722,7 @@ class MainWP_Backup {
         }
 
         foreach ( $nodes as $node ) {
+            $this->heartbeat();
             if ( ! static::is_safe_backup_path( $node, $this->allowed_backup_bases ) ) {
                 static::record_skipped_path( $node );
                 continue;
@@ -1824,6 +1842,7 @@ class MainWP_Backup {
         // Zip this backup folder.
         require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
         $this->zip = new \PclZip( $filepath );
+        $this->extend_archive_mutex_lease();
         $this->zip->create( $backupFolder, PCLZIP_OPT_REMOVE_PATH, $backupFolder );
         if ( $addConfig ) {
 

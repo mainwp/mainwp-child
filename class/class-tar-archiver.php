@@ -321,7 +321,9 @@ class Tar_Archiver {
         if ( time() - $this->pidUpdated < 40 ) {
             return false;
         }
-        $this->backup->heartbeat();
+        if ( null !== $this->backup ) {
+            $this->backup->heartbeat();
+        }
         if ( false !== $this->pidFile ) {
             global $wp_filesystem;
             $wp_filesystem->put_contents( $this->pidFile, $this->pidContent );

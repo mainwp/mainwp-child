@@ -14,6 +14,7 @@ class BackupMutexTest extends WP_UnitTestCase {
 		if ( null !== $holder ) {
 			MainWP_Child_Backup_Mutex::release( $holder['owner'] );
 		}
+		delete_option( 'mainwp_mutex_unrelated' );
 		parent::tear_down();
 	}
 
@@ -39,6 +40,29 @@ class BackupMutexTest extends WP_UnitTestCase {
 		$this->assertFalse( MainWP_Child_Backup_Mutex::refresh( 'old', 300 ) );
 		$this->assertFalse( MainWP_Child_Backup_Mutex::release( 'old' ) );
 		$this->assertSame( 'new', MainWP_Child_Backup_Mutex::holder()['owner'] );
+	}
+
+	public function test_takeover_loser_preserves_interleaved_winner() {
+		global $wpdb;
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'expired', -1 ) );
+		$interleaved = false;
+		$filter = function ( $query ) use ( $wpdb, &$interleaved ) {
+			if ( ! $interleaved && 0 === strpos( $query, "UPDATE $wpdb->options SET option_value" ) && false !== strpos( $query, MainWP_Child_Backup_Mutex::OPTION_NAME ) ) {
+				$interleaved = true;
+				$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'winner-b', 3600 ) );
+			}
+			return $query;
+		};
+		add_filter( 'query', $filter );
+		try {
+			$result = MainWP_Child_Backup_Mutex::acquire( 'legacy', 'loser-a', 300 );
+			$this->assertTrue( $interleaved );
+			$this->assertIsArray( $result );
+			$this->assertSame( 'winner-b', $result['owner'] );
+			$this->assertSame( $result, MainWP_Child_Backup_Mutex::holder() );
+		} finally {
+			remove_filter( 'query', $filter );
+		}
 	}
 
 	public function test_release_deletes_only_the_owner_row() {

@@ -579,6 +579,41 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( 'partial table', file_get_contents( $fragment . '.tmp' ) );
 	}
 
+	public function test_resumed_dump_preserves_existing_target_fragments() {
+		global $wpdb;
+		$prefix   = $this->backup_dir . '/dbBackup-persisted-run';
+		$fragment = $prefix . '-' . \MainWP\Child\MainWP_Helper::sanitize_filename( $wpdb->posts ) . '.sql.php';
+		file_put_contents( $fragment, 'completed table' );
+		file_put_contents( $fragment . '.tmp', 'partial table' );
+		$cursor  = array( 'index' => 1 );
+		$task_id = MainWP_Child_Backup_Task::instance()->create_task(
+			'full',
+			array(
+				'db_prefix' => $prefix,
+				'db_tier'   => 2,
+				'db_cursor' => $cursor,
+			)
+		);
+		$this->runner->stubs['dump_tier2'] = function ( $dump_prefix, $dump_cursor ) use ( $prefix, $fragment, $cursor ) {
+			$this->assertSame( $prefix, $dump_prefix );
+			$this->assertSame( $cursor, $dump_cursor );
+			$this->assertSame( 'completed table', file_get_contents( $fragment ) );
+			$this->assertSame( 'partial table', file_get_contents( $fragment . '.tmp' ) );
+			return array(
+				'done'   => false,
+				'cursor' => $dump_cursor,
+			);
+		};
+
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', $task_id, 3600 ) );
+		$task = $this->advance( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_DUMPING_DB, $task->phase );
+		$this->assertContains( 'dump_tier2', $this->runner->seam_names() );
+		$this->assertSame( $prefix, MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $this->backup_dir )['db_prefix'] );
+		$this->assertSame( 'completed table', file_get_contents( $fragment ) );
+		$this->assertSame( 'partial table', file_get_contents( $fragment . '.tmp' ) );
+	}
+
 	/**
 	 * A fresh dump owns only its table names under its exact prefix.
 	 */

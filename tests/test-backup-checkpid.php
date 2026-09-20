@@ -232,4 +232,139 @@ class BackupCheckpidTest extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_copy_dir_heartbeats_per_node_and_aborts_after_mutex_loss() {
+		$source = ABSPATH . 'mwp-copy-test-' . wp_generate_uuid4();
+		$target = $this->scratch . '/' . basename( $source );
+		mkdir( $source );
+		mkdir( $source . '/nested' );
+		file_put_contents( $source . '/one.txt', 'one' );
+		file_put_contents( $source . '/nested/two.txt', 'two' );
+		$backup = new class() extends MainWP_Backup {
+			public $beats = 0;
+			public function own( $owner ) {
+				$this->mutex_owner = $owner;
+				$this->heartbeat_at = 0;
+			}
+			public function heartbeat() {
+				++$this->beats;
+				parent::heartbeat();
+			}
+		};
+		try {
+			$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'copy-owner', 300 ) );
+			$backup->own( 'copy-owner' );
+			$before = MainWP_Child_Backup_Mutex::holder()['expires_at'];
+			$backup->copy_dir( array( $source ), array(), $this->scratch . '/', false );
+			$this->assertSame( 4, $backup->beats );
+			$this->assertGreaterThan( $before, MainWP_Child_Backup_Mutex::holder()['expires_at'] );
+			$this->assertSame( 'one', file_get_contents( $target . '/one.txt' ) );
+			$this->assertSame( 'two', file_get_contents( $target . '/nested/two.txt' ) );
+			MainWP_Child_Backup_Mutex::release( 'copy-owner' );
+			$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'copy-successor', 3600 ) );
+			$backup->own( 'copy-owner' );
+			file_put_contents( $source . '/one.txt', 'must not overwrite' );
+			try {
+				$backup->copy_dir( array( $source ), array(), $this->scratch . '/', false );
+				$this->fail( 'A displaced copy must stop.' );
+			} catch ( \MainWP\Child\MainWP_Exception $e ) {
+				$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+			}
+			$this->assertSame( 'one', file_get_contents( $target . '/one.txt' ) );
+			$this->assertSame( 'copy-successor', MainWP_Child_Backup_Mutex::holder()['owner'] );
+		} finally {
+			MainWP_Child_Backup_Mutex::release( 'copy-owner' );
+			MainWP_Child_Backup_Mutex::release( 'copy-successor' );
+			foreach ( array( $source, $target ) as $dir ) {
+				foreach ( array( '/nested/two.txt', '/one.txt' ) as $file ) {
+					if ( is_file( $dir . $file ) ) {
+						unlink( $dir . $file );
+					}
+				}
+				if ( is_dir( $dir . '/nested' ) ) {
+					rmdir( $dir . '/nested' );
+				}
+				if ( is_dir( $dir ) ) {
+					rmdir( $dir );
+				}
+			}
+		}
+	}
+
+	public function test_blocking_archive_lease_uses_request_budget_and_rejects_lost_owner() {
+		$backup = new class() extends MainWP_Backup {
+			public $budget = 72000;
+			public function get_timeout_from_request() {
+				return $this->budget;
+			}
+			public function own( $owner ) {
+				$this->mutex_owner = $owner;
+			}
+		};
+		$backup->own( 'archive-owner' );
+		try {
+			// 72000 is the 20-hour preset: the lease is capped so a run killed
+			// without its shutdown hook cannot wedge the child for that long.
+			foreach ( array( 72000 => 10800, 1 => 300 ) as $budget => $expected ) {
+				$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'archive-owner', -1 ) );
+				$backup->budget = $budget;
+				$before = time();
+				$backup->extend_archive_mutex_lease();
+				$expires = MainWP_Child_Backup_Mutex::holder()['expires_at'];
+				$this->assertGreaterThanOrEqual( $before + $expected, $expires );
+				$this->assertLessThanOrEqual( time() + $expected, $expires );
+				MainWP_Child_Backup_Mutex::release( 'archive-owner' );
+			}
+			$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'archive-successor', 3600 ) );
+			try {
+				$backup->extend_archive_mutex_lease();
+				$this->fail( 'A displaced archiver must stop.' );
+			} catch ( \MainWP\Child\MainWP_Exception $e ) {
+				$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+			}
+		} finally {
+			MainWP_Child_Backup_Mutex::release( 'archive-owner' );
+			MainWP_Child_Backup_Mutex::release( 'archive-successor' );
+		}
+	}
+
+	public function test_backup_full_sanitizes_pid_before_building_path() {
+		$backup = new class() extends MainWP_Backup {
+			public $pid_path;
+			public $archive_path;
+			public function check_zip_support() {
+				return true;
+			}
+			public function create_zip_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp ) {
+				$this->pid_path = $this->pid_file;
+				$this->archive_path = $filepath;
+				file_put_contents( $filepath, 'tiny archive fixture' );
+				return true;
+			}
+		};
+		$post = $_POST;
+		$result = null;
+		try {
+			$_POST = array( 'pid' => '../../../../wp-content/uploads/x', 'ext' => 'zip' );
+			$result = $backup->backup_full( 'pid-safety-' . wp_generate_uuid4() );
+			$this->assertIsArray( $result );
+			$dirs = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' );
+			$this->assertSame( realpath( $dirs[0] ), realpath( dirname( $backup->pid_path ) ) );
+			$this->assertStringNotContainsString( '..', basename( $backup->pid_path ) );
+			$this->assertFileExists( substr( $backup->pid_path, 0, -4 ) . '.done' );
+		} finally {
+			$_POST = $post;
+			foreach ( array( $backup->pid_path, substr( (string) $backup->pid_path, 0, -4 ) . '.done', $backup->archive_path ) as $file ) {
+				if ( $file && is_file( $file ) ) {
+					unlink( $file );
+				}
+			}
+		}
+	}
+
+	public function test_tar_pid_update_allows_null_backup() {
+		$archiver = new \MainWP\Child\Tar_Archiver( null, 'tar.gz' );
+		$this->assertTrue( $archiver->update_pid_file() );
+		$this->assertFalse( $archiver->update_pid_file() );
+	}
+
 }
