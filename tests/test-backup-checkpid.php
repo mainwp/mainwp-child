@@ -361,6 +361,104 @@ class BackupCheckpidTest extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_archive_call_sites_take_leases_and_clean_staging_on_failure() {
+		$backup = new class() extends MainWP_Backup {
+			public $leases = 0;
+			public $fail_copy = false;
+			public $fail_lease = 0;
+			public function extend_archive_mutex_lease() {
+				++$this->leases;
+				if ( $this->fail_lease === $this->leases ) {
+					throw new RuntimeException( 'lease lost' );
+				}
+			}
+			public function copy_dir( $nodes, $excludes, $destination, $excludenonwp, $root = false ) {
+				file_put_contents( $destination . 'fixture.txt', 'fixture' );
+				if ( $this->fail_copy ) {
+					throw new RuntimeException( 'copy interrupted' );
+				}
+			}
+		};
+		$backup->set_prepared_db_files( array() );
+		$archive = $this->scratch . '/tiny.zip';
+		file_put_contents( $this->scratch . '/input.txt', 'tiny' );
+		$this->assertTrue( $backup->m_zip_file_pcl( array( $this->scratch . '/input.txt' ), $archive ) );
+		$this->assertSame( 1, $backup->leases );
+		unlink( $archive );
+		$this->assertTrue( $backup->create_zip_pcl_full_backup2( $archive, array(), true, true, false, false ) );
+		$this->assertSame( 3, $backup->leases );
+		$this->assertDirectoryDoesNotExist( $this->scratch . '/backup' );
+		foreach ( array( 'copy', 'create', 'config' ) as $failure ) {
+			$backup->fail_copy = 'copy' === $failure;
+			$backup->fail_lease = $backup->leases + ( 'config' === $failure ? 2 : 1 );
+			try {
+				$backup->create_zip_pcl_full_backup2( $archive, array(), true, true, false, false );
+				$this->fail( 'The injected failure must escape.' );
+			} catch ( RuntimeException $e ) {
+				$this->assertContains( $e->getMessage(), array( 'copy interrupted', 'lease lost' ) );
+			}
+			$this->assertDirectoryDoesNotExist( $this->scratch . '/backup' );
+		}
+		$before = $backup->leases;
+		$backup->fail_lease = $before + 1;
+		try {
+			$backup->close_zip_archive();
+			$this->fail( 'Close must lease before touching the archiver.' );
+		} catch ( RuntimeException $e ) {
+			$this->assertSame( 'lease lost', $e->getMessage() );
+		}
+		$this->assertSame( $before + 1, $backup->leases );
+	}
+
+	public function test_pid_zero_and_empty_sanitized_value() {
+		$backup = new class() extends MainWP_Backup {
+			public function create_full_backup( $excludes = array(), $filePrefix = '', $addConfig = true, $includeCoreFiles = true, $file_descriptors = 0, $fileSuffix = false, $excludezip = false, $excludenonwp = false, $loadFilesBeforeZip = true, $ext = 'zip', $pid = false, $append = false ) {
+				return $pid;
+			}
+		};
+		$post = $_POST;
+		try {
+			$_POST = array( 'pid' => '0' );
+			$this->assertSame( '0', $backup->backup_full( 'fixture' ) );
+			$_POST = array( 'pid' => '../../../../' );
+			$this->assertFalse( $backup->backup_full( 'fixture' ) );
+			$_POST = array();
+			$this->assertFalse( $backup->backup_full( 'fixture' ) );
+		} finally {
+			$_POST = $post;
+		}
+	}
+
+	public function test_checkpid_uses_the_writers_filename_sanitizer() {
+		global $wp_filesystem;
+		\MainWP\Child\MainWP_Helper::get_wp_filesystem();
+		$original = $wp_filesystem;
+		$post = $_POST;
+		$probe = new class( null ) extends WP_Filesystem_Direct {
+			public $path;
+			public function is_file( $file ) {
+				$this->path = $file;
+				throw new RuntimeException( 'path captured before response exits' );
+			}
+		};
+		try {
+			$wp_filesystem = $probe;
+			foreach ( array( '../../../../some/path', '0', 'a:b?c' ) as $pid ) {
+				$_POST = array( 'pid' => $pid );
+				try {
+					MainWP_Backup::get()->backup_checkpid();
+					$this->fail( 'The filesystem probe must interrupt the response.' );
+				} catch ( RuntimeException $e ) {
+					$dirs = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' );
+					$this->assertSame( trailingslashit( $dirs[0] ) . 'backup-' . \MainWP\Child\MainWP_Helper::sanitize_filename( $pid ) . '.pid', $probe->path );
+				}
+			}
+		} finally {
+			$wp_filesystem = $original;
+			$_POST = $post;
+		}
+	}
+
 	public function test_tar_pid_update_allows_null_backup() {
 		$archiver = new \MainWP\Child\Tar_Archiver( null, 'tar.gz' );
 		$this->assertTrue( $archiver->update_pid_file() );

@@ -579,21 +579,109 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( 'partial table', file_get_contents( $fragment . '.tmp' ) );
 	}
 
+	public function test_restore_dump_heartbeat_does_not_refresh_foreign_mutex() {
+		$spine = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'restore', array() );
+		$runner = new \MainWP\Child\MainWP_Child_Restore_Task_Runner();
+		$id = new ReflectionProperty( MainWP_Child_Backup_Task_Runner::class, 'current_task_id' );
+		$id->setAccessible( true );
+		$id->setValue( $runner, $task_id );
+		$method = new ReflectionMethod( MainWP_Child_Backup_Task_Runner::class, 'dump_heartbeat' );
+		$method->setAccessible( true );
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'restore-foreign', 300 ) );
+		$before = MainWP_Child_Backup_Mutex::holder();
+		$heartbeat = $method->invoke( $runner );
+		$heartbeat();
+		$this->assertSame( $before, MainWP_Child_Backup_Mutex::holder() );
+		MainWP_Child_Backup_Mutex::release( 'restore-foreign' );
+		$heartbeat = $method->invoke( $runner );
+		$heartbeat();
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+	}
+
+	public function test_dump_callbacks_refresh_progress_throttle_and_fail_after_takeover() {
+		global $wpdb;
+		$slot = new ReflectionProperty( \MainWP\Child\MainWP_Backup_Db_Dumper::class, 'instance' );
+		$slot->setAccessible( true );
+		$original = $slot->getValue();
+		$dumper = new class() extends \MainWP\Child\MainWP_Backup_Db_Dumper {
+			public $invoke;
+			public function dump_to_files( $prefix, $budget = null, $heartbeat = null ) {
+				call_user_func( $this->invoke, $heartbeat );
+				throw new MainWP_Backup_Budget_Exception( 'stop slice', null, '' );
+			}
+			public function dump_tier2_slice( $prefix, $cursor, $budget = 45, $heartbeat = null ) {
+				call_user_func( $this->invoke, $heartbeat );
+				return array( 'done' => false, 'cursor' => array( 'index' => 0 ) );
+			}
+		};
+		$slot->setValue( null, $dumper );
+		try {
+			foreach ( array( 1, 2 ) as $tier ) {
+				foreach ( array( false, true ) as $foreign ) {
+					$task_id = $this->create_task( 'full' );
+					$this->runner->stubs['tier1_available'] = 1 === $tier;
+					$method = new ReflectionMethod( MainWP_Child_Backup_Task_Runner::class, 'dump_tier' . $tier );
+					$method->setAccessible( true );
+					$this->runner->stubs['dump_tier' . $tier] = function ( ...$args ) use ( $method ) {
+						return $method->invokeArgs( $this->runner, $args );
+					};
+					$dumper->invoke = function ( $heartbeat ) use ( $task_id, $foreign, $wpdb ) {
+						$this->assertIsCallable( $heartbeat );
+						if ( $foreign ) {
+							MainWP_Child_Backup_Mutex::release( $task_id );
+							$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'foreign-dumper', 300 ) );
+							$heartbeat();
+							$this->fail( 'Lost ownership must interrupt the dump.' );
+						}
+						$spine = MainWP_Child_Backup_Task::instance();
+						$touch = new ReflectionProperty( $spine, 'last_touch' );
+						$touch->setAccessible( true );
+						$touch->setValue( $spine, 0 );
+						$wpdb->update( $spine->get_table_name(), array( 'last_progress_at' => '2000-01-01 00:00:00' ), array( 'task_id' => $task_id ) );
+						$before = MainWP_Child_Backup_Mutex::holder()['expires_at'];
+						$heartbeat();
+						$this->assertNotSame( '2000-01-01 00:00:00', $spine->get_task( $task_id )->last_progress_at );
+						$after = MainWP_Child_Backup_Mutex::holder()['expires_at'];
+						$this->assertGreaterThan( $before, $after );
+						$touch->setValue( $spine, 0 );
+						$wpdb->update( $spine->get_table_name(), array( 'last_progress_at' => '2000-01-01 00:00:00' ), array( 'task_id' => $task_id ) );
+						$heartbeat();
+						$this->assertSame( $after, MainWP_Child_Backup_Mutex::holder()['expires_at'] );
+						$this->assertSame( '2000-01-01 00:00:00', $spine->get_task( $task_id )->last_progress_at );
+					};
+					$task = $this->advance( $task_id );
+					$this->assertSame( $foreign ? MainWP_Child_Backup_Task::PHASE_FAILED : MainWP_Child_Backup_Task::PHASE_DUMPING_DB, $task->phase );
+					if ( $foreign ) {
+						$state = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $this->backup_dir );
+						$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_ALREADY_RUNNING, $state['error']['code'] );
+					}
+					MainWP_Child_Backup_Mutex::release( $task_id );
+					MainWP_Child_Backup_Mutex::release( 'foreign-dumper' );
+				}
+			}
+		} finally {
+			$slot->setValue( null, $original );
+		}
+	}
+
 	public function test_resumed_dump_preserves_existing_target_fragments() {
 		global $wpdb;
-		$prefix   = $this->backup_dir . '/dbBackup-persisted-run';
+		$task_id = $this->create_task( 'full' );
+		$this->runner->stubs['dump_tier1'] = new MainWP_Backup_Budget_Exception( 'over budget', null, '' );
+		$task = $this->advance( $task_id );
+		$state = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $this->backup_dir );
+		$prefix = $state['db_prefix'];
+		$this->assertSame( $this->backup_dir . '/dbBackup-' . $task_id, $prefix );
 		$fragment = $prefix . '-' . \MainWP\Child\MainWP_Helper::sanitize_filename( $wpdb->posts ) . '.sql.php';
-		file_put_contents( $fragment, 'completed table' );
-		file_put_contents( $fragment . '.tmp', 'partial table' );
-		$cursor  = array( 'index' => 1 );
-		$task_id = MainWP_Child_Backup_Task::instance()->create_task(
-			'full',
-			array(
-				'db_prefix' => $prefix,
-				'db_tier'   => 2,
-				'db_cursor' => $cursor,
-			)
-		);
+		$cursor = array( 'index' => 1 );
+		$this->runner->stubs['dump_tier2'] = function ( $dump_prefix ) use ( $prefix, $fragment, $cursor ) {
+			$this->assertSame( $prefix, $dump_prefix );
+			file_put_contents( $fragment, 'completed table' );
+			file_put_contents( $fragment . '.tmp', 'partial table' );
+			return array( 'done' => false, 'cursor' => $cursor );
+		};
+		$this->advance( $task_id );
 		$this->runner->stubs['dump_tier2'] = function ( $dump_prefix, $dump_cursor ) use ( $prefix, $fragment, $cursor ) {
 			$this->assertSame( $prefix, $dump_prefix );
 			$this->assertSame( $cursor, $dump_cursor );
@@ -605,7 +693,6 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 			);
 		};
 
-		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', $task_id, 3600 ) );
 		$task = $this->advance( $task_id );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_DUMPING_DB, $task->phase );
 		$this->assertContains( 'dump_tier2', $this->runner->seam_names() );

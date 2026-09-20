@@ -574,7 +574,7 @@ class MainWP_Backup {
      */
     public function backup_checkpid() {
         // phpcs:disable WordPress.Security.NonceVerification
-        $pid = isset( $_POST['pid'] ) ? sanitize_text_field( wp_unslash( $_POST['pid'] ) ) : 0;
+        $pid = isset( $_POST['pid'] ) ? MainWP_Helper::sanitize_filename( wp_unslash( $_POST['pid'] ) ) : 0; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized via MainWP_Helper::sanitize_filename().
         // phpcs:enable WordPress.Security.NonceVerification
         $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
         $backupdir = $dirs[0];
@@ -964,7 +964,12 @@ class MainWP_Backup {
         }
 
         $ext = isset( $_POST['ext'] ) ? sanitize_text_field( wp_unslash( $_POST['ext'] ) ) : 'zip';
-        $pid = ! empty( $_POST['pid'] ) ? MainWP_Helper::sanitize_filename( wp_unslash( $_POST['pid'] ) ) : false; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized via MainWP_Helper::sanitize_filename().
+        $pid = isset( $_POST['pid'] ) ? MainWP_Helper::sanitize_filename( wp_unslash( $_POST['pid'] ) ) : false; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized via MainWP_Helper::sanitize_filename().
+
+        // An empty sanitized value cannot identify a run; the string '0' can.
+        if ( '' === $pid ) {
+            $pid = false;
+        }
 
         $append = ( isset( $_POST['append'] ) && ( '1' === $_POST['append'] ) );
         // phpcs:enable WordPress.Security.NonceVerification
@@ -1275,6 +1280,7 @@ class MainWP_Backup {
      * @throws MainWP_Exception When the archive could not be finalized.
      */
     public function close_zip_archive() {
+        $this->extend_archive_mutex_lease();
         $result = false;
         if ( $this->zip instanceof \ZipArchive ) {
             $result = @$this->zip->close(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failure is converted to a coded exception below.
@@ -1786,87 +1792,90 @@ class MainWP_Backup {
 
         mkdir( $backupFolder ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
 
-        // Create DB backup.
-        $db_files = $this->get_or_create_db_dump_files( $this->db_dump_prefix( $backupFolder ) );
+        try {
+            // Create DB backup.
+            $db_files = $this->get_or_create_db_dump_files( $this->db_dump_prefix( $backupFolder ) );
 
-        // Copy installation to backup folder.
-        $nodes = glob( ABSPATH . '*' );
-        if ( ! $includeCoreFiles ) {
-            $coreFiles = array(
-                'favicon.ico',
-                'index.php',
-                'license.txt',
-                'readme.html',
-                'wp-activate.php',
-                'wp-app.php',
-                'wp-blog-header.php',
-                'wp-comments-post.php',
-                'wp-config.php',
-                'wp-config-sample.php',
-                'wp-cron.php',
-                'wp-links-opml.php',
-                'wp-load.php',
-                'wp-login.php',
-                'wp-mail.php',
-                'wp-pass.php',
-                'wp-register.php',
-                'wp-settings.php',
-                'wp-signup.php',
-                'wp-trackback.php',
-                'xmlrpc.php',
-            );
-            foreach ( $nodes as $key => $node ) {
-                if ( MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
-                    unset( $nodes[ $key ] );
-                } elseif ( MainWP_Helper::starts_with( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
-                    unset( $nodes[ $key ] );
-                } else {
-                    foreach ( $coreFiles as $coreFile ) {
-                        if ( ABSPATH . $coreFile === $node ) {
-                            unset( $nodes[ $key ] );
+            // Copy installation to backup folder.
+            $nodes = glob( ABSPATH . '*' );
+            if ( ! $includeCoreFiles ) {
+                $coreFiles = array(
+                    'favicon.ico',
+                    'index.php',
+                    'license.txt',
+                    'readme.html',
+                    'wp-activate.php',
+                    'wp-app.php',
+                    'wp-blog-header.php',
+                    'wp-comments-post.php',
+                    'wp-config.php',
+                    'wp-config-sample.php',
+                    'wp-cron.php',
+                    'wp-links-opml.php',
+                    'wp-load.php',
+                    'wp-login.php',
+                    'wp-mail.php',
+                    'wp-pass.php',
+                    'wp-register.php',
+                    'wp-settings.php',
+                    'wp-signup.php',
+                    'wp-trackback.php',
+                    'xmlrpc.php',
+                );
+                foreach ( $nodes as $key => $node ) {
+                    if ( MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
+                        unset( $nodes[ $key ] );
+                    } elseif ( MainWP_Helper::starts_with( $node, ABSPATH . basename( admin_url( '' ) ) ) ) {
+                        unset( $nodes[ $key ] );
+                    } else {
+                        foreach ( $coreFiles as $coreFile ) {
+                            if ( ABSPATH . $coreFile === $node ) {
+                                unset( $nodes[ $key ] );
+                            }
                         }
                     }
                 }
+                unset( $coreFiles );
             }
-            unset( $coreFiles );
+            $this->copy_dir( $nodes, $excludes, $backupFolder, $excludenonwp, true );
+
+            foreach ( $db_files as $db_file ) {
+                copy( $db_file, $backupFolder . basename( WP_CONTENT_DIR ) . '/' . ( '.sql' === substr( $db_file, -4 ) ? 'dbBackup.sql' : basename( $db_file ) ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated // NOSONAR .
+                wp_delete_file( $db_file ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated // NOSONAR.
+            }
+
+            unset( $nodes );
+
+            // Zip this backup folder.
+            require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
+            $this->zip = new \PclZip( $filepath );
+            $this->extend_archive_mutex_lease();
+            $this->zip->create( $backupFolder, PCLZIP_OPT_REMOVE_PATH, $backupFolder );
+            if ( $addConfig ) {
+
+                /**
+                 * WordPress Database instance.
+                 *
+                 * @global object $wpdb
+                 */
+                global $wpdb;
+
+                $string = wp_json_encode(
+                    array(
+                        'siteurl' => get_option( 'siteurl' ),
+                        'home'    => get_option( 'home' ),
+                        'abspath' => ABSPATH,
+                        'prefix'  => $wpdb->prefix,
+                        'lang'    => WPLANG,
+                    )
+                );
+
+                $this->extend_archive_mutex_lease();
+                $this->add_file_from_string_to_pcl_zip( 'clone/config.txt', $string, $filepath );
+            }
+        } finally {
+            MainWP_Helper::delete_dir( $backupFolder );
         }
-        $this->copy_dir( $nodes, $excludes, $backupFolder, $excludenonwp, true );
-
-        foreach ( $db_files as $db_file ) {
-            copy( $db_file, $backupFolder . basename( WP_CONTENT_DIR ) . '/' . ( '.sql' === substr( $db_file, -4 ) ? 'dbBackup.sql' : basename( $db_file ) ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated // NOSONAR .
-            wp_delete_file( $db_file ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated // NOSONAR.
-        }
-
-        unset( $nodes );
-
-        // Zip this backup folder.
-        require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
-        $this->zip = new \PclZip( $filepath );
-        $this->extend_archive_mutex_lease();
-        $this->zip->create( $backupFolder, PCLZIP_OPT_REMOVE_PATH, $backupFolder );
-        if ( $addConfig ) {
-
-            /**
-             * WordPress Database instance.
-             *
-             * @global object $wpdb
-             */
-            global $wpdb;
-
-            $string = wp_json_encode(
-                array(
-                    'siteurl' => get_option( 'siteurl' ),
-                    'home'    => get_option( 'home' ),
-                    'abspath' => ABSPATH,
-                    'prefix'  => $wpdb->prefix,
-                    'lang'    => WPLANG,
-                )
-            );
-
-            $this->add_file_from_string_to_pcl_zip( 'clone/config.txt', $string, $filepath );
-        }
-        // Remove backup folder.
-        MainWP_Helper::delete_dir( $backupFolder );
 
         return true;
     }

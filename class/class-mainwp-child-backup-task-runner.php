@@ -1475,6 +1475,30 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
+     * Keep a single large table from outliving the mutex or stall window.
+     *
+     * @return callable Liveness callback for one dump invocation.
+     */
+    protected function dump_heartbeat() {
+        $task_id = $this->current_task_id;
+        $spine   = MainWP_Child_Backup_Task::instance();
+        $task    = $spine->get_task( $task_id );
+        $restore = null !== $task && MainWP_Child_Backup_Task::is_restore_type( $task->type );
+        $last    = 0;
+
+        return function () use ( $task_id, $spine, $restore, &$last ) {
+            if ( time() - $last < 40 ) {
+                return;
+            }
+            if ( ! $restore && ! MainWP_Child_Backup_Mutex::refresh( $task_id, MainWP_Child_Backup_Mutex::NATIVE_TTL ) ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+            }
+            $spine->touch_progress( $task_id );
+            $last = time();
+        };
+    }
+
+    /**
      * Run the consistent-snapshot dump within the given budget.
      *
      * @param string $prefix Dump file prefix.
@@ -1483,7 +1507,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @return array Dump file paths.
      */
     protected function dump_tier1( $prefix, $budget ) {
-        $result = MainWP_Backup_Db_Dumper::instance()->dump_to_files( $prefix, $budget );
+        $result = MainWP_Backup_Db_Dumper::instance()->dump_to_files( $prefix, $budget, $this->dump_heartbeat() );
         return $result['files'];
     }
 
@@ -1497,7 +1521,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @return array Slice result (done/cursor/files).
      */
     protected function dump_tier2( $prefix, $cursor, $budget ) {
-        return MainWP_Backup_Db_Dumper::instance()->dump_tier2_slice( $prefix, $cursor, $budget );
+        return MainWP_Backup_Db_Dumper::instance()->dump_tier2_slice( $prefix, $cursor, $budget, $this->dump_heartbeat() );
     }
 
     /**
