@@ -1045,14 +1045,23 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     /**
      * Sweep stale legacy run leftovers from the backup directory: .pid and
      * .done markers and old db dump fragments past the age threshold. No
-     * task row tracks these, so age is the only signal. Archives are never
-     * touched, whatever their age - artifact deletion is prune_task's job
-     * and only ever by name.
+     * task row tracks these. A live mutex held by another caller, or a fresh
+     * legacy pid, defers all four patterns, including .done and staged
+     * manifests: housekeeping can wait until the next prune, and a clone holds
+     * the mutex without a task row. An expired holder is dead litter, not a
+     * live run, so it does not defer. Active task files remain protected.
+     * Archives are never touched, whatever their age - artifact deletion is
+     * prune_task's job and only ever by name.
      *
-     * @param string $backup_dir  Backup directory.
-     * @param int    $age_seconds Minimum age before a leftover is stale.
+     * @param string      $backup_dir   Backup directory.
+     * @param int         $age_seconds  Minimum age before a leftover is stale.
+     * @param string|null $caller_owner Caller's mutex owner token, or null when not held.
      */
-    public function sweep_stale_markers( $backup_dir, $age_seconds = 10800 ) {
+    public function sweep_stale_markers( $backup_dir, $age_seconds = 10800, $caller_owner = null ) {
+        $holder = MainWP_Child_Backup_Mutex::holder();
+        if ( ( null !== $holder && $holder['expires_at'] > time() && $holder['owner'] !== $caller_owner ) || MainWP_Backup::is_pid_lock_fresh( $backup_dir ) ) {
+            return;
+        }
         $patterns = array( 'backup-*.pid', 'backup-*.done', 'dbBackup-*.sql*', 'manifest-staged-*.list' );
         $cutoff   = time() - $age_seconds;
 

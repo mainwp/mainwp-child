@@ -24,8 +24,10 @@
  * writing into a directory, the sweep reclaims only this task's own temps.
  * Foreign and legacy names are never swept, and archived members with
  * reserved names are restored as is. If a restore never resumes, its temp
- * remains until an operator removes it: at most one per dead worker, bounded
- * by the entry byte cap, attributable by its owner token, and never archived.
+ * remains until an operator removes it. A worker that dies inside
+ * write_entry_stream() leaves at most one temp, bounded by the remaining
+ * cumulative expanded-byte budget (up to 64 GiB), attributable by its owner
+ * token, and never archived.
  * Terminal reclamation would require durable directory tracking or reopening
  * archives on a failure path.
  *
@@ -804,19 +806,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         }
         // A false read must not become chmod( 0 ), which would leave the
         // restored file unreadable; fall through to the creation default.
-        $mode = false === $perms ? null : ( $perms & 0777 );
-        $out  = false;
-        for ( $attempt = 0; $attempt < 3 && false === $out; ++$attempt ) {
-            $temp = $this->entry_temp_path( $target );
-            $out  = is_link( $temp ) ? false : @fopen( $temp, 'xb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- exclusive creation never truncates an existing path.
-        }
-        if ( false === $out ) {
-            $parent = dirname( $entry_name );
-            if ( is_writable( $directory ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- diagnose exclusive creation in the validated directory.
-                throw new \Exception( sprintf( 'Could not create a temporary file in %s: three generated names already existed; another restore may be running on this site.', '.' === $parent ? 'the site root' : esc_html( $parent ) ) );
-            }
-            throw new \Exception( sprintf( 'Could not create a temporary file in %s; the restore needs write permission on that directory.', '.' === $parent ? 'the site root' : esc_html( $parent ) ) );
-        }
+        $mode               = false === $perms ? null : ( $perms & 0777 );
+        list( $temp, $out ) = $this->create_entry_temp( $target, $entry_name );
         try {
             $this->copy_bounded_entry( $stream, $out, $cursor, $compressed, $entry_name );
             $closed = fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- finish the temporary file before promotion.
@@ -824,16 +815,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             if ( ! $closed ) {
                 throw new \Exception( sprintf( 'Could not finish writing extracted file: %s.', esc_html( $entry_name ) ) );
             }
-            if ( null !== $mode && ! @chmod( $temp, $mode ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- preserve the existing target mode before promotion.
-                throw new \Exception( sprintf( 'Could not write extracted file: %s.', esc_html( $entry_name ) ) );
-            }
-            if ( ! @rename( $temp, $target ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- same-directory atomic replacement never follows a leaf link.
-                clearstatcache( true, $temp );
-                if ( ! file_exists( $temp ) ) {
-                    throw new \Exception( sprintf( 'The temporary file for %s was removed before it could be promoted; another restore worker may be running on this site.', esc_html( $entry_name ) ) );
-                }
-                throw new \Exception( sprintf( 'Could not write extracted file: %s.', esc_html( $entry_name ) ) );
-            }
+            $this->promote_entry_temp( $temp, $target, $mode, $entry_name );
             clearstatcache( true, $target );
             // Ownership changes may be denied to PHP; restored bytes and mode remain valid.
             // phpcs:disable WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions -- native ownership preservation is best effort.
@@ -854,13 +836,78 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     }
 
     /**
+     * Create an exclusive output stream, retaining the final open failure's cause.
+     *
+     * @param string $target Validated target path.
+     * @param string $entry_name Archive entry name.
+     * @return array Temporary path and open stream.
+     * @throws \Exception When all creation attempts fail.
+     */
+    private function create_entry_temp( $target, $entry_name ) {
+        $out = false;
+        error_clear_last();
+        for ( $attempt = 0; $attempt < 3 && false === $out; ++$attempt ) {
+            $temp = $this->entry_temp_path( $target );
+            $out  = is_link( $temp ) ? false : @fopen( $temp, 'xb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- exclusive creation never truncates an existing path.
+        }
+        if ( false !== $out ) {
+            return array( $temp, $out );
+        }
+
+        $error     = error_get_last();
+        $directory = dirname( $target );
+        $parent    = dirname( $entry_name );
+        $where     = '.' === $parent ? 'the site root' : $parent;
+        if ( ! is_dir( $directory ) ) {
+            $why = 'the directory no longer exists.';
+        } elseif ( ! empty( $error['message'] ) ) {
+            // PHP includes the absolute temporary path before the stream error.
+            $cause = preg_replace( '/^.*(?:Failed to open stream: |failed to open stream: )/s', '', $error['message'] );
+            $cause = str_replace( array( $temp, $directory ), array( basename( $temp ), $where ), $cause );
+            $why   = $cause;
+        } elseif ( is_writable( $directory ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- fallback when PHP recorded no open error.
+            $why = 'temporary file creation failed; check available disk space and filesystem restrictions.';
+        } else {
+            $why = 'the restore needs write permission on that directory.';
+        }
+        throw new \Exception( sprintf( 'Could not create a temporary file in %s: %s', esc_html( $where ), esc_html( $why ) ) );
+    }
+
+    /**
+     * Preserve the mode before replacement; diagnose either failure with one stat.
+     *
+     * @param string   $temp Temporary path.
+     * @param string   $target Validated target path.
+     * @param int|null $mode Existing target mode, or null for the creation default.
+     * @param string   $entry_name Archive entry name.
+     * @throws \Exception When chmod or rename fails.
+     */
+    private function promote_entry_temp( $temp, $target, $mode, $entry_name ) {
+        // Short-circuiting keeps chmod before rename and avoids probing successful entries.
+        // phpcs:disable WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- native mode preservation and atomic replacement.
+        if ( ( null === $mode || @chmod( $temp, $mode ) ) && @rename( $temp, $target ) ) {
+            return;
+        }
+        // phpcs:enable WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged
+        clearstatcache( true, $temp );
+        if ( ! file_exists( $temp ) ) {
+            throw new \Exception( sprintf( 'The temporary file for %s was removed before it could be promoted; another restore worker may be running on this site.', esc_html( $entry_name ) ) );
+        }
+        throw new \Exception( sprintf( 'Could not write extracted file: %s.', esc_html( $entry_name ) ) );
+    }
+
+    /**
      * Choose a new same-directory name for an exclusive entry write.
      *
      * @param string $target Validated target path.
      *
      * @return string Temporary path.
+     * @throws \LogicException When the owner token is invalid.
      */
     protected function entry_temp_path( $target ) {
+        if ( ! is_string( $this->temp_owner ) || ! preg_match( '/^[0-9a-f]+\z/', $this->temp_owner ) ) {
+            throw new \LogicException( 'An extraction temp requires a valid owner token.' );
+        }
         return dirname( $target ) . '/' . self::TEMP_PREFIX . $this->temp_owner . '-' . bin2hex( random_bytes( 8 ) ) . self::TEMP_SUFFIX;
     }
 

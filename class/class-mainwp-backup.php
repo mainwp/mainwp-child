@@ -24,6 +24,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class MainWP_Backup {
 
+    /** Maximum directory depth for the backup readiness inventory. */
+    const MAX_INVENTORY_DEPTH = 64;
+
     /**
      * Nested legacy entry points share the outer request's lock.
      *
@@ -1431,9 +1434,11 @@ class MainWP_Backup {
     }
 
     /**
-     * Sum the size and count of the files an archive would store under a directory,
-     * following the links the walkers accept. A link and its in-tree target both
-     * count, because the archive stores both paths.
+     * Count regular files under a directory, following accepted links. Archive
+     * exclusion rules are not applied (reserved restore temps are still omitted),
+     * deliberately over-counting relative to the archive. Link handling matches
+     * the archive: directory links store contents under the link path, so a link
+     * and its in-tree target both count.
      *
      * @param string $dir Directory to measure.
      *
@@ -1451,7 +1456,8 @@ class MainWP_Backup {
         );
         while ( ! empty( $stack ) ) {
             $frame = array_pop( $stack );
-            if ( count( $frame['ancestors'] ) > MainWP_Child_Restore_Task_Runner::MAX_REMOVAL_DEPTH ) {
+            if ( count( $frame['ancestors'] ) > self::MAX_INVENTORY_DEPTH ) {
+                static::record_skipped_path( $frame['dir'] );
                 continue;
             }
             $real = realpath( $frame['dir'] );

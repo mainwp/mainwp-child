@@ -9,6 +9,59 @@ use MainWP\Child\MainWP_Child_Backup_File_Restorer;
 use MainWP\Child\MainWP_Backup_Error;
 use MainWP\Child\MainWP_Child_Backup_Task_Runner;
 
+/** Filesystem fault injection for the extraction matrix, backed by real files. */
+class ExtractionMatrixStream {
+	public $context;
+	public static $directory;
+	public static $failure;
+	public static $vanished;
+	public static $calls = array();
+	private $stream;
+	private $path;
+
+	private static function local( $path ) {
+		return self::$directory . '/' . substr( $path, strlen( 'extractmatrix://root/' ) );
+	}
+
+	public function url_stat( $path, $flags ) {
+		return @lstat( rtrim( self::local( $path ), '/' ) );
+	}
+
+	public function stream_open( $path, $mode, $options, &$opened_path ) {
+		$this->path = self::local( $path );
+		$this->stream = fopen( $this->path, $mode );
+		return false !== $this->stream;
+	}
+
+	public function stream_write( $data ) {
+		return fwrite( $this->stream, $data );
+	}
+
+	public function stream_close() {
+		fclose( $this->stream );
+		if ( self::$vanished ) {
+			unlink( $this->path );
+		}
+	}
+
+	public function stream_metadata( $path, $option, $value ) {
+		if ( STREAM_META_ACCESS !== $option ) {
+			return false;
+		}
+		self::$calls[] = 'chmod';
+		return 'chmod' !== self::$failure && @chmod( self::local( $path ), $value );
+	}
+
+	public function rename( $from, $to ) {
+		self::$calls[] = 'rename';
+		return 'rename' !== self::$failure && @rename( self::local( $from ), self::local( $to ) );
+	}
+
+	public function unlink( $path ) {
+		return @unlink( self::local( $path ) );
+	}
+}
+
 /**
  * Restorer that forces every compressed tar decompression to hit the slice deadline,
  * standing in for a stream too large to finish, without depending on wall-clock
@@ -614,7 +667,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertSame( $link, is_link( $peer ) );
 		$this->assertSame( 'restored bytes', file_get_contents( $this->extract_to . '/file.txt' ) );
 		if ( $link ) {
-			$method = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'write_entry_stream' );
+			$method = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'create_entry_temp' );
 			$source = implode( '', array_slice( file( $method->getFileName() ), $method->getStartLine() - 1, $method->getEndLine() - $method->getStartLine() + 1 ) );
 			$this->assertStringContainsString( "is_link( \$temp ) ? false : @fopen( \$temp, 'xb' )", $source, 'Keep the explicit symlink refusal as well as exclusive creation.' );
 		}
@@ -639,7 +692,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$part = $this->make_zip( 'collision.zip', array( 'file.txt' => 'restored bytes' ) );
 		$result = $this->run_all( $this->config( array( $part ) ) );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
-		$this->assertSame( 'Could not create a temporary file in the site root: three generated names already existed; another restore may be running on this site.', $result['error'] );
+		$this->assertSame( 'Could not create a temporary file in the site root: File exists', $result['error'] );
 		$this->assertSame( 3, $this->restorer->attempts );
 		$this->assertSame( 'peer bytes', file_get_contents( $peer ) );
 		$this->assertSame( 'live bytes', file_get_contents( $this->extract_to . '/file.txt' ) );
@@ -727,57 +780,137 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertSame( 'two', file_get_contents( $directory . '/y' ) );
 	}
 
-	public static function promotion_failures() {
-		return array(
-			'vanished temp' => array( 'vanished', 'The temporary file for file.txt was removed before it could be promoted; another restore worker may be running on this site.' ),
-			'failed rename' => array( 'rename', 'Could not write extracted file: file.txt.' ),
-			'failed chmod' => array( 'chmod', 'Could not write extracted file: file.txt.' ),
-		);
+	public static function extraction_matrix() {
+		$rows = array();
+		foreach ( array( false, true ) as $exists ) {
+			foreach ( array( false, true ) as $vanished ) {
+				foreach ( array( 'create', 'chmod', 'rename', 'fine' ) as $failure ) {
+					$message = null;
+					if ( 'create' === $failure ) {
+						$message = 'Could not create a temporary file in the site root: ';
+					} elseif ( $vanished ) {
+						$message = 'The temporary file for file.txt was removed before it could be promoted; another restore worker may be running on this site.';
+					} elseif ( 'rename' === $failure || ( $exists && 'chmod' === $failure ) ) {
+						$message = 'Could not write extracted file: file.txt.';
+					}
+					$rows[ ( $exists ? 'existing' : 'new' ) . '-' . ( $vanished ? 'vanished' : 'present' ) . '-' . $failure ] = array( $exists, $vanished, $failure, $message );
+				}
+			}
+		}
+		$rows['non-writable-no-errno'] = array( true, false, 'permissions', 'Could not create a temporary file in the site root: the restore needs write permission on that directory.' );
+		$rows['writable-no-errno'] = array( true, false, 'no-errno', 'Could not create a temporary file in the site root: temporary file creation failed; check available disk space and filesystem restrictions.' );
+		$rows['missing-directory'] = array( false, false, 'missing', 'Could not create a temporary file in the site root: the directory no longer exists.' );
+		return $rows;
 	}
 
-	/** @dataProvider promotion_failures */
-	public function test_promotion_failure_distinguishes_vanished_temp( $failure, $message ) {
-		$this->restorer = new class( $failure ) extends MainWP_Child_Backup_File_Restorer {
-			private $failure;
-			private $temp;
-			private $target;
-			public function __construct( $failure ) {
-				$this->failure = $failure;
-			}
-			protected function entry_temp_path( $target ) {
-				$this->target = $target;
-				$this->temp = parent::entry_temp_path( $target );
-				return $this->temp;
-			}
-			protected function extraction_limits() {
-				if ( null !== $this->temp ) {
-					// The stream is open by the time the byte budget is checked.
-					if ( 'rename' === $this->failure ) {
-						mkdir( $this->target );
-					} else {
-						unlink( $this->temp );
-					}
-				}
-				return parent::extraction_limits();
-			}
-		};
+	/** @dataProvider extraction_matrix */
+	public function test_extraction_creation_and_promotion_matrix( $exists, $vanished, $failure, $message ) {
 		$target = $this->extract_to . '/file.txt';
-		if ( 'chmod' === $failure ) {
+		if ( $exists ) {
 			file_put_contents( $target, 'live bytes' );
 		}
-		$part = $this->make_zip( 'promotion.zip', array( 'file.txt' => 'replacement' ) );
-		$result = $this->run_all( $this->config( array( $part ) ) );
-		$this->assertFalse( $result['done'] );
-		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
-		$this->assertSame( $message, $result['error'] );
-		$this->assertSame( array(), glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) );
-		if ( 'chmod' === $failure ) {
-			$this->assertSame( 'live bytes', file_get_contents( $target ) );
-		} elseif ( 'rename' === $failure ) {
-			$this->assertDirectoryExists( $target );
-		} else {
-			$this->assertFileDoesNotExist( $target );
+		$peer = $this->extract_to . '/peer';
+		if ( 'create' === $failure ) {
+			file_put_contents( $peer, 'peer bytes' );
+		} elseif ( in_array( $failure, array( 'permissions', 'no-errno' ), true ) ) {
+			symlink( $target, $peer );
 		}
+		ExtractionMatrixStream::$directory = $this->extract_to;
+		ExtractionMatrixStream::$failure = $failure;
+		ExtractionMatrixStream::$vanished = $vanished;
+		ExtractionMatrixStream::$calls = array();
+		$this->assertTrue( stream_wrapper_register( 'extractmatrix', ExtractionMatrixStream::class ) );
+		$restorer = new class( $failure, $peer ) extends MainWP_Child_Backup_File_Restorer {
+			public $attempts = 0;
+			private $failure;
+			private $peer;
+			public function __construct( $failure, $peer ) {
+				$this->failure = $failure;
+				$this->peer = $peer;
+			}
+			protected function entry_temp_path( $target ) {
+				++$this->attempts;
+				if ( 'create' === $this->failure ) {
+					return $this->peer . '/temp';
+				}
+				if ( in_array( $this->failure, array( 'permissions', 'no-errno' ), true ) ) {
+					return $this->peer;
+				}
+				return dirname( $target ) . '/.mainwp-restore-abc123-0123456789abcdef.tmp';
+			}
+		};
+		$stream = fopen( 'php://temp', 'w+b' );
+		fwrite( $stream, 'replacement' );
+		rewind( $stream );
+		$cursor = array( 'expanded_bytes' => 0 );
+		try {
+			if ( 'permissions' === $failure ) {
+				chmod( $this->extract_to, 0555 );
+				clearstatcache();
+				if ( is_writable( $this->extract_to ) ) {
+					$this->markTestSkipped( 'Filesystem does not enforce directory permissions.' );
+				}
+			}
+			$method = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'write_entry_stream' );
+			$method->setAccessible( true );
+			$path = in_array( $failure, array( 'permissions', 'no-errno' ), true ) ? $target : 'extractmatrix://root/file.txt';
+			if ( 'missing' === $failure ) {
+				$path = $this->extract_to . '/missing/file.txt';
+			}
+			$actual = null;
+			try {
+				$method->invokeArgs( $restorer, array( $stream, $path, &$cursor, 0, 'file.txt' ) );
+			} catch ( Exception $e ) {
+				$actual = $e->getMessage();
+			}
+			if ( 'create' === $failure ) {
+				$this->assertIsString( $actual );
+				$this->assertStringStartsWith( $message, $actual );
+				$cause = trim( substr( $actual, strlen( $message ) ) );
+				$this->assertNotSame( '', $cause );
+				$this->assertNotSame( 'temporary file creation failed; check available disk space and filesystem restrictions.', $cause );
+				$this->assertNotSame( 'the restore needs write permission on that directory.', $cause );
+			} else {
+				$this->assertSame( $message, $actual );
+			}
+			$this->assertSame( array(), glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) );
+			if ( null === $message ) {
+				$this->assertSame( 'replacement', file_get_contents( $target ) );
+			} elseif ( $exists ) {
+				$this->assertSame( 'live bytes', file_get_contents( $target ) );
+			} else {
+				$this->assertFileDoesNotExist( $target );
+			}
+			$creation_failed = in_array( $failure, array( 'create', 'permissions', 'no-errno', 'missing' ), true );
+			$this->assertSame( $creation_failed ? 3 : 1, $restorer->attempts );
+			$expected_calls = $creation_failed ? array() : ( $exists ? array( 'chmod' ) : array() );
+			if ( ! $creation_failed && ( ! $exists || ( ! $vanished && 'chmod' !== $failure ) ) ) {
+				$expected_calls[] = 'rename';
+			}
+			$this->assertSame( $expected_calls, ExtractionMatrixStream::$calls );
+		} finally {
+			chmod( $this->extract_to, 0755 );
+			fclose( $stream );
+			stream_wrapper_unregister( 'extractmatrix' );
+		}
+	}
+
+	public function test_entry_temp_producer_rejects_invalid_owner() {
+		$owner = new ReflectionProperty( MainWP_Child_Backup_File_Restorer::class, 'temp_owner' );
+		$owner->setAccessible( true );
+		$method = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'entry_temp_path' );
+		$method->setAccessible( true );
+		foreach ( array( null, '', 'not-hex', 'ABC', "abc\n" ) as $invalid ) {
+			$owner->setValue( $this->restorer, $invalid );
+			try {
+				$method->invoke( $this->restorer, $this->extract_to . '/file.txt' );
+				$this->fail( 'Invalid owner must not produce an unreserved temp name.' );
+			} catch ( LogicException $e ) {
+				$this->assertSame( 'An extraction temp requires a valid owner token.', $e->getMessage() );
+			}
+		}
+		$owner->setValue( $this->restorer, 'abc123' );
+		$this->assertTrue( MainWP_Child_Backup_File_Restorer::is_reserved_temp_name( basename( $method->invoke( $this->restorer, $this->extract_to . '/file.txt' ) ) ) );
 	}
 
 	public function test_replacement_preserves_owner_and_group() {
@@ -818,7 +951,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			$part = $this->make_zip( 'locked.zip', array( $entry => 'replacement' ) );
 			$result = $this->run_all( $this->config( array( $part ) ) );
 			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
-			$this->assertSame( 'Could not create a temporary file in ' . $label . '; the restore needs write permission on that directory.', $result['error'] );
+			$this->assertSame( 'Could not create a temporary file in ' . $label . ': Permission denied', $result['error'] );
 			$this->assertSame( 'original', file_get_contents( $this->extract_to . '/' . $entry ) );
 		} finally {
 			chmod( $parent, 0755 );

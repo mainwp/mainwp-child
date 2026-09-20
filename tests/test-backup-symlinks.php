@@ -182,18 +182,25 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 		$this->assertSame( array(), MainWP_Backup::get_skipped_paths() );
 	}
 
-	public function test_directory_inventory_depth_limit() {
+	public static function inventory_depths() {
+		return array(
+			'at cutoff' => array( MainWP_Backup::MAX_INVENTORY_DEPTH, false ),
+			'beyond cutoff' => array( MainWP_Backup::MAX_INVENTORY_DEPTH + 1, true ),
+		);
+	}
+
+	/** @dataProvider inventory_depths */
+	public function test_directory_inventory_depth_limit( $max_depth, $truncated ) {
 		$method = new ReflectionMethod( MainWP_Backup::class, 'get_directory_inventory' );
 		$method->setAccessible( true );
 		$dir = $this->scratch;
-		for ( $depth = 1; $depth <= MainWP\Child\MainWP_Child_Restore_Task_Runner::MAX_REMOVAL_DEPTH; ++$depth ) {
+		for ( $depth = 1; $depth <= $max_depth; ++$depth ) {
 			$dir .= '/d';
 			mkdir( $dir );
 		}
-		file_put_contents( $dir . '/included.txt', 'included' );
-		mkdir( $dir . '/beyond' );
-		file_put_contents( $dir . '/beyond/excluded.txt', 'excluded' );
-		$this->assertSame( array( 'bytes' => 8, 'count' => 1 ), $method->invoke( null, $this->scratch ) );
+		file_put_contents( $dir . '/file.txt', 'contents' );
+		$this->assertSame( array( 'bytes' => $truncated ? 0 : 8, 'count' => $truncated ? 0 : 1 ), $method->invoke( null, $this->scratch ) );
+		$this->assertSame( $truncated ? array( $dir ) : array(), MainWP_Backup::get_skipped_paths() );
 	}
 
 	public function test_directory_inventory_skips_unreadable_directories() {

@@ -115,6 +115,75 @@ class CloneBackupMutexTest extends WP_UnitTestCase {
 		$this->assertFileExists( $fragment );
 	}
 
+	public function test_stale_sweep_defers_all_patterns_until_clone_releases_mutex_and_pid() {
+		$names = array( 'dbBackup-clone-fragment.sql', 'backup-old.pid', 'backup-old.done', 'manifest-staged-old.list' );
+		foreach ( $names as $name ) {
+			file_put_contents( $this->backup_dir . $name, 'clone residue' );
+			touch( $this->backup_dir . $name, time() - 4 * 3600 );
+		}
+		$spine = MainWP_Child_Backup_Task::instance();
+		$backup = $this->make_backup();
+		$backup->during_backup = function () use ( $backup, $spine, $names ) {
+			$this->assertSame( array(), $spine->get_active_tasks() );
+			$this->assertNotNull( MainWP_Child_Backup_Mutex::holder() );
+			$this->assertTrue( MainWP_Backup::is_pid_lock_fresh( $this->backup_dir ) );
+			$spine->sweep_stale_markers( $this->backup_dir );
+			foreach ( $names as $name ) {
+				$this->assertFileExists( $this->backup_dir . $name );
+			}
+			file_put_contents( $backup->archive_path, 'clone archive fixture' );
+			return true;
+		};
+		$this->assertIsArray( $backup->create_clone_backup( array(), 'clone', true, 'zip' ) );
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+		$this->assertFalse( MainWP_Backup::is_pid_lock_fresh( $this->backup_dir ) );
+		$spine->sweep_stale_markers( $this->backup_dir );
+		foreach ( $names as $name ) {
+			$this->assertFileDoesNotExist( $this->backup_dir . $name );
+		}
+	}
+
+	public function test_stale_sweep_respects_mutex_and_pid_independently() {
+		$fragment = $this->backup_dir . 'dbBackup-held.sql';
+		file_put_contents( $fragment, 'keep' );
+		touch( $fragment, time() - 4 * 3600 );
+		$spine = MainWP_Child_Backup_Task::instance();
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'clone-owner', 3600 ) );
+		$spine->sweep_stale_markers( $this->backup_dir );
+		$this->assertFileExists( $fragment );
+		MainWP_Child_Backup_Mutex::release( 'clone-owner' );
+		$pid = $this->backup_dir . 'backup-clone-fresh.pid';
+		file_put_contents( $pid, 'archive.zip' );
+		$spine->sweep_stale_markers( $this->backup_dir );
+		$this->assertFileExists( $fragment );
+		unlink( $pid );
+		$spine->sweep_stale_markers( $this->backup_dir );
+		$this->assertFileDoesNotExist( $fragment );
+	}
+
+	public static function sweep_nonblocking_holders() {
+		return array(
+			'expired holder' => array( -1, null ),
+			'caller owns live holder' => array( 3600, 'sweep-owner' ),
+		);
+	}
+
+	/** @dataProvider sweep_nonblocking_holders */
+	public function test_stale_sweep_allows_expired_or_caller_owned_mutex( $ttl, $caller_owner ) {
+		$fragment = $this->backup_dir . 'dbBackup-dead-run.sql';
+		file_put_contents( $fragment, 'stale fragment' );
+		touch( $fragment, time() - 4 * 3600 );
+		$spine = MainWP_Child_Backup_Task::instance();
+		$this->assertSame( array(), $spine->get_active_tasks() );
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'sweep-owner', $ttl ) );
+		$holder = MainWP_Child_Backup_Mutex::holder();
+		$this->assertNotNull( $holder );
+		$this->assertFalse( MainWP_Backup::is_pid_lock_fresh( $this->backup_dir ) );
+		$spine->sweep_stale_markers( $this->backup_dir, 10800, $caller_owner );
+		$this->assertFileDoesNotExist( $fragment );
+		$this->assertSame( $holder, MainWP_Child_Backup_Mutex::holder() );
+	}
+
 	public function test_clone_releases_mutex_and_completes_marker_on_success() {
 		$backup = $this->make_backup();
 		$result = $backup->create_clone_backup( array(), 'clone', true, 'zip' );
