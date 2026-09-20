@@ -608,23 +608,43 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
 
     /**
      * Reduce host paths and keep error text safe to render after truncation.
+     * The non-mbstring fallback is not covered by the test matrix.
      *
      * @param string $message Host error text.
      * @return string Reduced UTF-8 text.
      */
     private function reduce_host_paths( $message ) {
         $message = preg_replace( '/[\x00-\x1F\x7F]/', '', $message );
+        $uploads = wp_upload_dir( null, false );
+        // The shared bases are realpaths; PHP can also report the configured paths.
+        $bases = array_merge( MainWP_Backup::default_backup_bases(), array( ABSPATH, WP_CONTENT_DIR, $uploads['basedir'] ) );
+        usort(
+            $bases,
+            static function ( $left, $right ) {
+                return strlen( $right ) <=> strlen( $left );
+            }
+        );
+        foreach ( array_unique( $bases ) as $base ) {
+            $base = rtrim( $base, '/\\' );
+            if ( '' !== $base ) {
+                $message = str_replace( $base, '[site]', $message );
+            }
+        }
         $message = preg_replace( '~/(?:[^\s/"\'<>()[\]{}]+/)+([^\s/"\'<>()[\]{}]+)~', '$1', $message );
         // Backslash paths take a second pass: a Windows or UNC path reported by
         // PHP survives the forward-slash collapse above and would carry the host
         // directory tree and the OS user name to the dashboard.
         $message = preg_replace( '~(?:[A-Za-z]:)?\\\\(?:[^\s\\\\"\'<>()[\]{}]+\\\\)+([^\s\\\\"\'<>()[\]{}]+)~', '$1', $message );
-        // Byte truncation can split a multi-byte sequence, and esc_html() renders
-        // invalid UTF-8 as the empty string - which would hide the very cause
-        // this message exists to report.
+        // Character truncation preserves boundaries, but host errors may already
+        // contain invalid UTF-8 that esc_html() would render as an empty string.
         $message = mb_substr( (string) $message, 0, 300 );
-        if ( ! mb_check_encoding( $message, 'UTF-8' ) ) {
-            $message = mb_convert_encoding( $message, 'UTF-8', 'UTF-8' );
+        // mbstring is optional; an Error here escapes both extraction loops' catch ( Exception ).
+        if ( function_exists( 'mb_check_encoding' ) && function_exists( 'mb_convert_encoding' ) ) {
+            if ( ! mb_check_encoding( $message, 'UTF-8' ) ) {
+                $message = mb_convert_encoding( $message, 'UTF-8', 'UTF-8' );
+            }
+        } elseif ( ! preg_match( '//u', $message ) ) {
+            $message = preg_replace( '/[\x80-\xFF]/', '?', $message );
         }
         return $message;
     }

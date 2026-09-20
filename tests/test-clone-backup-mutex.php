@@ -78,6 +78,10 @@ class CloneBackupMutexTest extends WP_UnitTestCase {
 				return true;
 			}
 
+			public function active_pid_path() {
+				return $this->pid_file;
+			}
+
 			public function mutex_owner() {
 				return $this->mutex_owner;
 			}
@@ -200,6 +204,8 @@ class CloneBackupMutexTest extends WP_UnitTestCase {
 		$this->assertSame( strlen( 'clone archive fixture' ), $result['filesize'] );
 		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
 		$this->assertSame( '', $backup->mutex_owner() );
+		$this->assertFalse( $backup->active_pid_path() );
+		$this->assertSame( array(), glob( $this->backup_dir . 'backup-clone-*.pid' ) );
 		$this->assertFileDoesNotExist( $backup->pid_path );
 		$done = substr( $backup->pid_path, 0, -4 ) . '.done';
 		$this->assertFileExists( $done );
@@ -222,6 +228,8 @@ class CloneBackupMutexTest extends WP_UnitTestCase {
 		$this->assertTrue( $backup->archive_called );
 		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
 		$this->assertSame( '', $backup->mutex_owner() );
+		$this->assertFalse( $backup->active_pid_path() );
+		$this->assertSame( array(), glob( $this->backup_dir . 'backup-clone-*.pid' ) );
 	}
 
 	public function test_clone_preserves_false_archive_result_and_releases_mutex() {
@@ -233,6 +241,8 @@ class CloneBackupMutexTest extends WP_UnitTestCase {
 		$this->assertTrue( $backup->archive_called );
 		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
 		$this->assertSame( '', $backup->mutex_owner() );
+		$this->assertFalse( $backup->active_pid_path() );
+		$this->assertSame( array(), glob( $this->backup_dir . 'backup-clone-*.pid' ) );
 	}
 
 	public function test_clone_refuses_native_mutex_before_archiving() {

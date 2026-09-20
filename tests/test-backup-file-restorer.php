@@ -925,6 +925,56 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		}
 	}
 
+	public static function host_error_reduction_cases() {
+		return array(
+			'mbstring invalid bytes' => array( 'mbstring' ),
+			'configured base with spaces' => array( 'raw' ),
+			'resolved base with spaces' => array( 'resolved' ),
+		);
+	}
+
+	/** @dataProvider host_error_reduction_cases */
+	public function test_host_error_reduction_preserves_rendered_cause( $case ) {
+		$method = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'reduce_host_paths' );
+		$method->setAccessible( true );
+		if ( 'mbstring' === $case ) {
+			if ( ! function_exists( 'mb_check_encoding' ) || ! function_exists( 'mb_convert_encoding' ) || ! function_exists( 'mb_substitute_character' ) ) {
+				$this->markTestSkipped( 'This row pins output with mbstring available.' );
+			}
+			$previous = mb_substitute_character();
+			mb_substitute_character( 63 );
+			try {
+				$this->assertSame( 'denied filename bad-?-name', esc_html( $method->invoke( $this->restorer, "denied filename bad-\xff-name" ) ) );
+			} finally {
+				mb_substitute_character( $previous );
+			}
+			return;
+		}
+
+		$base = $this->dir . '/private account/uploads';
+		mkdir( $base, 0777, true );
+		$alias = $this->dir . '/linked account';
+		$this->assertTrue( symlink( $base, $alias ) );
+		$filter = static function ( $uploads ) use ( $alias ) {
+			$uploads['basedir'] = $alias;
+			return $uploads;
+		};
+		add_filter( 'upload_dir', $filter );
+		try {
+			$reported_base = 'raw' === $case ? $alias : realpath( $base );
+			$temp = $reported_base . '/nested/.mainwp-restore-ab12-cd34.tmp';
+			$rendered = esc_html( $method->invoke( $this->restorer, 'fopen(' . $temp . '): access denied' ) );
+			$this->assertNotSame( '', $rendered );
+			$this->assertStringNotContainsString( $reported_base, $rendered );
+			$this->assertStringNotContainsString( 'private account', $rendered );
+			$this->assertStringNotContainsString( 'linked account', $rendered );
+			$this->assertStringContainsString( basename( $temp ), $rendered );
+			$this->assertStringContainsString( 'access denied', $rendered );
+		} finally {
+			remove_filter( 'upload_dir', $filter );
+		}
+	}
+
 	public function test_entry_temp_producer_rejects_invalid_owner() {
 		$owner = new ReflectionProperty( MainWP_Child_Backup_File_Restorer::class, 'temp_owner' );
 		$owner->setAccessible( true );

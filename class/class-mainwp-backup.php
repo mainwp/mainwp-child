@@ -825,6 +825,10 @@ class MainWP_Backup {
             $pid = MainWP_Helper::sanitize_filename( 'clone-' . wp_generate_uuid4() );
             return $this->create_full_backup( $excludes, $file, true, $include_core_files, 0, false, false, false, false, $method, $pid );
         } finally {
+            if ( is_string( $this->pid_file ) && '.pid' === substr( $this->pid_file, -4 ) && is_file( $this->pid_file ) ) {
+                wp_delete_file( $this->pid_file );
+            }
+            $this->pid_file = false;
             MainWP_Child_Backup_Mutex::release( $token );
             $this->mutex_owner = '';
         }
