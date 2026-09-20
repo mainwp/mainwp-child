@@ -107,20 +107,30 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
     protected $byte_count = 0;
 
     /**
+     * Capture the walk's containment policy for pack-time revalidation.
+     *
+     * @var string[]
+     */
+    protected $allowed_backup_bases;
+
+    /**
      * Constructor.
      *
-     * @param string   $backup_dir  Directory holding the parts.
-     * @param string   $component   Component name.
-     * @param int|null $max_entries Entry threshold override (tests).
-     * @param int|null $max_bytes   Byte threshold override (tests).
-     * @param string   $task_token  Per-task token folded into the part name.
+     * @param string     $backup_dir  Directory holding the parts.
+     * @param string     $component   Component name.
+     * @param int|null   $max_entries Entry threshold override (tests).
+     * @param int|null   $max_bytes   Byte threshold override (tests).
+     * @param string     $task_token  Per-task token folded into the part name.
+     * @param array|null $bases       Allowed containment bases, null for the shared defaults.
      */
-    public function __construct( $backup_dir, $component, $max_entries = null, $max_bytes = null, $task_token = '' ) {
+    public function __construct( $backup_dir, $component, $max_entries = null, $max_bytes = null, $task_token = '', $bases = null ) {
         $this->backup_dir  = rtrim( $backup_dir, '/' );
         $this->component   = $component;
         $this->max_entries = null === $max_entries ? self::MAX_PART_ENTRIES : (int) $max_entries;
         $this->max_bytes   = null === $max_bytes ? self::MAX_PART_BYTES : (int) $max_bytes;
         $this->task_token  = (string) $task_token;
+
+        $this->allowed_backup_bases = null === $bases ? MainWP_Backup::default_backup_bases() : $bases;
     }
 
     /**
@@ -222,7 +232,7 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
      *
      *     @type bool       $rotated True when a rotation happened before this add.
      *     @type array|null $closed  The completed part record when rotated.
-     *     @type bool       $skipped True when the source vanished and was skipped.
+     *     @type bool       $skipped True when the source vanished or failed containment.
      * }
      */
     public function add_file( $abs_path, $relpath ) {
@@ -236,8 +246,17 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
             'skipped' => false,
         );
 
+        // A source can be replaced between the walk and this pack slice.
+        clearstatcache( true, $abs_path );
+        if ( ! MainWP_Backup::is_safe_backup_path( $abs_path, $this->allowed_backup_bases ) ) {
+            MainWP_Backup::record_skipped_path( $abs_path );
+            $result['skipped'] = true;
+            return $result;
+        }
+
         $size = @filesize( $abs_path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- a file deleted between walk and pack is skipped, not fatal.
         if ( false === $size || ! is_file( $abs_path ) ) {
+            MainWP_Backup::record_skipped_path( $abs_path );
             $result['skipped'] = true;
             return $result;
         }

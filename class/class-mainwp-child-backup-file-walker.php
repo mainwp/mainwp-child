@@ -645,20 +645,21 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
-     * Whether a node may be walked: never a symlink, always inside the
-     * walk root, never inside a skipped directory.
+     * Shared containment and the frame chain keep linked content within bounds.
      *
      * @param string $node Absolute path.
      *
      * @return bool True when the node may be walked.
      */
     protected function is_walkable( $node ) {
-        if ( ! MainWP_Backup::is_safe_backup_path( $node, array( $this->root ) ) ) {
+        if ( ! MainWP_Backup::is_safe_backup_path( $node, array_merge( MainWP_Backup::default_backup_bases(), array( $this->root ) ), array_column( $this->stack, 'dir' ) ) ) {
+            MainWP_Backup::record_skipped_path( $node );
             return false;
         }
 
         $real = realpath( $node );
         if ( false === $real ) {
+            MainWP_Backup::record_skipped_path( $node );
             return false;
         }
 

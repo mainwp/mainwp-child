@@ -6,6 +6,7 @@
  */
 
 use MainWP\Child\MainWP_Child_Backup_Incremental_Zip_Writer;
+use MainWP\Child\MainWP_Backup;
 
 /**
  * Tests for the rotating part writer.
@@ -39,7 +40,7 @@ class BackupIncrementalZipWriterTest extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		$this->dir = sys_get_temp_dir() . '/mainwp-zipw-out-' . uniqid();
-		$this->src = sys_get_temp_dir() . '/mainwp-zipw-src-' . uniqid();
+		$this->src = ABSPATH . 'mainwp-zipw-src-' . uniqid();
 		mkdir( $this->dir );
 		mkdir( $this->src );
 
@@ -322,4 +323,42 @@ class BackupIncrementalZipWriterTest extends WP_UnitTestCase {
 		$this->assertSame( 1, $record['entries'] );
 		$this->assertSame( array( 'a.php' ), $this->part_entries( 'core.part001.zip' ) );
 	}
+	public function test_inside_link_packs_target_bytes_under_link_relpath() {
+		$link = $this->src . '/linked.php';
+		symlink( $this->src . '/a.php', $link );
+		$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
+		$writer->open_new_part( 1 );
+		$result = $writer->add_file( $link, 'linked.php' );
+		$part = $writer->close_part();
+		$this->assertFalse( $result['skipped'] );
+		$zip = new ZipArchive();
+		$this->assertTrue( $zip->open( $this->dir . '/' . $part['file'] ) );
+		$this->assertSame( str_repeat( 'a', 100 ), $zip->getFromName( 'linked.php' ) );
+		$zip->close();
+	}
+
+	public function test_pack_time_outside_link_swap_is_skipped_and_recorded() {
+		MainWP_Backup::reset_skipped_paths();
+		$source = $this->src . '/a.php';
+		$outside = $this->dir . '/outside.php';
+		file_put_contents( $outside, 'outside bytes' );
+		$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core', null, null, '', array( $this->src ) );
+		$this->assertTrue( is_file( $source ) && ! is_link( $source ) );
+		realpath( $source );
+		$writer->open_new_part( 1 );
+		$writer->add_file( $this->src . '/b.php', 'b.php' );
+		unlink( $source );
+		symlink( $outside, $source );
+		try {
+			$result = $writer->add_file( $source, 'a.php' );
+			$part = $writer->close_part();
+			$this->assertTrue( $result['skipped'], 'A walk-to-pack swap must not escape the bases.' );
+			$this->assertContains( $source, MainWP_Backup::get_skipped_paths() );
+			$this->assertSame( array( 'b.php' ), $this->part_entries( $part['file'] ) );
+			$this->assertSame( 1, $part['entries'] );
+		} finally {
+			MainWP_Backup::reset_skipped_paths();
+		}
+	}
+
 }

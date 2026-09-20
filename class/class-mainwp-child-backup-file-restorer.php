@@ -35,6 +35,25 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.OpeningBraceSameLine.ContentAfterBrace -- NOSONAR.
 
+    const MAX_EXTRACT_ENTRIES        = 2000000;
+    const MAX_EXPANDED_BYTES         = 68719476736;
+    const MAX_COMPRESSION_RATIO      = 200;
+    const RATIO_MIN_COMPRESSED_BYTES = 65536;
+
+    /**
+     * Allow small fixtures to exercise the production bounds.
+     *
+     * @return array Extraction limits.
+     */
+    protected function extraction_limits() {
+        return array(
+            'entries'         => self::MAX_EXTRACT_ENTRIES,
+            'expanded_bytes'  => self::MAX_EXPANDED_BYTES,
+            'ratio'           => self::MAX_COMPRESSION_RATIO,
+            'ratio_min_bytes' => self::RATIO_MIN_COMPRESSED_BYTES,
+        );
+    }
+
     /**
      * Extract one bounded slice of the part archives.
      *
@@ -49,8 +68,10 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     public function restore_slice( $cursor, $config, $deadline ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- bounded extraction loop with integrity gates.
         $cursor = array_merge(
             array(
-                'part_index'  => 0,
-                'entry_index' => 0,
+                'part_index'     => 0,
+                'entry_index'    => 0,
+                'entries'        => 0,
+                'expanded_bytes' => 0,
             ),
             is_array( $cursor ) ? $cursor : array()
         );
@@ -124,7 +145,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
 
             $name = $zip->getNameIndex( $cursor['entry_index'] );
             try {
-                $this->extract_entry( $zip, $name, $extract_to );
+                $this->extract_entry( $zip, $name, $extract_to, $cursor );
             } catch ( \Exception $e ) {
                 $zip->close();
                 return $this->result( false, $cursor, $e->getMessage(), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
@@ -213,6 +234,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
 
             $entry = $entries[ $cursor['entry_index'] ];
             try {
+                // Tar compression covers the container, not individual entries.
+                $this->check_entry_limits( $entry['size'], 0, $cursor );
                 if ( $entry['dir'] ) {
                     $target = static::validate_extract_path( rtrim( $entry['name'], '/' ), $extract_to );
                     if ( ! is_dir( $target ) ) {
@@ -229,14 +252,17 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                     if ( is_link( $target ) ) {
                         unlink( $target ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- neutralize a stale symlink before writing.
                     }
-                    $out = fopen( $target, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming extraction to the validated path.
+                    $out = $this->open_target_for_write( $target );
                     if ( false === $out ) {
                         fclose( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
                         throw new \Exception( sprintf( 'Could not write extracted file: %s.', esc_html( $entry['name'] ) ) );
                     }
-                    stream_copy_to_stream( $stream, $out );
-                    fclose( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
-                    fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+                    try {
+                        $this->copy_bounded_entry( $stream, $out, $cursor, 0 );
+                    } finally {
+                        fclose( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+                        fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+                    }
                 }
             } catch ( \Exception $e ) {
                 // The success path below discards the decompressed sibling;
@@ -544,11 +570,14 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      *
      * @param \PharData $phar Open archive.
      *
+     * @throws MainWP_Exception When the archive exceeds the entry limit.
+     *
      * @return array<int,array{name:string,dir:bool,phar_url:string}> Sorted entries.
      */
     private function tar_entry_names( $phar ) {
         $prefix  = 'phar://' . $phar->getPath() . '/';
         $entries = array();
+        $limits  = $this->extraction_limits();
 
         $iterator = new \RecursiveIteratorIterator( $phar, \RecursiveIteratorIterator::SELF_FIRST );
         foreach ( $iterator as $item ) {
@@ -561,7 +590,11 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 'name'     => str_replace( '\\', '/', $name ),
                 'dir'      => $item->isDir(),
                 'phar_url' => $phar_url,
+                'size'     => $item->getSize(),
             );
+            if ( count( $entries ) > $limits['entries'] ) {
+                throw new MainWP_Exception( 'Restore entry count limit exceeded.', null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- static internal message.
+            }
         }
 
         usort(
@@ -644,11 +677,18 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @param \ZipArchive $zip        Open archive.
      * @param string      $name       Entry name.
      * @param string      $extract_to Extraction root.
+     * @param array       $cursor     Cumulative extraction counters (by reference).
      *
      * @throws \Exception When the entry validates outside the root or
      *                    cannot be written.
+     * @throws MainWP_Exception When entry metadata cannot be read.
      */
-    private function extract_entry( $zip, $name, $extract_to ) {
+    private function extract_entry( $zip, $name, $extract_to, &$cursor ) {
+        $stat = $zip->statIndex( $cursor['entry_index'] );
+        if ( false === $stat ) {
+            throw new MainWP_Exception( 'Could not read archive entry metadata.', null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- static internal message.
+        }
+        $this->check_entry_limits( $stat['size'], $stat['comp_size'], $cursor );
         if ( '/' === substr( $name, -1 ) ) {
             // Directory entry.
             $target = static::validate_extract_path( rtrim( $name, '/' ), $extract_to );
@@ -672,16 +712,105 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             unlink( $target ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- neutralize a stale symlink before writing.
         }
 
-        $out = fopen( $target, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming extraction to the validated path.
+        $out = $this->open_target_for_write( $target );
         if ( false === $out ) {
             fclose( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with getStream above.
             throw new \Exception( sprintf( 'Could not write extracted file: %s.', esc_html( $name ) ) );
         }
 
-        stream_copy_to_stream( $stream, $out );
-        fclose( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with getStream above.
-        if ( false === fclose( $out ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+        try {
+            $this->copy_bounded_entry( $stream, $out, $cursor, $stat['comp_size'] );
+        } finally {
+            fclose( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with getStream above.
+            $closed = fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+        }
+        if ( false === $closed ) {
             throw new \Exception( sprintf( 'Could not finish writing extracted file: %s.', esc_html( $name ) ) );
+        }
+    }
+
+    /**
+     * Open an extraction target for writing.
+     *
+     * A read-only regular file already at the target (a git object, a
+     * hardened wp-config.php) refuses fopen('wb') even where the parent
+     * directory is writable, which used to fail the whole restore
+     * permanently. The restore owns the target tree, so the stale file is
+     * removed - directory write permission is all that takes - and the
+     * open is retried once.
+     *
+     * @param string $target Validated target path.
+     *
+     * @return resource|false Write handle, or false when the target stays unwritable.
+     */
+    private function open_target_for_write( $target ) {
+        $out = @fopen( $target, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- a read-only target is retried below; warnings must not corrupt the response.
+        if ( false !== $out ) {
+            return $out;
+        }
+        if ( ! is_file( $target ) || is_writable( $target ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- the open already failed; this separates a read-only file from any other cause.
+            return false;
+        }
+        unlink( $target ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- remove the read-only file this entry replaces.
+        return @fopen( $target, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- retry after removing the read-only file; warnings must not corrupt the response.
+    }
+
+    /**
+     * Reject excessive work before creating an extraction target.
+     *
+     * @param int   $size       Declared entry size.
+     * @param int   $compressed Compressed entry size, zero for tar entries.
+     * @param array $cursor     Cumulative extraction counters (by reference).
+     *
+     * @throws MainWP_Exception When an extraction limit is exceeded.
+     */
+    private function check_entry_limits( $size, $compressed, &$cursor ) {
+        $limits = $this->extraction_limits();
+        if ( $cursor['entries'] >= $limits['entries'] ) {
+            throw new MainWP_Exception( 'Restore entry count limit exceeded.', null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- static internal message.
+        }
+        if ( $compressed > $limits['ratio_min_bytes'] && $size / $compressed > $limits['ratio'] ) {
+            throw new MainWP_Exception( 'Restore compression ratio limit exceeded.', null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- static internal message.
+        }
+        ++$cursor['entries'];
+    }
+
+    /**
+     * Bound actual output so an understated archive header cannot bypass limits.
+     *
+     * @param resource $stream     Entry stream.
+     * @param resource $out        Validated output stream.
+     * @param array    $cursor     Cumulative extraction counters (by reference).
+     * @param int      $compressed Compressed entry size, zero for tar entries.
+     *
+     * @throws MainWP_Exception When a limit is exceeded or a stream fails.
+     */
+    private function copy_bounded_entry( $stream, $out, &$cursor, $compressed ) {
+        $limits      = $this->extraction_limits();
+        $entry_bytes = 0;
+        while ( ! feof( $stream ) ) {
+            $remaining = $limits['expanded_bytes'] - $cursor['expanded_bytes'];
+            if ( $compressed > $limits['ratio_min_bytes'] ) {
+                $remaining = min( $remaining, $compressed * $limits['ratio'] - $entry_bytes );
+            }
+            $chunk = fread( $stream, min( 262144, max( 1, $remaining ) ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bounded archive stream.
+            if ( false === $chunk || ( '' === $chunk && ! feof( $stream ) ) ) {
+                throw new MainWP_Exception( 'Could not read archive entry.', null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- static internal message.
+            }
+            if ( '' === $chunk ) {
+                break;
+            }
+            if ( strlen( $chunk ) > $remaining ) {
+                throw new MainWP_Exception( 'Restore expanded output limit exceeded.', null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- static internal message.
+            }
+            $written = fwrite( $out, $chunk ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bounded archive stream.
+            if ( false !== $written ) {
+                $cursor['expanded_bytes'] += $written;
+                $entry_bytes              += $written;
+            }
+            if ( strlen( $chunk ) !== $written ) {
+                throw new MainWP_Exception( 'Could not write extracted file.', null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- static internal message.
+            }
         }
     }
 

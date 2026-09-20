@@ -161,12 +161,25 @@ class MainWP_Backup {
     protected $prepared_db_files = null;
 
     /**
-     * Slice deadline forwarded to the archiver for bounded continuation
-     * slices, null for legacy unbounded runs.
+     * ZIP traversal and the tar archiver share the same slice deadline.
      *
      * @var int|null Unix timestamp.
      */
     protected $slice_deadline = null;
+
+    /**
+     * Preserve the ZIP method signature used by existing subclasses.
+     *
+     * @var bool
+     */
+    private $zip_append = false;
+
+    /**
+     * An expired slice must still add a node before yielding.
+     *
+     * @var bool
+     */
+    private $zip_slice_progress = false;
 
     /**
      * Progress callback forwarded to the archiver.
@@ -328,8 +341,9 @@ class MainWP_Backup {
         }
 
         if ( 'zip' === $ext ) {
-            $this->archiver = null;
-            $ext            = '.zip';
+            $this->archiver   = null;
+            $this->zip_append = $append;
+            $ext              = '.zip';
         } else {
             $this->archiver = new Tar_Archiver( $this, $ext, $pid );
             $ext            = $this->archiver->get_extension();
@@ -386,6 +400,8 @@ class MainWP_Backup {
                 unlink( $filepath ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- cleanup of partial archive.
             }
             throw $e;
+        } finally {
+            $this->zip_append = false;
         }
 
         return ( $success ) ? array(
@@ -1157,38 +1173,59 @@ class MainWP_Backup {
 
     /**
      * Allowed containment bases for the current backup traversal, null for
-     * the defaults (ABSPATH and WP_CONTENT_DIR).
+     * the shared site, content and uploads bases.
      *
      * @var array|null Base directories.
      */
     protected $allowed_backup_bases = null;
 
     /**
-     * Decide whether a path is safe to include in a backup.
+     * Keep containment consistent when content or uploads live outside ABSPATH.
      *
-     * Symlinks are never followed - they can leak files outside the site root
-     * (other site roots on shared hosting, /etc) and circular links recurse
-     * forever. Every included path must also realpath-resolve inside an
-     * allowed base; the compare appends a trailing slash on both sides so a
-     * sibling directory sharing the base as a string prefix
-     * (/base-evil vs /base) cannot pass.
+     * @return string[] Resolved site, content and uploads bases.
+     */
+    public static function default_backup_bases() {
+        $uploads = wp_upload_dir( null, false );
+        $bases   = array();
+        foreach ( array( ABSPATH, WP_CONTENT_DIR, $uploads['basedir'] ) as $base ) {
+            $real = realpath( $base );
+            if ( false !== $real && ! in_array( $real, $bases, true ) ) {
+                $bases[] = $real;
+            }
+        }
+        return $bases;
+    }
+
+    /**
+     * Containment follows links; the descent chain prevents ancestor cycles.
      *
-     * @param string     $path  Path to validate.
-     * @param array|null $bases Allowed base directories, null for ABSPATH + WP_CONTENT_DIR.
+     * Trailing slashes keep sibling prefixes from passing containment checks.
+     *
+     * @param string     $path      Path to validate.
+     * @param array|null $bases     Allowed base directories, null for the shared defaults.
+     * @param array      $ancestors Directories on the current descent chain.
      *
      * @return bool True when the path may be included.
      */
-    public static function is_safe_backup_path( $path, $bases = null ) {
+    public static function is_safe_backup_path( $path, $bases = null, $ancestors = array() ) {
         $path = (string) $path;
-        if ( '' === $path || is_link( rtrim( $path, '/' ) ) ) {
+        if ( '' === $path ) {
             return false;
         }
         $real = realpath( $path );
         if ( false === $real ) {
             return false;
         }
+        if ( is_link( rtrim( $path, '/' ) ) && is_dir( $path ) ) {
+            foreach ( $ancestors as $ancestor ) {
+                $real_ancestor = realpath( $ancestor );
+                if ( false !== $real_ancestor && 0 === strpos( $real_ancestor . '/', rtrim( $real, '/' ) . '/' ) ) {
+                    return false;
+                }
+            }
+        }
         if ( null === $bases ) {
-            $bases = array( ABSPATH, WP_CONTENT_DIR );
+            $bases = static::default_backup_bases();
         }
         foreach ( $bases as $base ) {
             $real_base = realpath( $base );
@@ -1276,28 +1313,43 @@ class MainWP_Backup {
      *
      * ZipArchive::close() is where the archive is actually written - ignoring
      * its result reports success over a corrupt or missing archive.
+     * Lease failures propagate unchanged, including any other \Throwable.
      *
      * @throws MainWP_Exception When the archive could not be finalized.
-     * @throws \Throwable When the archive mutex lease cannot be extended.
      */
     public function close_zip_archive() {
         try {
-            $this->extend_archive_mutex_lease();
-        } catch ( \Throwable $e ) {
-            if ( $this->zip instanceof \ZipArchive ) {
-                // The destructor would publish pending entries after the caller deletes the failed archive.
-                $this->zip->unchangeAll();
-                @$this->zip->close(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- preserve the lease failure after discarding pending changes.
-                $this->zip = null;
+            try {
+                $this->extend_archive_mutex_lease();
+            } catch ( \Throwable $lease_error ) {
+                if ( $this->zip instanceof \ZipArchive ) {
+                    try {
+                        // Closing after a failed discard would publish the pending entries. When the
+                        // discard fails the finally below still drops the handle, and the destructor's
+                        // write runs there, before the lease error reaches the caller that unlinks the archive.
+                        if ( true === $this->zip->unchangeAll() ) {
+                            $this->zip->close();
+                        }
+                    } catch ( \Throwable $discard_error ) {
+                        // Cleanup must not replace the lease error that tells Dashboard ownership was lost.
+                    }
+                }
+                throw $lease_error;
             }
-            throw $e;
-        }
-        $result = false;
-        if ( $this->zip instanceof \ZipArchive ) {
-            $result = @$this->zip->close(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failure is converted to a coded exception below.
-        }
-        if ( true !== $result ) {
-            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ZIP_FAILED ) ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+
+            $result = false;
+            try {
+                if ( $this->zip instanceof \ZipArchive ) {
+                    $result = $this->zip->close();
+                }
+            } catch ( \Throwable $close_error ) {
+                $result = false;
+            }
+            if ( true !== $result ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ZIP_FAILED ) ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+            }
+        } finally {
+            $this->zip = null;
         }
     }
 
@@ -1517,11 +1569,8 @@ class MainWP_Backup {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DB_CONNECTION_LOST ) ), null, MainWP_Backup_Error::ERR_DB_CONNECTION_LOST ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
         }
 
-        // 4. Size estimate and wp-content file count, so the Dashboard can
-        // guard against ZIP archiving on large sites: ZIP restarts from zero on
-        // each slice timeout, while tar.gz appends and resumes. The wp-content
-        // walk is cached so reporting the estimate does not double the IO before
-        // the backup runs.
+        // The wp-content walk is cached so reporting the size estimate and
+        // file count does not double the IO before the backup runs.
         $report['estimated_bytes'] = $this->estimate_backup_size( true );
         $inventory                 = static::get_content_inventory();
         $report['file_count']      = $inventory['count'];
@@ -1545,6 +1594,8 @@ class MainWP_Backup {
      * @uses \MainWP\Child\MainWP_Backup::add_config() Add config file to backup.
      *
      * @return bool Return true on success & false on failure.
+     *
+     * @throws MainWP_Exception When the ZIP cannot be opened for writing.
      */
     public function create_zip_full_backup(
         $filepath,
@@ -1560,8 +1611,18 @@ class MainWP_Backup {
         $this->zipArchiveFileCount = 0;
         $this->zipArchiveSizeCount = 0;
         $this->zipArchiveFileName  = $filepath;
+        $this->zip_slice_progress  = false;
         $zipRes                    = $this->zip->open( $filepath, \ZipArchive::CREATE );
-        if ( $zipRes ) {
+        if ( $this->zip_append && ( true !== $zipRes || \ZipArchive::ER_OK !== $this->zip->status ) ) {
+            // A killed close can leave a partial that has no usable resume point.
+            $this->zip = null;
+            if ( file_exists( $filepath ) && ! unlink( $filepath ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- unusable partial archive cleanup.
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ZIP_FAILED ) ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+            }
+            $this->zip = new \ZipArchive();
+            $zipRes    = $this->zip->open( $filepath, \ZipArchive::CREATE );
+        }
+        if ( true === $zipRes && \ZipArchive::ER_OK === $this->zip->status ) {
             $nodes = glob( ABSPATH . '*' );
             if ( ! $includeCoreFiles ) {
                 $this->include_core_files( $nodes );
@@ -1578,7 +1639,7 @@ class MainWP_Backup {
             }
 
             foreach ( $nodes as $node ) {
-                if ( ! static::is_safe_backup_path( $node, $this->allowed_backup_bases ) ) {
+                if ( ! static::is_safe_backup_path( $node, $this->allowed_backup_bases, array( ABSPATH ) ) ) {
                     static::record_skipped_path( $node );
                     continue;
                 }
@@ -1591,7 +1652,7 @@ class MainWP_Backup {
 
                 if ( ! MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
                     if ( is_dir( $node ) ) {
-                        $this->zip_add_dir( $node, $excludes );
+                        $this->zip_add_dir( $node, $excludes, null, array( ABSPATH ) );
                     } elseif ( is_file( $node ) ) {
                         $this->add_file_to_zipp( $node, str_replace( ABSPATH, '', $node ) );
                     }
@@ -1610,7 +1671,8 @@ class MainWP_Backup {
             return true;
         }
 
-        return false;
+        $this->zip = null;
+        throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ZIP_FAILED ) ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
     }
 
     /**
@@ -1722,10 +1784,11 @@ class MainWP_Backup {
     /**
      * Copy directory.
      *
-     * @param array  $nodes        Default nodes.
-     * @param array  $excludes     Files & directories to exclude.
-     * @param string $backupfolder Backup folder.
-     * @param bool   $excludenonwp Whether or not to exclude any wp core files.
+     * @param array      $nodes        Default nodes.
+     * @param array      $excludes     Files & directories to exclude.
+     * @param string     $backupfolder Backup folder.
+     * @param bool       $excludenonwp Whether or not to exclude any wp core files.
+     * @param array|bool $ancestors    Descent chain; legacy root flags start at ABSPATH.
      *
      * @throws MainWP_Exception When disk space runs out during the copy.
      *
@@ -1733,14 +1796,18 @@ class MainWP_Backup {
      * @uses \MainWP\Child\MainWP_Helper::in_excludes() Check if the value is in the excludes list.
      * @uses \MainWP\Child\MainWP_Helper::ends_with() Check if the String 1 ends with the String 2.
      */
-    public function copy_dir( $nodes, $excludes, $backupfolder, $excludenonwp ) {
+    public function copy_dir( $nodes, $excludes, $backupfolder, $excludenonwp, $ancestors = array() ) {
         if ( ! is_array( $nodes ) ) {
             return;
         }
 
+        if ( ! is_array( $ancestors ) || empty( $ancestors ) ) {
+            $ancestors = array( ABSPATH );
+        }
+
         foreach ( $nodes as $node ) {
             $this->heartbeat();
-            if ( ! static::is_safe_backup_path( $node, $this->allowed_backup_bases ) ) {
+            if ( ! static::is_safe_backup_path( $node, $this->allowed_backup_bases, $ancestors ) ) {
                 static::record_skipped_path( $node );
                 continue;
             }
@@ -1759,7 +1826,7 @@ class MainWP_Backup {
                     }
 
                     $newnodes = glob( $node . DIRECTORY_SEPARATOR . '*' );
-                    $this->copy_dir( $newnodes, $excludes, $backupfolder, $excludenonwp, false );
+                    $this->copy_dir( $newnodes, $excludes, $backupfolder, $excludenonwp, array_merge( $ancestors, array( $node ) ) );
                     unset( $newnodes );
                 } elseif ( is_file( $node ) ) {
                     if ( $this->excludeZip && MainWP_Helper::ends_with( $node, '.zip' ) ) {
@@ -1894,29 +1961,47 @@ class MainWP_Backup {
     /**
      * Recursively add directory to default PHP zip library.
      *
-     * Symlinks and paths resolving outside the allowed bases are skipped and
-     * recorded.
+     * Outside-resolving paths and directory cycles are skipped and recorded.
      *
-     * @param string     $path     Path to directory.
-     * @param array      $excludes Files or directories to exclude.
-     * @param array|null $bases    Allowed containment bases, null for the defaults.
+     * @param string     $path      Path to directory.
+     * @param array      $excludes  Files or directories to exclude.
+     * @param array|null $bases     Allowed containment bases, null for the defaults.
+     * @param array      $ancestors Directories on the current descent chain.
+     *
+     * @throws MainWP_Backup_Budget_Exception After closing a slice that made progress.
      *
      * @uses \MainWP\Child\MainWP_Helper::in_excludes() Check if the value is in the excludes list.
      */
-    public function zip_add_dir( $path, $excludes, $bases = null ) {
+    public function zip_add_dir( $path, $excludes, $bases = null, $ancestors = array() ) {
 
         if ( null !== $bases ) {
-            $this->allowed_backup_bases = $bases;
+            $this->allowed_backup_bases = array_merge( static::default_backup_bases(), $bases );
         }
 
-        if ( ! static::is_safe_backup_path( $path, $this->allowed_backup_bases ) ) {
+        if ( empty( $ancestors ) ) {
+            $this->allowed_backup_bases = array_merge( null === $this->allowed_backup_bases ? static::default_backup_bases() : $this->allowed_backup_bases, array( $path ) );
+            $ancestors                  = array( dirname( rtrim( $path, '/' ) ) );
+        }
+        if ( ! static::is_safe_backup_path( $path, $this->allowed_backup_bases, $ancestors ) ) {
             static::record_skipped_path( $path );
             return;
         }
 
+        $ancestors[] = $path;
+
         $this->heartbeat();
         if ( $this->zip instanceof \ZipArchive ) {
-            $this->zip->addEmptyDir( str_replace( ABSPATH, '', $path ) );
+            if ( null !== $this->slice_deadline && $this->zip_slice_progress && time() >= $this->slice_deadline ) {
+                $this->close_zip_archive();
+                throw new MainWP_Backup_Budget_Exception( 'File archiving exceeded its time budget for this slice.', null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal control-flow message, code is a registry class constant.
+            }
+            $entry = rtrim( str_replace( ABSPATH, '', $path ), '/' ) . '/';
+            // Existing directories still need traversal to reach their unfinished children.
+            if ( ! $this->zip_append || false === $this->zip->locateName( $entry ) ) {
+                if ( $this->zip->addEmptyDir( $entry ) ) {
+                    $this->zip_slice_progress = true;
+                }
+            }
         } else {
             $this->zip->add_empty_dir( str_replace( ABSPATH, '', $path ) );
         }
@@ -1933,14 +2018,20 @@ class MainWP_Backup {
                 continue;
             }
 
-            if ( $path->isLink() || ! static::is_safe_backup_path( $name, $this->allowed_backup_bases ) ) {
+            $descent_chain = $ancestors;
+            // The iterator also descends regular directories outside our recursive calls.
+            $iterator_depth = $iterator->getDepth();
+            for ( $depth = 0; $depth <= $iterator_depth; ++$depth ) {
+                $descent_chain[] = $iterator->getSubIterator( $depth )->getPath();
+            }
+            if ( ! static::is_safe_backup_path( $name, $this->allowed_backup_bases, $descent_chain ) ) {
                 static::record_skipped_path( $name );
                 continue;
             }
 
             if ( ! MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $name ) ) ) {
                 if ( $path->isDir() ) {
-                    $this->zip_add_dir( $name, $excludes );
+                    $this->zip_add_dir( $name, $excludes, null, $descent_chain );
                 } else {
                     $this->add_file_to_zipp( $name, str_replace( ABSPATH, '', $name ) );
                 }
@@ -2005,6 +2096,7 @@ class MainWP_Backup {
      * @return bool True|false.
      *
      * @throws MainWP_Exception When the zip archive cannot be reopened mid-run.
+     * @throws MainWP_Backup_Budget_Exception After closing a slice that made progress.
      *
      * @uses \MainWP\Child\MainWP_Helper::ends_with()
      */
@@ -2018,12 +2110,23 @@ class MainWP_Backup {
             return false;
         }
 
+        // Walk-time metadata may predate a replaced file or link.
+        clearstatcache( true, $path );
         if ( ! static::is_safe_backup_path( $path, $this->allowed_backup_bases ) ) {
             static::record_skipped_path( $path );
             return false;
         }
 
         $this->heartbeat();
+        if ( $this->zip instanceof \ZipArchive ) {
+            if ( null !== $this->slice_deadline && $this->zip_slice_progress && time() >= $this->slice_deadline ) {
+                $this->close_zip_archive();
+                throw new MainWP_Backup_Budget_Exception( 'File archiving exceeded its time budget for this slice.', null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal control-flow message, code is a registry class constant.
+            }
+            if ( $this->zip_append && false !== $this->zip->locateName( $zipEntryName ) ) {
+                return true;
+            }
+        }
         $this->zipArchiveSizeCount += filesize( $path );
         ++$this->gcCnt;
 
@@ -2044,6 +2147,8 @@ class MainWP_Backup {
 
         if ( false === $added ) {
             $this->record_failed_add( $path );
+        } elseif ( $this->zip instanceof \ZipArchive ) {
+            $this->zip_slice_progress = true;
         }
 
         if ( $this->gcCnt > 20 ) {

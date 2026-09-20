@@ -136,9 +136,22 @@ class BackupCheckpidTest extends WP_UnitTestCase {
 		$this->assertFalse( MainWP_Backup::is_pid_lock_fresh( $this->scratch ) );
 	}
 
-	public function test_zip_full_entry_creates_and_refreshes_pid_with_a_tiny_driver() {
+	public static function zip_pid_entry_outcomes() {
+		return array( 'completed' => array( false ), 'failed before pid capture' => array( true ) );
+	}
+
+	/** @dataProvider zip_pid_entry_outcomes */
+	public function test_zip_full_entry_creates_and_refreshes_pid_with_a_tiny_driver( $fail_before_pid ) {
 		$backup = new class() extends MainWP_Backup {
 			public $pid_path;
+			public $early_failure;
+
+			public function heartbeat() {
+				if ( null !== $this->early_failure ) {
+					throw $this->early_failure;
+				}
+				parent::heartbeat();
+			}
 			public $observed = array();
 
 			public function heartbeat_after_completion() {
@@ -171,9 +184,11 @@ class BackupCheckpidTest extends WP_UnitTestCase {
 				return true;
 			}
 		};
+		$backup->early_failure = $fail_before_pid ? new RuntimeException( 'heartbeat failed before pid capture' ) : null;
 		$pid = 'zip-heartbeat-' . wp_generate_uuid4();
 		try {
 			$result = $backup->create_full_backup( array(), $pid, true, true, 0, false, false, false, true, 'zip', $pid );
+			$this->assertFalse( $fail_before_pid, 'The early heartbeat failure must escape.' );
 			$this->assertIsArray( $result );
 			$this->assertTrue( $backup->observed['exists'] );
 			$this->assertSame( $backup->observed['path'], $backup->observed['content'] );
@@ -187,12 +202,15 @@ class BackupCheckpidTest extends WP_UnitTestCase {
 			$this->assertFalse( MainWP_Backup::is_pid_lock_fresh( dirname( $backup->pid_path ) ) );
 			$this->assertFalse( $backup->heartbeat_after_completion() );
 			$this->assertFileDoesNotExist( $backup->pid_path );
+		} catch ( RuntimeException $e ) {
+			$this->assertTrue( $fail_before_pid );
+			$this->assertSame( $backup->early_failure, $e );
 		} finally {
 			$done = substr( (string) $backup->pid_path, 0, -4 ) . '.done';
 			if ( is_file( $done ) ) {
 				unlink( $done );
 			}
-			if ( is_file( $backup->pid_path ) ) {
+			if ( null !== $backup->pid_path && is_file( $backup->pid_path ) ) {
 				unlink( $backup->pid_path );
 			}
 			if ( isset( $backup->observed['path'] ) && is_file( $backup->observed['path'] ) ) {

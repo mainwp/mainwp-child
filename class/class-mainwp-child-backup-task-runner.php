@@ -472,7 +472,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             // lease - otherwise a runner that lost its lease would overwrite
             // the new holder's state and delete its artifacts.
             $failed_row = $spine->get_task( $task_id );
-            $pre_fail   = ( ! $is_backup || $mutex_held ) && null !== $failed_row ? $spine->read_sub_state( $failed_row, $backup_dir ) : null;
+            $pre_fail   = '' !== $backup_dir && ( ! $is_backup || $mutex_held ) && null !== $failed_row ? $spine->read_sub_state( $failed_row, $backup_dir ) : null;
             if ( ! is_array( $pre_fail ) && isset( $sub_state ) && is_array( $sub_state ) ) {
                 $pre_fail = $sub_state;
             }
@@ -495,7 +495,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             if ( false !== $new_version ) {
                 $version = $new_version;
                 try {
-                    if ( ! $is_backup || $mutex_held ) {
+                    if ( '' !== $backup_dir && ( ! $is_backup || $mutex_held ) ) {
                         $this->cleanup_failed_task_artifacts( $task_id, $pre_fail, $backup_dir );
                         $spine->delete_sidecar( $task_id, $backup_dir );
                     }
@@ -970,7 +970,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
 
         $writer = null;
         if ( '' !== $cursor['component'] && $cursor['part_index'] > 0 ) {
-            $writer    = new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, $cursor['component'], null, null, $this->current_task_id );
+            $writer    = new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, $cursor['component'], null, null, $this->current_task_id, array_merge( MainWP_Backup::default_backup_bases(), array( $this->site_root() ) ) );
             $accounted = isset( $cursor['part_byte_count'] ) ? (int) $cursor['part_byte_count'] : 0;
             if ( $cursor['part_entry_count'] > 0 && ! $writer->open_for_append( $cursor['part_index'], $cursor['part_entry_count'], $accounted ) ) {
                 // Torn part - rebuild it from its first file.
@@ -1026,7 +1026,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                     }
                 }
                 $index  = isset( $cursor['next_index'][ $component ] ) ? (int) $cursor['next_index'][ $component ] : 1;
-                $writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, $component, null, null, $this->current_task_id );
+                $writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, $component, null, null, $this->current_task_id, array_merge( MainWP_Backup::default_backup_bases(), array( $this->site_root() ) ) );
                 $writer->open_new_part( $index );
                 $cursor['component']        = $component;
                 $cursor['part_index']       = $index;
@@ -1583,9 +1583,9 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * Run one bounded slice of the file archiver.
      *
      * The archive file name is stable across slices, and the engine opens an
-     * existing file in append mode itself - so a budget-interrupted archive
-     * continues instead of restarting. Pre-produced dump files are handed to
-     * the engine so the database is never dumped twice.
+     * existing ZIP or tar file in append mode itself. The partial archive is
+     * the resume point after a budget interruption. Pre-produced dump files
+     * are handed to the engine so the database is never dumped twice.
      *
      * @param array  $params       Backup params.
      * @param string $archive_file Archive file name (stable across slices).
@@ -1601,15 +1601,6 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     protected function run_file_archiver( $params, $archive_file, $append, $deadline, $db_files, $skip_db = false ) { // phpcs:ignore -- NOSONAR - engine boundary.
         $backup = MainWP_Backup::get();
         $ext    = isset( $params['ext'] ) ? $params['ext'] : 'zip';
-
-        if ( 'zip' === $ext ) {
-            // Zip cannot resume mid-archive: restart clean.
-            $partial = rtrim( $this->backup_dir(), '/' ) . '/' . $archive_file;
-            if ( file_exists( $partial ) ) {
-                unlink( $partial ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- partial archive cleanup.
-            }
-            $append = false;
-        }
 
         if ( $skip_db ) {
             // An empty prepared set makes the engine skip dumping

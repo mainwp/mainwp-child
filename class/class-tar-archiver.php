@@ -447,7 +447,7 @@ class Tar_Archiver {
 
                 if ( ! MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
                     if ( is_dir( $node ) ) {
-                        $this->add_dir( $node, $excludes );
+                        $this->add_dir( $node, $excludes, array( ABSPATH ) );
                     } elseif ( is_file( $node ) ) {
                         $this->add_file( $node, str_replace( ABSPATH, '', $node ) );
                     }
@@ -592,8 +592,10 @@ class Tar_Archiver {
     /**
      * Add directory to the backup archive file.
      *
-     * @param string $path     File path.
-     * @param array  $excludes List of file to exclude from the backup.
+     * @param string     $path      File path.
+     * @param array      $excludes  List of file to exclude from the backup.
+     * @param array      $ancestors Directories on the current descent chain.
+     * @param array|null $bases Containment bases retained through linked-directory descent.
      *
      * @uses \MainWP\Child\Tar_Archiver::add_empty_dir() Add empty directory to the backup archive file.
      * @uses \MainWP\Child\Tar_Archiver::add_file() Add file to the backup archive file.
@@ -601,21 +603,29 @@ class Tar_Archiver {
      *
      * @used-by \MainWP\Child\Tar_Archiver::create_full_backup() Create full backup.
      */
-    public function add_dir( $path, $excludes ) {
+    public function add_dir( $path, $excludes, $ancestors = array(), $bases = null ) {
         if ( ( '.' === basename( $path ) ) || ( '..' === basename( $path ) ) ) {
             return;
         }
 
-        if ( ! MainWP_Backup::is_safe_backup_path( $path ) ) {
+        if ( null === $bases ) {
+            $bases = array_merge( MainWP_Backup::default_backup_bases(), empty( $ancestors ) ? array( $path ) : array( ABSPATH ) );
+        }
+        if ( empty( $ancestors ) ) {
+            $ancestors = array( dirname( rtrim( $path, '/' ) ) );
+        }
+        if ( ! MainWP_Backup::is_safe_backup_path( $path, $bases, $ancestors ) ) {
             MainWP_Backup::record_skipped_path( $path );
             $this->log( 'Skipping unsafe path ' . $path );
             return;
         }
 
+        $ancestors[] = $path;
+
         $this->add_empty_dir( $path, str_replace( ABSPATH, '', $path ) );
 
         if ( file_exists( rtrim( $path, '/' ) . '/.htaccess' ) ) {
-            $this->add_file( rtrim( $path, '/' ) . '/.htaccess', rtrim( str_replace( ABSPATH, '', $path ), '/' ) . '/mainwp-htaccess' );
+            $this->add_file( rtrim( $path, '/' ) . '/.htaccess', rtrim( str_replace( ABSPATH, '', $path ), '/' ) . '/mainwp-htaccess', $bases );
         }
 
         $iterator = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $path ), \RecursiveIteratorIterator::SELF_FIRST, \RecursiveIteratorIterator::CATCH_GET_CHILD );
@@ -628,17 +638,25 @@ class Tar_Archiver {
                 continue;
             }
 
-            if ( $path->isLink() || ! MainWP_Backup::is_safe_backup_path( $name ) ) {
+            $descent_chain  = $ancestors;
+            $iterator_depth = $iterator->getDepth();
+            for ( $depth = 0; $depth <= $iterator_depth; ++$depth ) {
+                $descent_chain[] = $iterator->getSubIterator( $depth )->getPath();
+            }
+            if ( ! MainWP_Backup::is_safe_backup_path( $name, $bases, $descent_chain ) ) {
                 MainWP_Backup::record_skipped_path( $name );
                 $this->log( 'Skipping unsafe path ' . $name );
                 continue;
             }
 
             if ( ! MainWP_Helper::excluded_from_backup( $excludes, str_replace( ABSPATH, '', $name ) ) ) {
-                if ( $path->isDir() ) {
+                if ( $path->isLink() && $path->isDir() ) {
+                    // RecursiveDirectoryIterator does not follow linked directories.
+                    $this->add_dir( $name, $excludes, $descent_chain, $bases );
+                } elseif ( $path->isDir() ) {
                     $this->add_empty_dir( $name, str_replace( ABSPATH, '', $name ) );
                 } else {
-                    $this->add_file( $name, str_replace( ABSPATH, '', $name ) );
+                    $this->add_file( $name, str_replace( ABSPATH, '', $name ), $bases );
                 }
                 $this->budgetProgress = true;
             }
@@ -877,8 +895,9 @@ class Tar_Archiver {
     /**
      * Add file to the backup archive file.
      *
-     * @param string $path      File path.
-     * @param string $entryName Entry name.
+     * @param string     $path      File path.
+     * @param string     $entryName Entry name.
+     * @param array|null $bases Allowed containment bases, null for the shared defaults.
      *
      * @return bool Return false on failure, true on success.
      * @throws \Exception Error message.
@@ -888,7 +907,7 @@ class Tar_Archiver {
      * @uses    \MainWP\Child\Tar_Archiver::update_pid_file() Update the PID file.
      * @uses    \MainWP\Child\MainWP_Helper::ends_with()
      */
-    private function add_file( $path, $entryName ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+    private function add_file( $path, $entryName, $bases = null ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
         if ( ( '.' === basename( $path ) ) || ( '..' === basename( $path ) ) ) {
             return false;
         }
@@ -899,7 +918,9 @@ class Tar_Archiver {
             return false;
         }
 
-        if ( ! MainWP_Backup::is_safe_backup_path( $path ) ) {
+        // Walk-time metadata may predate a replaced file or link.
+        clearstatcache( true, $path );
+        if ( ! MainWP_Backup::is_safe_backup_path( $path, $bases ) ) {
             MainWP_Backup::record_skipped_path( $path );
             $this->log( 'Skipping unsafe path ' . $path );
             return false;

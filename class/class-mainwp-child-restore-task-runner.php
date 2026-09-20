@@ -48,6 +48,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      */
     const RESTORE_MIN_DEADLINE_SECONDS = 3600;
 
+    const MAX_REMOVAL_DEPTH = 64;
+
     /**
      * Singleton (separate from the backup runner's).
      *
@@ -1458,7 +1460,6 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                     throw new MainWP_Exception( esc_html( $outcome['error'] ), null, $outcome['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
                 }
                 ++$cursor['op_index'];
-                $cursor['part_cursor'] = array();
                 continue;
             }
 
@@ -1481,7 +1482,10 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
 
             ++$cursor['op_index'];
-            $cursor['part_cursor'] = array();
+            // Archive boundaries must not reset the restore's cumulative limits.
+            $cursor['part_cursor']                = $outcome['cursor'];
+            $cursor['part_cursor']['part_index']  = 0;
+            $cursor['part_cursor']['entry_index'] = 0;
         }
 
         $sub_state['file_restore'] = $cursor;
@@ -3118,21 +3122,40 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     /**
      * Recursive directory removal, bounded to the scratch tree.
      *
-     * @param string $dir Directory.
+     * @param string $dir   Directory.
+     * @param int    $depth Depth below the cleanup root.
+     *
+     * @throws MainWP_Exception When the directory depth exceeds the limit.
      */
-    private function rrmdir( $dir ) {
+    private function rrmdir( $dir, $depth = 0 ) {
+        if ( is_link( $dir ) ) {
+            @unlink( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions -- best-effort scratch cleanup.
+            return;
+        }
+        if ( $depth > $this->removal_depth_limit() ) {
+            throw new MainWP_Exception( 'Restore directory removal depth limit exceeded.', null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- static internal message.
+        }
         foreach ( (array) scandir( $dir ) as $entry ) {
             if ( '.' === $entry || '..' === $entry ) {
                 continue;
             }
             $path = rtrim( $dir, '/' ) . '/' . $entry;
             if ( is_dir( $path ) && ! is_link( $path ) ) {
-                $this->rrmdir( $path );
+                $this->rrmdir( $path, $depth + 1 );
             } else {
                 @unlink( $path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions -- best-effort scratch cleanup.
             }
         }
         @rmdir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions -- best-effort scratch cleanup.
+    }
+
+    /**
+     * Allow shallow fixtures to exercise the cleanup depth bound.
+     *
+     * @return int Maximum depth below the cleanup root.
+     */
+    protected function removal_depth_limit() {
+        return self::MAX_REMOVAL_DEPTH;
     }
 
     /**

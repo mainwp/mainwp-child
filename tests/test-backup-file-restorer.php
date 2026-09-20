@@ -396,6 +396,49 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Archive formats that write extraction targets.
+	 *
+	 * @return array Format rows.
+	 */
+	public function data_read_only_target_formats() {
+		return array(
+			'zip' => array( 'zip' ),
+			'tar' => array( 'tar' ),
+		);
+	}
+
+	/**
+	 * A read-only file already at the target (a git object, a hardened
+	 * wp-config.php) is replaced instead of failing the whole restore.
+	 *
+	 * @dataProvider data_read_only_target_formats
+	 *
+	 * @param string $format Archive format to build.
+	 */
+	public function test_extraction_replaces_read_only_target( $format ) {
+		mkdir( $this->extract_to . '/wp-content', 0777, true );
+		$target = $this->extract_to . '/wp-content/locked.txt';
+		file_put_contents( $target, 'OLD' ); // phpcs:ignore -- fixture.
+		$this->assertTrue( chmod( $target, 0444 ) );
+		clearstatcache( true, $target );
+		if ( is_writable( $target ) ) {
+			$this->markTestSkipped( 'Filesystem does not enforce read-only files.' );
+		}
+
+		$part = 'zip' === $format
+			? $this->make_zip( 'part001.zip', array( 'wp-content/locked.txt' => 'ARCHIVE' ) )
+			: $this->make_tar( 'part001.tar', array( 'wp-content/locked.txt' => 'ARCHIVE' ) );
+
+		$result = $this->run_all( $this->config( array( $part ) ) );
+
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( 'ARCHIVE', file_get_contents( $target ) );
+		$this->assertFalse( is_link( $target ) );
+		$this->assertTrue( is_file( $target ) );
+	}
+
+	/**
 	 * Budget exhaustion yields a cursor; resuming completes without
 	 * losing or duplicating entries.
 	 */

@@ -139,7 +139,7 @@ class BackupFileWalkerTest extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 
-		$this->root       = sys_get_temp_dir() . '/mainwp-walker-root-' . uniqid();
+		$this->root       = ABSPATH . 'mainwp-walker-root-' . uniqid();
 		$this->backup_dir = sys_get_temp_dir() . '/mainwp-walker-out-' . uniqid();
 
 		mkdir( $this->backup_dir );
@@ -310,17 +310,17 @@ class BackupFileWalkerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Symlinks are never followed - same rule as the archive traversal.
+	 * Inside-resolving links must appear under their own relative paths.
 	 *
 	 * @return void
 	 */
-	public function test_symlinks_excluded() {
+	public function test_inside_symlink_included() {
 		symlink( $this->root . '/wp-content/uploads/photo.jpg', $this->root . '/wp-content/uploads/link.jpg' );
 
 		$this->walker()->emit_sidecars( $this->backup_dir );
 
 		$relpaths = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
-		$this->assertNotContains( 'wp-content/uploads/link.jpg', $relpaths );
+		$this->assertContains( 'wp-content/uploads/link.jpg', $relpaths );
 	}
 
 	/**
@@ -647,7 +647,7 @@ class BackupFileWalkerTest extends WP_UnitTestCase {
 	 * @return void
 	 */
 	public function test_single_file_tree() {
-		$root = sys_get_temp_dir() . '/mainwp-walker-one-' . uniqid();
+		$root = ABSPATH . 'mainwp-walker-one-' . uniqid();
 		$out  = sys_get_temp_dir() . '/mainwp-walker-one-out-' . uniqid();
 		mkdir( $root );
 		mkdir( $out );
