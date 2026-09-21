@@ -75,4 +75,16 @@ class ChildStatsSyncDataTest extends WP_UnitTestCase {
 		$this->assertSame( $expected, MainWP_Child_Stats::get_instance()->get_data_list_to_sync() );
 		$this->assertSame( wp_json_encode( $expected ), get_option( 'mainwp_child_settings_sync_data' ) );
 	}
+
+	/**
+	 * An array-valued syncdata post reaches json_decode() as a string, so the
+	 * sync request does not fatal on PHP 8.
+	 */
+	public function test_sync_data_array_post_value_returns_empty_array() {
+		update_option( 'mainwp_child_settings_sync_data', wp_json_encode( array( 'plugins' ) ) );
+		$_POST['syncdata'] = array( 'plugins' => '1' );
+
+		$this->assertSame( array(), MainWP_Child_Stats::get_instance()->get_data_list_to_sync() );
+		$this->assertSame( '[]', get_option( 'mainwp_child_settings_sync_data' ) );
+	}
 }

@@ -527,6 +527,12 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             $update_list = wp_unslash( $_POST['syncdata'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON payload; only the json_decode-validated, re-encoded array is persisted below, the raw string never is.
             $update      = false;
 
+            // json_decode() below takes a string. An array-valued syncdata post is a
+            // TypeError on PHP 8, which fatals the whole sync request.
+            if ( ! is_string( $update_list ) ) {
+                $update_list = '';
+            }
+
             if ( $update_list !== $sync_data_settings ) {
                 $sync_data_settings = $update_list;
                 $update             = true;
