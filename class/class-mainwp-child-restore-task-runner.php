@@ -130,7 +130,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         } elseif ( 'files' === $sub_type ) {
             $type = 'restore_files';
         }
-        $task_id = $spine->create_task( $type, array( 'params' => $params ), self::RESTORE_MAX_RESUMES, $deadline );
+        $task_id = $spine->create_task( $type, array( 'params' => $params ), self::RESTORE_MAX_RESUMES, $deadline, null, true );
         if ( false === $task_id ) {
             throw new MainWP_Exception( 'The restore task could not be created on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
         }

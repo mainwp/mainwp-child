@@ -23,15 +23,22 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 	 */
 	public function set_up() {
 		parent::set_up();
-		MainWP_Child_Backup_Task::instance()->install();
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+		try {
+			delete_option( MainWP_Child_Backup_Task::DB_VERSION_OPTION );
+			MainWP_Child_Backup_Task::instance()->install();
+		} finally {
+			add_filter( 'query', array( $this, '_create_temporary_tables' ) );
+			add_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+		}
 	}
 
 	/**
-	 * Drop spine rows between tests.
+	 * Remove scratch files and the real spine table.
 	 */
 	public function tear_down() {
 		global $wpdb;
-		$wpdb->query( 'DELETE FROM ' . MainWP_Child_Backup_Task::instance()->get_table_name() ); // phpcs:ignore -- test cleanup.
 
 		// Walk-run scratch files are not rolled back with the DB transaction;
 		// sweep any a test seeded so they cannot leak into another test.
@@ -40,13 +47,13 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 			unlink( $run ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- test cleanup.
 		}
 		parent::tear_down();
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+		$wpdb->query( 'DROP TABLE IF EXISTS ' . MainWP_Child_Backup_Task::instance()->get_table_name() );
 	}
 
 	/**
 	 * The dedicated dbDelta table exists and is queryable after install.
-	 *
-	 * The WP test framework creates plugin tables as TEMPORARY tables, which
-	 * SHOW TABLES does not list - assert queryability instead.
 	 */
 	public function test_table_is_created() {
 		global $wpdb;
@@ -73,6 +80,60 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 		$this->assertGreaterThan( 0, (int) $task->max_resumes );
 		$this->assertNotEmpty( $task->max_wall_clock_at, 'Wall-clock deadline must be stamped at creation' );
 		$this->assertNull( $task->lease_owner );
+	}
+
+	public function test_guarded_create_task_refuses_active_task() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full' );
+		$this->assertNotFalse( $task_id );
+
+		foreach ( array( MainWP_Child_Backup_Task::PHASE_QUEUED, MainWP_Child_Backup_Task::PHASE_DUMPING_DB ) as $phase ) {
+			$task = $spine->get_task( $task_id );
+			$this->assertNotFalse( $spine->checkpoint( $task_id, (int) $task->version, array( 'phase' => $phase ) ) );
+			$this->assertFalse( $spine->create_task( 'restore', array(), null, null, null, true ), $phase );
+			$this->assertSame( 1, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $spine->get_table_name() ), $phase );
+		}
+	}
+
+	public function test_guarded_create_task_allows_terminal_tasks() {
+		global $wpdb;
+		$spine = MainWP_Child_Backup_Task::instance();
+		foreach ( array( MainWP_Child_Backup_Task::PHASE_COMPLETED, MainWP_Child_Backup_Task::PHASE_FAILED ) as $phase ) {
+			$task_id = $spine->create_task( 'full' );
+			$this->assertNotFalse( $task_id );
+			$this->assertNotFalse( $spine->checkpoint( $task_id, 0, array( 'phase' => $phase ) ) );
+		}
+
+		$sub_state = array( 'params' => array( 'restore_id' => 'guard01' ) );
+		$task_id   = $spine->create_task( 'restore', $sub_state, 20, 7200, null, true );
+		$this->assertNotFalse( $task_id );
+		$this->assertStringStartsWith( 'task-', $task_id );
+		$this->assertSame( 3, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $spine->get_table_name() ) );
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( $task_id, $task->task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $task->phase );
+		$this->assertSame( 'restore', $task->type );
+		$this->assertSame( $sub_state, json_decode( $task->sub_state, true ) );
+		$this->assertSame( 20, (int) $task->max_resumes );
+		$this->assertSame( 7200, strtotime( $task->max_wall_clock_at ) - strtotime( $task->started_at ) );
+		$this->assertSame( $task->started_at, $task->last_progress_at );
+		$this->assertSame( 0, (int) $task->resume_count );
+		$this->assertSame( 0, (int) $task->version );
+		$this->assertNull( $task->lease_owner );
+		$this->assertNull( $task->lease_expires_at );
+	}
+
+	public function test_unguarded_create_task_allows_active_task() {
+		global $wpdb;
+		$spine = MainWP_Child_Backup_Task::instance();
+		$first = $spine->create_task( 'full' );
+		$this->assertNotFalse( $first );
+		$second = $spine->create_task( 'restore' );
+		$this->assertNotFalse( $second );
+		$this->assertNotSame( $first, $second );
+		$this->assertCount( 2, $spine->get_active_tasks() );
+		$this->assertSame( 2, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $spine->get_table_name() ) );
 	}
 
 	/**

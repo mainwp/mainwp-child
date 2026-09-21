@@ -731,7 +731,15 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->runner->fake_engine     = new Fake_Restore_Engine();
 
 		$this->spine = MainWP_Child_Backup_Task::instance();
-		$this->spine->install();
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+		try {
+			delete_option( MainWP_Child_Backup_Task::DB_VERSION_OPTION );
+			$this->spine->install();
+		} finally {
+			add_filter( 'query', array( $this, '_create_temporary_tables' ) );
+			add_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+		}
 
 		// The pinned target prefix is rt_; the rewrite phase pages this
 		// table for real.
@@ -744,13 +752,15 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	 */
 	public function tear_down() {
 		global $wpdb;
-		$wpdb->query( 'DELETE FROM ' . $this->spine->get_table_name() ); // phpcs:ignore WordPress.DB -- test cleanup.
 		$wpdb->query( 'DROP TABLE IF EXISTS `rt_items`' ); // phpcs:ignore WordPress.DB -- test cleanup.
 		foreach ( array( 'rt_options', 'rt_users', 'rt_usermeta', 'rt_postmeta', 'rt_wc_orders', 'rt_wc_product_meta_lookup', 'rt_actionscheduler_logs', 'rt_actionscheduler_actions', 'rt_wc_order_product_lookup', 'rt_wc_order_stats', 'rt_wc_order_tax_lookup', 'rt_wc_order_coupon_lookup', 'rt_wc_customer_lookup' ) as $woo_table ) {
 			$wpdb->query( 'DROP TABLE IF EXISTS `' . $woo_table . '`' ); // phpcs:ignore WordPress.DB -- test cleanup.
 		}
 		$this->rrmdir( $this->dir );
 		parent::tear_down();
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+		$wpdb->query( 'DROP TABLE IF EXISTS ' . $this->spine->get_table_name() );
 	}
 
 	/**
@@ -3381,6 +3391,32 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			)
 		);
 		return $task_id;
+	}
+
+	public function test_create_restore_task_refuses_task_inserted_after_precheck() {
+		global $wpdb;
+		$competing_id = null;
+		$insert_race  = function ( $query ) use ( &$insert_race, &$competing_id ) {
+			if ( 0 === strpos( $query, 'INSERT INTO ' . $this->spine->get_table_name() . ' ' ) ) {
+				remove_filter( 'query', $insert_race );
+				$competing_id = $this->spine->create_task( 'full' );
+			}
+			return $query;
+		};
+		add_filter( 'query', $insert_race );
+		try {
+			$this->make_task( 'db', array() );
+			$this->fail( 'A competing task inserted after the pre-check must block the restore.' );
+		} catch ( \MainWP\Child\MainWP_Exception $e ) {
+			$this->assertSame( 'The restore task could not be created on this site.', $e->getMessage() );
+		} finally {
+			remove_filter( 'query', $insert_race );
+		}
+
+		$this->assertNotEmpty( $competing_id );
+		$this->assertSame( 1, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $this->spine->get_table_name() ) );
+		$this->assertSame( $competing_id, $this->spine->get_active_tasks()[0]->task_id );
+		$this->assertEmpty( $this->runner->fake_engine->calls );
 	}
 
 	/**

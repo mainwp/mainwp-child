@@ -255,10 +255,11 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * @param int|null    $deadline_seconds Wall-clock horizon override, for
      *                                   work that scales with payload size.
      * @param string|null $task_id          Task id reserved by the engine mutex, or null to generate one.
+     * @param bool        $require_idle     Refuse creation while any non-terminal task exists.
      *
-     * @return string|false Task id, or false on insert failure.
+     * @return string|false Task id, or false on insert failure or an occupied slot.
      */
-    public function create_task( $type = 'full', $sub_state = array(), $max_resumes = null, $deadline_seconds = null, $task_id = null ) {
+    public function create_task( $type = 'full', $sub_state = array(), $max_resumes = null, $deadline_seconds = null, $task_id = null, $require_idle = false ) {
         global $wpdb;
 
         $this->install();
@@ -267,11 +268,18 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         $task_id     = null === $task_id ? 'task-' . time() . '-' . strtolower( wp_generate_password( 12, false ) ) : $task_id;
         $deadline    = null === $deadline_seconds ? self::WALL_CLOCK_WINDOW_SECONDS : (int) $deadline_seconds;
 
+        $sql = 'INSERT INTO ' . $this->get_table_name() .
+            ' (task_id, phase, type, sub_state, started_at, last_progress_at, max_wall_clock_at, resume_count, max_resumes, version)';
+        if ( $require_idle ) {
+            $sql .= ' SELECT %s, %s, %s, %s, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL %d SECOND), 0, %d, 0
+                FROM DUAL WHERE NOT EXISTS ( SELECT 1 FROM ' . $this->get_table_name() . " WHERE phase NOT IN ('completed','failed') LIMIT 1 )";
+        } else {
+            $sql .= ' VALUES (%s, %s, %s, %s, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL %d SECOND), 0, %d, 0)';
+        }
+
         $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- dedicated spine table.
             $wpdb->prepare(
-                'INSERT INTO ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
-                ' (task_id, phase, type, sub_state, started_at, last_progress_at, max_wall_clock_at, resume_count, max_resumes, version)
-                 VALUES (%s, %s, %s, %s, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL %d SECOND), 0, %d, 0)',
+                $sql, // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed SQL and trusted table name; values are prepared below.
                 $task_id,
                 self::PHASE_QUEUED,
                 $type,
