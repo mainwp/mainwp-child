@@ -1951,6 +1951,11 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                     break;
                 }
                 if ( 3 === $attempt ) {
+                    try {
+                        $this->restore_connection_identity( $sub_state );
+                    } catch ( \Throwable $e ) {
+                        // Identity recovery must not mask the indeterminate-swap refusal.
+                    }
                     throw new MainWP_Exception( 'Could not determine whether the restore database swap committed.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
                 }
                 usleep( 100000 );
@@ -2311,10 +2316,10 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $table    = $this->target_prefix() . 'options';
         $suppress = $wpdb->suppress_errors( true );
         try {
-            $ledgers        = array_diff_key( $saved, array_flip( self::IDENTITY_OPTIONS ) );
-            $last_exception = null;
+            $ledgers = array_diff_key( $saved, array_flip( self::IDENTITY_OPTIONS ) );
             for ( $attempt = 1; $attempt <= 3; ++$attempt ) {
-                $result = false;
+                $result         = false;
+                $last_exception = null;
                 try {
                     if ( ! isset( $sub_state['identity_dump_count'] ) ) {
                         // FK replay has no tmp options table; keep its baseline before the first write.
@@ -2349,8 +2354,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                                 $args[] = $row['autoload'];
                             }
                             $values = implode( ', ', array_fill( 0, count( $chunk ), '(%s, %s, %s)' ) );
-                            // This upsert relies on the unique option_name key; a dump without it appends duplicate ledger rows instead of updating them.
-                            $result = $wpdb->query( $wpdb->prepare( 'INSERT INTO `' . $table . '` (option_name, option_value, autoload) VALUES ' . $values . ' ON DUPLICATE KEY UPDATE option_value = VALUES(option_value), autoload = VALUES(autoload)', $args ) ); // phpcs:ignore WordPress.DB -- bounded replay ledger upserts preserve dump-only rows.
+                            // The dump may lack a unique key; replace only captured names so dump-only ledger rows survive.
+                            $names  = implode( ', ', array_fill( 0, count( $chunk ), '%s' ) );
+                            $result = $wpdb->query( $wpdb->prepare( 'DELETE FROM `' . $table . '` WHERE option_name IN (' . $names . ')', array_keys( $chunk ) ) ); // phpcs:ignore WordPress.DB -- bounded deletion includes only rows written straight back.
+                            if ( false === $result ) {
+                                break;
+                            }
+                            $result = $wpdb->query( $wpdb->prepare( 'INSERT INTO `' . $table . '` (option_name, option_value, autoload) VALUES ' . $values, $args ) ); // phpcs:ignore WordPress.DB -- bounded replay ledger inserts preserve raw captured rows.
                             if ( false === $result ) {
                                 break;
                             }
