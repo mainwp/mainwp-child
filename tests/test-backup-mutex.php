@@ -18,6 +18,29 @@ class BackupMutexTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	public function test_invalid_arguments_throw_invalid_argument_exception() {
+		foreach ( array( array( 'bogus', 'owner' ), array( 'native', '' ), array( 'legacy', 'owner|pipe' ) ) as $args ) {
+			try {
+				MainWP_Child_Backup_Mutex::acquire( $args[0], $args[1], 300 );
+				$this->fail( 'Invalid mutex arguments must throw: ' . json_encode( $args ) );
+			} catch ( InvalidArgumentException $e ) {
+				$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+			}
+		}
+	}
+
+	public function test_holder_rejects_malformed_future_rows() {
+		$future = (string) ( time() + 3600 );
+		foreach ( array( 'bogus||' . $future, 'bogus|owner|' . $future, 'native||' . $future, 'native|owner|' . $future . 'junk' ) as $value ) {
+			$this->assertTrue( add_option( MainWP_Child_Backup_Mutex::OPTION_NAME, $value, '', false ) );
+			try {
+				$this->assertNull( MainWP_Child_Backup_Mutex::holder(), $value );
+			} finally {
+				delete_option( MainWP_Child_Backup_Mutex::OPTION_NAME );
+			}
+		}
+	}
+
 	public function test_two_acquirers_exactly_one_wins() {
 		$first  = MainWP_Child_Backup_Mutex::acquire( 'legacy', 'first', 300 );
 		$second = MainWP_Child_Backup_Mutex::acquire( 'native', 'second', 3600 );

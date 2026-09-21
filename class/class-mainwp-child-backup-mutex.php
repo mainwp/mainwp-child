@@ -29,12 +29,13 @@ class MainWP_Child_Backup_Mutex {
      * @return true|array|false|null True when acquired; an array (engine, owner,
      *                              expires_at) for a live holder; false when no
      *                              holder can be read after one immediate retry;
-     *                              null on an INSERT/UPDATE failure or invalid arguments.
+     *                              null on an INSERT/UPDATE failure.
+     * @throws \InvalidArgumentException When the engine or owner is invalid.
      */
     public static function acquire( $engine, $owner, $ttl ) {
         global $wpdb;
         if ( ! in_array( $engine, array( 'legacy', 'native' ), true ) || '' === $owner || false !== strpos( $owner, '|' ) ) {
-            return null;
+            throw new \InvalidArgumentException( 'Invalid backup mutex engine or owner.' );
         }
         $value = $engine . '|' . $owner . '|' . ( time() + (int) $ttl );
         for ( $attempt = 0; $attempt < 2; ++$attempt ) {
@@ -159,7 +160,7 @@ class MainWP_Child_Backup_Mutex {
     /**
      * Read ownership directly, including an expired holder awaiting takeover.
      *
-     * @return array|null Engine, owner and expiry, or null when absent.
+     * @return array|null Engine, owner and expiry, or null when absent or malformed.
      */
     public static function holder() {
         global $wpdb;
@@ -167,7 +168,7 @@ class MainWP_Child_Backup_Mutex {
             $wpdb->prepare( "SELECT option_value FROM $wpdb->options WHERE option_name = %s", self::OPTION_NAME )
         );
         $parts = null === $value ? array() : explode( '|', $value );
-        if ( 3 !== count( $parts ) ) {
+        if ( 3 !== count( $parts ) || ! in_array( $parts[0], array( 'legacy', 'native' ), true ) || '' === $parts[1] || ! ctype_digit( $parts[2] ) ) {
             return null;
         }
         return array(

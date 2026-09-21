@@ -20,6 +20,10 @@ use MainWP\Child\MainWP_Exception;
  */
 class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 
+	public $on_database_live = null;
+
+	public $verify_real_counts = false;
+
 	/**
 	 * Error the replay should report, or null.
 	 *
@@ -128,6 +132,9 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 				'error_code' => null,
 			);
 		}
+		if ( ! empty( $config['fk_path'] ) && null !== $this->on_database_live ) {
+			call_user_func( $this->on_database_live );
+		}
 		return array(
 			'done'       => true,
 			'cursor'     => array( 'tables' => $this->tables ),
@@ -162,6 +169,9 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 				'error_code' => MainWP_Backup_Error::ERR_RESTORE_SWAP_FAILED,
 			);
 		}
+		if ( null !== $this->on_database_live ) {
+			call_user_func( $this->on_database_live );
+		}
 		return array(
 			'done'       => true,
 			'old_tables' => array( 'old' . $config['restore_id'] . '_items' ),
@@ -189,6 +199,17 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	public function verify_row_counts( $expected, $target_prefix ) {
 		$this->calls[]               = 'verify_row_counts';
 		$this->last_verify_expected = $expected;
+		if ( $this->verify_real_counts ) {
+			global $wpdb;
+			$mismatches = array();
+			foreach ( $expected as $stem => $rows ) {
+				$actual = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM `' . $target_prefix . $stem . '`' );
+				if ( '' !== $wpdb->last_error || $actual !== (int) $rows ) {
+					$mismatches[ $stem ] = array( 'expected' => $rows, 'actual' => $actual );
+				}
+			}
+			return array( 'ok' => empty( $mismatches ), 'mismatches' => $mismatches );
+		}
 		return array(
 			'ok'         => $this->verify_ok,
 			'mismatches' => $this->verify_ok ? array() : array( 'items' => array( 'expected' => 2, 'actual' => 1 ) ),
@@ -562,10 +583,23 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 		return $this->sub_site_probes();
 	}
 
+	public $cache_flushes = 0;
+
+	public $yield_before_url_rewrite = false;
+
+	protected function run_rewriting_urls( $task, $version, $sub_state, $deadline, $backup_dir ) {
+		if ( $this->yield_before_url_rewrite ) {
+			$this->yield_before_url_rewrite = false;
+			return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+		}
+		return parent::run_rewriting_urls( $task, $version, $sub_state, $deadline, $backup_dir );
+	}
+
 	/**
-	 * No cache side effects in tests.
+	 * Track cache flushes without flushing the test environment.
 	 */
 	protected function flush_caches() {
+		++$this->cache_flushes;
 	}
 
 	/**
@@ -745,6 +779,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		// table for real.
 		global $wpdb;
 		$wpdb->query( 'CREATE TABLE IF NOT EXISTS `rt_items` (id INT NOT NULL, val TEXT, PRIMARY KEY (id))' ); // phpcs:ignore WordPress.DB -- test fixture.
+		$wpdb->query( 'CREATE TABLE IF NOT EXISTS `rt_options` (option_id BIGINT NOT NULL AUTO_INCREMENT, option_name VARCHAR(191) NOT NULL, option_value LONGTEXT, autoload VARCHAR(20) DEFAULT \'yes\', PRIMARY KEY (option_id), UNIQUE KEY option_name (option_name))' );
 	}
 
 	/**
@@ -949,9 +984,35 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		return $task;
 	}
 
+	public function test_restore_create_mutex_insert_failure_with_holder_has_write_failed_error_code() {
+		global $wpdb;
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'holder', 300 ) );
+		$filter = static function ( $query ) {
+			if ( 0 === strpos( $query, 'INSERT IGNORE INTO' ) && false !== strpos( $query, MainWP_Child_Backup_Mutex::OPTION_NAME ) ) {
+				return 'SELECT mainwp_mutex_forced_failure';
+			}
+			return $query;
+		};
+		$suppress = $wpdb->suppress_errors();
+		add_filter( 'query', $filter );
+		try {
+			$this->make_task( 'db', array() );
+			$this->fail( 'A mutex INSERT failure must refuse creation.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_MUTEX_WRITE_FAILED, $e->get_message_error_code() );
+			$this->assertSame( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_MUTEX_WRITE_FAILED ) ), $e->getMessage() );
+			$this->assertSame( 'holder', MainWP_Child_Backup_Mutex::holder()['owner'] );
+			$this->assertEmpty( MainWP_Child_Backup_Task::instance()->get_active_tasks() );
+		} finally {
+			remove_filter( 'query', $filter );
+			$wpdb->suppress_errors( $suppress );
+			MainWP_Child_Backup_Mutex::release( 'holder' );
+		}
+	}
+
 	public function test_restore_create_distinguishes_mutex_write_failure_from_unreadable_holder() {
 		global $wpdb;
-		foreach ( array( 'SELECT mainwp_mutex_forced_failure' => '', 'SELECT 1 WHERE 1 = 0' => MainWP_Backup_Error::ERR_ALREADY_RUNNING ) as $replacement => $expected_code ) {
+		foreach ( array( 'SELECT mainwp_mutex_forced_failure' => MainWP_Backup_Error::ERR_MUTEX_WRITE_FAILED, 'SELECT 1 WHERE 1 = 0' => MainWP_Backup_Error::ERR_ALREADY_RUNNING ) as $replacement => $expected_code ) {
 			$inserts = 0;
 			$filter = static function ( $query ) use ( $replacement, &$inserts ) {
 				if ( 0 === strpos( $query, 'INSERT IGNORE INTO' ) && false !== strpos( $query, MainWP_Child_Backup_Mutex::OPTION_NAME ) ) {
@@ -968,7 +1029,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 				$this->fail( 'Creation must refuse a mutex write failure or unreadable holder.' );
 			} catch ( MainWP_Exception $e ) {
 				$this->assertSame( $expected_code, $e->get_message_error_code() );
-				$this->assertSame( '' === $expected_code ? 1 : 2, $inserts );
+				$this->assertSame( MainWP_Backup_Error::ERR_MUTEX_WRITE_FAILED === $expected_code ? 1 : 2, $inserts );
 				$this->assertSame( rtrim( $e->getMessage() ), $e->getMessage() );
 				$this->assertEmpty( MainWP_Child_Backup_Task::instance()->get_active_tasks() );
 			} finally {
@@ -1081,6 +1142,177 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 				delete_option( MainWP_Child_Backup_Mutex::OPTION_NAME );
 			}
 		}
+	}
+
+	public static function identity_restore_cases() {
+		return array(
+			'swap inserts exceed deletes' => array( false, 1 ),
+			'swap deletes exceed inserts' => array( false, -1 ),
+			'FK inserts exceed deletes'   => array( true, 1 ),
+			'FK deletes exceed inserts'   => array( true, -1 ),
+		);
+	}
+
+	/**
+	 * @dataProvider identity_restore_cases
+	 */
+	public function test_database_paths_preserve_connection_identity( $fk, $delta ) {
+		global $wpdb;
+		$this->seed_woo_tables();
+		$this->runner->yield_before_url_rewrite = true;
+		$live = array(
+			'mainwp_child_pubkey'           => array( 'live-src_public-key', 'yes' ),
+			'mainwp_child_uniqueId'         => array( 'live-unique-id', 'no' ),
+			'mainwp_child_connected_admin'  => array( '', 'auto-off' ),
+			'mainwp_child_server'           => array( 'ciphertext:/+=\'"\\opaque', 'on' ),
+			'mainwp_child_openssl_sign_algo' => array( '0', 'off' ),
+		);
+		$dump = array(
+			'mainwp_child_pubkey'           => array( 'dump-public-key', 'no' ),
+			'mainwp_child_nonce'            => array( 'dump-only-nonce', 'yes' ),
+			'mainwp_child_connected_admin'  => array( 'dump-admin', 'yes' ),
+			'mainwp_child_server'           => array( 'dump-ciphertext', 'no' ),
+			'mainwp_child_openssl_sign_algo' => array( '1', 'yes' ),
+		);
+		if ( 1 === $delta ) {
+			$live['mainwp_child_auth'] = array( 'live-auth', 'auto-on' );
+		} else {
+			$dump['mainwp_child_auth'] = array( 'dump-only-auth', 'yes' );
+		}
+		foreach ( $live as $name => $row ) {
+			$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => $name, 'option_value' => $row[0], 'autoload' => $row[1] ) ) );
+		}
+		$names = array_unique( array_merge( array_keys( $live ), array_keys( $dump ) ) );
+		$engine = $this->runner->fake_engine;
+		$engine->tables = array( 'options' => array( 'status' => 'ok', 'rows' => count( $dump ) + 1 ) );
+		$engine->verify_real_counts = true;
+		$became_live = 0;
+		$engine->on_database_live = function () use ( $wpdb, $dump, $names, $engine, &$became_live ) {
+			++$became_live;
+			$this->assertContains( 'begin_maintenance', $engine->calls );
+			$this->assertNotContains( 'exit_maintenance', $engine->calls );
+			$this->assertNotFalse( $wpdb->query( 'DELETE FROM `rt_options`' ) );
+			foreach ( $dump as $name => $row ) {
+				$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => $name, 'option_value' => $row[0], 'autoload' => $row[1] ) ) );
+			}
+			$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'active_plugins', 'option_value' => 'dump-plugins', 'autoload' => 'yes' ) ) );
+			foreach ( $names as $name ) {
+				wp_cache_set( $name, 'stale-dump-cache', 'options' );
+			}
+			wp_cache_set( 'alloptions', array( 'mainwp_child_pubkey' => 'stale-key' ), 'options' );
+			wp_cache_set( 'notoptions', array( 'mainwp_child_uniqueId' => true ), 'options' );
+		};
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( $fk ) ), $fk ? array( 'source_prefix' => 'rt_' ) : array() );
+		// Inspect the first slice after the restored options become live, before verification.
+		$task = $this->spine->get_task( $task_id );
+		for ( $slice = 0; $slice < 30 && 0 === $became_live && ! MainWP_Child_Backup_Task::is_terminal_phase( $task->phase ); ++$slice ) {
+			$task = $this->runner->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
+		}
+		$this->assertSame( 1, $became_live );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_REWRITING_URLS, $task->phase );
+		$state = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( $delta, $state['identity_preserve_delta'] );
+		$captured = array_column( $state['identity_preserve'], null, 'option_name' );
+		foreach ( $names as $name ) {
+			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT option_name, option_value, autoload FROM `rt_options` WHERE option_name = %s', $name ), ARRAY_A );
+			if ( isset( $live[ $name ] ) ) {
+				$expected = array( 'option_name' => $name, 'option_value' => $live[ $name ][0], 'autoload' => $live[ $name ][1] );
+				$this->assertSame( $expected, $row, $name );
+				$this->assertSame( $expected, $captured[ $name ], 'Capture must retain the pre-restore row.' );
+			} else {
+				$this->assertNull( $row, $name );
+				$this->assertArrayNotHasKey( $name, $captured );
+			}
+			$this->assertFalse( wp_cache_get( $name, 'options' ), $name );
+		}
+		$this->assertFalse( wp_cache_get( 'alloptions', 'options' ) );
+		$this->assertFalse( wp_cache_get( 'notoptions', 'options' ) );
+		$this->assertGreaterThan( 0, $this->runner->cache_flushes );
+		$this->assertSame( 'dump-plugins', $wpdb->get_var( "SELECT option_value FROM `rt_options` WHERE option_name = 'active_plugins'" ) );
+		$task = $this->drive( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		foreach ( $live as $name => $row ) {
+			$this->assertSame( array( 'option_value' => $row[0], 'autoload' => $row[1] ), $wpdb->get_row( $wpdb->prepare( 'SELECT option_value, autoload FROM `rt_options` WHERE option_name = %s', $name ), ARRAY_A ), 'URL/prefix rewriting must preserve ' . $name );
+		}
+		$this->assertSame( count( $dump ) + 1 + $delta, $engine->last_verify_expected['options'] );
+		$this->assertTrue( $this->spine->read_sub_state( $task, $this->dir )['verification']['row_counts_ok'] );
+	}
+
+	public function test_connection_identity_capture_is_not_replaced_on_reentry() {
+		global $wpdb;
+		$capture = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'capture_connection_identity' );
+		$capture->setAccessible( true );
+		foreach ( array( false, true ) as $present ) {
+			$this->assertNotFalse( $wpdb->query( 'DELETE FROM `rt_options`' ) );
+			if ( $present ) {
+				$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'mainwp_child_pubkey', 'option_value' => 'live-key', 'autoload' => 'no' ) ) );
+			}
+			$state = array();
+			$capture->invokeArgs( $this->runner, array( &$state ) );
+			$original = $state['identity_preserve'];
+			$this->assertCount( $present ? 1 : 0, $original );
+			$this->assertNotFalse( $wpdb->query( 'DELETE FROM `rt_options`' ) );
+			$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'mainwp_child_pubkey', 'option_value' => 'dump-key', 'autoload' => 'yes' ) ) );
+			$capture->invokeArgs( $this->runner, array( &$state ) );
+			$this->assertSame( $original, $state['identity_preserve'] );
+		}
+	}
+
+	public static function identity_write_failure_cases() {
+		return array(
+			'swap update' => array( false, 'UPDATE' ),
+			'swap insert' => array( false, 'INSERT' ),
+			'swap delete' => array( false, 'DELETE' ),
+			'FK update'   => array( true, 'UPDATE' ),
+			'FK insert'   => array( true, 'INSERT' ),
+			'FK delete'   => array( true, 'DELETE' ),
+		);
+	}
+
+	/**
+	 * @dataProvider identity_write_failure_cases
+	 */
+	public function test_identity_write_failure_fails_restore( $fk, $operation ) {
+		global $wpdb;
+		$this->seed_woo_tables();
+		if ( 'DELETE' !== $operation ) {
+			$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'mainwp_child_pubkey', 'option_value' => 'live-key', 'autoload' => 'yes' ) ) );
+		}
+		$engine = $this->runner->fake_engine;
+		$armed = false;
+		$failed = false;
+		$engine->on_database_live = function () use ( $wpdb, $operation, &$armed ) {
+			$this->assertNotFalse( $wpdb->delete( 'rt_options', array( 'option_name' => 'mainwp_child_pubkey' ) ) );
+			if ( 'INSERT' !== $operation ) {
+				$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'mainwp_child_pubkey', 'option_value' => 'dump-key', 'autoload' => 'no' ) ) );
+			}
+			$armed = true;
+		};
+		$fail_write = static function ( $sql ) use ( &$armed, &$failed, $operation ) {
+			if ( $armed && 0 === strpos( $sql, $operation . ' ' ) && false !== strpos( $sql, '`rt_options`' ) && false !== strpos( $sql, 'mainwp_child_pubkey' ) ) {
+				$failed = true;
+				return 'SELECT mainwp_identity_forced_write_failure';
+			}
+			return $sql;
+		};
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( $fk ) ), $fk ? array( 'source_prefix' => 'rt_' ) : array() );
+		add_filter( 'query', $fail_write );
+		try {
+			$task = $this->drive( $task_id );
+		} finally {
+			remove_filter( 'query', $fail_write );
+		}
+		$this->assertTrue( $failed, 'The identity write failure must be exercised.' );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$state = $this->spine->read_sub_state( $task, $this->dir );
+		if ( $fk ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $state['fk_rollback']['original_error_code'] );
+			$this->assertContains( 'rollback_aside_slice', $engine->calls );
+		} else {
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $this->spine->status_payload( $task )['error_code'] );
+		}
+		$this->assertNotContains( 'drop_old_tables', $engine->calls );
+		$this->assertNotContains( 'verify_row_counts', $engine->calls );
 	}
 
 	public function test_terminal_failure_after_database_live_clears_captured_mutex() {
@@ -1196,7 +1428,6 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	 */
 	protected function seed_woo_tables( $options = array() ) {
 		global $wpdb;
-		$wpdb->query( 'CREATE TABLE IF NOT EXISTS `rt_options` (option_id BIGINT NOT NULL AUTO_INCREMENT, option_name VARCHAR(191) NOT NULL, option_value LONGTEXT, autoload VARCHAR(20) DEFAULT \'yes\', PRIMARY KEY (option_id), UNIQUE KEY option_name (option_name))' ); // phpcs:ignore WordPress.DB
 		$wpdb->query( 'CREATE TABLE IF NOT EXISTS `rt_users` (ID BIGINT NOT NULL AUTO_INCREMENT, user_login VARCHAR(60) DEFAULT \'\', user_pass VARCHAR(255) DEFAULT \'\', user_nicename VARCHAR(50) DEFAULT \'\', user_email VARCHAR(100) DEFAULT \'\', user_url VARCHAR(100) DEFAULT \'\', user_registered DATETIME DEFAULT \'2020-01-01 00:00:00\', user_activation_key VARCHAR(255) DEFAULT \'\', user_status INT DEFAULT 0, display_name VARCHAR(250) DEFAULT \'\', PRIMARY KEY (ID))' ); // phpcs:ignore WordPress.DB
 		$wpdb->query( 'CREATE TABLE IF NOT EXISTS `rt_usermeta` (umeta_id BIGINT NOT NULL AUTO_INCREMENT, user_id BIGINT NOT NULL DEFAULT 0, meta_key VARCHAR(255) DEFAULT NULL, meta_value LONGTEXT, PRIMARY KEY (umeta_id))' ); // phpcs:ignore WordPress.DB
 		$wpdb->query( 'CREATE TABLE IF NOT EXISTS `rt_postmeta` (meta_id BIGINT NOT NULL AUTO_INCREMENT, post_id BIGINT NOT NULL DEFAULT 0, meta_key VARCHAR(255) DEFAULT NULL, meta_value LONGTEXT, PRIMARY KEY (meta_id))' ); // phpcs:ignore WordPress.DB
@@ -3633,7 +3864,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_restore_create_mutex_database_failure_has_empty_error_code() {
+	public function test_restore_create_mutex_database_failure_has_write_failed_error_code() {
 		global $wpdb;
 		$failed = false;
 		$block  = static function ( $query ) use ( &$failed ) {
@@ -3651,8 +3882,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			$this->fail( 'A database failure must refuse restore creation.' );
 		} catch ( MainWP_Exception $e ) {
 			$this->assertTrue( $failed );
-			$this->assertSame( '', $e->get_message_error_code() );
-			$this->assertSame( 'The restore creation mutex could not be acquired on this site.', $e->getMessage() );
+			$this->assertSame( MainWP_Backup_Error::ERR_MUTEX_WRITE_FAILED, $e->get_message_error_code() );
+			$this->assertSame( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_MUTEX_WRITE_FAILED ) ), $e->getMessage() );
 			$this->assertStringNotContainsString( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ), $e->getMessage() );
 			$this->assertEmpty( $this->spine->get_active_tasks() );
 			$this->assertNull( MainWP_Child_Backup_Mutex::holder() );

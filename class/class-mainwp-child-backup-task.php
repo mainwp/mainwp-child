@@ -1057,8 +1057,8 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * task row tracks these. A live mutex held by another caller, or a fresh
      * legacy pid, defers all four patterns, including .done and staged
      * manifests: housekeeping can wait until the next prune, and a clone holds
-     * the mutex without a task row. An expired holder is dead litter, not a
-     * live run, so it does not defer. Equality at expiry remains live to match
+     * the mutex without a task row. An expired or malformed holder does not
+     * defer the sweep. Equality at expiry remains live to match
      * acquire()'s strictly-earlier-than-now takeover test. Active task files
      * remain protected.
      * Archives are never touched, whatever their age - artifact deletion is

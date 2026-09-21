@@ -165,6 +165,25 @@ class CloneBackupMutexTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $fragment );
 	}
 
+	public function test_stale_sweep_does_not_defer_for_malformed_future_holder() {
+		$future = (string) ( time() + 3600 );
+		$fragment = $this->backup_dir . 'dbBackup-dead-run.sql';
+		$spine = MainWP_Child_Backup_Task::instance();
+		$this->assertSame( array(), $spine->get_active_tasks() );
+		$this->assertFalse( MainWP_Backup::is_pid_lock_fresh( $this->backup_dir ) );
+		foreach ( array( 'bogus||' . $future, 'bogus|owner|' . $future, 'native||' . $future, 'native|owner|' . $future . 'junk' ) as $value ) {
+			file_put_contents( $fragment, 'stale fragment' );
+			touch( $fragment, time() - 4 * 3600 );
+			$this->assertTrue( add_option( MainWP_Child_Backup_Mutex::OPTION_NAME, $value, '', false ) );
+			try {
+				$spine->sweep_stale_markers( $this->backup_dir );
+				$this->assertFileDoesNotExist( $fragment, $value );
+			} finally {
+				delete_option( MainWP_Child_Backup_Mutex::OPTION_NAME );
+			}
+		}
+	}
+
 	public static function sweep_nonblocking_holders() {
 		return array(
 			'expired holder' => array( -1, null, false ),

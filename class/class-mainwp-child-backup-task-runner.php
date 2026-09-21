@@ -152,7 +152,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         $task_id = 'task-' . time() . '-' . strtolower( wp_generate_password( 12, false ) );
         $held    = MainWP_Child_Backup_Mutex::acquire( 'native', $task_id, MainWP_Child_Backup_Mutex::NATIVE_TTL );
         if ( null === $held ) {
-            throw new MainWP_Exception( 'The backup mutex could not be written on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_MUTEX_WRITE_FAILED ) ), null, MainWP_Backup_Error::ERR_MUTEX_WRITE_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
         }
         if ( true !== $held ) {
             $engine = is_array( $held ) && ! empty( $held['engine'] ) ? ' ' . $held['engine'] : '';
