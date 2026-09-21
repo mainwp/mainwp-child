@@ -113,8 +113,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $spine->install();
 
         $owner = 'restore-create-' . strtolower( wp_generate_password( 12, false ) );
-        if ( true !== MainWP_Child_Backup_Mutex::acquire( 'native', $owner, 60 ) ) {
-            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        $held  = MainWP_Child_Backup_Mutex::acquire( 'native', $owner, 60 );
+        if ( null === $held ) {
+            throw new MainWP_Exception( 'The restore creation mutex could not be acquired on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+        }
+        if ( true !== $held ) {
+            $engine = is_array( $held ) ? $held['engine'] : '';
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) . ' ' . $engine ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message and holder.
         }
         try {
             if ( ! empty( $spine->get_active_tasks() ) ) {

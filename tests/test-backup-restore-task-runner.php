@@ -3421,17 +3421,48 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	public function test_restore_create_refuses_backup_mutex_holder() {
-		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'backup-owner', 300 ) );
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'backup-owner', 300 ) );
 		$holder = MainWP_Child_Backup_Mutex::holder();
 		try {
 			$this->make_task( 'db', array() );
 			$this->fail( 'A backup mutex must block restore creation.' );
 		} catch ( MainWP_Exception $e ) {
 			$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+			$this->assertSame( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) . ' legacy' ), $e->getMessage() );
 			$this->assertSame( $holder, MainWP_Child_Backup_Mutex::holder() );
 			$this->assertEmpty( $this->spine->get_active_tasks() );
 		} finally {
 			MainWP_Child_Backup_Mutex::release( 'backup-owner' );
+		}
+	}
+
+	public function test_restore_create_mutex_database_failure_has_empty_error_code() {
+		global $wpdb;
+		$failed = false;
+		$block  = static function ( $query ) use ( &$failed ) {
+			if ( 0 === strpos( $query, 'INSERT IGNORE INTO' ) && false !== strpos( $query, MainWP_Child_Backup_Mutex::OPTION_NAME ) ) {
+				$failed = true;
+				return 'SELECT mainwp_restore_mutex_forced_failure';
+			}
+			return $query;
+		};
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+		$suppress = $wpdb->suppress_errors();
+		add_filter( 'query', $block );
+		try {
+			$this->make_task( 'db', array() );
+			$this->fail( 'A database failure must refuse restore creation.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertTrue( $failed );
+			$this->assertSame( '', $e->get_message_error_code() );
+			$this->assertSame( 'The restore creation mutex could not be acquired on this site.', $e->getMessage() );
+			$this->assertStringNotContainsString( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ), $e->getMessage() );
+			$this->assertEmpty( $this->spine->get_active_tasks() );
+			$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+			$this->assertEmpty( $this->runner->fake_engine->calls );
+		} finally {
+			remove_filter( 'query', $block );
+			$wpdb->suppress_errors( $suppress );
 		}
 	}
 
