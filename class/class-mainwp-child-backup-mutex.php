@@ -26,33 +26,75 @@ class MainWP_Child_Backup_Mutex {
      * @param string $engine Legacy or native.
      * @param string $owner  Opaque token without a pipe.
      * @param int    $ttl    Lifetime in seconds.
-     * @return true|array|null True on acquisition, otherwise the holder or null on a database failure.
+     * @return true|array|false|null True when acquired; an array (engine, owner,
+     *                              expires_at) for a live holder; false when no
+     *                              holder can be read after one immediate retry;
+     *                              null on an INSERT/UPDATE failure or invalid arguments.
      */
     public static function acquire( $engine, $owner, $ttl ) {
         global $wpdb;
         if ( ! in_array( $engine, array( 'legacy', 'native' ), true ) || '' === $owner || false !== strpos( $owner, '|' ) ) {
             return null;
         }
-        $value  = $engine . '|' . $owner . '|' . ( time() + (int) $ttl );
-        $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- the unique option key arbitrates acquisition.
-            $wpdb->prepare( "INSERT IGNORE INTO $wpdb->options (option_name, option_value, autoload) VALUES (%s, %s, 'no')", self::OPTION_NAME, $value )
-        );
-        wp_cache_delete( self::OPTION_NAME, 'options' );
-        if ( 1 === $result ) {
-            return true;
-        }
-        $holder = self::holder();
-        if ( false !== $result && null !== $holder && $holder['expires_at'] < time() ) {
-            $old    = $holder['engine'] . '|' . $holder['owner'] . '|' . $holder['expires_at'];
+        $value = $engine . '|' . $owner . '|' . ( time() + (int) $ttl );
+        for ( $attempt = 0; $attempt < 2; ++$attempt ) {
+            $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- the unique option key arbitrates acquisition.
+                $wpdb->prepare( "INSERT IGNORE INTO $wpdb->options (option_name, option_value, autoload) VALUES (%s, %s, 'no')", self::OPTION_NAME, $value )
+            );
+            wp_cache_delete( self::OPTION_NAME, 'options' );
+            if ( false === $result ) {
+                return null;
+            }
+            if ( 1 === $result ) {
+                return true;
+            }
+            $old = $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- the raw value fences takeover of malformed rows too.
+                $wpdb->prepare( "SELECT option_value FROM $wpdb->options WHERE option_name = %s", self::OPTION_NAME )
+            );
+            if ( null === $old ) {
+                // A holder may have released between the insert and this read.
+                continue;
+            }
+            $parts = explode( '|', $old );
+            if ( 3 === count( $parts ) && (int) $parts[2] >= time() ) {
+                return array(
+                    'engine'     => $parts[0],
+                    'owner'      => $parts[1],
+                    'expires_at' => (int) $parts[2],
+                );
+            }
             $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- a competing takeover must not be overwritten.
                 $wpdb->prepare( "UPDATE $wpdb->options SET option_value = %s WHERE option_name = %s AND BINARY option_value = %s", $value, self::OPTION_NAME, $old )
             );
             wp_cache_delete( self::OPTION_NAME, 'options' );
+            if ( false === $result ) {
+                return null;
+            }
             if ( 1 === $result ) {
                 return true;
             }
+            $holder = self::holder();
+            if ( null !== $holder && $holder['expires_at'] >= time() ) {
+                return $holder;
+            }
         }
-        return self::holder();
+        return false;
+    }
+
+    /**
+     * A restored options table carries the dump's mutex, never a live owner.
+     * Best effort: the restored data is already live when this runs, so a
+     * failed delete leaves the stale row for the TTL rather than failing
+     * the restore.
+     *
+     * @return bool Whether the delete statement ran.
+     */
+    public static function clear_after_restore() {
+        global $wpdb;
+        $result = $wpdb->delete( $wpdb->options, array( 'option_name' => self::OPTION_NAME ), array( '%s' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- the restored row must be removed regardless of its owner.
+        wp_cache_delete( self::OPTION_NAME, 'options' );
+        wp_cache_delete( 'alloptions', 'options' );
+        return false !== $result;
     }
 
     /**

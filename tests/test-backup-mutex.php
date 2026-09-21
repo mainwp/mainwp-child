@@ -26,6 +26,103 @@ class BackupMutexTest extends WP_UnitTestCase {
 		$this->assertSame( 'first', $second['owner'] );
 	}
 
+	public function test_insert_failure_returns_null_even_with_a_holder() {
+		global $wpdb;
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'holder', 300 ) );
+		$filter = static function ( $query ) {
+			if ( 0 === strpos( $query, 'INSERT IGNORE INTO' ) && false !== strpos( $query, MainWP_Child_Backup_Mutex::OPTION_NAME ) ) {
+				return 'SELECT mainwp_mutex_forced_failure';
+			}
+			return $query;
+		};
+		$suppress = $wpdb->suppress_errors();
+		add_filter( 'query', $filter );
+		try {
+			$this->assertNull( MainWP_Child_Backup_Mutex::acquire( 'native', 'new', 300 ) );
+			$this->assertSame( 'holder', MainWP_Child_Backup_Mutex::holder()['owner'] );
+		} finally {
+			remove_filter( 'query', $filter );
+			$wpdb->suppress_errors( $suppress );
+		}
+	}
+
+	public function test_takeover_write_failure_returns_null() {
+		global $wpdb;
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'expired', -1 ) );
+		$filter = static function ( $query ) use ( $wpdb ) {
+			if ( 0 === strpos( $query, "UPDATE $wpdb->options SET option_value" ) && false !== strpos( $query, MainWP_Child_Backup_Mutex::OPTION_NAME ) ) {
+				return 'SELECT mainwp_mutex_forced_failure';
+			}
+			return $query;
+		};
+		$suppress = $wpdb->suppress_errors();
+		add_filter( 'query', $filter );
+		try {
+			$this->assertNull( MainWP_Child_Backup_Mutex::acquire( 'native', 'new', 300 ) );
+			$this->assertSame( 'expired', MainWP_Child_Backup_Mutex::holder()['owner'] );
+		} finally {
+			remove_filter( 'query', $filter );
+			$wpdb->suppress_errors( $suppress );
+		}
+	}
+
+	public function test_vanished_holder_is_acquired_on_immediate_retry() {
+		global $wpdb;
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'vanishing', 300 ) );
+		$deleted = false;
+		$inserts = 0;
+		$filter = static function ( $query ) use ( $wpdb, &$deleted, &$inserts ) {
+			if ( false !== strpos( $query, MainWP_Child_Backup_Mutex::OPTION_NAME ) ) {
+				if ( 0 === strpos( $query, 'INSERT IGNORE INTO' ) ) {
+					++$inserts;
+				}
+				if ( ! $deleted && 0 === strpos( $query, "SELECT option_value FROM $wpdb->options" ) ) {
+					$deleted = true;
+					$wpdb->delete( $wpdb->options, array( 'option_name' => MainWP_Child_Backup_Mutex::OPTION_NAME ) );
+				}
+			}
+			return $query;
+		};
+		add_filter( 'query', $filter );
+		try {
+			$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'new', 300 ) );
+			$this->assertTrue( $deleted );
+			$this->assertSame( 2, $inserts );
+			$this->assertSame( 'new', MainWP_Child_Backup_Mutex::holder()['owner'] );
+		} finally {
+			remove_filter( 'query', $filter );
+		}
+	}
+
+	public function test_unreadable_holder_after_one_retry_returns_false() {
+		$inserts = 0;
+		$filter = static function ( $query ) use ( &$inserts ) {
+			if ( 0 === strpos( $query, 'INSERT IGNORE INTO' ) && false !== strpos( $query, MainWP_Child_Backup_Mutex::OPTION_NAME ) ) {
+				++$inserts;
+				return 'SELECT 1 WHERE 1 = 0';
+			}
+			return $query;
+		};
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+		add_filter( 'query', $filter );
+		try {
+			$this->assertFalse( MainWP_Child_Backup_Mutex::acquire( 'native', 'new', 300 ) );
+			$this->assertSame( 2, $inserts );
+		} finally {
+			remove_filter( 'query', $filter );
+		}
+	}
+
+	public function test_unparseable_option_is_taken_over() {
+		add_option( MainWP_Child_Backup_Mutex::OPTION_NAME, 'broken|value', '', false );
+		try {
+			$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'new', 300 ) );
+			$this->assertSame( 'new', MainWP_Child_Backup_Mutex::holder()['owner'] );
+		} finally {
+			delete_option( MainWP_Child_Backup_Mutex::OPTION_NAME );
+		}
+	}
+
 	public function test_only_holder_can_refresh_including_in_the_same_second() {
 		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'holder', 300 ) );
 		$before = MainWP_Child_Backup_Mutex::holder();

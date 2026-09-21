@@ -326,6 +326,35 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	public function test_create_task_distinguishes_mutex_write_failure_from_unreadable_holder() {
+		global $wpdb;
+		foreach ( array( 'SELECT mainwp_mutex_forced_failure' => '', 'SELECT 1 WHERE 1 = 0' => MainWP_Backup_Error::ERR_ALREADY_RUNNING ) as $replacement => $expected_code ) {
+			$inserts = 0;
+			$filter = static function ( $query ) use ( $replacement, &$inserts ) {
+				if ( 0 === strpos( $query, 'INSERT IGNORE INTO' ) && false !== strpos( $query, MainWP_Child_Backup_Mutex::OPTION_NAME ) ) {
+					++$inserts;
+					return $replacement;
+				}
+				return $query;
+			};
+			$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+			$suppress = $wpdb->suppress_errors();
+			add_filter( 'query', $filter );
+			try {
+				$this->runner->create_task_for_params( 'full', array() );
+				$this->fail( 'Creation must refuse a mutex write failure or unreadable holder.' );
+			} catch ( MainWP_Exception $e ) {
+				$this->assertSame( $expected_code, $e->get_message_error_code() );
+				$this->assertSame( '' === $expected_code ? 1 : 2, $inserts );
+				$this->assertSame( rtrim( $e->getMessage() ), $e->getMessage() );
+				$this->assertEmpty( MainWP_Child_Backup_Task::instance()->get_active_tasks() );
+			} finally {
+				remove_filter( 'query', $filter );
+				$wpdb->suppress_errors( $suppress );
+			}
+		}
+	}
+
 	/**
 	 * An unwritable marker must produce the coded backup failure.
 	 */

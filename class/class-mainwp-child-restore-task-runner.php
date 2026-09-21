@@ -118,10 +118,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             throw new MainWP_Exception( 'The restore creation mutex could not be acquired on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
         }
         if ( true !== $held ) {
-            $engine = is_array( $held ) ? $held['engine'] : '';
-            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) . ' ' . $engine ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message and holder.
+            $engine = is_array( $held ) && ! empty( $held['engine'] ) ? ' ' . $held['engine'] : '';
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) . $engine ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message and holder.
         }
         try {
+            // An idle site's watchdog may never clear a deadline-expired task.
+            $spine->reclaim_expired_tasks();
             if ( ! empty( $spine->get_active_tasks() ) ) {
                 throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
             }
@@ -2527,6 +2529,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
             throw new MainWP_Exception( 'The restored options table failed a write/read round trip. The previous tables were kept for rollback.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
         }
+
+        // The dump was taken while its backup held the engine mutex, so the
+        // replayed options table carries that row. Drop it only now: the
+        // row-count check above compares the live table against the dump,
+        // and removing the row earlier fails a correct restore by one row.
+        MainWP_Child_Backup_Mutex::clear_after_restore();
 
         $sub_state['verification'] = array(
             'row_counts_ok'              => true,
