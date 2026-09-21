@@ -253,7 +253,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
                         $information = $this->wprocket_auto_cache_purge();
                         break;
                     case 'AccelerateWP':
-                        $information = $this->acceleratewp_auto_purge_cache(); // The plugin is a clone of WP-Rocket, with identical functionality—only the name has been changed.
+                        $information = $this->acceleratewp_auto_purge_cache(); // The plugin is a clone of WP-Rocket, with identical functionality - only the name has been changed.
                         break;
                     case 'Breeze':
                         $information = $this->breeze_auto_purge_cache();
@@ -322,17 +322,25 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
                         $information = $this->fastpixel_cache_auto_purge_cache();
                         break;
                     default:
+                        $information = $this->purge_result( 'Unsupported cache solution; no purge was attempted.', 'ERROR', 'provider_missing' );
                         break;
                 }
-            } catch ( MainWP_Exception $e ) {
-                $information = array( 'error' => $e->getMessage() );
+            } catch ( \Throwable $e ) {
+                // Third-party purge code throws whatever it likes; anything escaping here would
+                // break the caller mid-update instead of reporting an attempted purge that failed.
+                // Provider detail stays off the wire; keep it locally reachable for debugging.
+                if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                    error_log( 'MainWP Child cache purge: ' . $e->getMessage() ); // phpcs:ignore -- debug mode only.
+                }
+                $information = $this->purge_result( 'Cache purge attempt failed.', 'ERROR', 'attempt_failed' );
             }
 
             // If no cache plugin is found, set status to disabled but still pass "SUCCESS" action because it did not fail.
             if ( 'Plugin Not Found' === $cache_plugin_solution ) {
                 $information = array(
-                    'status' => 'Disabled',
-                    'action' => 'SUCCESS',
+                    'status'       => 'Disabled',
+                    'action'       => 'SUCCESS',
+                    'result_basis' => 'provider_missing',
                 );
             }
 
@@ -343,9 +351,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
         } else {
             // If Cache Control is disabled, set status to disabled but still pass "SUCCESS" action because it did not fail.
             $information = array(
-                'status'   => 'Disabled',
-                'action'   => 'SUCCESS',
-                'do_purge' => $do_purge,
+                'status'       => 'Disabled',
+                'action'       => 'SUCCESS',
+                'result_basis' => 'not_attempted',
+                'do_purge'     => $do_purge,
             );
         }
 
@@ -362,12 +371,13 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Build purge results array for return to dashboard.
      *
-     * @param string $message Result message.
-     * @param string $action Action result.
+     * @param string $message      Result message.
+     * @param string $action       Action result.
+     * @param string $result_basis Provider-interaction basis.
      *
      * @return array Purge results array.
      */
-    public function purge_result( $message, $action ) {
+    public function purge_result( $message, $action, $result_basis ) {
         $result           = array(
             'Last Purged'           => get_option( 'mainwp_cache_control_last_purged', false ),
             'Cache Solution'        => get_option( 'mainwp_cache_control_cache_solution', false ),
@@ -380,6 +390,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
         } else {
             $result['action'] = 'ERROR';
         }
+        $result['result_basis'] = $result_basis;
         return $result;
     }
 
@@ -390,12 +401,13 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
 
         $success_message = 'Pressable Cache Management => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
 
-        if ( is_callable( 'flush_pressable_cache_callback' ) ) {
-            flush_pressable_cache_callback();
+        if ( ! is_callable( 'flush_pressable_cache_callback' ) ) {
+            return $this->purge_result( 'Pressable Cache Management => There was an issue purging your cache.', 'ERROR', 'provider_missing' );
         }
+        flush_pressable_cache_callback();
         // record results.
         update_option( 'mainwp_cache_control_last_purged', time() );
-        return $this->purge_result( $success_message, 'SUCCESS' );
+        return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
     }
 
     /**
@@ -425,14 +437,14 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
                 // Preload Cache.
                 swis()->cache_preload->start_preload();
             } else {
-                return $this->purge_result( $bypass_message, 'SUCCESS' );
+                return $this->purge_result( $bypass_message, 'SUCCESS', 'not_attempted' );
             }
 
             // record results. ( below needs to stay untouched ).
             update_option( 'mainwp_cache_control_last_purged', time() );
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -453,10 +465,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -477,10 +489,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -502,10 +514,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -532,10 +544,13 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ( true === $purge && true === $preload ) || ( true === $minify && true === $purge && true === $preload ) ) {
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            if ( $purge || $minify || $preload ) {
+                return $this->purge_result( $error_message, 'ERROR', 'dispatched_unverified' );
+            }
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -628,10 +643,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -657,10 +672,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -682,10 +697,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -713,10 +728,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -738,10 +753,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -762,10 +777,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -788,10 +803,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -815,10 +830,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -840,10 +855,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -865,10 +880,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -890,10 +905,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -915,10 +930,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -940,10 +955,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -965,9 +980,9 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // record results.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
         } else {
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -990,8 +1005,8 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             }
 
             // Check if we have all the required data.
-            if ( '' === $cust_email || '' === $cust_xauth ) {
-                return $this->purge_result( 'Cloudflare => No Email or Key Found.', 'ERROR' );
+            if ( empty( $cust_email ) || empty( $cust_xauth ) ) {
+                return $this->purge_result( 'Cloudflare => No Email or Key Found.', 'ERROR', 'preflight_failed' );
             }
 
             $header_auth = array(
@@ -1002,10 +1017,14 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             // Get bearer token.
             $token = get_option( 'mainwp_child_cloudflare_token', '' );
             if ( empty( $token ) ) {
-                return $this->purge_result( 'Cloudflare => No Token Found.', 'ERROR' );
+                return $this->purge_result( 'Cloudflare => No Token Found.', 'ERROR', 'preflight_failed' );
             }
 
-            $cust_token  = MainWP_Child_Keys_Manager::instance()->decrypt_string( $token );
+            $cust_token = MainWP_Child_Keys_Manager::instance()->decrypt_string( $token );
+            if ( empty( $cust_token ) ) {
+                return $this->purge_result( 'Cloudflare => No Token Found.', 'ERROR', 'preflight_failed' );
+            }
+
             $header_auth = array(
                 'Authorization' => 'Bearer ' . $cust_token,
             );
@@ -1024,7 +1043,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
         // Get the Zone-ID from Cloudflare since they don't provide that in the Backend.
         $cust_zone = $this->get_zone_id_by_domain( $cust_domain, $headers );
         if ( is_wp_error( $cust_zone ) || empty( $cust_zone ) ) {
-            return $this->purge_result( 'Cloudflare => Get Zone ID failed.', 'ERROR' );
+            return $this->purge_result( 'Cloudflare => Get Zone ID failed.', 'ERROR', 'preflight_failed' );
         }
 
         // Purge the entire cache via API.
@@ -1040,19 +1059,27 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
 
         // Check for errors.
         if ( is_wp_error( $response ) ) {
-            return $this->purge_result( 'Cloudflare => Purge Cache failed.', 'ERROR' );
+            return $this->purge_result( 'Cloudflare => Purge Cache failed.', 'ERROR', 'attempt_failed' );
         }
 
         $body   = wp_remote_retrieve_body( $response );
         $result = is_string( $body ) ? json_decode( $body, true ) : false;
+        // An unreadable body (gateway error page, empty response, proxy interception) carries no provider outcome to check.
+        if ( ! is_array( $result ) ) {
+            return $this->purge_result( 'Cloudflare => Purge Cache response was not a recognized API response.', 'ERROR', 'attempt_failed' );
+        }
         // Check if success.
-        if ( ! is_array( $result ) || empty( $result['success'] ) ) {
+        if ( empty( $result['success'] ) ) {
             $errors = isset( $result['errors'] ) ? wp_json_encode( $result['errors'], JSON_UNESCAPED_SLASHES ) : 'Unknown error';
-            return $this->purge_result( 'Cloudflare => There was an issue purging the cache. ' . $errors, 'ERROR' );
+            if ( ! is_string( $errors ) ) {
+                $errors = 'Unknown error';
+            }
+            $errors = substr( $errors, 0, 512 );
+            return $this->purge_result( 'Cloudflare => There was an issue purging the cache. ' . $errors, 'ERROR', 'provider_confirmed' );
         }
         // Save last purge time to database on success.
         update_option( 'mainwp_cache_control_last_purged', time() );
-        return $this->purge_result( 'Cloudflare => Cache auto cleared on: (' . current_time( 'mysql' ) . ')', 'SUCCESS' );
+        return $this->purge_result( 'Cloudflare => Cache auto cleared on: (' . current_time( 'mysql' ) . ')', 'SUCCESS', 'provider_confirmed' );
     }
 
     /**
@@ -1074,11 +1101,11 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
             // Return success message.
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
             // Return error message.
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -1113,11 +1140,11 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
             // Return success message.
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
             // Return error message.
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
     }
 
@@ -1131,20 +1158,20 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
         $purge_result = MainWP_Child_WP_Rocket::instance()->preload_purge_cache_all();
 
         // Record results & return response.
-        if ( 'SUCCESS' === $purge_result['result'] ) {
+        if ( isset( $purge_result['result'] ) && 'SUCCESS' === $purge_result['result'] ) {
 
             // Save last purge time to database on success.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
             // Return success message.
             $success_message = 'WP Rocket => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
 
             // Return error message.
             $error_message = 'WP Rocket => There was an issue purging your cache.';
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
 
         }
     }
@@ -1159,20 +1186,20 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
         $purge_result = MainWP_Child_WP_Rocket::instance()->preload_purge_cache_all();
 
         // Record results & return response.
-        if ( 'SUCCESS' === $purge_result['result'] ) {
+        if ( isset( $purge_result['result'] ) && 'SUCCESS' === $purge_result['result'] ) {
 
             // Save last purge time to database on success.
             update_option( 'mainwp_cache_control_last_purged', time() );
 
             // Return success message.
             $success_message = 'AccelerateWP => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
-            return $this->purge_result( $success_message, 'SUCCESS' );
+            return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
 
         } else {
 
             // Return error message.
             $error_message = 'AccelerateWP => There was an issue purging your cache.';
-            return $this->purge_result( $error_message, 'ERROR' );
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
 
         }
     }

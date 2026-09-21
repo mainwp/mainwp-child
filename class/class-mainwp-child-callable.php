@@ -24,6 +24,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
 
     /**
+     * Maximum serialized Post Dripper v2 request.
+     *
+     * Post Dripper deliveries go through the same content normalizer as Post Plus, so they carry
+     * the same field limits; 256 KB rejected legal non-Latin posts here, because a 200 KB CJK body
+     * doubles to 400 KB once every character is JSON-escaped to \uXXXX.
+     */
+    const POST_DRIPPER_REQUEST_MAX_BYTES = 2097152;
+
+    /**
+     * Maximum serialized Post Plus v2 request.
+     *
+     * The handler's own field limits add up to roughly 246 KB, and JSON encoding can expand a
+     * legal payload sixfold because every control byte becomes \u00XX, so anything below ~1.5 MB
+     * would drop valid posts here before the handler ever saw them.
+     */
+    const POST_PLUS_REQUEST_MAX_BYTES = 2097152;
+
+    /**
      * Public static variable to hold the single instance of the class.
      *
      * @var mixed Default null
@@ -36,92 +54,105 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      * @var array Callable functions.
      */
     private $callableFunctions = array(
-        'stats'                    => 'get_site_stats',
-        'upgrade'                  => 'upgrade_wp',
-        'newpost'                  => 'new_post',
-        'deactivate'               => 'deactivate',
-        'newuser'                  => 'new_user',
-        'newadminpassword'         => 'new_admin_password',
-        'installplugintheme'       => 'install_plugin_theme',
-        'upgradeplugintheme'       => 'upgrade_plugin_theme',
-        'upgradetranslation'       => 'upgrade_translation',
-        'backup'                   => 'backup',
-        'backup_preflight'         => 'backup_preflight',
-        'backup_checkpid'          => 'backup_checkpid',
-        'backup_task_status'       => 'backup_task_status',
-        'backup_task_create'       => 'backup_task_create',
-        'backup_task_run'          => 'backup_task_run',
-        'backup_task_cancel'       => 'backup_task_cancel',
-        'backup_task_prune'        => 'backup_task_prune',
-        'backup_download_token'    => 'backup_download_token',
-        'backup_manifest_chunk'    => 'backup_manifest_chunk',
-        'restore_preflight'        => 'restore_preflight',
-        'restore_task_create'      => 'restore_task_create',
-        'restore_task_run'         => 'restore_task_run',
-        'restore_task_status'      => 'restore_task_status',
-        'restore_task_cancel'      => 'restore_task_cancel',
-        'restore_artifact_chunk'   => 'restore_artifact_chunk',
-        'cloneinfo'                => 'cloneinfo',
-        'security'                 => 'get_security_stats',
-        'securityFix'              => 'do_security_fix',
-        'securityUnFix'            => 'do_security_un_fix',
-        'post_action'              => 'post_action',
-        'get_all_posts'            => 'get_all_posts',
-        'comment_action'           => 'comment_action',
-        'comment_bulk_action'      => 'comment_bulk_action',
-        'get_all_comments'         => 'get_all_comments',
-        'get_all_themes'           => 'get_all_themes',
-        'theme_action'             => 'theme_action',
-        'get_all_plugins'          => 'get_all_plugins',
-        'plugin_action'            => 'plugin_action',
-        'get_all_pages'            => 'get_all_pages',
-        'get_all_users'            => 'get_all_users',
-        'user_action'              => 'user_action',
-        'search_users'             => 'search_users',
-        'maintenance_site'         => 'maintenance_site',
-        'branding_child_plugin'    => 'branding_child_plugin',
-        'code_snippet'             => 'code_snippet',
-        'uploader_action'          => 'uploader_action',
-        'wordpress_seo'            => 'wordpress_seo',
-        'client_report'            => 'client_report',
-        'createBackupPoll'         => 'backup_poll',
-        'page_speed'               => 'page_speed',
-        'woo_com_status'           => 'woo_com_status',
-        'links_checker'            => 'links_checker',
-        'wordfence'                => 'wordfence',
-        'delete_backup'            => 'delete_backup',
-        'update_values'            => 'update_child_values',
-        'ithemes'                  => 'ithemes',
-        'updraftplus'              => 'updraftplus',
-        'backup_wp'                => 'backup_wp',
-        'backwpup'                 => 'backwpup',
-        'wp_rocket'                => 'wp_rocket',
-        'settings_tools'           => 'settings_tools',
-        'skeleton_key'             => 'bulk_settings_manager', // deprecated.
-        'bulk_settings_manager'    => 'bulk_settings_manager',
-        'custom_post_type'         => 'custom_post_type',
-        'backup_buddy'             => 'backup_buddy',
-        'get_site_icon'            => 'get_site_icon',
-        'vulner_checker'           => 'vulner_checker',
-        'wp_staging'               => 'wp_staging',
-        'disconnect'               => 'disconnect',
-        'time_capsule'             => 'time_capsule',
-        'extra_excution'           => 'extra_execution', // deprecated!
-        'extra_execution'          => 'extra_execution',
-        'wpvivid_backuprestore'    => 'wpvivid_backuprestore',
-        'check_abandoned'          => 'check_abandoned',
-        'wp_seopress'              => 'wp_seopress',
-        'db_updater'               => 'db_updater',
-        'cache_purge_action'       => 'cache_purge_action',
-        'jetpack_protect'          => 'jetpack_protect',
-        'jetpack_scan'             => 'jetpack_scan',
-        'delete_actions'           => 'delete_actions',
-        'verify_action'            => 'verify_action',
-        'api_backups_mysqldump'    => 'api_backups_mysqldump',
-        'patchstack'               => 'patchstack',
-        'password_policy_settings' => 'password_policy_settings',
-        'clean_up_child_logs'      => 'clean_up_child_logs',
-        'process_premium_updates'  => 'process_premium_updates',
+        'stats'                         => 'get_site_stats',
+        'upgrade'                       => 'upgrade_wp',
+        'newpost'                       => 'new_post',
+        'deactivate'                    => 'deactivate',
+        'newuser'                       => 'new_user',
+        'newadminpassword'              => 'new_admin_password',
+        'installplugintheme'            => 'install_plugin_theme',
+        'upgradeplugintheme'            => 'upgrade_plugin_theme',
+        'upgradetranslation'            => 'upgrade_translation',
+        'backup'                        => 'backup',
+        'backup_preflight'              => 'backup_preflight',
+        'backup_checkpid'               => 'backup_checkpid',
+        'backup_task_status'            => 'backup_task_status',
+        'backup_task_create'            => 'backup_task_create',
+        'backup_task_run'               => 'backup_task_run',
+        'backup_task_cancel'            => 'backup_task_cancel',
+        'backup_task_prune'             => 'backup_task_prune',
+        'backup_download_token'         => 'backup_download_token',
+        'backup_manifest_chunk'         => 'backup_manifest_chunk',
+        'restore_preflight'             => 'restore_preflight',
+        'restore_task_create'           => 'restore_task_create',
+        'restore_task_run'              => 'restore_task_run',
+        'restore_task_status'           => 'restore_task_status',
+        'restore_task_cancel'           => 'restore_task_cancel',
+        'restore_artifact_chunk'        => 'restore_artifact_chunk',
+        'cloneinfo'                     => 'cloneinfo',
+        'security'                      => 'get_security_stats',
+        'securityFix'                   => 'do_security_fix',
+        'securityUnFix'                 => 'do_security_un_fix',
+        'post_action'                   => 'post_action',
+        'get_all_posts'                 => 'get_all_posts',
+        'get_all_posts_v2'              => 'get_all_posts_v2',
+        'post_dripper_capabilities_v2'  => 'post_dripper_capabilities_v2',
+        'post_plus_capabilities_v2'     => 'post_plus_capabilities_v2',
+        'comment_action'                => 'comment_action',
+        'comment_bulk_action'           => 'comment_bulk_action',
+        'get_all_comments'              => 'get_all_comments',
+        'get_all_themes'                => 'get_all_themes',
+        'theme_action'                  => 'theme_action',
+        'get_all_plugins'               => 'get_all_plugins',
+        'plugin_action'                 => 'plugin_action',
+        'get_all_pages'                 => 'get_all_pages',
+        'termageddon_page_v2_get'       => 'termageddon_page_v2_get',
+        'termageddon_page_v2_delete'    => 'termageddon_page_v2_delete',
+        'get_all_users'                 => 'get_all_users',
+        'user_action'                   => 'user_action',
+        'search_users'                  => 'search_users',
+        'maintenance_site'              => 'maintenance_site',
+        'branding_child_plugin'         => 'branding_child_plugin',
+        'code_snippet'                  => 'code_snippet',
+        'uploader_action'               => 'uploader_action',
+        'uploader_preflight_v2'         => 'uploader_preflight_v2',
+        'uploader_deploy_v2'            => 'uploader_deploy_v2',
+        'uploader_deployment_state_v2'  => 'uploader_deployment_state_v2',
+        'uploader_rollback_v2'          => 'uploader_rollback_v2',
+        'early_access_release_v2'       => 'early_access_release_v2',
+        'favorites_package_state_v2'    => 'favorites_package_state_v2',
+        'favorites_install_verified_v2' => 'favorites_install_verified_v2',
+        'virusdie_sync_install_v1'      => 'virusdie_sync_install_v1',
+        'wordpress_seo'                 => 'wordpress_seo',
+        'client_report'                 => 'client_report',
+        'createBackupPoll'              => 'backup_poll',
+        'page_speed'                    => 'page_speed',
+        'woo_com_status'                => 'woo_com_status',
+        'links_checker'                 => 'links_checker',
+        'wordfence'                     => 'wordfence',
+        'delete_backup'                 => 'delete_backup',
+        'update_values'                 => 'update_child_values',
+        'ithemes'                       => 'ithemes',
+        'updraftplus'                   => 'updraftplus',
+        'backup_wp'                     => 'backup_wp',
+        'backwpup'                      => 'backwpup',
+        'wp_rocket'                     => 'wp_rocket',
+        'settings_tools'                => 'settings_tools',
+        'skeleton_key'                  => 'bulk_settings_manager', // deprecated.
+        'bulk_settings_manager'         => 'bulk_settings_manager',
+        'custom_post_type'              => 'custom_post_type',
+        'backup_buddy'                  => 'backup_buddy',
+        'get_site_icon'                 => 'get_site_icon',
+        'vulner_checker'                => 'vulner_checker',
+        'wp_staging'                    => 'wp_staging',
+        'disconnect'                    => 'disconnect',
+        'time_capsule'                  => 'time_capsule',
+        'extra_excution'                => 'extra_execution', // deprecated!
+        'extra_execution'               => 'extra_execution',
+        'wpvivid_backuprestore'         => 'wpvivid_backuprestore',
+        'check_abandoned'               => 'check_abandoned',
+        'wp_seopress'                   => 'wp_seopress',
+        'db_updater'                    => 'db_updater',
+        'cache_purge_action'            => 'cache_purge_action',
+        'jetpack_protect'               => 'jetpack_protect',
+        'jetpack_scan'                  => 'jetpack_scan',
+        'delete_actions'                => 'delete_actions',
+        'verify_action'                 => 'verify_action',
+        'api_backups_mysqldump'         => 'api_backups_mysqldump',
+        'patchstack'                    => 'patchstack',
+        'password_policy_settings'      => 'password_policy_settings',
+        'clean_up_child_logs'           => 'clean_up_child_logs',
+        'process_premium_updates'       => 'process_premium_updates',
     );
 
     /**
@@ -420,6 +451,60 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
     }
 
     /**
+     * Fire the typed paginated post extraction callable.
+     */
+    public function get_all_posts_v2() {
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Authenticated MainWP callable.
+        if ( ! isset( $_POST['request'] ) || ! is_string( $_POST['request'] ) ) {
+            MainWP_Helper::write( MainWP_Child_Posts::get_instance()->get_all_posts_v2( null ) );
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Closed JSON is validated by the handler.
+        $raw = wp_unslash( $_POST['request'] );
+        if ( '' === $raw || 65536 < strlen( $raw ) ) {
+            MainWP_Helper::write( MainWP_Child_Posts::get_instance()->get_all_posts_v2( null ) );
+        }
+
+        MainWP_Helper::write( MainWP_Child_Posts::get_instance()->get_all_posts_v2( json_decode( $raw, true ) ) );
+    }
+
+    /**
+     * Fire the Post Dripper capability negotiation callable.
+     */
+    public function post_dripper_capabilities_v2() {
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Authenticated MainWP callable.
+        if ( ! isset( $_POST['request'] ) || ! is_string( $_POST['request'] ) ) {
+            MainWP_Helper::write( MainWP_Child_Posts::get_instance()->post_dripper_capabilities_v2( null ) );
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Closed JSON is validated by the handler.
+        $raw = wp_unslash( $_POST['request'] );
+        if ( '' === $raw || self::POST_DRIPPER_REQUEST_MAX_BYTES < strlen( $raw ) ) {
+            MainWP_Helper::write( MainWP_Child_Posts::get_instance()->post_dripper_capabilities_v2( null ) );
+        }
+
+        MainWP_Helper::write( MainWP_Child_Posts::get_instance()->post_dripper_capabilities_v2( json_decode( $raw, true ) ) );
+    }
+
+    /**
+     * Fire the Post Plus capability negotiation callable.
+     */
+    public function post_plus_capabilities_v2() {
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Authenticated MainWP callable.
+        if ( ! isset( $_POST['request'] ) || ! is_string( $_POST['request'] ) ) {
+            MainWP_Helper::write( MainWP_Child_Posts::get_instance()->post_plus_capabilities_v2( null ) );
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Closed JSON is validated by the handler.
+        $raw = wp_unslash( $_POST['request'] );
+        if ( '' === $raw || self::POST_PLUS_REQUEST_MAX_BYTES < strlen( $raw ) ) {
+            MainWP_Helper::write( MainWP_Child_Posts::get_instance()->post_plus_capabilities_v2( null ) );
+        }
+
+        MainWP_Helper::write( MainWP_Child_Posts::get_instance()->post_plus_capabilities_v2( json_decode( $raw, true ) ) );
+    }
+
+    /**
      * Method get_all_pages()
      *
      * Fire off the get_all_pages() function.
@@ -428,6 +513,20 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function get_all_pages() {
         MainWP_Child_Posts::get_instance()->get_all_pages();
+    }
+
+    /**
+     * Read one exact marker-bound Termageddon page.
+     */
+    public function termageddon_page_v2_get() {
+        ( new MainWP_Child_Termageddon() )->handle_get();
+    }
+
+    /**
+     * Delete one exact marker-bound Termageddon page.
+     */
+    public function termageddon_page_v2_delete() {
+        ( new MainWP_Child_Termageddon() )->handle_delete();
     }
 
     /**
@@ -1376,6 +1475,56 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         MainWP_Child_Misc::get_instance()->uploader_action();
     }
 
+    /** Dispatch the read-pure file deployment preflight. */
+    public function uploader_preflight_v2() {
+        ( new MainWP_Child_File_Deployment() )->handle_preflight();
+    }
+
+    /** Dispatch one verified file deployment. */
+    public function uploader_deploy_v2() {
+        ( new MainWP_Child_File_Deployment() )->handle_deploy();
+    }
+
+    /** Read one durable file deployment result. */
+    public function uploader_deployment_state_v2() {
+        ( new MainWP_Child_File_Deployment() )->handle_state();
+    }
+
+    /** Dispatch one exact file deployment rollback. */
+    public function uploader_rollback_v2() {
+        ( new MainWP_Child_File_Deployment() )->handle_rollback();
+    }
+
+    /**
+     * Negotiate the narrow Early Access release protocol.
+     */
+    public function early_access_release_v2() {
+        ( new MainWP_Child_Early_Access_Release() )->action();
+    }
+
+    /**
+     * Read one exact favorite package state.
+     */
+    public function favorites_package_state_v2() {
+        ( new MainWP_Child_Favorites() )->handle_package_state();
+    }
+
+    /**
+     * Negotiate the verified favorite installer protocol.
+     */
+    public function favorites_install_verified_v2() {
+        ( new MainWP_Child_Favorites() )->handle_install();
+    }
+
+    /**
+     * Dispatch the narrow Virusdie signed-installer protocol.
+     *
+     * @return void
+     */
+    public function virusdie_sync_install_v1() {
+        MainWP_Child_Misc::get_instance()->virusdie_sync_install_v1();
+    }
+
     /**
      * Method wordpress_seo()
      *
@@ -1781,13 +1930,16 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      * Method process_premium_updates()
      */
     public function process_premium_updates() {
-        $response_error = MainWP_Child_Updates::get_instance()->process_premium_updates();
-        if ( ! is_array( $response_error ) ) {
-            $response_error = array();
+        $response = MainWP_Child_Updates::get_instance()->process_premium_updates();
+        if ( ! is_array( $response ) ) {
+            $response = array();
         }
-        if ( empty( $response_error['success'] ) ) {
-            $response_error['error_code'] = 'PREMIUM_ACTION_ERROR';
+        if ( empty( $response ) ) {
+            $response['error_code'] = 'PREMIUM_ACTION_ERROR';
+            $response['error']      = esc_html__( 'An error occurred while processing the premium updates. Please try again later.', 'mainwp-child' );
+        } elseif ( ! empty( $response['error'] ) && empty( $response['error_code'] ) ) {
+            $response['error_code'] = 'PREMIUM_ACTION_ERROR';
         }
-        MainWP_Helper::write( $response_error );
+        MainWP_Helper::write( $response );
     }
 }

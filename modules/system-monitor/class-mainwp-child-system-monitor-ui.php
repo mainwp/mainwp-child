@@ -9,7 +9,6 @@
 
 namespace MainWP\Child\SystemMonitor;
 
-
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
@@ -51,6 +50,8 @@ class MainWP_Child_System_Monitor_UI {
 
     /**
      * Render a single issue.
+     *
+     * @param array $issue Issue record to render.
      */
     private static function render_issue( array $issue ) {
 

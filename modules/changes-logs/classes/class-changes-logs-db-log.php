@@ -268,7 +268,7 @@ class Changes_Logs_DB_Log {
     /**
      * Returns the the table name
      *
-     * @param string $table Table prefix
+     * @param string $table Table prefix.
      *
      * @return string
      */
@@ -555,6 +555,9 @@ class Changes_Logs_DB_Log {
         if ( empty( $log_ids ) ) {
             return array();
         }
+
+        // Public method: enforce integer ids here rather than trusting every caller.
+        $log_ids = array_map( 'intval', $log_ids );
 
         $sql = 'SELECT * FROM ' . self::table_name( 'changes_meta' ) . ' WHERE log_id in (' . implode( ',', $log_ids ) . ')';
         return $this->db->wpdb->get_results( $sql, \ARRAY_A ); //phpcs:ignore -- ok.

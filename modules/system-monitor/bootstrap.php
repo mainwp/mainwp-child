@@ -7,6 +7,8 @@
  * Responsibilities:
  * - Load autoloader / loader
  * - Initialize System Monitor core
+ *
+ * @package     MainWP/Child
  */
 
 namespace MainWP\Child\SystemMonitor;
@@ -33,6 +35,7 @@ function bootstrap() {
     // Initialize the system monitor core.
     MainWP_Child_System_Monitor::init();
 
+    // phpcs:disable WordPress.WP.CronInterval.CronSchedulesInterval -- the system monitor cron scanner is built around a one-minute tick.
     add_filter(
         'cron_schedules',
         function ( $schedules ) {
@@ -45,6 +48,7 @@ function bootstrap() {
             return $schedules;
         }
     );
+    // phpcs:enable WordPress.WP.CronInterval.CronSchedulesInterval
 }
 
 /**

@@ -110,7 +110,7 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
      * @param array $data    - Log data.
      */
     public static function log_change( $type_id, $data = array() ) {
-        if ( \mainwp_child_is_dashboard_request() ) {
+        if ( \mainwp_child_is_dashboard_request() || \mainwp_child_is_dashboard_premium_update_request() ) {
             return;
         }
 
@@ -130,7 +130,7 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
      * @param array $data    - Log data.
      */
     public static function log_change_save_delay( $type_id, $data = array() ) {
-        if ( \mainwp_child_is_dashboard_request() ) {
+        if ( \mainwp_child_is_dashboard_request() || \mainwp_child_is_dashboard_premium_update_request() ) {
             return;
         }
 
@@ -457,8 +457,6 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
 
     /**
      * Method register_changes_logs().
-     *
-     * @return array data.
      */
     public static function register_logs() { //phpcs:ignore -- NOSONAR - long function.
         $defaults = Changes_Logs_Helper::get_changes_logs_types();
@@ -483,7 +481,7 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
      * Method: Process delayed logs.
      */
     public static function change_process_delay_logs_items() {
-        if ( \mainwp_child_is_dashboard_request() ) {
+        if ( \mainwp_child_is_dashboard_request() || \mainwp_child_is_dashboard_premium_update_request() ) {
             return;
         }
         foreach ( self::$delay_logs_items as $key => $item ) {

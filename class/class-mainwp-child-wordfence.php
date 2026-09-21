@@ -67,6 +67,46 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
     const BLOCK_TYPE_BLACKLIST   = 'blacklist';
 
     /**
+     * Receipt count at which a new request has to free a slot before it may run.
+     *
+     * @var int
+     */
+    const ABILITIES_V2_MAX_RECEIPTS = 100;
+
+    /**
+     * Seconds a stored stamp may lead the current time by and still be usable.
+     *
+     * Receipts come out of a WordPress option, so their stamps are untrusted input. A small
+     * allowance keeps a site whose clock drifted from calling its own recent receipts undatable,
+     * while anything further ahead is a moment this store never wrote.
+     *
+     * @var int
+     */
+    const ABILITIES_V2_CLOCK_SKEW = 300;
+
+    /**
+     * Key count past which a stored response is refused before it is examined.
+     *
+     * The widest response this protocol defines carries fifteen result keys plus four envelope
+     * keys. Anything beyond this bound cannot match a schema, so rejecting it on the count alone
+     * is what stops an oversized option value from being copied and sorted first.
+     *
+     * @var int
+     */
+    const ABILITIES_V2_MAX_RESPONSE_KEYS = 32;
+
+    /**
+     * Where the reason for a failed file operation belongs.
+     *
+     * Absolute server paths come back inside error_get_last(), and any plugin that installs an
+     * error handler can leave it holding an error this operation never raised, so the detail stays
+     * in the log the operator can already read and only this pointer goes to the Dashboard.
+     *
+     * @var string
+     */
+    const ERROR_LOG_HINT = 'Check the site\'s PHP error log for the reason.';
+
+    /**
      * Public variable to hold the KEY_TYPE_FREE value.
      *
      * @var string the KEY_TYPE_FREE value.
@@ -556,6 +596,18 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function action() { // phpcs:ignore -- NOSONAR - Current complexity is the only way to achieve desired results, pull request solutions appreciated.
         $information = array();
+        $mwp_action  = MainWP_System::instance()->validate_params( 'mwp_action' );
+
+        if ( 'abilities_v2' === $mwp_action ) {
+            // phpcs:disable WordPress.Security.NonceVerification
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Closed JSON is decoded and validated by abilities_v2().
+            $raw_request = isset( $_POST['request'] ) && is_string( $_POST['request'] ) ? wp_unslash( $_POST['request'] ) : '';
+            // phpcs:enable
+            $request = 2 * 1024 * 1024 >= strlen( $raw_request ) ? json_decode( $raw_request, true ) : null;
+            MainWP_Helper::write( $this->abilities_v2( $request ) );
+            return;
+        }
+
         if ( ! $this->is_wordfence_installed ) {
             MainWP_Helper::write( array( 'error' => esc_html__( 'Please install the Wordfence plugin on the child site.', 'mainwp-child' ) ) );
             return;
@@ -568,7 +620,6 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
 
         try {
 
-            $mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
             if ( ! empty( $mwp_action ) ) {
                 switch ( $mwp_action ) { // NOSONAR - multi case.
                     case 'start_scan':
@@ -786,6 +837,770 @@ class MainWP_Child_Wordfence { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         MainWP_Helper::write( $information );
+    }
+
+    /**
+     * Execute one closed Wordfence protocol-v2 request.
+     *
+     * @param mixed $request Decoded request object.
+     * @return array<string,mixed> Closed response.
+     */
+    public function abilities_v2( $request ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity.TooHigh -- Closed operation table is intentionally linear.
+        $operation     = is_array( $request ) && isset( $request['operation'] ) && is_string( $request['operation'] ) ? $request['operation'] : 'unknown';
+        $reads         = array( 'site_v2', 'scan_v2_status', 'findings_v2', 'firewall_v2_get', 'blocks_v2_list', 'operation_v2_status' );
+        $bound_reads   = array( 'file_v2_prepare' );
+        $mutations     = $this->abilities_v2_mutations();
+        $request_bound = in_array( $operation, array_merge( $bound_reads, $mutations ), true );
+        $root_keys     = $request_bound ? array( 'protocol', 'operation', 'request_ref', 'payload' ) : array( 'protocol', 'operation', 'payload' );
+
+        if ( ! is_array( $request ) || ! $this->abilities_v2_exact_keys( $request, $root_keys ) || '2' !== $request['protocol'] || ! is_array( $request['payload'] ) ) {
+            return $this->abilities_v2_error( 'unknown', 'invalid_request' );
+        }
+        if ( 'capabilities' === $operation ) {
+            if ( array() !== $request['payload'] ) {
+                return $this->abilities_v2_error( $operation, 'invalid_request' );
+            }
+            return array(
+                'protocol'           => '2',
+                'operation'          => 'capabilities',
+                'ok'                 => true,
+                'operations'         => array_merge( $reads, $bound_reads, $mutations ),
+                'mutation_supported' => $this->abilities_v2_provider_supports_mutation(),
+            );
+        }
+        if ( ! in_array( $operation, array_merge( $reads, $bound_reads, $mutations ), true ) ) {
+            return $this->abilities_v2_error( $operation, 'unsupported_operation' );
+        }
+        if ( ( $request_bound && ! $this->abilities_v2_valid_request_ref( $request['request_ref'] ) ) || ! $this->abilities_v2_valid_payload( $operation, $request['payload'] ) ) {
+            return $this->abilities_v2_error( $operation, 'invalid_request' );
+        }
+
+        $request_ref = $request_bound ? strtolower( $request['request_ref'] ) : null;
+        if ( ! in_array( $operation, $mutations, true ) ) {
+            return $this->abilities_v2_dispatch( $operation, $request['payload'], $request_ref, false, $request_bound );
+        }
+
+        // The receipt check and the dispatch it guards have to be one atomic step, or two
+        // concurrent requests carrying the same reference both reach the provider.
+        $lock = $this->abilities_v2_begin_mutation_lock();
+        if ( null === $lock ) {
+            return $this->abilities_v2_error( $operation, 'storage_unavailable' );
+        }
+        if ( true !== $lock ) {
+            return $this->abilities_v2_error( $operation, 'lock_busy' );
+        }
+        try {
+            return $this->abilities_v2_dispatch( $operation, $request['payload'], $request_ref, true, $request_bound );
+        } finally {
+            $this->abilities_v2_end_mutation_lock();
+        }
+    }
+
+    /**
+     * Execute one validated operation, under the mutation lock when it mutates.
+     *
+     * @param string      $operation     Operation name.
+     * @param array       $payload       Validated operation payload.
+     * @param string|null $request_ref   Canonical request reference.
+     * @param bool        $is_mutation   Whether the operation mutates.
+     * @param bool        $request_bound Whether the response echoes the request reference.
+     * @return array<string,mixed> Closed response.
+     */
+    private function abilities_v2_dispatch( $operation, $payload, $request_ref, $is_mutation, $request_bound ) {
+        $effect_hash = hash( 'sha256', wp_json_encode( array( $operation, $payload ) ) );
+        $receipts    = array();
+        if ( $is_mutation ) {
+            $receipts = get_option( 'mainwp_wordfence_abilities_v2_receipts', array() );
+            if ( ! is_array( $receipts ) ) {
+                return $this->abilities_v2_error( $operation, 'storage_unavailable' );
+            }
+            // A key holding null is still evidence that something wrote a receipt for this
+            // reference, and isset() reads it as absent. Missing it dispatches a second time.
+            if ( array_key_exists( $request_ref, $receipts ) ) {
+                $receipt = $receipts[ $request_ref ];
+                if ( ! $this->abilities_v2_valid_receipt( $operation, $request_ref, $receipt ) ) {
+                    return $this->abilities_v2_error( $operation, 'storage_unavailable' );
+                }
+                if ( ! hash_equals( $receipt['effect_hash'], $effect_hash ) ) {
+                    return $this->abilities_v2_error( $operation, 'request_conflict' );
+                }
+                if ( 'dispatching' !== $receipt['state'] ) {
+                    return $receipt['response'];
+                }
+                // A reservation nobody settled belongs to a request that died between the scan or
+                // repair starting and its outcome reaching the store, or to one the provider
+                // refused after it had already run. Either way the effect may stand, so running it
+                // again is not on offer and the outcome is unknown.
+                if ( $this->abilities_v2_reservation_is_live( $receipt['created_at'] ) ) {
+                    return $this->abilities_v2_error( $operation, 'outcome_unknown' );
+                }
+                // Past the horizon the reservation proves nothing: no Dashboard retry of it is
+                // still expected, and a reference that can only ever answer outcome_unknown is
+                // worse than a second dispatch. Retire it and let this request run.
+                unset( $receipts[ $request_ref ] );
+            }
+            if ( ! $this->abilities_v2_provider_supports_mutation() ) {
+                return $this->abilities_v2_error( $operation, 'provider_unavailable' );
+            }
+
+            // Room has to exist before the provider is touched. A scan or repair this Child cannot
+            // record is one the Dashboard's next retry runs a second time.
+            $receipts = $this->abilities_v2_evict_receipts( $receipts );
+            if ( false === $receipts ) {
+                return $this->abilities_v2_error( $operation, 'storage_unavailable' );
+            }
+
+            // The reservation is durable before the provider runs, not after it. A request that
+            // dies with the effect already applied - or one whose settling write is refused - has
+            // to leave its retry something to land on, or that retry repairs the file twice.
+            $receipts[ $request_ref ] = array(
+                'effect_hash' => $effect_hash,
+                'state'       => 'dispatching',
+                'response'    => null,
+                'created_at'  => time(),
+            );
+            if ( ! $this->abilities_v2_store_receipts( $receipts ) ) {
+                return $this->abilities_v2_error( $operation, 'storage_unavailable' );
+            }
+        }
+
+        try {
+            $result = $this->abilities_v2_provider_operation( $operation, $payload, $request_ref );
+        } catch ( \Throwable $throwable ) {
+            return $this->abilities_v2_error( $operation, $is_mutation ? 'outcome_unknown' : 'provider_unavailable' );
+        }
+        if ( is_wp_error( $result ) ) {
+            $code = $result->get_error_code();
+            $safe = array( 'provider_unavailable', 'provider_schema_invalid', 'target_not_found', 'state_conflict', 'stale_generation', 'unsafe_target', 'verification_failed', 'outcome_unknown', 'storage_unavailable' );
+            return $this->abilities_v2_error( $operation, in_array( $code, $safe, true ) ? $code : 'provider_unavailable' );
+        }
+        if ( ! $this->abilities_v2_valid_result( $operation, $result ) ) {
+            return $this->abilities_v2_error( $operation, 'provider_schema_invalid' );
+        }
+
+        $response = array_merge(
+            array(
+                'protocol'  => '2',
+                'operation' => $operation,
+                'ok'        => true,
+            ),
+            $request_bound ? array( 'request_ref' => $request_ref ) : array(),
+            $result
+        );
+        if ( $is_mutation ) {
+            $receipts[ $request_ref ]['state']    = 'settled';
+            $receipts[ $request_ref ]['response'] = $response;
+            if ( ! $this->abilities_v2_store_receipts( $receipts ) ) {
+                return $this->abilities_v2_error( $operation, 'outcome_unknown' );
+            }
+        }
+        return $response;
+    }
+
+    /**
+     * Persist the mutation receipt store.
+     *
+     * A false answer from update_option() means either a refused write or one that changed
+     * nothing, so the stored value decides which of the two happened.
+     *
+     * @param array $receipts Receipts to store.
+     * @return bool
+     */
+    private function abilities_v2_store_receipts( $receipts ) {
+        return update_option( 'mainwp_wordfence_abilities_v2_receipts', $receipts, false ) || get_option( 'mainwp_wordfence_abilities_v2_receipts', array() ) === $receipts;
+    }
+
+    /**
+     * The moment before which no Dashboard retry of a request is still expected.
+     *
+     * @return int
+     */
+    private function abilities_v2_retry_horizon() {
+        return time() - ( DAY_IN_SECONDS + 60 );
+    }
+
+    /**
+     * Whether a stored stamp still stands for work a retry could collide with.
+     *
+     * A stamp this clock cannot date cannot be shown to be past anything, so it holds its entry
+     * open rather than releasing it. A host clock that stepped backwards past the skew allowance
+     * would otherwise turn every entry in the store into spare capacity at once, and each freed
+     * reference would repair or scan a second time on its next retry.
+     *
+     * @param int $created_at Stored stamp from a shape-valid entry.
+     * @return bool
+     */
+    private function abilities_v2_reservation_is_live( $created_at ) {
+        return $created_at > time() + self::ABILITIES_V2_CLOCK_SKEW || $created_at >= $this->abilities_v2_retry_horizon();
+    }
+
+    /**
+     * Free one receipt slot without discarding an outcome a retry could still ask for.
+     *
+     * @param array $receipts Current receipts.
+     * @return array|false Receipts with room for one more, or false when nothing can be given up.
+     */
+    private function abilities_v2_evict_receipts( $receipts ) {
+        if ( self::ABILITIES_V2_MAX_RECEIPTS > count( $receipts ) ) {
+            return $receipts;
+        }
+        $repaired  = false;
+        $evictable = array();
+        foreach ( $receipts as $reference => $receipt ) {
+            if ( ! $this->abilities_v2_valid_request_ref( $reference ) || strtolower( $reference ) !== $reference ) {
+                // No request can present a reference this store would refuse, so nothing will ever
+                // come back for this entry. It is evidence for nobody, and dropping it is what
+                // keeps a store of junk keys from holding every later mutation shut. Array keys are
+                // not always strings either, so this is also what stops one being compared as one.
+                // A reference is folded to lowercase before it keys a receipt here, so an uppercase
+                // key is equally unreachable however well formed it looks: every lookup folds first.
+                $evictable[ $reference ] = 0;
+                continue;
+            }
+            if ( ! $this->abilities_v2_receipt_readable( $reference, $receipt ) ) {
+                // An entry nobody can read is still evidence that something wrote a receipt for
+                // that reference, so its scan or repair may already have run. Giving it up to make
+                // room for an unrelated request is how a reference loses its only evidence and
+                // repairs a second time on its next retry. Rebuilt as a tombstone it keeps failing
+                // the receipt check, so its own reference still answers storage_unavailable, while
+                // gaining a date this store can act on.
+                // Rebuilding it and keeping the result only when it differs makes the builder the
+                // single definition of a tombstone. A separate "is this already a tombstone"
+                // check would be a second definition, and the two drifting apart is how an entry
+                // with an impossible stamp gets treated as sound and holds the store shut.
+                $rebuilt = $this->abilities_v2_tombstone_record( $receipt );
+                if ( $rebuilt !== $receipt ) {
+                    $receipts[ $reference ] = $rebuilt;
+                    $repaired               = true;
+                }
+                $receipt = $rebuilt;
+            }
+            // A stamp ahead of this clock can never be shown to be past the horizon, so an entry
+            // carrying one would sit here forever and, once the store is full, refuse every later
+            // mutation from then on. It is re-dated rather than dropped or held: dropping it
+            // would lose evidence a retry still needs, while re-dating only ever extends the
+            // window it is protected for. It happens once, because the write below leaves a stamp
+            // this clock can date.
+            if ( $receipt['created_at'] > time() + self::ABILITIES_V2_CLOCK_SKEW ) {
+                $receipt['created_at']  = time();
+                $receipts[ $reference ] = $receipt;
+                $repaired               = true;
+            }
+            // Eviction may only give up an entry it can prove is past the retry horizon, which is
+            // the same question a replay asks of a reservation. Asking it once is what stops
+            // eviction from dropping an entry a retry would still have been answered from.
+            if ( ! $this->abilities_v2_reservation_is_live( $receipt['created_at'] ) ) {
+                $evictable[ $reference ] = $receipt['created_at'];
+            }
+        }
+        asort( $evictable, SORT_NUMERIC );
+        foreach ( array_keys( $evictable ) as $reference ) {
+            if ( self::ABILITIES_V2_MAX_RECEIPTS > count( $receipts ) ) {
+                break;
+            }
+            unset( $receipts[ $reference ] );
+        }
+        // A tombstone is stamped at first observation, so a repair left unpersisted is stamped
+        // again on every request and can never grow old enough to be given up - a store of damaged
+        // entries would then refuse every mutation forever with no way out. Writing it here
+        // freezes those stamps and lets the entries cross the horizon on their own.
+        if ( $repaired && ! $this->abilities_v2_store_receipts( $receipts ) ) {
+            return false;
+        }
+        return self::ABILITIES_V2_MAX_RECEIPTS > count( $receipts ) ? $receipts : false;
+    }
+
+    /**
+     * Rebuild one unreadable entry as a dated tombstone under the same reference.
+     *
+     * Keeping the reference is what stops its retry from dispatching a second time. What the
+     * damaged entry no longer proves is the outcome, so nothing about the effect survives: no
+     * effect hash a request could match, and no response to replay. Its own stamp is kept where
+     * it still reads, so an entry written by an older build ages out on the date it was written
+     * rather than on the date this store first failed to read it. A stamp this clock cannot date
+     * is replaced instead: keeping it would leave an entry no clock ever passes, and one of those
+     * in a full store refuses every mutation from then on with nothing an operator can do.
+     *
+     * @param mixed $receipt Unreadable entry.
+     * @return array Dated tombstone.
+     */
+    private function abilities_v2_tombstone_record( $receipt ) {
+        $now = time();
+        return array(
+            'effect_hash' => str_repeat( '0', 64 ),
+            'state'       => 'unreadable',
+            'response'    => null,
+            'created_at'  => is_array( $receipt ) && isset( $receipt['created_at'] ) && is_int( $receipt['created_at'] ) && 0 < $receipt['created_at'] && $now >= $receipt['created_at'] ? $receipt['created_at'] : $now,
+        );
+    }
+
+    /**
+     * Whether a stored entry could still answer a replay of the reference it is filed under.
+     *
+     * Shape alone is too weak for eviction to decide this. A settled entry carrying a response
+     * that names no operation, or names some other reference, can never answer any replay of this
+     * reference, so it is not evidence of anything and holding it only takes a slot. Left in, an
+     * entry like that combined with a stamp no clock reaches refuses every mutation from then on.
+     * Which operation the current request is asking for does not come into it: the stored response
+     * names its own operation, and that is what it would have to be replayed as.
+     *
+     * @param string $reference Reference the entry is filed under.
+     * @param mixed  $receipt   Stored entry.
+     * @return bool
+     */
+    private function abilities_v2_receipt_readable( $reference, $receipt ) {
+        if ( ! $this->abilities_v2_receipt_shape( $receipt ) ) {
+            return false;
+        }
+        if ( 'dispatching' === $receipt['state'] ) {
+            return true;
+        }
+        // Only mutations are ever written here, and only a mutation consults the store on replay.
+        // A settled response naming a read is therefore something no request can ever come back
+        // for, and holding it is how a store of them refuses every later mutation.
+        return isset( $receipt['response']['operation'] )
+            && is_string( $receipt['response']['operation'] )
+            && in_array( $receipt['response']['operation'], $this->abilities_v2_mutations(), true )
+            && $this->abilities_v2_valid_receipt_response( $receipt['response']['operation'], $reference, $receipt['response'] );
+    }
+
+    /**
+     * The operations that mutate, and so the only ones a receipt can ever have been written for.
+     *
+     * @return array Mutation operation names.
+     */
+    private function abilities_v2_mutations() {
+        return array( 'scan_v2_start', 'scan_v2_cancel', 'finding_v2_classify', 'file_v2_repair', 'firewall_v2_replace', 'blocks_v2_replace' );
+    }
+
+    /**
+     * Validate the shape of one stored entry without judging it against a request.
+     *
+     * @param mixed $receipt Stored entry.
+     * @return bool
+     */
+    private function abilities_v2_receipt_shape( $receipt ) {
+        if ( ! is_array( $receipt ) || ! $this->abilities_v2_exact_keys( $receipt, array( 'effect_hash', 'state', 'response', 'created_at' ) ) ) {
+            return false;
+        }
+        if ( ! $this->abilities_v2_valid_hash( $receipt['effect_hash'] ) || ! is_int( $receipt['created_at'] ) ) {
+            return false;
+        }
+        if ( 'dispatching' === $receipt['state'] ) {
+            return null === $receipt['response'];
+        }
+        return 'settled' === $receipt['state'] && is_array( $receipt['response'] );
+    }
+
+    /**
+     * Validate one stored receipt against the request replaying it.
+     *
+     * A settled receipt has to carry a response this operation and reference can be answered
+     * with; only a request that knows both can establish that, which is why eviction uses the
+     * shape check instead. A refusal is never settled here for the same reason: this store can
+     * only prove a success, so a refused mutation leaves its reservation standing and answers
+     * outcome_unknown until the horizon retires it.
+     *
+     * @param string $operation   Operation name.
+     * @param string $request_ref Request reference.
+     * @param mixed  $receipt     Stored receipt.
+     * @return bool
+     */
+    private function abilities_v2_valid_receipt( $operation, $request_ref, $receipt ) {
+        if ( ! $this->abilities_v2_receipt_shape( $receipt ) ) {
+            return false;
+        }
+        return 'dispatching' === $receipt['state'] || $this->abilities_v2_valid_receipt_response( $operation, $request_ref, $receipt['response'] );
+    }
+
+    /**
+     * Validate a stored mutation receipt response.
+     *
+     * @param string $operation   Operation name.
+     * @param string $request_ref Request reference.
+     * @param mixed  $response    Stored response.
+     * @return bool
+     */
+    private function abilities_v2_valid_receipt_response( $operation, $request_ref, $response ) {
+        // The response comes out of an option, so its size is not this Child's to trust. The widest
+        // schema here is well inside this bound, and checking it first keeps a stored value nobody
+        // could ever replay from being copied and key-sorted before it is rejected.
+        if ( ! is_array( $response ) || self::ABILITIES_V2_MAX_RESPONSE_KEYS < count( $response ) ) {
+            return false;
+        }
+        if ( ! isset( $response['protocol'], $response['operation'], $response['ok'], $response['request_ref'] ) || '2' !== $response['protocol'] || ! is_string( $response['operation'] ) || ! hash_equals( $operation, $response['operation'] ) || true !== $response['ok'] || ! is_string( $response['request_ref'] ) || ! hash_equals( $request_ref, strtolower( $response['request_ref'] ) ) ) {
+            return false;
+        }
+        $result = $response;
+        unset( $result['protocol'], $result['operation'], $result['ok'], $result['request_ref'] );
+        return $this->abilities_v2_valid_result( $operation, $result );
+    }
+
+    /**
+     * Return this installation's named Wordfence mutation lock.
+     *
+     * @return string
+     */
+    protected function abilities_v2_lock_name() {
+        return 'mainwp_wordfence_v2_' . substr( hash( 'sha256', home_url( '/' ) ), 0, 32 );
+    }
+
+    /**
+     * Acquire the Child-wide Wordfence mutation lock without waiting.
+     *
+     * @return bool|null True when acquired, false when another session holds it, null when the lock backend could not answer.
+     */
+    protected function abilities_v2_begin_mutation_lock() {
+        global $wpdb;
+        if ( ! is_object( $wpdb ) || ! is_callable( array( $wpdb, 'prepare' ) ) || ! is_callable( array( $wpdb, 'get_var' ) ) ) {
+            return null;
+        }
+        $wpdb->last_error = '';
+        $locked           = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,0)', $this->abilities_v2_lock_name() ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Named lock is the serialization primitive.
+        if ( ! empty( $wpdb->last_error ) ) {
+            return null;
+        }
+        if ( '1' === (string) $locked ) {
+            return true;
+        }
+        // Only '0' means someone else holds it. GET_LOCK() answers NULL on an error or an
+        // interrupted wait, which says nothing about who holds the lock, so it is not reported
+        // as contention the Child never observed.
+        return '0' === (string) $locked ? false : null;
+    }
+
+    /**
+     * Release the Child-wide Wordfence mutation lock.
+     *
+     * @return bool
+     */
+    protected function abilities_v2_end_mutation_lock() {
+        global $wpdb;
+        if ( ! is_object( $wpdb ) || ! is_callable( array( $wpdb, 'prepare' ) ) || ! is_callable( array( $wpdb, 'get_var' ) ) ) {
+            return false;
+        }
+        // A lock this session fails to give back outlives the request on a persistent connection
+        // and blocks every later mutation with no way for an operator to clear it, so one failed
+        // release earns a second attempt before it is given up on.
+        for ( $attempt = 0; $attempt < 2; $attempt++ ) {
+            $wpdb->last_error = '';
+            $released         = $wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $this->abilities_v2_lock_name() ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Named lock release must be checked.
+            // RELEASE_LOCK() answers NULL when the named lock does not exist, which is the state
+            // the caller asked for.
+            if ( empty( $wpdb->last_error ) && ( null === $released || '1' === (string) $released ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check whether the installed Wordfence version has a typed mutation adapter.
+     *
+     * @return bool
+     */
+    protected function abilities_v2_provider_supports_mutation() {
+        return false;
+    }
+
+    /**
+     * Execute one provider-specific typed operation.
+     *
+     * Supported Wordfence versions override this narrow seam only after all
+     * returned values can satisfy the closed protocol validators below.
+     *
+     * @param string      $operation   Operation name.
+     * @param array       $payload     Closed operation payload.
+     * @param string|null $request_ref Optional caller request reference.
+     * @return array|WP_Error
+     */
+    protected function abilities_v2_provider_operation( $operation, $payload, $request_ref ) {
+        unset( $operation, $payload, $request_ref );
+        return new \WP_Error( 'provider_unavailable' );
+    }
+
+    /**
+     * Validate one operation payload.
+     *
+     * @param string $operation Operation name.
+     * @param array  $payload   Operation payload.
+     * @return bool
+     */
+    private function abilities_v2_valid_payload( $operation, $payload ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity.TooHigh -- Closed schemas are easier to audit linearly.
+        if ( in_array( $operation, array( 'site_v2', 'firewall_v2_get' ), true ) ) {
+            return array() === $payload;
+        }
+        if ( in_array( $operation, array( 'scan_v2_status', 'findings_v2' ), true ) ) {
+            $keys = 'scan_v2_status' === $operation ? array( 'scan_ref' ) : array( 'scan_ref', 'limit', 'after_ref' );
+            return $this->abilities_v2_exact_keys( $payload, $keys ) && $this->abilities_v2_valid_hash( $payload['scan_ref'] ) && ( 'scan_v2_status' === $operation || ( is_int( $payload['limit'] ) && 1 <= $payload['limit'] && 100 >= $payload['limit'] && ( null === $payload['after_ref'] || $this->abilities_v2_valid_hash( $payload['after_ref'] ) ) ) );
+        }
+        if ( 'blocks_v2_list' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'limit', 'after_ref' ) ) && is_int( $payload['limit'] ) && 1 <= $payload['limit'] && 100 >= $payload['limit'] && ( null === $payload['after_ref'] || $this->abilities_v2_valid_hash( $payload['after_ref'] ) );
+        }
+        if ( 'operation_v2_status' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'operation_ref' ) ) && $this->abilities_v2_valid_hash( $payload['operation_ref'] );
+        }
+        if ( 'scan_v2_start' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'config_generation', 'definitions_generation' ) ) && $this->abilities_v2_valid_hash( $payload['config_generation'] ) && $this->abilities_v2_valid_hash( $payload['definitions_generation'] );
+        }
+        if ( 'scan_v2_cancel' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'scan_ref' ) ) && $this->abilities_v2_valid_hash( $payload['scan_ref'] );
+        }
+        if ( 'finding_v2_classify' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'finding_ref', 'finding_generation', 'status' ) ) && $this->abilities_v2_valid_hash( $payload['finding_ref'] ) && $this->abilities_v2_valid_hash( $payload['finding_generation'] ) && in_array( $payload['status'], array( 'active', 'ignored', 'fixed_claimed' ), true );
+        }
+        if ( in_array( $operation, array( 'file_v2_prepare', 'file_v2_repair' ), true ) ) {
+            $keys = 'file_v2_prepare' === $operation ? array( 'finding_ref', 'finding_generation', 'expected_hash', 'site_fingerprint' ) : array( 'finding_ref', 'finding_generation', 'expected_hash', 'preparation_generation', 'site_fingerprint' );
+            if ( ! $this->abilities_v2_exact_keys( $payload, $keys ) ) {
+                return false;
+            }
+            foreach ( $keys as $key ) {
+                if ( ! $this->abilities_v2_valid_hash( $payload[ $key ] ) ) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        if ( 'firewall_v2_replace' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'if_match', 'policy' ) ) && $this->abilities_v2_valid_hash( $payload['if_match'] ) && $this->abilities_v2_valid_firewall_policy( $payload['policy'] );
+        }
+        return 'blocks_v2_replace' === $operation && $this->abilities_v2_exact_keys( $payload, array( 'if_match', 'blocks' ) ) && $this->abilities_v2_valid_hash( $payload['if_match'] ) && $this->abilities_v2_valid_block_inputs( $payload['blocks'] );
+    }
+
+    /**
+     * Validate one provider result.
+     *
+     * @param string $operation Operation name.
+     * @param mixed  $result    Provider result.
+     * @return bool
+     */
+    private function abilities_v2_valid_result( $operation, $result ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity.TooHigh -- Closed result matrix.
+        if ( ! is_array( $result ) ) {
+            return false;
+        }
+        $keys = array(
+            'site_v2'             => array( 'plugin_version', 'state', 'definitions_generation', 'config_generation', 'scan_ref', 'scan_state', 'finding_count', 'firewall_mode', 'blocked_attack_count', 'observed_at', 'generation' ),
+            'scan_v2_start'       => array( 'operation_ref', 'scan_ref', 'state', 'config_generation' ),
+            'scan_v2_cancel'      => array( 'operation_ref', 'scan_ref', 'state' ),
+            'scan_v2_status'      => array( 'scan_ref', 'state', 'progress', 'finding_count', 'complete', 'definitions_generation', 'generation' ),
+            'findings_v2'         => array( 'scan_ref', 'findings', 'next_after_ref', 'truncated', 'generation' ),
+            'finding_v2_classify' => array( 'operation_ref', 'finding_ref', 'prior_status', 'status', 'generation' ),
+            'file_v2_prepare'     => array( 'site_fingerprint', 'finding_ref', 'finding_generation', 'path_hash', 'component', 'component_type', 'component_version', 'current_hash', 'authoritative_hash', 'byte_count', 'file_type', 'symlink', 'within_root', 'source_authoritative', 'preparation_generation' ),
+            'file_v2_repair'      => array( 'operation_ref', 'finding_ref', 'state', 'current_hash', 'authoritative_hash', 'backup_ref', 'generation' ),
+            'firewall_v2_get'     => array( 'policy', 'effective', 'generation' ),
+            'firewall_v2_replace' => array( 'operation_ref', 'state', 'effective', 'management_probe', 'generation' ),
+            'blocks_v2_list'      => array( 'blocks', 'next_after_ref', 'truncated', 'generation' ),
+            'blocks_v2_replace'   => array( 'operation_ref', 'state', 'added', 'removed', 'management_probe', 'generation' ),
+            'operation_v2_status' => array( 'operation_ref', 'kind', 'state', 'progress', 'started_at', 'finished_at', 'result_ref', 'generation' ),
+        );
+        if ( ! isset( $keys[ $operation ] ) || ! $this->abilities_v2_exact_keys( $result, $keys[ $operation ] ) ) {
+            return false;
+        }
+        if ( 'site_v2' === $operation ) {
+            return is_string( $result['plugin_version'] ) && 100 >= strlen( $result['plugin_version'] ) && in_array( $result['state'], array( 'complete', 'partial', 'failed', 'unknown' ), true ) && $this->abilities_v2_valid_hash( $result['definitions_generation'] ) && $this->abilities_v2_valid_hash( $result['config_generation'] ) && ( null === $result['scan_ref'] || $this->abilities_v2_valid_hash( $result['scan_ref'] ) ) && in_array( $result['scan_state'], array( 'never', 'running', 'clean', 'findings', 'failed', 'unknown' ), true ) && ( null === $result['finding_count'] || ( is_int( $result['finding_count'] ) && 0 <= $result['finding_count'] && 5000 >= $result['finding_count'] ) ) && in_array( $result['firewall_mode'], array( 'disabled', 'learning', 'enabled', 'unknown' ), true ) && ( null === $result['blocked_attack_count'] || ( is_int( $result['blocked_attack_count'] ) && 0 <= $result['blocked_attack_count'] ) ) && $this->abilities_v2_valid_date( $result['observed_at'] ) && $this->abilities_v2_valid_hash( $result['generation'] );
+        }
+        if ( 'firewall_v2_get' === $operation ) {
+            return $this->abilities_v2_valid_firewall_policy( $result['policy'] ) && is_bool( $result['effective'] ) && $this->abilities_v2_valid_hash( $result['generation'] );
+        }
+        if ( 'blocks_v2_list' === $operation ) {
+            return $this->abilities_v2_valid_blocks( $result['blocks'] ) && 100 >= count( $result['blocks'] ) && ( null === $result['next_after_ref'] || $this->abilities_v2_valid_hash( $result['next_after_ref'] ) ) && is_bool( $result['truncated'] ) && $this->abilities_v2_valid_hash( $result['generation'] );
+        }
+        if ( 'file_v2_prepare' === $operation ) {
+            return $this->abilities_v2_valid_file_prepare_result( $result );
+        }
+        if ( 'findings_v2' === $operation ) {
+            return $this->abilities_v2_valid_findings_result( $result );
+        }
+        return $this->abilities_v2_valid_mutation_result( $operation, $result );
+    }
+
+    /**
+     * Validate a firewall policy.
+     *
+     * @param mixed $policy Policy value.
+     * @return bool
+     */
+    private function abilities_v2_valid_firewall_policy( $policy ) {
+        return is_array( $policy ) && $this->abilities_v2_exact_keys( $policy, array( 'mode', 'learning_until', 'ip_source', 'login_failures', 'forgot_password_attempts', 'rate_limit_per_minute', 'country_blocking_enabled' ) ) && in_array( $policy['mode'], array( 'disabled', 'learning', 'enabled' ), true ) && ( null === $policy['learning_until'] || $this->abilities_v2_valid_date( $policy['learning_until'] ) ) && in_array( $policy['ip_source'], array( 'REMOTE_ADDR', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP' ), true ) && is_int( $policy['login_failures'] ) && 1 <= $policy['login_failures'] && 1000 >= $policy['login_failures'] && is_int( $policy['forgot_password_attempts'] ) && 1 <= $policy['forgot_password_attempts'] && 1000 >= $policy['forgot_password_attempts'] && is_int( $policy['rate_limit_per_minute'] ) && 1 <= $policy['rate_limit_per_minute'] && 100000 >= $policy['rate_limit_per_minute'] && is_bool( $policy['country_blocking_enabled'] );
+    }
+
+    /**
+     * Validate returned block projections.
+     *
+     * @param mixed $blocks Block projections.
+     * @return bool
+     */
+    private function abilities_v2_valid_blocks( $blocks ) {
+        if ( ! is_array( $blocks ) || 1000 < count( $blocks ) ) {
+            return false;
+        }
+        $seen = array();
+        foreach ( $blocks as $block ) {
+            if ( ! is_array( $block ) || ! $this->abilities_v2_exact_keys( $block, array( 'block_ref', 'kind', 'value', 'reason', 'expires_at' ) ) || ! $this->abilities_v2_valid_hash( $block['block_ref'] ) || ! in_array( $block['kind'], array( 'ip', 'cidr', 'country' ), true ) || ! is_string( $block['value'] ) || '' === $block['value'] || 64 < strlen( $block['value'] ) || ! is_string( $block['reason'] ) || 200 < strlen( $block['reason'] ) || ( null !== $block['expires_at'] && ! $this->abilities_v2_valid_date( $block['expires_at'] ) ) || isset( $seen[ $block['block_ref'] ] ) ) {
+                return false;
+            }
+            $seen[ $block['block_ref'] ] = true;
+        }
+        return true;
+    }
+
+    /**
+     * Validate caller-supplied block definitions.
+     *
+     * @param mixed $blocks Block definitions.
+     * @return bool
+     */
+    private function abilities_v2_valid_block_inputs( $blocks ) {
+        if ( ! is_array( $blocks ) || 1000 < count( $blocks ) ) {
+            return false;
+        }
+        $seen = array();
+        foreach ( $blocks as $block ) {
+            if ( ! is_array( $block ) || ! $this->abilities_v2_exact_keys( $block, array( 'kind', 'value', 'reason', 'expires_at' ) ) || ! in_array( $block['kind'], array( 'ip', 'cidr', 'country' ), true ) || ! is_string( $block['value'] ) || '' === $block['value'] || 64 < strlen( $block['value'] ) || ! is_string( $block['reason'] ) || 200 < strlen( $block['reason'] ) || ( null !== $block['expires_at'] && ! $this->abilities_v2_valid_date( $block['expires_at'] ) ) ) {
+                return false;
+            }
+            $identity = $block['kind'] . "\n" . strtolower( $block['value'] );
+            if ( isset( $seen[ $identity ] ) ) {
+                return false;
+            }
+            $seen[ $identity ] = true;
+        }
+        return true;
+    }
+
+    /**
+     * Validate a findings result.
+     *
+     * @param array $result Provider result.
+     * @return bool
+     */
+    private function abilities_v2_valid_findings_result( $result ) {
+        if ( ! $this->abilities_v2_valid_hash( $result['scan_ref'] ) || ! is_array( $result['findings'] ) || 100 < count( $result['findings'] ) || ( null !== $result['next_after_ref'] && ! $this->abilities_v2_valid_hash( $result['next_after_ref'] ) ) || ! is_bool( $result['truncated'] ) || ! $this->abilities_v2_valid_hash( $result['generation'] ) ) {
+            return false;
+        }
+        foreach ( $result['findings'] as $finding ) {
+            if ( ! is_array( $finding ) || ! $this->abilities_v2_exact_keys( $finding, array( 'finding_ref', 'type', 'severity', 'component', 'summary', 'classification', 'repairable', 'generation' ) ) || ! $this->abilities_v2_valid_hash( $finding['finding_ref'] ) || ! in_array( $finding['type'], array( 'malware', 'changed_file', 'vulnerability', 'configuration', 'user', 'database', 'other' ), true ) || ! in_array( $finding['severity'], array( 'critical', 'high', 'medium', 'low', 'unknown' ), true ) || ( null !== $finding['component'] && ( ! is_string( $finding['component'] ) || 191 < strlen( $finding['component'] ) ) ) || ! is_string( $finding['summary'] ) || 500 < strlen( $finding['summary'] ) || ! in_array( $finding['classification'], array( 'active', 'ignored', 'fixed_claimed', 'repaired', 'verification_failed' ), true ) || ! is_bool( $finding['repairable'] ) || ! $this->abilities_v2_valid_hash( $finding['generation'] ) ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Validate a file preparation result.
+     *
+     * @param array $result Provider result.
+     * @return bool
+     */
+    private function abilities_v2_valid_file_prepare_result( $result ) {
+        $hashes = array( 'site_fingerprint', 'finding_ref', 'finding_generation', 'path_hash', 'current_hash', 'authoritative_hash', 'preparation_generation' );
+        foreach ( $hashes as $key ) {
+            if ( ! $this->abilities_v2_valid_hash( $result[ $key ] ) ) {
+                return false;
+            }
+        }
+        return is_string( $result['component'] ) && '' !== $result['component'] && 191 >= strlen( $result['component'] ) && in_array( $result['component_type'], array( 'core', 'plugin', 'theme' ), true ) && is_string( $result['component_version'] ) && '' !== $result['component_version'] && 100 >= strlen( $result['component_version'] ) && is_int( $result['byte_count'] ) && 0 <= $result['byte_count'] && 2 * 1024 * 1024 >= $result['byte_count'] && 'regular' === $result['file_type'] && is_bool( $result['symlink'] ) && is_bool( $result['within_root'] ) && is_bool( $result['source_authoritative'] );
+    }
+
+    /**
+     * Validate a mutation or operation-status result.
+     *
+     * @param string $operation Operation name.
+     * @param array  $result    Provider result.
+     * @return bool
+     */
+    private function abilities_v2_valid_mutation_result( $operation, $result ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity.TooHigh -- Closed scalar matrix.
+        if ( 'scan_v2_start' === $operation ) {
+            return $this->abilities_v2_valid_hash( $result['operation_ref'] ) && $this->abilities_v2_valid_hash( $result['scan_ref'] ) && in_array( $result['state'], array( 'requested', 'queued', 'running', 'reconciliation_required' ), true ) && $this->abilities_v2_valid_hash( $result['config_generation'] );
+        }
+        if ( 'scan_v2_cancel' === $operation ) {
+            return $this->abilities_v2_valid_hash( $result['operation_ref'] ) && $this->abilities_v2_valid_hash( $result['scan_ref'] ) && in_array( $result['state'], array( 'kill_requested', 'cancelled', 'already_terminal', 'reconciliation_required' ), true );
+        }
+        if ( 'scan_v2_status' === $operation ) {
+            return $this->abilities_v2_valid_hash( $result['scan_ref'] ) && in_array( $result['state'], array( 'requested', 'queued', 'running', 'kill_requested', 'completed_clean', 'completed_findings', 'failed', 'timed_out', 'unknown' ), true ) && is_int( $result['progress'] ) && 0 <= $result['progress'] && 100 >= $result['progress'] && ( null === $result['finding_count'] || ( is_int( $result['finding_count'] ) && 0 <= $result['finding_count'] && 5000 >= $result['finding_count'] ) ) && is_bool( $result['complete'] ) && $this->abilities_v2_valid_hash( $result['definitions_generation'] ) && $this->abilities_v2_valid_hash( $result['generation'] );
+        }
+        if ( 'finding_v2_classify' === $operation ) {
+            return $this->abilities_v2_valid_hash( $result['operation_ref'] ) && $this->abilities_v2_valid_hash( $result['finding_ref'] ) && in_array( $result['prior_status'], array( 'active', 'ignored', 'fixed_claimed' ), true ) && in_array( $result['status'], array( 'active', 'ignored', 'fixed_claimed' ), true ) && $this->abilities_v2_valid_hash( $result['generation'] );
+        }
+        if ( 'file_v2_repair' === $operation ) {
+            return $this->abilities_v2_valid_hash( $result['operation_ref'] ) && $this->abilities_v2_valid_hash( $result['finding_ref'] ) && in_array( $result['state'], array( 'queued', 'verifying', 'completed', 'reconciliation_required' ), true ) && $this->abilities_v2_valid_hash( $result['current_hash'] ) && $this->abilities_v2_valid_hash( $result['authoritative_hash'] ) && ( null === $result['backup_ref'] || $this->abilities_v2_valid_hash( $result['backup_ref'] ) ) && $this->abilities_v2_valid_hash( $result['generation'] );
+        }
+        if ( 'firewall_v2_replace' === $operation ) {
+            return $this->abilities_v2_valid_hash( $result['operation_ref'] ) && in_array( $result['state'], array( 'queued', 'verifying', 'completed', 'reconciliation_required' ), true ) && is_bool( $result['effective'] ) && in_array( $result['management_probe'], array( 'safe', 'unsafe', 'unknown' ), true ) && $this->abilities_v2_valid_hash( $result['generation'] );
+        }
+        if ( 'blocks_v2_replace' === $operation ) {
+            return $this->abilities_v2_valid_hash( $result['operation_ref'] ) && in_array( $result['state'], array( 'queued', 'verifying', 'completed', 'reconciliation_required' ), true ) && is_int( $result['added'] ) && 0 <= $result['added'] && 1000 >= $result['added'] && is_int( $result['removed'] ) && 0 <= $result['removed'] && 1000 >= $result['removed'] && in_array( $result['management_probe'], array( 'safe', 'unsafe', 'unknown' ), true ) && $this->abilities_v2_valid_hash( $result['generation'] );
+        }
+        return 'operation_v2_status' === $operation && $this->abilities_v2_valid_hash( $result['operation_ref'] ) && in_array( $result['kind'], array( 'scan', 'scan_cancel', 'finding_classify', 'file_repair', 'firewall_replace', 'blocks_replace' ), true ) && in_array( $result['state'], array( 'requested', 'queued', 'running', 'kill_requested', 'verifying', 'completed', 'completed_clean', 'completed_findings', 'failed', 'timed_out', 'unknown', 'reconciliation_required' ), true ) && is_int( $result['progress'] ) && 0 <= $result['progress'] && 100 >= $result['progress'] && ( null === $result['started_at'] || $this->abilities_v2_valid_date( $result['started_at'] ) ) && ( null === $result['finished_at'] || $this->abilities_v2_valid_date( $result['finished_at'] ) ) && ( null === $result['result_ref'] || $this->abilities_v2_valid_hash( $result['result_ref'] ) ) && $this->abilities_v2_valid_hash( $result['generation'] );
+    }
+
+    /**
+     * Validate a SHA-256 reference.
+     *
+     * @param mixed $value Candidate value.
+     * @return bool
+     */
+    private function abilities_v2_valid_hash( $value ) {
+        return is_string( $value ) && 1 === preg_match( '/^[a-f0-9]{64}$/D', $value );
+    }
+
+    /**
+     * Validate a UUID request reference.
+     *
+     * @param mixed $value Candidate value.
+     * @return bool
+     */
+    private function abilities_v2_valid_request_ref( $value ) {
+        return is_string( $value ) && 1 === preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/Di', $value );
+    }
+
+    /**
+     * Validate a UTC date-time.
+     *
+     * @param mixed $value Candidate value.
+     * @return bool
+     */
+    private function abilities_v2_valid_date( $value ) {
+        if ( ! is_string( $value ) || 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/D', $value ) ) {
+            return false;
+        }
+        $date   = \DateTimeImmutable::createFromFormat( '!Y-m-d\TH:i:s\Z', $value, new \DateTimeZone( 'UTC' ) );
+        $errors = \DateTimeImmutable::getLastErrors();
+        return false !== $date && ( false === $errors || ( 0 === $errors['warning_count'] && 0 === $errors['error_count'] ) ) && $date->format( 'Y-m-d\TH:i:s\Z' ) === $value;
+    }
+
+    /**
+     * Check an exact associative-key set.
+     *
+     * @param array $value Input object.
+     * @param array $keys  Expected keys.
+     * @return bool
+     */
+    private function abilities_v2_exact_keys( $value, $keys ) {
+        if ( ! is_array( $value ) ) {
+            return false;
+        }
+        $actual = array_keys( $value );
+        sort( $actual, SORT_STRING );
+        sort( $keys, SORT_STRING );
+
+        return $actual === $keys;
+    }
+
+    /**
+     * Build a closed Wordfence protocol error.
+     *
+     * @param string $operation Protocol operation.
+     * @param string $code      Stable error code.
+     * @return array<string,mixed>
+     */
+    private function abilities_v2_error( $operation, $code ) {
+        return array(
+            'protocol'  => '2',
+            'operation' => $operation,
+            'ok'        => false,
+            'code'      => $code,
+        );
     }
 
     /**
@@ -1365,12 +2180,15 @@ SQL
                     continue;
                 }
                 if ( 'del' === $op ) {
-                    if ( wp_delete_file( $localFile ) ) {
+                    // wp_delete_file() only gained a return value in WP 6.7 and we support 6.2+, so
+                    // the readback decides; the return would report every delete as failed on 6.2-6.6.
+                    wp_delete_file( $localFile );
+                    clearstatcache( true, $localFile );
+                    if ( ! file_exists( $localFile ) ) {
                         $issues->updateIssue( $id, 'delete' );
                         $filesWorkedOn ++;
                     } else {
-                        $err      = error_get_last();
-                        $errors[] = 'Could not delete file ' . htmlentities( $file ) . '. Error was: ' . htmlentities( $err['message'] );
+                        $errors[] = 'Could not delete file ' . htmlentities( $file ) . '. ' . self::ERROR_LOG_HINT;
                     }
                 } elseif ( 'repair' === $op ) {
                     $dat    = $issue['data'];
@@ -1387,13 +2205,15 @@ SQL
                         $errors[] = 'An invalid file ' . htmlentities( $file ) . ' was specified for repair.';
                         continue;
                     }
+                    // The clear is what makes the permission test below answer about this open and
+                    // not about an error anything else in the request left behind.
+                    error_clear_last();
                     $fh = fopen( $localFile, 'w' );
                     if ( ! $fh ) {
-                        $err = error_get_last();
-                        if ( preg_match( '/Permission denied/i', $err['message'] ) ) {
+                        if ( self::write_failed_on_permissions() ) {
                             $errMsg = "You don't have permission to repair " . htmlentities( $file ) . '. You need to either fix the file manually using FTP or change the file permissions and ownership so that your web server has write access to repair the file.';
                         } else {
-                            $errMsg = 'We could not write to ' . htmlentities( $file ) . '. The error was: ' . $err['message'];
+                            $errMsg = 'We could not write to ' . htmlentities( $file ) . '. ' . self::ERROR_LOG_HINT;
                         }
                         $errors[] = $errMsg;
                         continue;
@@ -1476,7 +2296,11 @@ SQL
         if ( strpos( $localFile, ABSPATH ) !== 0 ) {
             return array( 'errorMsg' => 'An invalid file was requested for deletion.' );
         }
-        if ( wp_delete_file( $localFile ) ) {
+        // wp_delete_file() only gained a return value in WP 6.7 and we support 6.2+, so the readback
+        // decides; the return would report every delete as failed on 6.2-6.6.
+        wp_delete_file( $localFile );
+        clearstatcache( true, $localFile );
+        if ( ! file_exists( $localFile ) ) {
             $wfIssues->updateIssue( $issueID, 'delete' );
 
             return array(
@@ -1485,9 +2309,7 @@ SQL
                 'file'      => $file,
             );
         } else {
-            $err = error_get_last();
-
-            return array( 'errorMsg' => 'Could not delete file ' . htmlentities( $file ) . '. The error was: ' . htmlentities( $err['message'] ) );
+            return array( 'errorMsg' => 'Could not delete file ' . htmlentities( $file ) . '. ' . self::ERROR_LOG_HINT );
         }
     }
 
@@ -1520,13 +2342,15 @@ SQL
             return array( 'cerrorMsg' => 'An invalid file was specified for repair.' );
         }
         $localFile = ABSPATH . '/' . preg_replace( '/^[\.\/]+/', '', $file );
-        $fh        = fopen( $localFile, 'w' );
+        // The clear is what makes the permission test below answer about this open and not about an
+        // error anything else in the request left behind.
+        error_clear_last();
+        $fh = fopen( $localFile, 'w' );
         if ( ! $fh ) {
-            $err = error_get_last();
-            if ( preg_match( '/Permission denied/i', $err['message'] ) ) {
+            if ( self::write_failed_on_permissions() ) {
                 $errMsg = "You don't have permission to repair that file. You need to either fix the file manually using FTP or change the file permissions and ownership so that your web server has write access to repair the file.";
             } else {
-                $errMsg = 'We could not write to that file. The error was: ' . $err['message'];
+                $errMsg = 'We could not write to that file. ' . self::ERROR_LOG_HINT;
             }
 
             return array( 'cerrorMsg' => $errMsg );
@@ -2793,9 +3617,8 @@ SQL
         }
         $fh = fopen( $file, 'r+' );
         if ( ! $fh ) {
-            $err = error_get_last();
             return array(
-                'err'  => 'We found your .htaccess file but could not open it for writing: ' . $err['message'],
+                'err'  => 'We found your .htaccess file but could not open it for writing. ' . self::ERROR_LOG_HINT,
                 'code' => \wfCache::getHtaccessCode(),
             );
         }
@@ -2826,10 +3649,22 @@ SQL
         }
         $fh = fopen( $file, 'r+' );
         if ( ! $fh ) {
-            $err = error_get_last();
-            $result = array( 'err' => 'We found your .htaccess file but could not open it for writing: ' . $err['message'] );
+            $result = array( 'err' => 'We found your .htaccess file but could not open it for writing. ' . self::ERROR_LOG_HINT );
         }
         return $result;
+    }
+
+    /**
+     * Report whether the write that just failed failed for want of permissions.
+     *
+     * Only ever consulted straight after an error_clear_last() and a failed open, so a swallowed or
+     * absent error reads as "some other reason" rather than as a message to dereference.
+     *
+     * @return bool
+     */
+    private static function write_failed_on_permissions() {
+        $err = error_get_last();
+        return is_array( $err ) && isset( $err['message'] ) && is_string( $err['message'] ) && preg_match( '/Permission denied/i', $err['message'] );
     }
 
     /**

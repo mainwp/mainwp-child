@@ -175,6 +175,25 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
             $this->update_premiums_to_do( $information, $premiumUpgrader, $mwp_premium_updates_to_do, $mwp_premium_updates_to_do_slugs );
         }
 
+        if ( ! empty( $_POST['perform_premium_action'] ) && 'premium_update' === $_POST['perform_premium_action'] && in_array( $_POST['type'], array( 'plugin', 'theme' ), true ) ) {
+            $saved_info = get_option( 'mainwp_child_premium_updates_result' );
+            if ( ! is_array( $saved_info ) ) {
+                $saved_info = array();
+            }
+            $type = sanitize_text_field( wp_unslash( $_POST['type'] ) );
+            if ( ! isset( $saved_info[ $type ] ) ) {
+                $saved_info[ $type ] = array();
+            }
+
+            if ( ! empty( $information['other_data'] ) ) {
+                $other_data                               = $information['other_data'];
+                $other_data['duration']                   = MainWP_Helper::get_runtime();
+                $other_data['created']                    = time();
+                $saved_info[ $type ][ microtime( true ) ] = array( 'other_data' => $other_data );
+                update_option( 'mainwp_child_premium_updates_result', $saved_info );
+            }
+        }
+
         /**
          * WP-Rocket auto cache purge.
          *
@@ -253,7 +272,6 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
 
         $information['plugin_updates'] = get_plugin_updates();
 
-        $plugins = isset( $_POST['list'] ) ? explode( ',', urldecode( wp_unslash( $_POST['list'] ) ) ) : array(); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         // phpcs:enable WordPress.WP.AlternativeFunctions
 
         $premiumPlugins = array();
@@ -1099,8 +1117,19 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Child_Callable::call_function()
      */
     public function detect_premium_themesplugins_updates() {// phpcs:ignore -- NOSONAR - complex.
+        // phpcs:disable WordPress.Security.NonceVerification
+        if ( isset( $_GET['_mainwp_premium_update_nonce_key'] ) && isset( $_GET['_mainwp_premium_update_nonce_hmac'] ) ) {
+            $premium_update_nonce_key    = ! empty( $_GET['_mainwp_premium_update_nonce_key'] ) ? intval( $_GET['_mainwp_premium_update_nonce_key'] ) : '';
+            $premium_update_nonce_hmac   = ! empty( $_GET['_mainwp_premium_update_nonce_hmac'] ) ? wp_unslash( $_GET['_mainwp_premium_update_nonce_hmac'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+            $premium_update_current_time = intval( time() );
+            if ( ! ( $premium_update_current_time >= $premium_update_nonce_key && $premium_update_current_time <= ( $premium_update_nonce_key + 30 ) && strcmp( $premium_update_nonce_hmac, hash_hmac( 'sha256', $premium_update_nonce_key, wp_salt( 'nonce' ) ) ) === 0 ) ) {
+                return;
+            }
+        } else {
+            return;
+        }
 
-        $premium_action = ! empty( $_GET['_mainwp_premium_update_request'] ) ? sanitize_text_field( wp_unslash( $_GET['_mainwp_premium_update_request'] ) ) : '';
+        $premium_action = ! empty( $_GET['_mainwp_premium_update_req'] ) ? sanitize_text_field( wp_unslash( $_GET['_mainwp_premium_update_req'] ) ) : '';
 
         $legacy_action = '';
         $legacy_type   = '';
@@ -1169,12 +1198,19 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                 }
 
                 if ( ! empty( $type ) ) {
-                    $_POST['type'] = $type;
-                    $_POST['list'] = $list;
+                    $_POST['type']                   = $type;
+                    $_POST['list']                   = $list;
+                    $_POST['send_exit']              = false;
+                    $_POST['perform_premium_action'] = 'premium_update';
+
+                    MainWP_Helper::start_runtime();
 
                     $function = 'upgradeplugintheme'; // to call function upgrade_plugin_theme().
                     if ( MainWP_Child_Callable::get_instance()->is_callable_function( $function ) ) {
+                        ob_start();
                         MainWP_Child_Callable::get_instance()->call_function( $function );
+                        $debug = ob_get_clean();
+                        MainWP_Helper::log_debug( 'perform_premium_action :: ' . $debug );
                     }
                 }
             }
@@ -1185,24 +1221,13 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Handle premium plugins and themes updates processing.
      *
-     * @return null|array Result.
+     * @return mixed Result.
      */
     public function process_premium_updates() { // phpcs:ignore -- NOSONAR - complex.
         $type = MainWP_System::instance()->validate_params( 'premium_type' );
         if ( in_array( $type, array( 'plugin', 'theme' ), true ) ) {
-            $perform  = MainWP_System::instance()->validate_params( 'premium_perform' );
-            $raw_args = isset( $_POST['args'] ) && is_array( $_POST['args'] ) ? wp_unslash( $_POST['args'] ) : array(); // phpcs:ignore
-            // Parse GET Query Parameters.
-            $get_args = array();
-            if ( isset( $raw_args['get'] ) && is_string( $raw_args['get'] ) ) {
-                parse_str( $raw_args['get'], $get_args );
-            } elseif ( isset( $raw_args['get'] ) && is_array( $raw_args['get'] ) ) {
-                $get_args = $raw_args['get'];
-            }
-
-            if ( ! is_array( $get_args ) ) {
-                $get_args = array();
-            }
+            $perform = MainWP_System::instance()->validate_params( 'premium_perform' );
+            $list    = isset( $_POST['list'] ) ? sanitize_text_field( wp_unslash( $_POST['list'] ) ) : '';
 
             $target_path    = '';
             $request_action = '';
@@ -1225,22 +1250,24 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                     }
                 }
             }
+
             if ( ! empty( $request_action ) ) {
+                $get_args['_mainwp_premium_update_req']        = $request_action;
+                $get_args['_mainwp_premium_update_nonce_key']  = intval( time() );
+                $get_args['_mainwp_premium_update_nonce_hmac'] = hash_hmac( 'sha256', $get_args['_mainwp_premium_update_nonce_key'], wp_salt( 'nonce' ) );
 
-                // Close and response the request.
-                MainWP_Utility::close_connection(
-                    array(
-                        'result'  => 'SUCCESS',
-                        'message' => __( 'Premium update is being processed.', 'mainwp-child' ),
-                    ),
-                    true
-                );
+                if ( 'premium_update' === $perform ) {
+                    if ( empty( $list ) ) {
+                        return array( 'error' => __( 'No items to update.', 'mainwp-child' ) );
+                    }
+                    $get_args['list'] = $list;
+                }
 
-                $get_args['_mainwp_premium_update_request'] = $request_action;
-                return MainWP_Utility::instance()->simulate_admin_visit( $target_path, $get_args );
+                return MainWP_Utility::instance()->simulate_admin_visit( $target_path, $get_args, $perform );
             }
         }
-        return null;
+
+        return false;
     }
 
     /**

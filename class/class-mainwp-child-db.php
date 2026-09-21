@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class MainWP_Child_DB {
 
-    // phpcs:disable WordPress.DB.RestrictedFunctions, WordPress.DB.PreparedSQL.NotPrepared -- unprepared SQL ok, accessing the database directly to custom database functions.
+    // phpcs:disable WordPress.DB.RestrictedFunctions, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- unprepared SQL ok, accessing the database directly to custom database functions.
 
     /**
      * Support old & new versions of WordPress (3.9+).
@@ -255,31 +255,118 @@ class MainWP_Child_DB {
         return $size;
     }
 
+    /**
+     * Maybe clean up request ID options.
+     *
+     * Performs the cleanup at most once every hour to avoid scanning
+     * the options table on every authentication request.
+     *
+     * @return void
+     */
+    private static function maybe_cleanup_advanced_request_ids() {
+        $last_cleanup = (int) get_option( 'mainwp_child_advanced_request_ids_last_cleanup', 0 );
+        if ( time() - $last_cleanup > HOUR_IN_SECONDS ) {
+            static::cleanup_advanced_request_ids();
+            update_option( 'mainwp_child_advanced_request_ids_last_cleanup', time(), false );
+        }
+    }
 
     /**
-     * Method cleanup_request_ids()
+     * Method cleanup_advanced_request_ids()
      *
      * Daily checks to clear the dashboard request ids.
      */
-    public static function cleanup_request_ids() {
+    public static function cleanup_advanced_request_ids() {
 
         global $wpdb;
 
-        $threshold = 10 * MINUTE_IN_SECONDS;
+        $threshold = time() - ( 10 * MINUTE_IN_SECONDS );
 
-        $options = $wpdb->get_results( //phpcs:ignore -- NOSONAR -ok.
+        $options = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- OK.
             $wpdb->prepare(
-                "SELECT option_name, option_value
+                "SELECT option_name
                 FROM {$wpdb->options}
-                WHERE option_name LIKE %s",
-                $wpdb->esc_like( 'mainwp_child_request_id_' ) . '%'
+                WHERE option_name LIKE %s
+                AND CAST(option_value AS UNSIGNED) < %d",
+                $wpdb->esc_like( 'mainwp_child_advanced_request_id_' ) . '%',
+                $threshold
             )
         );
 
-        foreach ( $options as $option ) {
-            if ( (int) $option->option_value < $threshold ) {
-                delete_option( $option->option_name );
+        foreach ( $options as $option_name ) {
+            delete_option( $option_name );
+        }
+    }
+
+    /**
+     * Maybe clean up legacy request ID options.
+     *
+     * Performs the cleanup at most once every 24 hours to avoid scanning
+     * the options table on every authentication request.
+     *
+     * @return void
+     */
+    public static function maybe_cleanup_request_ids() {
+
+        static::maybe_cleanup_advanced_request_ids();
+
+        $option_name  = 'mainwp_child_request_ids_cleanup';
+        $last_cleanup = (int) get_option( $option_name, 0 );
+
+        if ( $last_cleanup > time() - DAY_IN_SECONDS ) {
+            return;
+        }
+
+        update_option( $option_name, time(), false );
+
+        static::cleanup_request_ids();
+    }
+
+    /**
+     * Cleanup expired request IDs.
+     *
+     * Keeps up to 200 request IDs that are older than 3 days.
+     * Blocked request IDs are never removed.
+     *
+     * @return int Number of request IDs removed.
+     */
+    private static function cleanup_request_ids() {
+        global $wpdb;
+
+        // Security comes first. Do not remove mainwp_child_blocked_request_id_ options.
+        // If the database grows too large, address the storage issue separately.
+        $option_prefix = 'mainwp_child_request_id_';
+        $cutoff_time   = time() - ( 3 * DAY_IN_SECONDS );
+
+        $option_names = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT option_name
+			FROM {$wpdb->options}
+			WHERE option_name LIKE %s
+			AND CAST(option_value AS UNSIGNED) < %d",
+                $wpdb->esc_like( $option_prefix ) . '%',
+                $cutoff_time
+            )
+        );
+
+        if ( count( $option_names ) <= 200 ) {
+            return 0;
+        }
+
+        // Randomize the expired request IDs.
+        shuffle( $option_names );
+
+        // Keep 200 records and remove the rest.
+        $option_names = array_slice( $option_names, 200 );
+
+        $deleted = 0;
+
+        foreach ( $option_names as $option_name ) {
+            if ( delete_option( $option_name ) ) {
+                ++$deleted;
             }
         }
+
+        return $deleted;
     }
 }

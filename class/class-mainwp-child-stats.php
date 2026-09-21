@@ -113,6 +113,9 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         $information['wpversion'] = MainWP_Child_Server_Information_Base::get_wordpress_version();
         $information['wpe']       = MainWP_Helper::is_wp_engine() ? 1 : 0;
         $information['wphost']    = MainWP_Helper::get_wp_host();
+
+        $information['support_advanced_sign'] = 1;
+
         MainWP_Helper::write( $information );
     }
 
@@ -450,7 +453,14 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             );
         }
 
+        $saved_premium_updates = get_option( 'mainwp_child_premium_updates_result' );
+        if ( ! empty( $saved_premium_updates ) && is_array( $saved_premium_updates ) ) {
+            $information['premium_updates_results'] = $saved_premium_updates;
+            delete_option( 'mainwp_child_premium_updates_result' );
+        }
+
         if ( $exit_done ) {
+            $information['support_advanced_sign'] = 1;
             MainWP_Helper::write( $information );
         }
         // phpcs:enable WordPress.WP.AlternativeFunctions
@@ -514,7 +524,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
 
         if ( isset( $_POST['syncdata'] ) ) {
 
-            $update_list = sanitize_text_field( wp_unslash( $_POST['syncdata'] ) );
+            $update_list = wp_unslash( $_POST['syncdata'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON payload; only the json_decode-validated, re-encoded array is persisted below, the raw string never is.
             $update      = false;
 
             if ( $update_list !== $sync_data_settings ) {
@@ -1171,7 +1181,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             if ( MainWP_Helper::funct_exists( 'popen' ) ) {
                 $uploadDir   = MainWP_Helper::get_mainwp_dir();
                 $uploadDir   = $uploadDir[0];
-                $popenHandle = popen( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"', 'r' ); // phpcs:ignore -- run if enabled.
+                $popenHandle = popen( 'du -s ' . escapeshellarg( $directory ) . ' --exclude ' . escapeshellarg( str_replace( ABSPATH, '', $uploadDir ) ), 'r' ); // phpcs:ignore -- run if enabled.
                 if ( 'resource' === gettype( $popenHandle ) ) {
                     $size = fread( $popenHandle, 1024 ); //phpcs:ignore -- custom read file.
                     pclose( $popenHandle );
@@ -1185,7 +1195,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             if ( MainWP_Helper::funct_exists( 'shell_exec' ) ) {
                 $uploadDir = MainWP_Helper::get_mainwp_dir();
                 $uploadDir = $uploadDir[0];
-                $size      = shell_exec( 'du -s ' . $directory . ' --exclude "' . str_replace( ABSPATH, '', $uploadDir ) . '"' ); // phpcs:ignore -- run if enabled.
+                $size      = shell_exec( 'du -s ' . escapeshellarg( $directory ) . ' --exclude ' . escapeshellarg( str_replace( ABSPATH, '', $uploadDir ) ) ); // phpcs:ignore -- run if enabled.
                 if ( null !== $size ) {
                     $size = substr( $size, 0, strpos( $size, "\t" ) );
                     if ( $size && MainWP_Helper::ctype_digit( $size ) ) {
@@ -1216,7 +1226,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Get total directory size safely.
      *
-     * @param string $directory Absolute path to the directory to measure.
+     * @param string $directory Directory to measure.
      * @return float Size in MB
      */
     public function get_total_file_size_recursive( $directory ) {

@@ -33,6 +33,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
 
     /**
+     * How many mutation receipts the option holds.
+     *
+     * @var int
+     */
+    const ABILITIES_V2_MAX_RECEIPTS = 100;
+
+    /**
+     * How far ahead of this Child's clock a receipt stamp is still believed.
+     *
+     * @var int
+     */
+    const ABILITIES_V2_CLOCK_SKEW = 300;
+
+    /**
      * Public static variable to hold the single instance of the class.
      *
      * @var mixed Default null
@@ -190,6 +204,9 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
                 case 'set_showhide':
                     $information = $this->set_showhide();
                     break;
+                case 'abilities_v2':
+                    $information = $this->abilities_v2_action();
+                    break;
                 case 'get_root_files':
                     $this->get_root_files();
                     break;
@@ -316,6 +333,1110 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         }
         MainWP_Helper::write( $information );
     }
+
+    /**
+     * Decode one additive Time Capsule abilities-v2 request.
+     *
+     * @return array Closed protocol response.
+     */
+    private function abilities_v2_action() {
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Authenticated MainWP Child callable.
+        if ( ! isset( $_POST['request'] ) || ! is_string( $_POST['request'] ) ) {
+            return $this->abilities_v2_error( 'unknown' );
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Closed JSON is validated below.
+        $raw = wp_unslash( $_POST['request'] );
+        if ( '' === $raw || 65536 < strlen( $raw ) ) {
+            return $this->abilities_v2_error( 'unknown' );
+        }
+
+        return $this->abilities_v2( json_decode( $raw, true ) );
+    }
+
+    /**
+     * Process one side-effect-free Time Capsule abilities-v2 read.
+     *
+     * The legacy progress method can spawn cron and clear provider flags, so
+     * it is intentionally not reused by this read boundary.
+     *
+     * @param mixed $request Decoded request.
+     * @return array Closed protocol response.
+     */
+    // phpcs:disable Generic.Commenting.DocComment.MissingShort,Squiz.Commenting.FunctionComment,Generic.Formatting.MultipleStatementAlignment,WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound,WordPress.Arrays.MultipleStatementAlignment,WordPress.PHP.YodaConditions.NotYoda,WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Closed protocol block follows the legacy file's compact style.
+    public function abilities_v2( $request ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity.TooHigh -- Closed protocol dispatcher is easier to audit linearly.
+        $operation = is_array( $request ) && isset( $request['operation'] ) && is_string( $request['operation'] ) ? $request['operation'] : 'unknown';
+        $mutations = array( 'replace_policy', 'start_backup', 'cancel_operation', 'restore_backup', 'start_staging', 'delete_staging' );
+        $root_keys = in_array( $operation, $mutations, true ) ? array( 'protocol', 'operation', 'request_ref', 'payload' ) : array( 'protocol', 'operation', 'payload' );
+        if ( ! is_array( $request ) || ! $this->abilities_v2_exact_keys( $request, $root_keys ) || '2' !== ( isset( $request['protocol'] ) ? $request['protocol'] : null ) || ! isset( $request['payload'] ) || ! is_array( $request['payload'] ) ) {
+            return $this->abilities_v2_error( $operation );
+        }
+
+        if ( 'capabilities' === $operation ) {
+            if ( array() !== $request['payload'] ) {
+                return $this->abilities_v2_error( $operation );
+            }
+            $supported = $this->abilities_v2_supported_operations();
+            return array(
+                'protocol'           => '2',
+                'operation'          => 'capabilities',
+                'ok'                 => true,
+                'operations'         => $supported,
+                'mutation_supported' => array() !== array_intersect( $mutations, $supported ),
+            );
+        }
+        // Anything this Child cannot execute is refused by name, whether the protocol knows it or not.
+        if ( ! in_array( $operation, $this->abilities_v2_supported_operations(), true ) ) {
+            return $this->abilities_v2_error( $operation, 'unsupported_operation' );
+        }
+        if ( ! $this->abilities_v2_valid_payload( $operation, $request['payload'] ) ) {
+            return $this->abilities_v2_error( $operation );
+        }
+
+        if ( in_array( $operation, array( 'site', 'policy' ), true ) ) {
+            $config = $this->abilities_v2_config();
+            if ( ! is_object( $config ) || ! method_exists( $config, 'get_option' ) ) {
+                return $this->abilities_v2_error( $operation, 'provider_unavailable' );
+            }
+            return 'site' === $operation ? $this->abilities_v2_site( $config ) : $this->abilities_v2_policy( $config );
+        }
+
+        $is_mutation = in_array( $operation, $mutations, true );
+        $request_ref = null;
+        if ( $is_mutation ) {
+            if ( ! $this->abilities_v2_valid_request_ref( $request['request_ref'] ) ) {
+                return $this->abilities_v2_error( $operation );
+            }
+            // The reference is validated case-insensitively, so it has to be folded before it keys a receipt.
+            $request_ref = strtolower( $request['request_ref'] );
+        }
+
+        if ( ! $is_mutation ) {
+            return $this->abilities_v2_execute( $operation, $request['payload'], null, false );
+        }
+
+        // The receipt check, the provider effect and the operation-row write have to be one
+        // atomic step: without it two concurrent starts both read in_progress=false, both start
+        // a backup, and the second read-modify-write of the operations option loses the first row.
+        $lock = $this->abilities_v2_begin_mutation_lock();
+        if ( null === $lock ) {
+            return $this->abilities_v2_error( $operation, 'storage_unavailable' );
+        }
+        if ( true !== $lock ) {
+            return $this->abilities_v2_error( $operation, 'lock_busy' );
+        }
+        try {
+            return $this->abilities_v2_execute( $operation, $request['payload'], $request_ref, true );
+        } finally {
+            $this->abilities_v2_end_mutation_lock();
+        }
+    }
+
+    /**
+     * Execute one validated operation, under the mutation lock when it mutates.
+     *
+     * @param string      $operation   Operation name.
+     * @param array       $payload     Validated payload.
+     * @param string|null $request_ref Folded request reference, or null for reads.
+     * @param bool        $is_mutation Whether the operation mutates.
+     * @return array Closed protocol response.
+     */
+    private function abilities_v2_execute( $operation, $payload, $request_ref, $is_mutation ) {
+        $effect_hash = hash( 'sha256', wp_json_encode( array( $operation, $payload ) ) );
+        $receipts    = array();
+        if ( $is_mutation ) {
+            $receipts = get_option( 'mainwp_timecapsule_abilities_v2_receipts', array() );
+            if ( ! is_array( $receipts ) ) {
+                return $this->abilities_v2_error( $operation, 'storage_unavailable' );
+            }
+            // A key holding null is still evidence that something wrote a receipt for this
+            // reference, and isset() reads it as absent. Missing it starts a second backup.
+            if ( array_key_exists( $request_ref, $receipts ) ) {
+                $receipt = $receipts[ $request_ref ];
+                if ( ! $this->abilities_v2_valid_receipt( $receipt ) ) {
+                    return $this->abilities_v2_error( $operation, 'storage_unavailable' );
+                }
+                if ( ! hash_equals( $receipt['effect_hash'], $effect_hash ) ) {
+                    return $this->abilities_v2_error( $operation, 'request_conflict' );
+                }
+                if ( 'dispatching' !== $receipt['state'] ) {
+                    return $receipt['response'];
+                }
+                // A reservation nobody settled belongs to a request that died between the backup
+                // starting and its outcome reaching the store. That backup may still be running,
+                // so starting it again would run it twice and the outcome is unknown.
+                if ( $this->abilities_v2_reservation_is_live( $receipt['created_at'] ) ) {
+                    return $this->abilities_v2_error( $operation, 'outcome_unknown' );
+                }
+                // Past the horizon the reservation proves nothing: no Dashboard retry of it is
+                // still expected, and a reference that can only ever answer outcome_unknown is
+                // worse than a second backup. Retire it and let this request dispatch.
+                unset( $receipts[ $request_ref ] );
+            }
+
+            // Room has to exist before the provider is touched. A backup or restore this Child
+            // cannot record is one the Dashboard's next retry runs a second time.
+            $receipts = $this->abilities_v2_evict_receipts( $receipts );
+            if ( false === $receipts ) {
+                return $this->abilities_v2_error( $operation, 'storage_unavailable' );
+            }
+
+            // The reservation is durable before the provider runs, not after it. A request that
+            // dies with the backup already started - or one whose settling write is refused - has
+            // to leave its retry something to land on, or that retry starts a second backup.
+            $receipts[ $request_ref ] = array(
+                'effect_hash' => $effect_hash,
+                'state'       => 'dispatching',
+                'response'    => null,
+                'created_at'  => time(),
+            );
+            if ( ! $this->abilities_v2_store_receipts( $receipts ) ) {
+                return $this->abilities_v2_error( $operation, 'storage_unavailable' );
+            }
+        }
+
+        $response = $this->abilities_v2_dispatch_result( $operation, $payload, $request_ref, $is_mutation );
+        if ( ! $is_mutation ) {
+            return $response;
+        }
+
+        // A refusal is settled too. Leaving it unsettled would answer every retry of this
+        // reference outcome_unknown for a full day over a provider that never touched anything.
+        $receipts[ $request_ref ]['state']    = 'settled';
+        $receipts[ $request_ref ]['response'] = $response;
+        if ( ! $this->abilities_v2_store_receipts( $receipts ) ) {
+            return $this->abilities_v2_error( $operation, 'outcome_unknown' );
+        }
+        return $response;
+    }
+
+    /**
+     * Call the provider once and close whatever it answers into a protocol response.
+     *
+     * @param string      $operation   Operation name.
+     * @param array       $payload     Validated payload.
+     * @param string|null $request_ref Folded request reference, or null for reads.
+     * @param bool        $is_mutation Whether the operation mutates.
+     * @return array Closed protocol response.
+     */
+    private function abilities_v2_dispatch_result( $operation, $payload, $request_ref, $is_mutation ) {
+        try {
+            $result = $this->abilities_v2_provider_call( $operation, $payload );
+        } catch ( \Throwable $throwable ) {
+            return $this->abilities_v2_error( $operation, $is_mutation ? 'outcome_unknown' : 'provider_unavailable' );
+        }
+        if ( is_wp_error( $result ) ) {
+            $code = $result->get_error_code();
+            return $this->abilities_v2_error( $operation, in_array( $code, array( 'provider_unavailable', 'provider_schema_invalid', 'target_not_found', 'state_conflict', 'stale_generation', 'outcome_unknown', 'storage_unavailable' ), true ) ? $code : 'provider_unavailable' );
+        }
+        if ( ! $this->abilities_v2_valid_result( $operation, $result ) ) {
+            return $this->abilities_v2_error( $operation, 'provider_schema_invalid' );
+        }
+        return array_merge(
+            array(
+                'protocol'  => '2',
+                'operation' => $operation,
+                'ok'        => true,
+            ),
+            $is_mutation ? array( 'request_ref' => $request_ref ) : array(),
+            $result
+        );
+    }
+
+    /**
+     * Persist the mutation receipt store.
+     *
+     * A false answer from update_option() means either a refused write or one that changed
+     * nothing, so the stored value decides which of the two happened.
+     *
+     * @param array $receipts Receipts to store.
+     * @return bool
+     */
+    private function abilities_v2_store_receipts( $receipts ) {
+        return update_option( 'mainwp_timecapsule_abilities_v2_receipts', $receipts, false ) || get_option( 'mainwp_timecapsule_abilities_v2_receipts', array() ) === $receipts;
+    }
+
+    /**
+     * The moment before which no Dashboard retry of a request is still expected.
+     *
+     * @return int
+     */
+    private function abilities_v2_retry_horizon() {
+        return time() - ( DAY_IN_SECONDS + 60 );
+    }
+
+    /**
+     * Whether a stored stamp still stands for work a retry could collide with.
+     *
+     * A stamp this clock cannot date cannot be shown to be past anything, so it holds its entry
+     * open rather than releasing it. wp-rocket reads an undatable stamp the other way and retires
+     * it; there the retired reference re-queues a cleanup, here it would start a second backup. A
+     * host clock that stepped backwards past the skew allowance would otherwise turn every entry
+     * in the store into spare capacity at once.
+     *
+     * @param int $created_at Stored stamp from a validated entry.
+     * @return bool
+     */
+    private function abilities_v2_reservation_is_live( $created_at ) {
+        return $created_at > time() + self::ABILITIES_V2_CLOCK_SKEW || $created_at >= $this->abilities_v2_retry_horizon();
+    }
+
+    /**
+     * Validate one stored mutation receipt.
+     *
+     * The store is a WordPress option, so every entry is untrusted input. An effect hash that is
+     * merely a string cannot be told apart from a hand-written placeholder, so the real shape is
+     * pinned here; entries written by an older build carry no state and are read as unreadable.
+     *
+     * @param mixed $receipt Stored receipt.
+     * @return bool
+     */
+    private function abilities_v2_valid_receipt( $receipt ) {
+        if ( ! is_array( $receipt ) || ! $this->abilities_v2_exact_keys( $receipt, array( 'effect_hash', 'state', 'response', 'created_at' ) ) ) {
+            return false;
+        }
+        if ( ! is_string( $receipt['effect_hash'] ) || 1 !== preg_match( '/^[0-9a-f]{64}$/D', $receipt['effect_hash'] ) || ! is_int( $receipt['created_at'] ) ) {
+            return false;
+        }
+        if ( 'dispatching' === $receipt['state'] ) {
+            return null === $receipt['response'];
+        }
+        return 'settled' === $receipt['state'] && is_array( $receipt['response'] );
+    }
+
+    /**
+     * Free one receipt slot without discarding an outcome a retry could still ask for.
+     *
+     * The created_at stamp is written once and never restamped, so a full store crosses the
+     * horizon on its own and starts accepting writes again without an operator touching anything.
+     *
+     * @param array $receipts Current receipts.
+     * @return array|false Receipts with room for one more, or false when nothing can be given up.
+     */
+    private function abilities_v2_evict_receipts( $receipts ) {
+        if ( self::ABILITIES_V2_MAX_RECEIPTS > count( $receipts ) ) {
+            return $receipts;
+        }
+        $repaired  = false;
+        $evictable = array();
+        foreach ( $receipts as $reference => $receipt ) {
+            if ( ! $this->abilities_v2_valid_request_ref( $reference ) || strtolower( $reference ) !== $reference ) {
+                // No request can present a reference this store would refuse, so nothing will ever
+                // come back for this entry. It is evidence for nobody, and dropping it is what
+                // keeps a store of junk keys from holding every later mutation shut. Array keys are
+                // not always strings either, so this is also what stops one being compared as one.
+                // A reference is folded to lowercase before it keys a receipt here, so an uppercase
+                // key is equally unreachable however well formed it looks: every lookup folds first.
+                $evictable[ $reference ] = 0;
+                continue;
+            }
+            if ( ! $this->abilities_v2_valid_receipt( $receipt ) ) {
+                // An entry nobody can read is still evidence that something wrote a receipt for
+                // that reference, so its backup or restore may already have run. Giving it up to
+                // make room for an unrelated request is how a reference loses its only evidence
+                // and runs a second time on its next retry. Rebuilt as a tombstone it keeps
+                // failing the receipt check, so its own reference still answers
+                // storage_unavailable, while gaining a date this store can act on.
+                // Rebuilding it and keeping the result only when it differs makes the builder the
+                // single definition of a tombstone. A separate "is this already a tombstone"
+                // check would be a second definition, and the two drifting apart is how an entry
+                // with an impossible stamp gets treated as sound and holds the store shut.
+                $rebuilt = $this->abilities_v2_tombstone_record( $receipt );
+                if ( $rebuilt !== $receipt ) {
+                    $receipts[ $reference ] = $rebuilt;
+                    $repaired               = true;
+                }
+                $receipt = $rebuilt;
+            }
+            // A stamp ahead of this clock can never be shown to be past the horizon, so an entry
+            // carrying one would sit here forever and, once the store is full, refuse every later
+            // mutation from then on. It is re-dated rather than dropped or held: dropping it
+            // would lose evidence a retry still needs, while re-dating only ever extends the
+            // window it is protected for. It happens once, because the write below leaves a stamp
+            // this clock can date.
+            if ( $receipt['created_at'] > time() + self::ABILITIES_V2_CLOCK_SKEW ) {
+                $receipt['created_at']  = time();
+                $receipts[ $reference ] = $receipt;
+                $repaired               = true;
+            }
+            // Eviction may only give up an entry it can prove is past the retry horizon, which is
+            // the same question a replay asks of a reservation. Asking it once is what stops
+            // eviction from dropping an entry a retry would still have been answered from.
+            if ( ! $this->abilities_v2_reservation_is_live( $receipt['created_at'] ) ) {
+                $evictable[ $reference ] = $receipt['created_at'];
+            }
+        }
+        asort( $evictable, SORT_NUMERIC );
+        foreach ( array_keys( $evictable ) as $reference ) {
+            if ( self::ABILITIES_V2_MAX_RECEIPTS > count( $receipts ) ) {
+                break;
+            }
+            unset( $receipts[ $reference ] );
+        }
+        // A tombstone is stamped at first observation, so a repair left unpersisted is stamped
+        // again on every request and can never grow old enough to be given up - a store of damaged
+        // entries would then refuse every mutation forever with no way out. Writing it here
+        // freezes those stamps and lets the entries cross the horizon on their own.
+        if ( $repaired && ! $this->abilities_v2_store_receipts( $receipts ) ) {
+            return false;
+        }
+        return self::ABILITIES_V2_MAX_RECEIPTS > count( $receipts ) ? $receipts : false;
+    }
+
+    /**
+     * Rebuild one unreadable entry as a dated tombstone under the same reference.
+     *
+     * Keeping the reference is what stops its retry from starting a second backup. What the
+     * damaged entry no longer proves is the outcome, so nothing about the effect survives: no
+     * effect hash a request could match, and no response to replay. Its own stamp is kept where
+     * it still reads, so an entry written by an older build ages out on the date it was written
+     * rather than on the date this store first failed to read it. A stamp this clock cannot date
+     * is replaced instead: keeping it would leave an entry no clock ever passes, and one of those
+     * in a full store refuses every mutation from then on with nothing an operator can do.
+     *
+     * @param mixed $receipt Unreadable entry.
+     * @return array Dated tombstone.
+     */
+    private function abilities_v2_tombstone_record( $receipt ) {
+        $now = time();
+        return array(
+            'effect_hash' => str_repeat( '0', 64 ),
+            'state'       => 'unreadable',
+            'response'    => null,
+            'created_at'  => is_array( $receipt ) && isset( $receipt['created_at'] ) && is_int( $receipt['created_at'] ) && 0 < $receipt['created_at'] && $now >= $receipt['created_at'] ? $receipt['created_at'] : $now,
+        );
+    }
+
+    /**
+     * List the operations this Child can actually execute.
+     *
+     * Restore and staging mutations have no Child-side adapter: they are part of
+     * the protocol but nothing here can carry them out, so they are neither
+     * advertised nor dispatched. A build that wires them extends this list.
+     *
+     * @return array Executable operation names.
+     */
+    protected function abilities_v2_supported_operations() {
+        return array( 'site', 'policy', 'list_backups', 'operation_status', 'preview_restore', 'list_staging', 'replace_policy', 'start_backup', 'cancel_operation' );
+    }
+
+    /**
+     * Return this installation's named Time Capsule mutation lock.
+     *
+     * @return string Lock name.
+     */
+    protected function abilities_v2_lock_name() {
+        return 'mainwp_timecapsule_v2_' . substr( hash( 'sha256', home_url( '/' ) ), 0, 32 );
+    }
+
+    /**
+     * Acquire the Child-wide Time Capsule mutation lock without waiting.
+     *
+     * @return bool|null True when acquired, false when another session holds it, null when the lock backend could not answer.
+     */
+    protected function abilities_v2_begin_mutation_lock() {
+        global $wpdb;
+        if ( ! is_object( $wpdb ) || ! is_callable( array( $wpdb, 'prepare' ) ) || ! is_callable( array( $wpdb, 'get_var' ) ) ) {
+            return null;
+        }
+        $wpdb->last_error = '';
+        $locked           = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,0)', $this->abilities_v2_lock_name() ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Named lock is the serialization primitive.
+        if ( ! empty( $wpdb->last_error ) ) {
+            return null;
+        }
+        if ( '1' === (string) $locked ) {
+            return true;
+        }
+        // Only '0' means someone else holds it. GET_LOCK() answers NULL on an error or an
+        // interrupted wait, which says nothing about who holds the lock, so it is not reported
+        // as contention the Child never observed.
+        return '0' === (string) $locked ? false : null;
+    }
+
+    /**
+     * Release the Child-wide Time Capsule mutation lock.
+     *
+     * @return bool Whether the lock was released.
+     */
+    protected function abilities_v2_end_mutation_lock() {
+        global $wpdb;
+        if ( ! is_object( $wpdb ) || ! is_callable( array( $wpdb, 'prepare' ) ) || ! is_callable( array( $wpdb, 'get_var' ) ) ) {
+            return false;
+        }
+        // A lock this session fails to give back outlives the request on a persistent connection
+        // and blocks every later mutation with no way for an operator to clear it, so one failed
+        // release earns a second attempt before it is given up on.
+        for ( $attempt = 0; $attempt < 2; $attempt++ ) {
+            $wpdb->last_error = '';
+            $released         = $wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $this->abilities_v2_lock_name() ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Named lock release must be checked.
+            // RELEASE_LOCK() answers NULL when the named lock does not exist, which is the state
+            // the caller asked for.
+            if ( empty( $wpdb->last_error ) && ( null === $released || '1' === (string) $released ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Execute one typed provider operation.
+     *
+     * Mutating provider integrations override this narrow boundary in tests.
+     * Production supports the policy and backup primitives that can be invoked
+     * without the legacy JSON/die response handlers; unsupported provider
+     * versions fail closed during staged rollout.
+     *
+     * @param string $operation Operation name.
+     * @param array  $payload   Closed payload.
+     * @return array|WP_Error
+     */
+    protected function abilities_v2_provider_call( $operation, $payload ) {
+        if ( 'replace_policy' === $operation ) {
+            return $this->abilities_v2_provider_replace_policy( $payload );
+        }
+        if ( 'list_backups' === $operation ) {
+            return $this->abilities_v2_provider_list_backups( $payload );
+        }
+        if ( 'start_backup' === $operation ) {
+            return $this->abilities_v2_provider_start_backup( $payload );
+        }
+        if ( 'operation_status' === $operation ) {
+            return $this->abilities_v2_provider_operation_status( $payload['operation_ref'] );
+        }
+        if ( 'cancel_operation' === $operation ) {
+            return $this->abilities_v2_provider_cancel_operation( $payload );
+        }
+        if ( 'preview_restore' === $operation ) {
+            return $this->abilities_v2_provider_preview_restore( $payload );
+        }
+        if ( 'list_staging' === $operation ) {
+            return $this->abilities_v2_provider_list_staging( $payload );
+        }
+        return new \WP_Error( 'provider_unavailable' );
+    }
+
+    /** @param array $payload Closed policy payload. @return array|WP_Error */
+    private function abilities_v2_provider_replace_policy( $payload ) {
+        $config = $this->abilities_v2_config();
+        if ( ! is_object( $config ) || ! method_exists( $config, 'get_option' ) || ! method_exists( $config, 'set_option' ) ) {
+            return new \WP_Error( 'provider_unavailable' );
+        }
+        $current = $this->abilities_v2_policy( $config );
+        if ( false === $current['ok'] || ! hash_equals( $current['policy_generation'], $payload['if_match'] ) ) {
+            return new \WP_Error( false === $current['ok'] ? $current['code'] : 'stale_generation' );
+        }
+
+        $old = array(
+            'schedule_time_str'            => $config->get_option( 'schedule_time_str' ),
+            'revision_limit'               => $config->get_option( 'revision_limit' ),
+            'backup_before_update_setting' => $config->get_option( 'backup_before_update_setting' ),
+        );
+        $new = array(
+            'schedule_time_str'            => $payload['schedule_time'],
+            'revision_limit'               => (string) $payload['retention_days'],
+            'backup_before_update_setting' => $payload['backup_before_update'] ? 'always' : false,
+        );
+        foreach ( $new as $key => $value ) {
+            $config->set_option( $key, $value );
+        }
+        foreach ( $new as $key => $value ) {
+            if ( $config->get_option( $key ) !== $value ) {
+                foreach ( $old as $old_key => $old_value ) {
+                    $config->set_option( $old_key, $old_value );
+                }
+                foreach ( $old as $old_key => $old_value ) {
+                    if ( $config->get_option( $old_key ) !== $old_value ) {
+                        return new \WP_Error( 'outcome_unknown' );
+                    }
+                }
+                return new \WP_Error( 'storage_unavailable' );
+            }
+        }
+
+        $updated = $this->abilities_v2_policy( $config );
+        if ( false === $updated['ok'] ) {
+            return new \WP_Error( 'outcome_unknown' );
+        }
+        return array(
+            'policy_generation' => $updated['policy_generation'],
+            'scheduled_change'   => $old !== $new,
+        );
+    }
+
+    /** @param array $payload Closed inventory payload. @return array|WP_Error */
+    private function abilities_v2_provider_list_backups( $payload ) {
+        $rows = $this->abilities_v2_backup_rows();
+        if ( is_wp_error( $rows ) ) {
+            return $rows;
+        }
+        $offset = 0;
+        if ( null !== $payload['after_backup_ref'] ) {
+            $offset = null;
+            foreach ( $rows as $index => $row ) {
+                if ( hash_equals( $row['backup_ref'], $payload['after_backup_ref'] ) ) {
+                    $offset = $index + 1;
+                    break;
+                }
+            }
+            if ( null === $offset ) {
+                return new \WP_Error( 'target_not_found' );
+            }
+        }
+        $page      = array_slice( $rows, $offset, $payload['limit'] );
+        $truncated = count( $rows ) > $offset + count( $page );
+        return array(
+            'backups'               => $page,
+            'snapshot_generation'   => hash( 'sha256', wp_json_encode( $rows ) ),
+            'next_after_backup_ref' => $truncated && ! empty( $page ) ? $page[ count( $page ) - 1 ]['backup_ref'] : null,
+            'truncated'             => $truncated,
+        );
+    }
+
+    /** @param array $payload Closed backup intent. @return array|WP_Error */
+    private function abilities_v2_provider_start_backup( $payload ) {
+        if ( 'full' !== $payload['scope'] ) {
+            return new \WP_Error( 'state_conflict' );
+        }
+        $config  = $this->abilities_v2_config();
+        $current = is_object( $config ) ? $this->abilities_v2_policy( $config ) : $this->abilities_v2_error( 'policy', 'provider_unavailable' );
+        if ( false === $current['ok'] || ! hash_equals( $current['policy_generation'], $payload['policy_generation'] ) ) {
+            return new \WP_Error( false === $current['ok'] ? $current['code'] : 'stale_generation' );
+        }
+        if ( true === $this->abilities_v2_boolean( $config->get_option( 'in_progress' ) ) ) {
+            return new \WP_Error( 'state_conflict' );
+        }
+
+        $started_at    = time();
+        $operation_ref = hash( 'sha256', wp_generate_uuid4() . '|' . $started_at . '|' . wp_salt( 'auth' ) );
+        $result        = $this->start_fresh_backup_tc_callback_wptc();
+        if ( ! is_array( $result ) || array( 'result' => 'success' ) !== $result ) {
+            return new \WP_Error( 'outcome_unknown' );
+        }
+        $in_progress = $this->abilities_v2_boolean( $config->get_option( 'in_progress' ) );
+        if ( null === $in_progress ) {
+            return new \WP_Error( 'outcome_unknown' );
+        }
+        $row = array(
+            'operation_ref'   => $operation_ref,
+            'kind'            => 'backup',
+            'state'           => $in_progress ? 'running' : 'reconciliation_required',
+            'progress_percent' => 0,
+            'started_at'      => gmdate( 'Y-m-d\TH:i:s\Z', $started_at ),
+            'finished_at'     => null,
+            'result_ref'      => null,
+        );
+        $row['generation'] = hash( 'sha256', wp_json_encode( $row ) );
+        if ( ! $this->abilities_v2_store_operation( $row ) ) {
+            return new \WP_Error( 'outcome_unknown' );
+        }
+        return array( 'operation_ref' => $operation_ref, 'state' => $row['state'], 'scope' => 'full' );
+    }
+
+    /** @param string $operation_ref Operation reference. @return array|WP_Error */
+    private function abilities_v2_provider_operation_status( $operation_ref ) {
+        $operations = get_option( 'mainwp_timecapsule_abilities_v2_operations', array() );
+        if ( ! is_array( $operations ) ) {
+            return new \WP_Error( 'storage_unavailable' );
+        }
+        if ( ! isset( $operations[ $operation_ref ] ) || ! $this->abilities_v2_valid_operation_row( $operations[ $operation_ref ] ) ) {
+            return new \WP_Error( isset( $operations[ $operation_ref ] ) ? 'storage_unavailable' : 'target_not_found' );
+        }
+        $row = $operations[ $operation_ref ];
+        if ( 'backup' === $row['kind'] && in_array( $row['state'], array( 'running', 'reconciliation_required' ), true ) ) {
+            $config      = $this->abilities_v2_config();
+            $in_progress = is_object( $config ) ? $this->abilities_v2_boolean( $config->get_option( 'in_progress' ) ) : null;
+            if ( null === $in_progress ) {
+                return new \WP_Error( 'provider_schema_invalid' );
+            }
+            if ( ! $in_progress ) {
+                // Time Capsule keeps no per-operation outcome: last_backup_time is site-wide, so any
+                // parallel backup would satisfy a "finished after we started" comparison. Nothing here
+                // can tell this operation's success from another's, and the finish time is unknown.
+                // Derived on read only - a read must not write the operations option.
+                $row['state']      = 'uncertain';
+                $row['result_ref'] = null;
+                $row['generation'] = hash( 'sha256', wp_json_encode( array_diff_key( $row, array( 'generation' => true ) ) ) );
+            }
+        }
+        return $row;
+    }
+
+    /** @param array $payload Closed cancellation intent. @return array|WP_Error */
+    private function abilities_v2_provider_cancel_operation( $payload ) {
+        $row = $this->abilities_v2_provider_operation_status( $payload['operation_ref'] );
+        if ( is_wp_error( $row ) ) {
+            return $row;
+        }
+        if ( ! hash_equals( $row['generation'], $payload['if_match'] ) ) {
+            return new \WP_Error( 'stale_generation' );
+        }
+        if ( 'backup' !== $row['kind'] || ! in_array( $row['state'], array( 'running', 'reconciliation_required' ), true ) ) {
+            return new \WP_Error( 'state_conflict' );
+        }
+        $result = $this->stop_fresh_backup_tc_callback_wptc();
+        $config = $this->abilities_v2_config();
+        if ( ! is_array( $result ) || array( 'result' => 'ok' ) !== $result || ! is_object( $config ) || false !== $this->abilities_v2_boolean( $config->get_option( 'in_progress' ) ) ) {
+            return new \WP_Error( 'outcome_unknown' );
+        }
+        $row['state']            = 'cancelled';
+        $row['progress_percent'] = 0;
+        $row['finished_at']      = gmdate( 'Y-m-d\TH:i:s\Z' );
+        $row['generation']       = hash( 'sha256', wp_json_encode( array_diff_key( $row, array( 'generation' => true ) ) ) );
+        if ( ! $this->abilities_v2_store_operation( $row ) ) {
+            return new \WP_Error( 'outcome_unknown' );
+        }
+        return array( 'operation_ref' => $row['operation_ref'], 'state' => 'cancelled', 'quiescent' => true );
+    }
+
+    /** @param array $payload Closed restore preview. @return array|WP_Error */
+    private function abilities_v2_provider_preview_restore( $payload ) {
+        $raw = $this->abilities_v2_resolve_backup_ref( $payload['backup_ref'] );
+        if ( is_wp_error( $raw ) ) {
+            return $raw;
+        }
+        $generation = hash( 'sha256', $payload['backup_ref'] . '|' . $raw );
+        if ( ! hash_equals( $generation, $payload['backup_generation'] ) ) {
+            return new \WP_Error( 'stale_generation' );
+        }
+        // No preview token is minted: restore_backup has no Child-side adapter, so nothing could ever
+        // redeem one. Time Capsule exposes no per-backup table manifest, so table_count stays unknown.
+        return array(
+            'preview_token'     => null,
+            'expires_at'        => null,
+            'backup_ref'        => $payload['backup_ref'],
+            'scope'             => $payload['scope'],
+            'file_count'        => $this->abilities_v2_processed_file_count( $raw ),
+            'table_count'       => null,
+            'overwrite_expected' => true,
+            'preflight'         => 'blocked',
+        );
+    }
+
+    /** @param string $raw_id Provider backup identity. @return int|null Processed files, or null when the provider table cannot answer. */
+    private function abilities_v2_processed_file_count( $raw_id ) {
+        global $wpdb;
+
+        // The count doubles as the existence check. SHOW TABLES cannot serve here: it never lists
+        // temporary tables, so it answers "absent" for a table the very next query reads fine.
+        // A query error means the preview cannot answer, which is not the same as counting zero files.
+        $suppress         = $wpdb->suppress_errors( true );
+        $wpdb->last_error = '';
+        $count            = $wpdb->get_var( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Provider-owned table, count changes with every backup run.
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->base_prefix}wptc_processed_files WHERE backupID = %d",
+                (int) $raw_id
+            )
+        );
+        $failed = '' !== $wpdb->last_error;
+        $wpdb->suppress_errors( $suppress );
+
+        return $failed || null === $count ? null : (int) $count;
+    }
+
+    /** @param array $payload Closed staging inventory request. @return array|WP_Error */
+    private function abilities_v2_provider_list_staging( $payload ) {
+        if ( ! class_exists( '\\WPTC_Pro_Factory' ) ) {
+            return new \WP_Error( 'provider_unavailable' );
+        }
+        $staging = \WPTC_Pro_Factory::get( 'Wptc_Staging' );
+        if ( ! is_object( $staging ) || ! method_exists( $staging, 'get_staging_details' ) ) {
+            return new \WP_Error( 'provider_unavailable' );
+        }
+        $details = $staging->get_staging_details();
+        if ( array() === $details ) {
+            $rows = array();
+        } elseif ( ! is_array( $details ) || ! isset( $details['staging_folder'], $details['db_prefix'], $details['timestamp'] ) || ! is_string( $details['staging_folder'] ) || '' === $details['staging_folder'] || ! is_string( $details['db_prefix'] ) || '' === $details['db_prefix'] || ! $this->abilities_v2_timestamp( $details['timestamp'] ) ) {
+            return new \WP_Error( 'provider_schema_invalid' );
+        } else {
+            $clone_ref = hash_hmac( 'sha256', $details['staging_folder'] . '|' . $details['db_prefix'], wp_salt( 'auth' ) );
+            $row       = array(
+                'clone_ref'          => $clone_ref,
+                'state'              => method_exists( $staging, 'is_any_staging_process_going_on' ) && $staging->is_any_staging_process_going_on() ? 'creating' : 'ready',
+                'created_at'         => gmdate( 'Y-m-d\TH:i:s\Z', (int) $details['timestamp'] ),
+                'registered_site_id' => null,
+                'isolated'           => true,
+            );
+            $row['generation'] = hash( 'sha256', wp_json_encode( $row ) );
+            $rows              = array( $row );
+        }
+        if ( null !== $payload['after_clone_ref'] ) {
+            if ( empty( $rows ) || ! hash_equals( $rows[0]['clone_ref'], $payload['after_clone_ref'] ) ) {
+                return new \WP_Error( 'target_not_found' );
+            }
+            $rows = array();
+        }
+        return array(
+            'clones'               => array_slice( $rows, 0, $payload['limit'] ),
+            'snapshot_generation'  => hash( 'sha256', wp_json_encode( $rows ) ),
+            'next_after_clone_ref' => null,
+            'truncated'            => false,
+        );
+    }
+
+    /** @return array|WP_Error Complete redacted backup rows. */
+    private function abilities_v2_backup_rows() {
+        $backups = $this->get_backups( 1 );
+        if ( ! is_array( $backups ) || 10000 < count( $backups ) ) {
+            return new \WP_Error( 'provider_schema_invalid' );
+        }
+        $raw_ids = array();
+        foreach ( $backups as $backup ) {
+            $row = (array) $backup;
+            if ( ! $this->abilities_v2_exact_keys( $row, array( 'backupID' ) ) || ! $this->abilities_v2_timestamp( $row['backupID'] ) ) {
+                return new \WP_Error( 'provider_schema_invalid' );
+            }
+            $raw_ids[ (string) (int) $row['backupID'] ] = (int) $row['backupID'];
+        }
+        rsort( $raw_ids, SORT_NUMERIC );
+        $rows = array();
+        foreach ( $raw_ids as $raw_id ) {
+            $backup_ref = $this->abilities_v2_backup_ref( (string) $raw_id );
+            $rows[]     = array(
+                'backup_ref' => $backup_ref,
+                'created_at' => gmdate( 'Y-m-d\TH:i:s\Z', $raw_id ),
+                'state'      => 'verified',
+                'scope'      => 'full',
+                'size_bytes' => null,
+                'generation' => hash( 'sha256', $backup_ref . '|' . $raw_id ),
+            );
+        }
+        return $rows;
+    }
+
+    /** @param string $raw_id Provider backup identity. @return string */
+    private function abilities_v2_backup_ref( $raw_id ) {
+        return hash_hmac( 'sha256', 'timecapsule-backup-v2|' . $raw_id, wp_salt( 'auth' ) );
+    }
+
+    /** @param string $backup_ref Opaque backup reference. @return string|WP_Error */
+    private function abilities_v2_resolve_backup_ref( $backup_ref ) {
+        $backups = $this->get_backups( 1 );
+        if ( ! is_array( $backups ) || 10000 < count( $backups ) ) {
+            return new \WP_Error( 'provider_schema_invalid' );
+        }
+        $match = null;
+        foreach ( $backups as $backup ) {
+            $row = (array) $backup;
+            if ( ! $this->abilities_v2_exact_keys( $row, array( 'backupID' ) ) || ! $this->abilities_v2_timestamp( $row['backupID'] ) ) {
+                return new \WP_Error( 'provider_schema_invalid' );
+            }
+            $raw = (string) (int) $row['backupID'];
+            if ( hash_equals( $this->abilities_v2_backup_ref( $raw ), $backup_ref ) ) {
+                if ( null !== $match ) {
+                    return new \WP_Error( 'provider_schema_invalid' );
+                }
+                $match = $raw;
+            }
+        }
+        return null === $match ? new \WP_Error( 'target_not_found' ) : $match;
+    }
+
+    /** @param array $row Closed operation row. @return bool */
+    private function abilities_v2_store_operation( $row ) {
+        if ( ! $this->abilities_v2_valid_operation_row( $row ) ) {
+            return false;
+        }
+        $operations = get_option( 'mainwp_timecapsule_abilities_v2_operations', array() );
+        if ( ! is_array( $operations ) ) {
+            return false;
+        }
+        $operations[ $row['operation_ref'] ] = $row;
+        return update_option( 'mainwp_timecapsule_abilities_v2_operations', $operations, false ) || $operations === get_option( 'mainwp_timecapsule_abilities_v2_operations', array() );
+    }
+
+    /** @param mixed $row Candidate operation row. @return bool */
+    private function abilities_v2_valid_operation_row( $row ) {
+        return is_array( $row )
+            && $this->abilities_v2_exact_keys( $row, array( 'operation_ref', 'kind', 'state', 'progress_percent', 'started_at', 'finished_at', 'result_ref', 'generation' ) )
+            && $this->abilities_v2_valid_hash( $row['operation_ref'] )
+            && in_array( $row['kind'], array( 'backup', 'restore', 'staging_create', 'staging_delete' ), true )
+            && in_array( $row['state'], array( 'queued', 'running', 'verifying', 'succeeded', 'failed', 'cancelled', 'uncertain', 'reconciliation_required' ), true )
+            && is_int( $row['progress_percent'] ) && 0 <= $row['progress_percent'] && 100 >= $row['progress_percent']
+            && $this->abilities_v2_valid_date( $row['started_at'] )
+            && $this->abilities_v2_valid_date( $row['finished_at'] )
+            && ( null === $row['result_ref'] || $this->abilities_v2_valid_hash( $row['result_ref'] ) )
+            && $this->abilities_v2_valid_hash( $row['generation'] );
+    }
+
+    /** @param string $value Candidate reference. @return bool */
+    private function abilities_v2_valid_hash( $value ) {
+        return is_string( $value ) && 1 === preg_match( '/^[a-f0-9]{64}$/D', $value );
+    }
+
+    /** @param string $value Candidate request reference. @return bool */
+    private function abilities_v2_valid_request_ref( $value ) {
+        return is_string( $value ) && 1 === preg_match( '/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/Di', $value );
+    }
+
+    /** @param mixed $value Candidate date. @return bool */
+    private function abilities_v2_valid_date( $value ) {
+        if ( null === $value ) {
+            return true;
+        }
+        return is_string( $value ) && false !== strtotime( $value ) && gmdate( 'Y-m-d\TH:i:s\Z', strtotime( $value ) ) === $value;
+    }
+
+    /**
+     * Validate one exact operation payload.
+     *
+     * @param string $operation Operation name.
+     * @param array  $payload   Payload.
+     * @return bool
+     */
+    private function abilities_v2_valid_payload( $operation, $payload ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity.TooHigh -- Closed schema table.
+        if ( in_array( $operation, array( 'site', 'policy' ), true ) ) {
+            return array() === $payload;
+        }
+        if ( 'replace_policy' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'schedule_time', 'retention_days', 'backup_before_update', 'if_match' ) ) && is_string( $payload['schedule_time'] ) && 1 === preg_match( '/^(1[0-2]|[1-9]):00 [ap]m$/D', $payload['schedule_time'] ) && $this->abilities_v2_integer( $payload['retention_days'], 3, 365 ) && is_bool( $payload['backup_before_update'] ) && $this->abilities_v2_valid_hash( $payload['if_match'] );
+        }
+        if ( 'list_backups' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'limit', 'after_backup_ref' ) ) && is_int( $payload['limit'] ) && 1 <= $payload['limit'] && 100 >= $payload['limit'] && ( null === $payload['after_backup_ref'] || $this->abilities_v2_valid_hash( $payload['after_backup_ref'] ) );
+        }
+        if ( 'start_backup' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'scope', 'label', 'policy_generation' ) ) && in_array( $payload['scope'], array( 'full', 'database', 'files' ), true ) && ( null === $payload['label'] || ( is_string( $payload['label'] ) && 100 >= strlen( $payload['label'] ) ) ) && $this->abilities_v2_valid_hash( $payload['policy_generation'] );
+        }
+        if ( 'operation_status' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'operation_ref' ) ) && $this->abilities_v2_valid_hash( $payload['operation_ref'] );
+        }
+        if ( 'cancel_operation' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'operation_ref', 'if_match' ) ) && $this->abilities_v2_valid_hash( $payload['operation_ref'] ) && $this->abilities_v2_valid_hash( $payload['if_match'] );
+        }
+        if ( 'preview_restore' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'backup_ref', 'backup_generation', 'scope' ) ) && $this->abilities_v2_valid_hash( $payload['backup_ref'] ) && $this->abilities_v2_valid_hash( $payload['backup_generation'] ) && in_array( $payload['scope'], array( 'full', 'database', 'files' ), true );
+        }
+        if ( 'restore_backup' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'backup_ref', 'backup_generation', 'scope', 'preview_token' ) ) && $this->abilities_v2_valid_hash( $payload['backup_ref'] ) && $this->abilities_v2_valid_hash( $payload['backup_generation'] ) && in_array( $payload['scope'], array( 'full', 'database', 'files' ), true ) && is_string( $payload['preview_token'] ) && 1 === preg_match( '/^[A-Za-z0-9_-]{43,128}$/D', $payload['preview_token'] );
+        }
+        if ( 'list_staging' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'limit', 'after_clone_ref' ) ) && is_int( $payload['limit'] ) && 1 <= $payload['limit'] && 50 >= $payload['limit'] && ( null === $payload['after_clone_ref'] || $this->abilities_v2_valid_hash( $payload['after_clone_ref'] ) );
+        }
+        if ( 'start_staging' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'label', 'register_in_mainwp', 'settings_generation' ) ) && is_string( $payload['label'] ) && '' !== $payload['label'] && 100 >= strlen( $payload['label'] ) && is_bool( $payload['register_in_mainwp'] ) && $this->abilities_v2_valid_hash( $payload['settings_generation'] );
+        }
+        if ( 'delete_staging' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'clone_ref', 'clone_generation' ) ) && $this->abilities_v2_valid_hash( $payload['clone_ref'] ) && $this->abilities_v2_valid_hash( $payload['clone_generation'] );
+        }
+        return false;
+    }
+
+    /**
+     * Validate one exact typed provider result.
+     *
+     * @param string $operation Operation name.
+     * @param mixed  $result    Provider result.
+     * @return bool
+     */
+    private function abilities_v2_valid_result( $operation, $result ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity.TooHigh -- Closed schema table.
+        if ( ! is_array( $result ) ) {
+            return false;
+        }
+        if ( 'replace_policy' === $operation ) {
+            return $this->abilities_v2_exact_keys( $result, array( 'policy_generation', 'scheduled_change' ) ) && $this->abilities_v2_valid_hash( $result['policy_generation'] ) && is_bool( $result['scheduled_change'] );
+        }
+        if ( 'list_backups' === $operation ) {
+            if ( ! $this->abilities_v2_exact_keys( $result, array( 'backups', 'snapshot_generation', 'next_after_backup_ref', 'truncated' ) ) || ! is_array( $result['backups'] ) || 100 < count( $result['backups'] ) || ! $this->abilities_v2_valid_hash( $result['snapshot_generation'] ) || ( null !== $result['next_after_backup_ref'] && ! $this->abilities_v2_valid_hash( $result['next_after_backup_ref'] ) ) || ! is_bool( $result['truncated'] ) ) {
+                return false;
+            }
+            foreach ( $result['backups'] as $row ) {
+                if ( ! is_array( $row ) || ! $this->abilities_v2_exact_keys( $row, array( 'backup_ref', 'created_at', 'state', 'scope', 'size_bytes', 'generation' ) ) || ! $this->abilities_v2_valid_hash( $row['backup_ref'] ) || ! $this->abilities_v2_valid_date( $row['created_at'] ) || ! in_array( $row['state'], array( 'verified', 'incomplete', 'unavailable' ), true ) || ! in_array( $row['scope'], array( 'full', 'database', 'files' ), true ) || ( null !== $row['size_bytes'] && ( ! is_int( $row['size_bytes'] ) || 0 > $row['size_bytes'] ) ) || ! $this->abilities_v2_valid_hash( $row['generation'] ) ) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        if ( 'start_backup' === $operation ) {
+            return $this->abilities_v2_exact_keys( $result, array( 'operation_ref', 'state', 'scope' ) ) && $this->abilities_v2_valid_hash( $result['operation_ref'] ) && in_array( $result['state'], array( 'queued', 'running', 'reconciliation_required' ), true ) && in_array( $result['scope'], array( 'full', 'database', 'files' ), true );
+        }
+        if ( 'operation_status' === $operation ) {
+            return $this->abilities_v2_exact_keys( $result, array( 'operation_ref', 'kind', 'state', 'progress_percent', 'started_at', 'finished_at', 'result_ref', 'generation' ) ) && $this->abilities_v2_valid_hash( $result['operation_ref'] ) && in_array( $result['kind'], array( 'backup', 'restore', 'staging_create', 'staging_delete' ), true ) && in_array( $result['state'], array( 'queued', 'running', 'verifying', 'succeeded', 'failed', 'cancelled', 'uncertain', 'reconciliation_required' ), true ) && is_int( $result['progress_percent'] ) && 0 <= $result['progress_percent'] && 100 >= $result['progress_percent'] && $this->abilities_v2_valid_date( $result['started_at'] ) && $this->abilities_v2_valid_date( $result['finished_at'] ) && ( null === $result['result_ref'] || $this->abilities_v2_valid_hash( $result['result_ref'] ) ) && $this->abilities_v2_valid_hash( $result['generation'] );
+        }
+        if ( 'cancel_operation' === $operation ) {
+            return $this->abilities_v2_exact_keys( $result, array( 'operation_ref', 'state', 'quiescent' ) ) && $this->abilities_v2_valid_hash( $result['operation_ref'] ) && in_array( $result['state'], array( 'running', 'cancelled', 'reconciliation_required' ), true ) && is_bool( $result['quiescent'] );
+        }
+        if ( 'preview_restore' === $operation ) {
+            if ( ! $this->abilities_v2_exact_keys( $result, array( 'preview_token', 'expires_at', 'backup_ref', 'scope', 'file_count', 'table_count', 'overwrite_expected', 'preflight' ) ) ) {
+                return false;
+            }
+            // A null token means no restore was authorized, so it may not carry an expiry; unknown
+            // counts are null rather than a fabricated zero.
+            $token = null === $result['preview_token'] ? null === $result['expires_at'] : is_string( $result['preview_token'] ) && 1 === preg_match( '/^[A-Za-z0-9_-]{43,128}$/D', $result['preview_token'] ) && null !== $result['expires_at'] && $this->abilities_v2_valid_date( $result['expires_at'] );
+            $count = static function ( $value ) {
+                return null === $value || ( is_int( $value ) && 0 <= $value );
+            };
+            return $token && $this->abilities_v2_valid_hash( $result['backup_ref'] ) && in_array( $result['scope'], array( 'full', 'database', 'files' ), true ) && $count( $result['file_count'] ) && $count( $result['table_count'] ) && is_bool( $result['overwrite_expected'] ) && in_array( $result['preflight'], array( 'ready', 'blocked' ), true );
+        }
+        if ( 'restore_backup' === $operation ) {
+            return $this->abilities_v2_exact_keys( $result, array( 'operation_ref', 'backup_ref', 'state' ) ) && $this->abilities_v2_valid_hash( $result['operation_ref'] ) && $this->abilities_v2_valid_hash( $result['backup_ref'] ) && in_array( $result['state'], array( 'queued', 'reconciliation_required' ), true );
+        }
+        if ( 'list_staging' === $operation ) {
+            return $this->abilities_v2_exact_keys( $result, array( 'clones', 'snapshot_generation', 'next_after_clone_ref', 'truncated' ) ) && is_array( $result['clones'] ) && 50 >= count( $result['clones'] ) && $this->abilities_v2_valid_hash( $result['snapshot_generation'] ) && ( null === $result['next_after_clone_ref'] || $this->abilities_v2_valid_hash( $result['next_after_clone_ref'] ) ) && is_bool( $result['truncated'] );
+        }
+        if ( 'start_staging' === $operation ) {
+            return $this->abilities_v2_exact_keys( $result, array( 'operation_ref', 'clone_ref', 'state', 'register_in_mainwp' ) ) && $this->abilities_v2_valid_hash( $result['operation_ref'] ) && $this->abilities_v2_valid_hash( $result['clone_ref'] ) && in_array( $result['state'], array( 'queued', 'running', 'reconciliation_required' ), true ) && is_bool( $result['register_in_mainwp'] );
+        }
+        if ( 'delete_staging' === $operation ) {
+            return $this->abilities_v2_exact_keys( $result, array( 'operation_ref', 'clone_ref', 'registered_site_removal', 'state' ) ) && $this->abilities_v2_valid_hash( $result['operation_ref'] ) && $this->abilities_v2_valid_hash( $result['clone_ref'] ) && is_bool( $result['registered_site_removal'] ) && in_array( $result['state'], array( 'queued', 'reconciliation_required' ), true );
+        }
+        return false;
+    }
+
+    /**
+     * Return the current provider configuration reader.
+     *
+     * @return object|null Provider configuration.
+     */
+    protected function abilities_v2_config() {
+        return class_exists( '\\WPTC_Factory' ) ? \WPTC_Factory::get( 'config' ) : null;
+    }
+
+    /**
+     * Project one redacted site observation.
+     *
+     * @param object $config Provider configuration.
+     * @return array Closed protocol response.
+     */
+    private function abilities_v2_site( $config ) {
+        $connected   = $this->abilities_v2_boolean( $config->get_option( 'is_user_logged_in' ) );
+        $in_progress = $this->abilities_v2_boolean( $config->get_option( 'in_progress' ) );
+        $last_time   = $config->get_option( 'last_backup_time' );
+        if ( null === $connected || null === $in_progress || ( false !== $last_time && null !== $last_time && ! $this->abilities_v2_timestamp( $last_time ) ) ) {
+            return $this->abilities_v2_error( 'site', 'provider_schema_invalid' );
+        }
+
+        $last_attempt = false === $last_time || null === $last_time ? null : gmdate( 'Y-m-d\TH:i:s\Z', (int) $last_time );
+        $observed_at  = time();
+        $binding      = array(
+            'plugin_state'          => $this->is_plugin_installed ? 'ready' : 'missing',
+            'account_state'         => $connected ? 'connected' : 'disconnected',
+            'last_attempt_at'       => $last_attempt,
+            'last_verified_at'      => null,
+            'active_operation_count' => $in_progress ? 1 : 0,
+            'observed_at'           => gmdate( 'Y-m-d\TH:i:s\Z', $observed_at ),
+        );
+
+        return array_merge(
+            array(
+                'protocol'  => '2',
+                'operation' => 'site',
+                'ok'        => true,
+                'complete'  => true,
+            ),
+            $binding,
+            array( 'generation' => hash( 'sha256', wp_json_encode( $binding ) ) )
+        );
+    }
+
+    /**
+     * Project one bounded non-secret policy.
+     *
+     * @param object $config Provider configuration.
+     * @return array Closed protocol response.
+     */
+    private function abilities_v2_policy( $config ) {
+        $schedule  = $config->get_option( 'schedule_time_str' );
+        $retention = $config->get_option( 'revision_limit' );
+        $before    = $config->get_option( 'backup_before_update_setting' );
+        if ( ! is_string( $schedule ) || 1 !== preg_match( '/^(1[0-2]|[1-9]):00 [ap]m$/D', $schedule ) || ! $this->abilities_v2_integer( $retention, 3, 365 ) || ! in_array( $before, array( 'always', 'everytime', true, false ), true ) ) {
+            return $this->abilities_v2_error( 'policy', 'provider_schema_invalid' );
+        }
+
+        $policy = array(
+            'schedule_time'       => $schedule,
+            'retention_days'      => (int) $retention,
+            'backup_before_update' => 'always' === $before || true === $before,
+        );
+
+        return array_merge(
+            array(
+                'protocol'  => '2',
+                'operation' => 'policy',
+                'ok'        => true,
+                'complete'  => true,
+            ),
+            $policy,
+            array( 'policy_generation' => hash( 'sha256', wp_json_encode( $policy ) ) )
+        );
+    }
+
+    /**
+     * Normalize a provider boolean without accepting arbitrary truthy values.
+     *
+     * @param mixed $value Provider value.
+     * @return bool|null Normalized value or null when malformed.
+     */
+    private function abilities_v2_boolean( $value ) {
+        if ( true === $value || 1 === $value || '1' === $value ) {
+            return true;
+        }
+        if ( false === $value || 0 === $value || '0' === $value || null === $value || '' === $value ) {
+            return false;
+        }
+        return null;
+    }
+
+    /**
+     * Validate one bounded provider integer.
+     *
+     * @param mixed $value Provider value.
+     * @param int   $minimum Minimum value.
+     * @param int   $maximum Maximum value.
+     * @return bool Whether the value is valid.
+     */
+    private function abilities_v2_integer( $value, $minimum, $maximum ) {
+        if ( is_string( $value ) && 1 === preg_match( '/^[1-9][0-9]*$/D', $value ) ) {
+            $integer = (int) $value;
+            if ( (string) $integer !== $value ) {
+                return false;
+            }
+            $value = $integer;
+        }
+        return is_int( $value ) && $minimum <= $value && $maximum >= $value;
+    }
+
+    /**
+     * Validate a provider timestamp.
+     *
+     * @param mixed $value Provider value.
+     * @return bool Whether the timestamp is usable.
+     */
+    private function abilities_v2_timestamp( $value ) {
+        return $this->abilities_v2_integer( $value, 1, PHP_INT_MAX );
+    }
+
+    /**
+     * Compare an exact object key set.
+     *
+     * @param mixed $value Value to inspect.
+     * @param array $keys Expected keys.
+     * @return bool Whether the keys match exactly.
+     */
+    private function abilities_v2_exact_keys( $value, $keys ) {
+        if ( ! is_array( $value ) ) {
+            return false;
+        }
+        $actual = array_keys( $value );
+        sort( $actual );
+        sort( $keys );
+        return $actual === $keys;
+    }
+
+    /**
+     * Return a stable non-reflective protocol error.
+     *
+     * @param string $operation Requested operation.
+     * @param string $code Stable error code.
+     * @return array Closed protocol response.
+     */
+    private function abilities_v2_error( $operation, $code = 'invalid_request' ) {
+        return array(
+            'protocol'  => '2',
+            'operation' => is_string( $operation ) && 1 === preg_match( '/^[a-z_]{1,32}$/D', $operation ) ? $operation : 'unknown',
+            'ok'        => false,
+            'code'      => $code,
+        );
+    }
+    // phpcs:enable Generic.Commenting.DocComment.MissingShort,Squiz.Commenting.FunctionComment,Generic.Formatting.MultipleStatementAlignment,WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound,WordPress.Arrays.MultipleStatementAlignment,WordPress.PHP.YodaConditions.NotYoda,WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 
     /**
      * Check if required files exist.
@@ -458,11 +1579,14 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         global $wpdb;
 
         // Direct query for dynamic backup data; caching would return stale backup progress.
+        // wptc_processed_files holds a row per processed file, so group to one row per backup:
+        // a single full backup is tens of thousands of rows and callers only ever want backups.
         return $wpdb->get_results( //phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->prepare(
                 "SELECT backupID
                 FROM {$wpdb->base_prefix}wptc_processed_files
-                WHERE backupID > %s ",
+                WHERE backupID > %s
+                GROUP BY backupID ",
                 $last_time
             )
         );
@@ -679,8 +1803,10 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array Action result.
      */
     public function get_logs_rows() {
-        $result                 = $this->prepare_items();
-        $result['display_rows'] = base64_encode( wp_json_encode( $this->get_display_rows( $result['items'] ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode required for the backwards compatibility.
+        $result = $this->prepare_items();
+        // phpcs:disable WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- transport encoding the legacy WPTC log payload expects, not obfuscation.
+        $result['display_rows'] = base64_encode( wp_json_encode( $this->get_display_rows( $result['items'] ) ) );
+        // phpcs:enable WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
         return $result;
     }
 
@@ -1187,8 +2313,10 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         $config  = \WPTC_Base_Factory::get( 'Wptc_InitialSetup_Config' );
         $options = \WPTC_Factory::get( 'config' );
 
-        $config->set_option( 'wptc_main_acc_email_temp', base64_encode( $email ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
-        $config->set_option( 'wptc_main_acc_pwd_temp', base64_encode( md5( trim( wp_unslash( $pwd ) ) ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- NOSONAR - compatible, base64_encode function is used for http encode compatible..
+        // phpcs:disable WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- transport encoding the WPTC service expects, not obfuscation.
+        $config->set_option( 'wptc_main_acc_email_temp', base64_encode( $email ) );
+        $config->set_option( 'wptc_main_acc_pwd_temp', base64_encode( md5( trim( wp_unslash( $pwd ) ) ) ) ); // NOSONAR - compatible.
+        // phpcs:enable WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
         $config->set_option( 'wptc_token', false );
 
         $cust_info = $options->request_service(
@@ -1403,12 +2531,14 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
 
         $config = \WPTC_Factory::get( 'config' );
 
+        // phpcs:disable WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- transport encoding the WPTC service expects, not obfuscation.
         $email         = trim( $config->get_option( 'main_account_email', true ) );
         $emailhash     = md5( $email ); // NOSONAR - 3rd compatible.
-        $email_encoded = base64_encode( $email ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
+        $email_encoded = base64_encode( $email );
 
         $pwd         = trim( $config->get_option( 'main_account_pwd', true ) );
-        $pwd_encoded = base64_encode( $pwd ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Required for backwards compatibility.
+        $pwd_encoded = base64_encode( $pwd );
+        // phpcs:enable WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 
         if ( empty( $email ) || empty( $pwd ) ) {
             return false;

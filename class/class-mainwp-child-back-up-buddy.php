@@ -34,6 +34,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
 
     /**
+     * How far ahead of this site's clock a stored or provider timestamp may sit and still be read
+     * as a real observation time.
+     *
+     * Neither source is written by a clock the Child owns: BackupBuddy stamps its own records, an
+     * NTP correction can land mid-run, and the ledger option travels with a database that may have
+     * been dumped on another machine. A few minutes ahead is ordinary skew. Past that the value is
+     * not a later observation of anything, and reading it as one is what lets a record that never
+     * changes look freshly observed on every probe.
+     */
+    const ABILITIES_V2_CLOCK_SKEW = 300;
+
+    /**
      * Public static variable to hold the single instance of MainWP_Child_Back_Up_Buddy.
      * @var null
      */
@@ -50,6 +62,15 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
 
       /** @var string $backupbuddy_core_class core class name. */
       public $backupbuddy_core_class = '\backupbuddy_core';
+
+    /**
+     * Operation the current v2 request is being answered for. Errors are built deep inside the
+     * helper chain, so the dispatcher records the operation here instead of threading it through
+     * every call.
+     *
+     * @var string
+     */
+    private $abilities_v2_operation = 'unknown';
 
     /**
      * Create a public static instance of MainWP_Child_Back_Up_Buddy.
@@ -376,18 +397,26 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function action() { //phpcs:ignore -- NOSONAR - multi lines.
         $information = array();
+        $mwp_action  = MainWP_System::instance()->validate_params( 'mwp_action' );
+        if ( 'abilities_v2' === $mwp_action ) {
+            $request = isset( $_POST['request'] ) ? wp_unslash( $_POST['request'] ) : array();
+            if ( is_string( $request ) ) {
+                $request = json_decode( $request, true );
+            }
+            MainWP_Helper::write( $this->abilities_v2( $request ) );
+            return;
+        }
         if ( ! $this->is_backupbuddy_installed ) {
             MainWP_Helper::write( array( 'error' => esc_html__( 'Please install the BackupBuddy plugin on the child site.', $this->plugin_translate ) ) );
         }
         if ( ! class_exists( $this->backupbuddy_core_class ) ) {
-            require_once \pb_backupbuddy::plugin_path() . $$this->path_core_file; // NOSONAR - WP compatible.
+            require_once \pb_backupbuddy::plugin_path() . $this->path_core_file; // NOSONAR - WP compatible.
         }
 
         if ( ! isset( \pb_backupbuddy::$options ) ) {
             \pb_backupbuddy::load();
         }
 
-        $mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
         if ( ! empty( $mwp_action ) ) {
             switch ( $mwp_action ) { // NOSONAR - multi case.
                 case 'set_showhide':
@@ -533,6 +562,1467 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
         MainWP_Helper::write( $information );
+    }
+
+    /**
+     * Execute the closed BackupBuddy abilities v2 protocol.
+     *
+     * @param array $request Typed request.
+     * @return array
+     */
+    public function abilities_v2( $request ) { // phpcs:ignore -- Closed dispatcher is intentionally explicit.
+        $allowed = array(
+            'capabilities'      => array( 'operation' ),
+            'list_profiles'     => array( 'operation', 'page', 'per_page' ),
+            'list_schedules'    => array( 'operation', 'page', 'per_page' ),
+            'list_destinations' => array( 'operation', 'page', 'per_page' ),
+            'list_archives'     => array( 'operation', 'page', 'per_page', 'type' ),
+            'preview_run'       => array( 'operation', 'target_kind', 'target_ref' ),
+            'start_backup'      => array( 'operation', 'profile_ref', 'preview_token', 'request_ref' ),
+            'run_schedule'      => array( 'operation', 'schedule_ref', 'preview_token', 'request_ref' ),
+            'get_operation'     => array( 'operation', 'operation_ref' ),
+            'cancel_operation'  => array( 'operation', 'operation_ref' ),
+            'delete_archive'    => array( 'operation', 'archive_ref', 'expected_size_bytes', 'expected_modified_at', 'request_ref' ),
+            'start_transfer'    => array( 'operation', 'archive_ref', 'destination_ref', 'request_ref', 'delete_local_after' ),
+        );
+        // An unrecognised operation is never echoed back, so a malformed request cannot reflect its own input.
+        $this->abilities_v2_operation = is_array( $request ) && isset( $request['operation'] ) && is_string( $request['operation'] ) && isset( $allowed[ $request['operation'] ] ) ? $request['operation'] : 'unknown';
+        if ( 'unknown' === $this->abilities_v2_operation ) {
+            return $this->abilities_v2_error( 'invalid_request' );
+        }
+
+        $operation    = $this->abilities_v2_operation;
+        $request_keys = array_keys( $request );
+        $allowed_keys = $allowed[ $operation ];
+        if ( array() !== array_values( array_diff( $request_keys, $allowed_keys ) ) ) {
+            return $this->abilities_v2_error( 'invalid_request' );
+        }
+
+        if ( 'capabilities' === $operation ) {
+            return array(
+                'protocol'   => '2',
+                'operations' => array_keys( $allowed ),
+            );
+        }
+
+        // The payload is judged on its own terms before the provider gate, so a malformed request is
+        // invalid_request everywhere instead of backupbuddy_unavailable on sites without the plugin.
+        if ( ! $this->abilities_v2_valid_payload( $operation, $request ) ) {
+            return $this->abilities_v2_error( 'invalid_request' );
+        }
+        if ( ! $this->is_backupbuddy_installed ) {
+            return $this->abilities_v2_error( 'backupbuddy_unavailable' );
+        }
+        $this->abilities_v2_load_provider();
+
+        $page     = isset( $request['page'] ) ? $request['page'] : 1;
+        $per_page = isset( $request['per_page'] ) ? $request['per_page'] : 25;
+
+        switch ( $operation ) {
+            case 'list_profiles':
+                return $this->abilities_v2_list_profiles( $page, $per_page );
+            case 'list_schedules':
+                return $this->abilities_v2_list_schedules( $page, $per_page );
+            case 'list_destinations':
+                return $this->abilities_v2_list_destinations( $page, $per_page );
+            case 'list_archives':
+                return $this->abilities_v2_list_archives( $page, $per_page, isset( $request['type'] ) ? $request['type'] : 'all' );
+            case 'preview_run':
+                return $this->abilities_v2_preview( $request['target_kind'], $request['target_ref'], $this->abilities_v2_now() );
+            case 'start_backup':
+            case 'run_schedule':
+                return $this->abilities_v2_start_operation( $operation, $request );
+            case 'get_operation':
+                return $this->abilities_v2_get_operation( $request['operation_ref'] );
+            case 'cancel_operation':
+                return $this->abilities_v2_cancel_operation( $request['operation_ref'] );
+            case 'delete_archive':
+                return $this->abilities_v2_delete_archive( $request );
+            case 'start_transfer':
+                return $this->abilities_v2_start_transfer( $request );
+        }
+        return $this->abilities_v2_error( 'invalid_request' );
+    }
+
+    /**
+     * Validate one operation's typed payload in full.
+     *
+     * @param string $operation Operation.
+     * @param array  $request   Typed request.
+     * @return bool
+     */
+    private function abilities_v2_valid_payload( $operation, $request ) { // phpcs:ignore -- Closed per-operation payload table is intentionally explicit.
+        if ( 0 === strpos( $operation, 'list_' ) ) {
+            $page     = isset( $request['page'] ) ? $request['page'] : 1;
+            $per_page = isset( $request['per_page'] ) ? $request['per_page'] : 25;
+            if ( ! is_int( $page ) || $page < 1 || ! is_int( $per_page ) || $per_page < 1 || $per_page > 100 ) {
+                return false;
+            }
+        }
+
+        switch ( $operation ) {
+            case 'list_archives':
+                return in_array( isset( $request['type'] ) ? $request['type'] : 'all', array( 'all', 'full', 'database', 'files' ), true );
+            case 'preview_run':
+                return isset( $request['target_kind'], $request['target_ref'] ) && in_array( $request['target_kind'], array( 'profile', 'schedule' ), true ) && $this->abilities_v2_valid_ref( $request['target_ref'] );
+            case 'start_backup':
+            case 'run_schedule':
+                $target_key = 'start_backup' === $operation ? 'profile_ref' : 'schedule_ref';
+                return isset( $request[ $target_key ], $request['preview_token'], $request['request_ref'] ) && $this->abilities_v2_valid_ref( $request[ $target_key ] ) && $this->abilities_v2_valid_ref( $request['preview_token'] ) && $this->abilities_v2_valid_request_ref( $request['request_ref'] );
+            case 'get_operation':
+            case 'cancel_operation':
+                return isset( $request['operation_ref'] ) && $this->abilities_v2_valid_ref( $request['operation_ref'] );
+            case 'delete_archive':
+                return isset( $request['archive_ref'], $request['expected_size_bytes'], $request['expected_modified_at'], $request['request_ref'] ) && $this->abilities_v2_valid_ref( $request['archive_ref'] ) && is_int( $request['expected_size_bytes'] ) && $request['expected_size_bytes'] >= 0 && is_int( $request['expected_modified_at'] ) && $request['expected_modified_at'] >= 0 && $this->abilities_v2_valid_request_ref( $request['request_ref'] );
+            case 'start_transfer':
+                return isset( $request['archive_ref'], $request['destination_ref'], $request['request_ref'], $request['delete_local_after'] ) && false === $request['delete_local_after'] && $this->abilities_v2_valid_ref( $request['archive_ref'] ) && $this->abilities_v2_valid_ref( $request['destination_ref'] ) && $this->abilities_v2_valid_request_ref( $request['request_ref'] );
+        }
+        return true;
+    }
+
+    /**
+     * The v2 dispatcher never reaches the legacy action() branch that loads BackupBuddy, so every
+     * v2 read would otherwise see an unset \pb_backupbuddy::$options and a missing core class and
+     * report an empty site. Each step is guarded so a site without BackupBuddy cannot fatal here.
+     *
+     * @return void
+     */
+    protected function abilities_v2_load_provider() {
+        if ( ! class_exists( '\\pb_backupbuddy' ) || ! method_exists( '\\pb_backupbuddy', 'plugin_path' ) ) {
+            return;
+        }
+        if ( ! class_exists( $this->backupbuddy_core_class ) ) {
+            $core_file = \pb_backupbuddy::plugin_path() . $this->path_core_file;
+            if ( file_exists( $core_file ) ) {
+                require_once $core_file; // NOSONAR - WP compatible.
+            }
+        }
+        if ( ! isset( \pb_backupbuddy::$options ) && method_exists( '\\pb_backupbuddy', 'load' ) ) {
+            \pb_backupbuddy::load();
+        }
+    }
+
+    /** @return int */
+    protected function abilities_v2_now() {
+        return time();
+    }
+
+    /**
+     * A timestamp out of stored state or out of a BackupBuddy record, only when it can be believed.
+     *
+     * Both are untrusted input. The option can be edited, restored, or carried over from another
+     * host, and a provider record is written by whichever build of BackupBuddy is installed. A value
+     * that is not a positive number, or that sits further ahead than ABILITIES_V2_CLOCK_SKEW allows,
+     * states nothing about when anything happened, so callers get null and must treat the record as
+     * one they hold no advancing evidence for.
+     *
+     * @param mixed $value Timestamp as read.
+     * @return int|null
+     */
+    private function abilities_v2_trusted_time( $value ) {
+        if ( ! is_numeric( $value ) || (int) $value <= 0 ) {
+            return null;
+        }
+        $seconds = (int) $value;
+        return $seconds > $this->abilities_v2_now() + self::ABILITIES_V2_CLOCK_SKEW ? null : $seconds;
+    }
+
+    /**
+     * Whether the ledger holds no believable observation of a record since $horizon.
+     *
+     * An updated_at that cannot be believed is not a recent observation, so the record counts as
+     * unobserved rather than as permanently fresh. Reading it the other way would keep such a
+     * record out of both the staleness horizon and the age-out pass at once, and a hundred of them
+     * would refuse every new operation forever.
+     *
+     * @param array $record  Stored operation record.
+     * @param int   $horizon Oldest observation time that still counts as recent.
+     * @return bool
+     */
+    private function abilities_v2_unobserved_since( $record, $horizon ) {
+        $observed = $this->abilities_v2_trusted_time( isset( $record['updated_at'] ) ? $record['updated_at'] : null );
+        return null === $observed || $observed < $horizon;
+    }
+
+    /** @return string */
+    protected function abilities_v2_secret() {
+        return hash_hmac( 'sha256', 'mainwp-backupbuddy-abilities-v1', wp_salt( 'auth' ) );
+    }
+
+    /** @return array */
+    protected function abilities_v2_read_options() {
+        return isset( \pb_backupbuddy::$options ) && is_array( \pb_backupbuddy::$options ) ? \pb_backupbuddy::$options : array();
+    }
+
+    /** @return mixed */
+    protected function abilities_v2_read_records() {
+        $records = get_option( 'mainwp_backupbuddy_ability_operations_v1', array() );
+        return $records;
+    }
+
+    /**
+     * @param array $records Records.
+     * @return bool
+     */
+    protected function abilities_v2_write_records( $records ) {
+        return MainWP_Helper::update_option( 'mainwp_backupbuddy_ability_operations_v1', $records );
+    }
+
+    /**
+     * @param string $code Stable code.
+     * @return array
+     */
+    private function abilities_v2_error( $code ) {
+        $codes = array(
+            'invalid_request',
+            'not_found',
+            'request_conflict',
+            'preview_stale',
+            'operation_limit_reached',
+            'effect_failed',
+            'storage_failed',
+            'lock_busy',
+            'too_large',
+            'outcome_unknown',
+            'backupbuddy_unavailable',
+        );
+        return array(
+            'protocol'  => '2',
+            'operation' => $this->abilities_v2_operation,
+            'ok'        => false,
+            'code'      => in_array( $code, $codes, true ) ? $code : 'effect_failed',
+        );
+    }
+
+    /**
+     * Recognise a v2 error envelope. Helpers return either their result or this envelope, and the
+     * reserved top-level 'error' key is not part of the v2 shape any more.
+     *
+     * @param mixed $value Helper result.
+     * @return bool
+     */
+    private function abilities_v2_is_error( $value ) {
+        return is_array( $value ) && isset( $value['ok'] ) && false === $value['ok'];
+    }
+
+    /**
+     * Report a failed lock release without rewriting the outcome it accompanies.
+     *
+     * The effect is already committed and the record already written by the time the lock is
+     * released, so a failed release cannot make any of that untrue. The lock expires on its own
+     * 120s TTL; the caller is told about the failure through an advisory warning instead of being
+     * handed a storage_failed that did not happen.
+     *
+     * @param array $result   Result produced under the lock.
+     * @param bool  $released Whether the lock release succeeded.
+     * @return array
+     */
+    private function abilities_v2_with_lock_release( $result, $released ) {
+        if ( $released || ! is_array( $result ) ) {
+            return $result;
+        }
+        $warnings                  = isset( $result['warning_codes'] ) && is_array( $result['warning_codes'] ) ? $result['warning_codes'] : array();
+        $warnings[]                = 'lock_release_failed';
+        $result['warning_codes']   = array_values( array_unique( $warnings ) );
+        return $result;
+    }
+
+    /**
+     * @param mixed $value Value.
+     * @return bool
+     */
+    private function abilities_v2_valid_ref( $value ) {
+        return is_string( $value ) && strlen( $value ) >= 24 && strlen( $value ) <= 512 && 1 === preg_match( '/^[A-Za-z0-9._~-]+$/D', $value );
+    }
+
+    /**
+     * @param mixed $value Value.
+     * @return bool
+     */
+    private function abilities_v2_valid_request_ref( $value ) {
+        return is_string( $value ) && 1 === preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D', $value );
+    }
+
+    /**
+     * @param string $type        Type prefix.
+     * @param string $internal_id Internal identifier.
+     * @return string
+     */
+    private function abilities_v2_ref( $type, $internal_id ) {
+        return $type . '.v1.' . hash_hmac( 'sha256', $type . "\0" . $internal_id, $this->abilities_v2_secret() );
+    }
+
+    /**
+     * @param string $value Value.
+     * @param int    $max   Maximum length.
+     * @return string
+     */
+    private function abilities_v2_text( $value, $max ) {
+        if ( ! is_string( $value ) || preg_match( '/[\x00-\x1F\x7F]/', $value ) ) {
+            return '';
+        }
+        return function_exists( 'mb_substr' ) ? mb_substr( $value, 0, $max ) : substr( $value, 0, $max );
+    }
+
+    /**
+     * Acquire the single per-site BackupBuddy effect lock.
+     *
+     * @return string|false
+     */
+    protected function abilities_v2_acquire_effect_lock() {
+        $key      = 'mainwp_backupbuddy_ability_effect_lock_v1';
+        $now      = $this->abilities_v2_now();
+        $owner    = wp_generate_uuid4();
+        $existing = get_option( $key, false );
+        $usable   = is_array( $existing ) && isset( $existing['expires_at'] ) && is_int( $existing['expires_at'] );
+        if ( false !== $existing && ( ! $usable || $existing['expires_at'] <= $now ) ) {
+            delete_option( $key );
+        }
+        $value = array( 'owner' => $owner, 'expires_at' => $now + 120 );
+        if ( ! add_option( $key, $value, '', 'no' ) ) {
+            return false;
+        }
+        return $value === get_option( $key, false ) ? $owner : false;
+    }
+
+    /**
+     * Release the single per-site BackupBuddy effect lock.
+     *
+     * @param string $owner Lock owner.
+     * @return bool
+     */
+    protected function abilities_v2_release_effect_lock( $owner ) {
+        $key     = 'mainwp_backupbuddy_ability_effect_lock_v1';
+        $current = get_option( $key, false );
+        if ( ! is_array( $current ) || ! isset( $current['owner'] ) || ! is_string( $current['owner'] ) || ! hash_equals( $current['owner'], $owner ) ) {
+            return false;
+        }
+        delete_option( $key );
+        return false === get_option( $key, false );
+    }
+
+    /**
+     * @param array  $items    Items.
+     * @param int    $page     Page.
+     * @param int    $per_page Per page.
+     * @param string $key      Item key.
+     * @return array
+     */
+    private function abilities_v2_page( $items, $page, $per_page, $key ) {
+        return array(
+            'page'     => $page,
+            'per_page' => $per_page,
+            'total'    => count( $items ),
+            $key       => array_values( array_slice( $items, ( $page - 1 ) * $per_page, $per_page ) ),
+        );
+    }
+
+    /**
+     * @param int $page Page.
+     * @param int $per_page Per page.
+     * @return array
+     */
+    private function abilities_v2_list_profiles( $page, $per_page ) {
+        $options  = $this->abilities_v2_read_options();
+        $profiles = isset( $options['profiles'] ) && is_array( $options['profiles'] ) ? $options['profiles'] : array();
+        $items    = array();
+        foreach ( $profiles as $id => $profile ) {
+            if ( ! is_array( $profile ) || ! isset( $profile['type'] ) || ! is_string( $profile['type'] ) ) {
+                continue;
+            }
+            $type = $this->abilities_v2_profile_type( $profile['type'] );
+            $items[] = array(
+                'profile_ref' => $this->abilities_v2_ref( 'prf', (string) $id ),
+                'title'       => $this->abilities_v2_text( isset( $profile['title'] ) ? $profile['title'] : ucfirst( $type ), 200 ),
+                'type'        => $type,
+                'built_in'    => in_array( (string) $id, array( '0', '1', '2', '3' ), true ),
+            );
+        }
+        usort( $items, static function ( $left, $right ) { return strcmp( $left['profile_ref'], $right['profile_ref'] ); } );
+        return $this->abilities_v2_page( $items, $page, $per_page, 'profiles' );
+    }
+
+    /**
+     * @param string $type Product type.
+     * @return string
+     */
+    private function abilities_v2_profile_type( $type ) {
+        $map = array( 'full' => 'full', 'db' => 'database', 'database' => 'database', 'files' => 'files', 'themes' => 'themes', 'plugins' => 'plugins', 'media' => 'media' );
+        return isset( $map[ $type ] ) ? $map[ $type ] : 'custom';
+    }
+
+    /**
+     * @param int $schedule_id Schedule ID.
+     * @return int|null
+     */
+    protected function abilities_v2_schedule_next_run( $schedule_id ) {
+        $next = wp_next_scheduled( 'backupbuddy_cron', array( 'run_scheduled_backup', array( (int) $schedule_id ) ) );
+        return false === $next ? null : (int) $next;
+    }
+
+    /**
+     * @param int $page Page.
+     * @param int $per_page Per page.
+     * @return array
+     */
+    private function abilities_v2_list_schedules( $page, $per_page ) {
+        $options   = $this->abilities_v2_read_options();
+        $schedules = isset( $options['schedules'] ) && is_array( $options['schedules'] ) ? $options['schedules'] : array();
+        $items     = array();
+        foreach ( $schedules as $id => $schedule ) {
+            if ( ! is_array( $schedule ) ) {
+                continue;
+            }
+            $profile_id = isset( $schedule['profile'] ) ? $schedule['profile'] : ( isset( $schedule['profile_id'] ) ? $schedule['profile_id'] : null );
+            if ( null === $profile_id ) {
+                continue;
+            }
+            $supported = ! isset( $schedule['delete_after'] ) || false === $schedule['delete_after'] || 0 === $schedule['delete_after'] || '0' === $schedule['delete_after'];
+            $items[]   = array(
+                'schedule_ref' => $this->abilities_v2_ref( 'sch', (string) $id ),
+                'title'        => $this->abilities_v2_text( isset( $schedule['title'] ) ? $schedule['title'] : 'Schedule', 200 ),
+                'profile_ref'  => $this->abilities_v2_ref( 'prf', (string) $profile_id ),
+                'interval'     => $this->abilities_v2_text( isset( $schedule['interval'] ) ? $schedule['interval'] : '', 100 ),
+                'next_run_at'  => $this->abilities_v2_schedule_next_run( $id ),
+                'last_run_at'  => isset( $schedule['last_run'] ) && is_numeric( $schedule['last_run'] ) ? (int) $schedule['last_run'] : null,
+                'supported'    => $supported,
+            );
+        }
+        usort( $items, static function ( $left, $right ) { return strcmp( $left['schedule_ref'], $right['schedule_ref'] ); } );
+        return $this->abilities_v2_page( $items, $page, $per_page, 'schedules' );
+    }
+
+    /**
+     * @param int $page Page.
+     * @param int $per_page Per page.
+     * @return array
+     */
+    private function abilities_v2_list_destinations( $page, $per_page ) {
+        $options      = $this->abilities_v2_read_options();
+        $destinations = isset( $options['remote_destinations'] ) && is_array( $options['remote_destinations'] ) ? $options['remote_destinations'] : array();
+        $items        = array();
+        foreach ( $destinations as $id => $destination ) {
+            if ( ! is_array( $destination ) ) {
+                continue;
+            }
+            $type = isset( $destination['type'] ) && is_string( $destination['type'] ) ? strtolower( $destination['type'] ) : '';
+            if ( '' === $type || ! preg_match( '/^[a-z0-9_-]{1,100}$/D', $type ) ) {
+                $type = 'unknown';
+            }
+            $items[] = array(
+                'destination_ref' => $this->abilities_v2_ref( 'dst', (string) $id ),
+                'type'            => $type,
+                'label'           => $this->abilities_v2_text( isset( $destination['title'] ) ? $destination['title'] : ( isset( $destination['name'] ) ? $destination['name'] : ucfirst( $type ) ), 200 ),
+                'configured'      => $this->abilities_v2_destination_configured( $type, $destination ),
+            );
+        }
+        usort( $items, static function ( $left, $right ) { return strcmp( $left['destination_ref'], $right['destination_ref'] ); } );
+        return $this->abilities_v2_page( $items, $page, $per_page, 'destinations' );
+    }
+
+    /**
+     * @param string $type Destination type.
+     * @param array  $destination Internal destination settings.
+     * @return bool
+     */
+    private function abilities_v2_destination_configured( $type, $destination ) {
+        $required = array(
+            's3'        => array( 'accesskey', 'secretkey', 'bucket' ),
+            's32'       => array( 'accesskey', 'secretkey', 'bucket' ),
+            's33'       => array( 'accesskey', 'secretkey', 'bucket' ),
+            'ftp'       => array( 'address', 'username', 'password', 'path' ),
+            'sftp'      => array( 'address', 'username', 'password', 'path' ),
+            'rackspace' => array( 'username', 'api_key', 'container' ),
+            'gdrive'    => array( 'client_id', 'client_secret', 'tokens' ),
+            'local'     => array( 'path' ),
+            'site'      => array( 'api_key' ),
+            'dropbox2'  => array( 'access_token' ),
+            'email'     => array( 'address' ),
+            'stash2'    => array( 'itxapi_username', 'itxapi_token' ),
+            'stash3'    => array( 'itxapi_username', 'itxapi_token' ),
+        );
+        if ( ! isset( $required[ $type ] ) || isset( $destination['disabled'] ) && '1' === (string) $destination['disabled'] ) {
+            return false;
+        }
+        foreach ( $required[ $type ] as $key ) {
+            if ( ! isset( $destination[ $key ] ) || ! is_string( $destination[ $key ] ) || '' === trim( $destination[ $key ] ) ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** @return array */
+    protected function abilities_v2_archive_candidates() {
+        if ( ! class_exists( $this->backupbuddy_core_class ) || ! method_exists( $this->backupbuddy_core_class, 'getBackupDirectory' ) ) {
+            return array();
+        }
+        $directory = realpath( \backupbuddy_core::getBackupDirectory() );
+        if ( false === $directory || ! is_dir( $directory ) ) {
+            return array();
+        }
+        $directory = rtrim( str_replace( '\\', '/', $directory ), '/' ) . '/';
+        $files     = glob( $directory . '*.zip' );
+        if ( ! is_array( $files ) ) {
+            return array();
+        }
+        if ( count( $files ) > 10000 ) {
+            return array( '__error' => 'too_large' );
+        }
+        $archives = array();
+        foreach ( $files as $file ) {
+            if ( is_link( $file ) || ! is_file( $file ) ) {
+                continue;
+            }
+            $resolved = realpath( $file );
+            if ( false === $resolved || 0 !== strpos( str_replace( '\\', '/', $resolved ), $directory ) ) {
+                continue;
+            }
+            $basename = basename( $resolved );
+            if ( false !== strpos( $basename, '/' ) || false !== strpos( $basename, '\\' ) || '.zip' !== strtolower( substr( $basename, -4 ) ) ) {
+                continue;
+            }
+            $lower = strtolower( $basename );
+            $type  = false !== strpos( $lower, '-db-' ) ? 'database' : ( false !== strpos( $lower, '-files-' ) ? 'files' : ( false !== strpos( $lower, '-full-' ) ? 'full' : 'unknown' ) );
+            $archives[] = array(
+                'internal_id' => $basename,
+                'type'        => $type,
+                'size_bytes'  => (int) filesize( $resolved ),
+                'modified_at' => (int) filemtime( $resolved ),
+                'status'      => filesize( $resolved ) > 0 ? 'complete' : 'incomplete',
+                'path'        => $resolved,
+            );
+        }
+        return $archives;
+    }
+
+    /**
+     * @param int    $page Page.
+     * @param int    $per_page Per page.
+     * @param string $type Type.
+     * @return array
+     */
+    private function abilities_v2_list_archives( $page, $per_page, $type ) {
+        $archives = $this->abilities_v2_archives();
+        if ( $this->abilities_v2_is_error( $archives ) ) {
+            return $archives;
+        }
+        $items    = array();
+        foreach ( $archives as $archive ) {
+            if ( 'all' !== $type && $type !== $archive['type'] ) {
+                continue;
+            }
+            $items[] = array(
+                'archive_ref' => $this->abilities_v2_ref( 'arc', $archive['internal_id'] ),
+                'type'        => $archive['type'],
+                'size_bytes'  => $archive['size_bytes'],
+                'modified_at' => $archive['modified_at'],
+                'status'      => $archive['status'],
+            );
+        }
+        return $this->abilities_v2_page( $items, $page, $per_page, 'archives' );
+    }
+
+    /** @return array */
+    private function abilities_v2_archives() {
+        $archives = $this->abilities_v2_archive_candidates();
+        if ( is_array( $archives ) && isset( $archives['__error'] ) ) {
+            return $this->abilities_v2_error( 'too_large' );
+        }
+        if ( ! is_array( $archives ) ) {
+            return $this->abilities_v2_error( 'storage_failed' );
+        }
+        $valid    = array();
+        foreach ( $archives as $archive ) {
+            if ( ! is_array( $archive ) || ! isset( $archive['internal_id'], $archive['type'], $archive['size_bytes'], $archive['modified_at'], $archive['status'], $archive['path'] ) || ! is_string( $archive['internal_id'] ) || ! is_string( $archive['path'] ) || ! in_array( $archive['type'], array( 'full', 'database', 'files', 'unknown' ), true ) || ! is_int( $archive['size_bytes'] ) || $archive['size_bytes'] < 0 || ! is_int( $archive['modified_at'] ) || $archive['modified_at'] < 0 || ! in_array( $archive['status'], array( 'complete', 'incomplete' ), true ) ) {
+                return $this->abilities_v2_error( 'storage_failed' );
+            }
+            $valid[] = $archive;
+        }
+        usort(
+            $valid,
+            static function ( $left, $right ) {
+                if ( $left['modified_at'] === $right['modified_at'] ) {
+                    return strcmp( $left['internal_id'], $right['internal_id'] );
+                }
+                return $left['modified_at'] > $right['modified_at'] ? -1 : 1;
+            }
+        );
+        return $valid;
+    }
+
+    /**
+     * @param string $kind Target kind.
+     * @param string $ref Target ref.
+     * @param int    $issued_at Issued timestamp.
+     * @return array
+     */
+    private function abilities_v2_preview( $kind, $ref, $issued_at ) {
+        $target = $this->abilities_v2_resolve_target( $kind, $ref );
+        if ( ! is_array( $target ) ) {
+            return $this->abilities_v2_error( 'not_found' );
+        }
+        if ( 'schedule' === $kind && ! empty( $target['too_large'] ) ) {
+            return $this->abilities_v2_error( 'too_large' );
+        }
+        if ( 'schedule' === $kind && empty( $target['supported'] ) ) {
+            return $this->abilities_v2_error( 'request_conflict' );
+        }
+        $profile = 'profile' === $kind ? $target : $target['profile'];
+        $victims = $this->abilities_v2_retention_victims( $profile['type'] );
+        if ( $this->abilities_v2_is_error( $victims ) ) {
+            return $victims;
+        }
+        $remote  = 'schedule' === $kind ? $target['remote_ids'] : array();
+        $snapshot = array(
+            'kind'       => $kind,
+            'target'     => $target['internal_id'],
+            'profile'    => $profile['internal_id'],
+            'type'       => $profile['type'],
+            'victims'    => array_map(
+                static function ( $item ) {
+                    return array(
+                        'internal_id' => $item['internal_id'],
+                        'size_bytes'  => $item['size_bytes'],
+                        'modified_at' => $item['modified_at'],
+                    );
+                },
+                $victims
+            ),
+            'remote_ids' => array_values( $remote ),
+            'delete'     => 'schedule' === $kind ? $target['delete_after'] : false,
+        );
+        $digest = hash_hmac( 'sha256', (string) $issued_at . "\0" . wp_json_encode( $snapshot ), $this->abilities_v2_secret() );
+        return array(
+            'target_kind'                   => $kind,
+            'target_ref'                    => $ref,
+            'backup_type'                   => $profile['type'],
+            'retention_delete_archive_refs' => array_map( function ( $item ) { return $this->abilities_v2_ref( 'arc', $item['internal_id'] ); }, $victims ),
+            'remote_destination_refs'        => array_map( function ( $id ) { return $this->abilities_v2_ref( 'dst', (string) $id ); }, $remote ),
+            'delete_local_after_transfer'    => (bool) $snapshot['delete'],
+            'preview_token'                  => 'pre.v1.' . $issued_at . '.' . $digest,
+            'expires_at'                     => $issued_at + 600,
+        );
+    }
+
+    /**
+     * @param string $kind Target kind.
+     * @param string $ref Ref.
+     * @return array|null
+     */
+    private function abilities_v2_resolve_target( $kind, $ref ) {
+        $options = $this->abilities_v2_read_options();
+        if ( 'profile' === $kind ) {
+            $profiles = isset( $options['profiles'] ) && is_array( $options['profiles'] ) ? $options['profiles'] : array();
+            foreach ( $profiles as $id => $profile ) {
+                if ( hash_equals( $this->abilities_v2_ref( 'prf', (string) $id ), $ref ) && is_array( $profile ) && isset( $profile['type'] ) ) {
+                    return array( 'internal_id' => (string) $id, 'type' => $this->abilities_v2_profile_type( $profile['type'] ), 'raw' => $profile );
+                }
+            }
+            return null;
+        }
+        $schedules = isset( $options['schedules'] ) && is_array( $options['schedules'] ) ? $options['schedules'] : array();
+        foreach ( $schedules as $id => $schedule ) {
+            if ( ! hash_equals( $this->abilities_v2_ref( 'sch', (string) $id ), $ref ) || ! is_array( $schedule ) ) {
+                continue;
+            }
+            $profile_id = isset( $schedule['profile'] ) ? $schedule['profile'] : ( isset( $schedule['profile_id'] ) ? $schedule['profile_id'] : null );
+            if ( null === $profile_id || ! isset( $options['profiles'][ $profile_id ] ) || ! is_array( $options['profiles'][ $profile_id ] ) ) {
+                return null;
+            }
+            $delete_after = ! empty( $schedule['delete_after'] );
+            $remote_ids   = isset( $schedule['remote_destinations'] ) && is_array( $schedule['remote_destinations'] ) ? array_values( $schedule['remote_destinations'] ) : array();
+            $too_large    = count( $remote_ids ) > 10;
+            $destinations = isset( $options['remote_destinations'] ) && is_array( $options['remote_destinations'] ) ? $options['remote_destinations'] : array();
+            $remote_valid = true;
+            foreach ( $remote_ids as $remote_id ) {
+                if ( ! ( is_int( $remote_id ) || is_string( $remote_id ) ) || ! isset( $destinations[ $remote_id ] ) || ! is_array( $destinations[ $remote_id ] ) || ! isset( $destinations[ $remote_id ]['type'] ) || ! is_string( $destinations[ $remote_id ]['type'] ) || ! $this->abilities_v2_destination_configured( strtolower( $destinations[ $remote_id ]['type'] ), $destinations[ $remote_id ] ) ) {
+                    $remote_valid = false;
+                    break;
+                }
+            }
+            return array(
+                'internal_id' => (string) $id,
+                'profile'     => array( 'internal_id' => (string) $profile_id, 'type' => $this->abilities_v2_profile_type( $options['profiles'][ $profile_id ]['type'] ), 'raw' => $options['profiles'][ $profile_id ] ),
+                'remote_ids'  => $too_large ? array() : $remote_ids,
+                'delete_after'=> $delete_after,
+                'supported'   => ! $delete_after && $remote_valid,
+                'too_large'   => $too_large,
+            );
+        }
+        return null;
+    }
+
+    /**
+     * @param string $type Profile type.
+     * @return array
+     */
+    private function abilities_v2_retention_victims( $type ) {
+        unset( $type );
+        $options   = $this->abilities_v2_read_options();
+        $archives  = $this->abilities_v2_archives();
+        if ( $this->abilities_v2_is_error( $archives ) ) {
+            return $archives;
+        }
+        $remaining = array();
+        $victims   = array();
+        $total_mb  = 0.0;
+        foreach ( $archives as $archive ) {
+            $remaining[ $archive['internal_id'] ] = $archive;
+            $total_mb += $archive['size_bytes'] / 1048576;
+        }
+        $mark = static function ( $archive ) use ( &$remaining, &$victims ) {
+            $victims[ $archive['internal_id'] ] = $archive;
+            unset( $remaining[ $archive['internal_id'] ] );
+        };
+
+        $age_limit = isset( $options['archive_limit_age'] ) && is_numeric( $options['archive_limit_age'] ) ? (int) $options['archive_limit_age'] : 0;
+        if ( $age_limit > 0 ) {
+            foreach ( array_values( $remaining ) as $archive ) {
+                $age_days = (int) ( ( $this->abilities_v2_now() - $archive['modified_at'] ) / DAY_IN_SECONDS );
+                if ( $age_days > $age_limit ) {
+                    $mark( $archive );
+                }
+            }
+        }
+
+        foreach ( array( 'full' => 'archive_limit_full', 'database' => 'archive_limit_db', 'files' => 'archive_limit_files' ) as $archive_type => $key ) {
+            $limit = isset( $options[ $key ] ) && is_numeric( $options[ $key ] ) ? (int) $options[ $key ] : 0;
+            if ( $limit < 1 ) {
+                continue;
+            }
+            $seen = 0;
+            foreach ( array_values( $remaining ) as $archive ) {
+                if ( $archive_type === $archive['type'] && ++$seen > $limit ) {
+                    $mark( $archive );
+                }
+            }
+        }
+
+        $global_limit = isset( $options['archive_limit'] ) && is_numeric( $options['archive_limit'] ) ? (int) $options['archive_limit'] : 0;
+        if ( $global_limit > 0 ) {
+            $seen = 0;
+            foreach ( array_values( $remaining ) as $archive ) {
+                if ( ++$seen > $global_limit ) {
+                    $mark( $archive );
+                }
+            }
+        }
+
+        $size_limit     = isset( $options['archive_limit_size'] ) && is_numeric( $options['archive_limit_size'] ) ? (float) $options['archive_limit_size'] : 0.0;
+        $big_size_limit = isset( $options['archive_limit_size_big'] ) && is_numeric( $options['archive_limit_size_big'] ) ? (float) $options['archive_limit_size_big'] : 0.0;
+        $effective_size = 0.0 === $size_limit ? $big_size_limit : ( 0.0 === $big_size_limit ? $size_limit : min( $size_limit, $big_size_limit ) );
+        if ( $effective_size > 0.0 && $total_mb > $effective_size ) {
+            foreach ( array_reverse( array_values( $remaining ) ) as $archive ) {
+                if ( $total_mb <= $effective_size ) {
+                    break;
+                }
+                $total_mb -= $archive['size_bytes'] / 1048576;
+                $mark( $archive );
+            }
+        }
+
+        $victims = array_values( $victims );
+        usort( $victims, static function ( $left, $right ) { return $left['modified_at'] <=> $right['modified_at']; } );
+        return count( $victims ) > 100 ? $this->abilities_v2_error( 'too_large' ) : $victims;
+    }
+
+    /**
+     * @param string $operation Operation.
+     * @param array  $request Request, already validated by abilities_v2_valid_payload().
+     * @return array
+     */
+    private function abilities_v2_start_operation( $operation, $request ) {
+        $target_key = 'start_backup' === $operation ? 'profile_ref' : 'schedule_ref';
+        $kind       = 'start_backup' === $operation ? 'profile' : 'schedule';
+        $owner      = $this->abilities_v2_acquire_effect_lock();
+        if ( false === $owner ) {
+            return $this->abilities_v2_error( 'lock_busy' );
+        }
+        $result = null;
+        try {
+            $replay = $this->abilities_v2_replay( $request['request_ref'], $request );
+            if ( null !== $replay ) {
+                $result = $replay;
+            } else {
+                $preview = $this->abilities_v2_verify_preview( $kind, $request[ $target_key ], $request['preview_token'] );
+                // Verifying the token resolves the target once, but BackupBuddy's own code runs in
+                // between - the archive scan behind the token calls into it, and it reloads
+                // pb_backupbuddy::$options from the database - so the profile or schedule can be
+                // gone by the time this resolve runs. An unresolved target is null, and reading a
+                // profile out of it would hand a null profile to the backup effect and report the
+                // dispatch as queued.
+                $target = $this->abilities_v2_resolve_target( $kind, $request[ $target_key ] );
+                if ( ! is_array( $preview ) || $this->abilities_v2_is_error( $preview ) ) {
+                    $result = $this->abilities_v2_error( 'preview_stale' );
+                } elseif ( ! is_array( $target ) ) {
+                    $result = $this->abilities_v2_error( 'not_found' );
+                } else {
+                    $profile = 'profile' === $kind ? $target : $target['profile'];
+                    $steps   = 'schedule' === $kind ? array( 'remote_destinations' => $target['remote_ids'], 'delete_after' => false ) : array();
+                    $record  = $this->abilities_v2_new_operation( $request['request_ref'], $this->abilities_v2_request_hash( $request ), 'profile' === $kind ? 'backup' : 'scheduled_backup', null, null );
+                    $records = $this->abilities_v2_prepare_records();
+                    if ( $this->abilities_v2_is_error( $records ) ) {
+                        $result = $records;
+                    } else {
+                        $records['operations'][ $record['operation_ref'] ] = $record;
+                        if ( ! $this->abilities_v2_write_records( $records ) ) {
+                            $result = $this->abilities_v2_error( 'storage_failed' );
+                        } elseif ( ! $this->abilities_v2_start_backup_effect( $profile['raw'], $record['serial'], $steps ) ) {
+                            $record['state']      = 'failed';
+                            $record['updated_at'] = $this->abilities_v2_now();
+                            $records['operations'][ $record['operation_ref'] ] = $record;
+                            $result = $this->abilities_v2_write_records( $records ) ? $this->abilities_v2_error( 'effect_failed' ) : $this->abilities_v2_error( 'outcome_unknown' );
+                        } else {
+                            $result = array( 'operation' => $this->abilities_v2_public_operation( $record ) );
+                        }
+                    }
+                }
+            }
+        } finally {
+            $released = $this->abilities_v2_release_effect_lock( $owner );
+        }
+        return $this->abilities_v2_with_lock_release( $result, $released );
+    }
+
+    /**
+     * @param string $kind Kind.
+     * @param string $ref Ref.
+     * @param string $token Token.
+     * @return array|null
+     */
+    private function abilities_v2_verify_preview( $kind, $ref, $token ) {
+        if ( ! preg_match( '/^pre\.v1\.([0-9]{1,12})\.([a-f0-9]{64})$/D', $token, $matches ) ) {
+            return null;
+        }
+        $issued = (int) $matches[1];
+        if ( $issued > $this->abilities_v2_now() || $issued + 600 < $this->abilities_v2_now() ) {
+            return null;
+        }
+        $preview = $this->abilities_v2_preview( $kind, $ref, $issued );
+        return ! $this->abilities_v2_is_error( $preview ) && hash_equals( $preview['preview_token'], $token ) ? $preview : null;
+    }
+
+    /**
+     * @param array $request Request.
+     * @return string
+     */
+    private function abilities_v2_request_hash( $request ) {
+        ksort( $request );
+        return hash( 'sha256', wp_json_encode( $request ) );
+    }
+
+    /**
+     * @param string $request_ref Request reference.
+     * @param array  $request Request.
+     * @return array|null
+     */
+    private function abilities_v2_replay( $request_ref, $request ) {
+        $records = $this->abilities_v2_normalize_records( $this->abilities_v2_read_records() );
+        if ( $this->abilities_v2_is_error( $records ) ) {
+            return $records;
+        }
+        $hash    = $this->abilities_v2_request_hash( $request );
+        foreach ( $records['operations'] as $record ) {
+            if ( isset( $record['request_ref'] ) && hash_equals( $record['request_ref'], $request_ref ) ) {
+                return isset( $record['request_hash'] ) && hash_equals( $record['request_hash'], $hash ) ? array( 'operation' => $this->abilities_v2_public_operation( $record ) ) : $this->abilities_v2_error( 'request_conflict' );
+            }
+        }
+        foreach ( $records['receipts'] as $receipt ) {
+            if ( isset( $receipt['request_ref'] ) && hash_equals( $receipt['request_ref'], $request_ref ) ) {
+                if ( ! isset( $receipt['request_hash'] ) || ! hash_equals( $receipt['request_hash'], $hash ) ) {
+                    return $this->abilities_v2_error( 'request_conflict' );
+                }
+                return 'completed' === $receipt['state'] ? $receipt['response'] : $this->abilities_v2_error( 'outcome_unknown' );
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Read the ledger, settle what has gone quiet, and drop what has aged out.
+     *
+     * Removing an operation is not bookkeeping. The record is also the replay proof for its
+     * request_ref, so once it is gone the Dashboard retrying that request dispatches the effect a
+     * second time. Reads probe BackupBuddy for liveness but never write the ledger, so a stored
+     * timestamp can be a week behind an operation that is still running. A record nothing has ever
+     * reported an outcome for therefore gets one probe before this pass destroys it, and only on the
+     * records the pass would actually remove, so an ordinary mutation never pays to probe the whole
+     * ledger. Writing the pass back is the only place a refreshed observation becomes durable.
+     *
+     * The probe has to find advancing evidence for a record to survive: a run BackupBuddy stopped
+     * stepping keeps its old timestamp, settles, and ages out exactly as it did before. A timestamp
+     * abilities_v2_trusted_time() refuses, in the ledger or in BackupBuddy's own record, counts as no
+     * evidence rather than as fresh evidence, so a frozen future stamp cannot rescue the same zombie
+     * on every pass.
+     *
+     * @return array
+     */
+    private function abilities_v2_prepare_records() {
+        $records = $this->abilities_v2_normalize_records( $this->abilities_v2_read_records() );
+        if ( $this->abilities_v2_is_error( $records ) ) {
+            return $records;
+        }
+        $cutoff  = $this->abilities_v2_now() - 604800;
+        foreach ( $records['operations'] as $key => $record ) {
+            if ( $this->abilities_v2_prune_needs_evidence( $record, $cutoff ) ) {
+                $probed = $this->abilities_v2_probe_operation( $record );
+                if ( $this->abilities_v2_valid_operation_record( $probed ) ) {
+                    $record = $probed;
+                }
+            }
+            $record = $this->abilities_v2_settle_stale_operation( $record );
+            $records['operations'][ $key ] = $record;
+            if ( in_array( isset( $record['state'] ) ? $record['state'] : '', array( 'succeeded', 'failed', 'cancelled', 'unknown' ), true ) && $this->abilities_v2_unobserved_since( $record, $cutoff ) ) {
+                unset( $records['operations'][ $key ] );
+            }
+        }
+        foreach ( $records['receipts'] as $key => $receipt ) {
+            $created = $this->abilities_v2_trusted_time( isset( $receipt['created_at'] ) ? $receipt['created_at'] : null );
+            if ( null === $created || $created < $cutoff ) {
+                unset( $records['receipts'][ $key ] );
+            }
+        }
+        if ( count( $records['operations'] ) + count( $records['receipts'] ) >= 100 ) {
+            return $this->abilities_v2_error( 'operation_limit_reached' );
+        }
+        return $records;
+    }
+
+    /**
+     * Whether the age-out pass is about to destroy a record it holds no outcome for.
+     *
+     * queued, running and cancel_requested all mean nothing has reported an ending, and 'unknown' is
+     * what the staleness horizon writes when nothing has reported at all, so none of the four is an
+     * observed outcome. Only records already past the cutoff are worth a probe, because they are the
+     * only ones this pass can remove.
+     *
+     * @param mixed $record Stored operation record.
+     * @param int   $cutoff Age-out cutoff.
+     * @return bool
+     */
+    private function abilities_v2_prune_needs_evidence( $record, $cutoff ) {
+        return is_array( $record ) && isset( $record['state'], $record['updated_at'] ) && $this->abilities_v2_unobserved_since( $record, $cutoff ) && in_array( $record['state'], array( 'queued', 'running', 'cancel_requested', 'unknown' ), true );
+    }
+
+    /**
+     * Settle an operation nothing has reported on for a full day.
+     *
+     * The Child only ever learns about an effect through abilities_v2_probe_operation(), so a
+     * record still sitting in queued/running/cancel_requested a day after its last observation has
+     * no evidence behind it: the effect lock it started under expired after 120s and BackupBuddy's
+     * own step cron gives up long before a day is out. Such a record settles to 'unknown' instead
+     * of claiming to still be in flight, and then ages out on the same 7-day prune as any other
+     * settled record. Without that, a crashed run holds its ledger slot forever and 100 of them
+     * make every new operation fail with operation_limit_reached.
+     *
+     * updated_at is left alone on purpose: it records the last time the Child actually observed
+     * the operation, and settling it is not an observation. Probing is, so
+     * abilities_v2_probe_operation() moves updated_at forward whenever BackupBuddy's own record
+     * shows the run is still going. That is what keeps this horizon from overruling live evidence:
+     * a record the provider just reported as active is never stale here.
+     *
+     * @param mixed $record Stored operation record.
+     * @return mixed
+     */
+    private function abilities_v2_settle_stale_operation( $record ) {
+        if ( ! is_array( $record ) || ! isset( $record['state'], $record['updated_at'] ) || ! is_int( $record['updated_at'] ) ) {
+            return $record;
+        }
+        if ( in_array( $record['state'], array( 'queued', 'running', 'cancel_requested' ), true ) && $this->abilities_v2_unobserved_since( $record, $this->abilities_v2_now() - DAY_IN_SECONDS ) ) {
+            $record['state'] = 'unknown';
+        }
+        return $record;
+    }
+
+    /**
+     * @param array $records Records.
+     * @return array
+     */
+    private function abilities_v2_normalize_records( $records ) {
+        if ( array() === $records ) {
+            return array( 'operations' => array(), 'receipts' => array() );
+        }
+        if ( ! is_array( $records ) || array( 'operations', 'receipts' ) !== array_keys( $records ) || ! is_array( $records['operations'] ) || ! is_array( $records['receipts'] ) || count( $records['operations'] ) + count( $records['receipts'] ) > 100 ) {
+            return $this->abilities_v2_error( 'storage_failed' );
+        }
+        foreach ( $records['operations'] as $key => $record ) {
+            if ( ! is_string( $key ) || ! $this->abilities_v2_valid_operation_record( $record ) || ! hash_equals( $record['operation_ref'], $key ) ) {
+                return $this->abilities_v2_error( 'storage_failed' );
+            }
+        }
+        foreach ( $records['receipts'] as $key => $receipt ) {
+            if ( ! is_string( $key ) || ! $this->abilities_v2_valid_receipt( $receipt ) || ! hash_equals( $receipt['request_ref'], $key ) ) {
+                return $this->abilities_v2_error( 'storage_failed' );
+            }
+        }
+        return $records;
+    }
+
+    /**
+     * @param mixed $record Stored operation.
+     * @return bool
+     */
+    private function abilities_v2_valid_operation_record( $record ) {
+        $keys = array( 'operation_ref', 'request_ref', 'request_hash', 'kind', 'state', 'created_at', 'updated_at', 'progress', 'archive_ref', 'destination_ref', 'warnings', 'serial' );
+        if ( ! is_array( $record ) || $keys !== array_keys( $record ) || ! $this->abilities_v2_valid_ref( $record['operation_ref'] ) || ! $this->abilities_v2_valid_request_ref( $record['request_ref'] ) || ! is_string( $record['request_hash'] ) || 1 !== preg_match( '/^[a-f0-9]{64}$/D', $record['request_hash'] ) || ! in_array( $record['kind'], array( 'backup', 'scheduled_backup', 'transfer' ), true ) || ! in_array( $record['state'], array( 'queued', 'running', 'cancel_requested', 'succeeded', 'failed', 'cancelled', 'unknown' ), true ) || ! is_int( $record['created_at'] ) || $record['created_at'] < 0 || ! is_int( $record['updated_at'] ) || $record['updated_at'] < $record['created_at'] || ! is_int( $record['progress'] ) || $record['progress'] < 0 || $record['progress'] > 100 || ! is_string( $record['serial'] ) || 1 !== preg_match( '/^[a-f0-9]{10}$/D', $record['serial'] ) ) {
+            return false;
+        }
+        foreach ( array( 'archive_ref', 'destination_ref' ) as $key ) {
+            if ( null !== $record[ $key ] && ! $this->abilities_v2_valid_ref( $record[ $key ] ) ) {
+                return false;
+            }
+        }
+        if ( ! is_array( $record['warnings'] ) || count( $record['warnings'] ) > 10 || count( $record['warnings'] ) !== count( array_unique( $record['warnings'] ) ) ) {
+            return false;
+        }
+        foreach ( $record['warnings'] as $warning ) {
+            if ( ! in_array( $warning, array( 'retention_deleted_archives', 'remote_transfer_pending', 'cancel_not_immediate' ), true ) ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * @param mixed $receipt Stored receipt.
+     * @return bool
+     */
+    private function abilities_v2_valid_receipt( $receipt ) {
+        $keys = array( 'request_ref', 'request_hash', 'created_at', 'state', 'response' );
+        if ( ! is_array( $receipt ) || $keys !== array_keys( $receipt ) || ! $this->abilities_v2_valid_request_ref( $receipt['request_ref'] ) || ! is_string( $receipt['request_hash'] ) || 1 !== preg_match( '/^[a-f0-9]{64}$/D', $receipt['request_hash'] ) || ! is_int( $receipt['created_at'] ) || $receipt['created_at'] < 0 || ! in_array( $receipt['state'], array( 'pending', 'completed' ), true ) ) {
+            return false;
+        }
+        if ( 'pending' === $receipt['state'] ) {
+            return null === $receipt['response'];
+        }
+        $response_keys = array( 'archive_ref', 'deleted', 'already_absent', 'auxiliary_records_removed' );
+        return is_array( $receipt['response'] ) && $response_keys === array_keys( $receipt['response'] ) && $this->abilities_v2_valid_ref( $receipt['response']['archive_ref'] ) && true === $receipt['response']['deleted'] && false === $receipt['response']['already_absent'] && is_int( $receipt['response']['auxiliary_records_removed'] ) && $receipt['response']['auxiliary_records_removed'] >= 0 && $receipt['response']['auxiliary_records_removed'] <= 10;
+    }
+
+    /**
+     * @param string      $request_ref Request reference.
+     * @param string      $hash Hash.
+     * @param string      $kind Kind.
+     * @param string|null $archive_ref Archive ref.
+     * @param string|null $destination_ref Destination ref.
+     * @return array
+     */
+    private function abilities_v2_new_operation( $request_ref, $hash, $kind, $archive_ref, $destination_ref ) {
+        $now = $this->abilities_v2_now();
+        return array(
+            'operation_ref'  => $this->abilities_v2_ref( 'op', $request_ref ),
+            'request_ref'    => $request_ref,
+            'request_hash'   => $hash,
+            'kind'           => $kind,
+            'state'          => 'queued',
+            'created_at'     => $now,
+            'updated_at'     => $now,
+            'progress'       => 0,
+            'archive_ref'    => $archive_ref,
+            'destination_ref'=> $destination_ref,
+            'warnings'       => array(),
+            'serial'         => substr( hash_hmac( 'sha256', 'serial' . "\0" . $request_ref, $this->abilities_v2_secret() ), 0, 10 ),
+        );
+    }
+
+    /**
+     * @param array $record Record.
+     * @return array
+     */
+    private function abilities_v2_public_operation( $record ) {
+        return array(
+            'operation_ref'  => $record['operation_ref'],
+            'kind'           => $record['kind'],
+            'state'          => $record['state'],
+            'created_at'     => (int) $record['created_at'],
+            'updated_at'     => (int) $record['updated_at'],
+            'progress_percent'=> isset( $record['progress'] ) ? $record['progress'] : null,
+            'archive_ref'    => isset( $record['archive_ref'] ) ? $record['archive_ref'] : null,
+            'destination_ref'=> isset( $record['destination_ref'] ) ? $record['destination_ref'] : null,
+            'warning_codes'  => isset( $record['warnings'] ) && is_array( $record['warnings'] ) ? array_values( $record['warnings'] ) : array(),
+        );
+    }
+
+    /**
+     * @param string $operation_ref Operation reference, already validated by abilities_v2_valid_payload().
+     * @return array
+     */
+    private function abilities_v2_get_operation( $operation_ref ) {
+        $records = $this->abilities_v2_normalize_records( $this->abilities_v2_read_records() );
+        if ( $this->abilities_v2_is_error( $records ) ) {
+            return $records;
+        }
+        if ( ! isset( $records['operations'][ $operation_ref ] ) || ! is_array( $records['operations'][ $operation_ref ] ) ) {
+            return $this->abilities_v2_error( 'not_found' );
+        }
+        // Settled here for the response only; this read never writes the ledger back.
+        $record = $this->abilities_v2_settle_stale_operation( $this->abilities_v2_probe_operation( $records['operations'][ $operation_ref ] ) );
+        if ( ! $this->abilities_v2_valid_operation_record( $record ) ) {
+            return $this->abilities_v2_error( 'storage_failed' );
+        }
+        return array( 'operation' => $this->abilities_v2_public_operation( $record ) );
+    }
+
+    /**
+     * @param string $operation_ref Operation reference, already validated by abilities_v2_valid_payload().
+     * @return array
+     */
+    private function abilities_v2_cancel_operation( $operation_ref ) {
+        $owner = $this->abilities_v2_acquire_effect_lock();
+        if ( false === $owner ) {
+            return $this->abilities_v2_error( 'lock_busy' );
+        }
+        $result = null;
+        try {
+            $records = $this->abilities_v2_normalize_records( $this->abilities_v2_read_records() );
+            if ( $this->abilities_v2_is_error( $records ) ) {
+                $result = $records;
+            } elseif ( ! isset( $records['operations'][ $operation_ref ] ) ) {
+                $result = $this->abilities_v2_error( 'not_found' );
+            } else {
+                $record = $this->abilities_v2_settle_stale_operation( $this->abilities_v2_probe_operation( $records['operations'][ $operation_ref ] ) );
+                if ( ! $this->abilities_v2_valid_operation_record( $record ) ) {
+                    $result = $this->abilities_v2_error( 'storage_failed' );
+                } elseif ( in_array( $record['state'], array( 'succeeded', 'failed', 'cancelled', 'cancel_requested', 'unknown' ), true ) ) {
+                    $result = array( 'operation' => $this->abilities_v2_public_operation( $record ) );
+                } elseif ( ! $this->abilities_v2_set_stop_signal( $record['serial'] ) ) {
+                    $result = $this->abilities_v2_error( 'effect_failed' );
+                } else {
+                    $record['state']      = 'cancel_requested';
+                    $record['updated_at'] = $this->abilities_v2_now();
+                    $record['warnings']   = array( 'cancel_not_immediate' );
+                    $records['operations'][ $operation_ref ] = $record;
+                    $result = $this->abilities_v2_write_records( $records ) ? array( 'operation' => $this->abilities_v2_public_operation( $record ) ) : $this->abilities_v2_error( 'storage_failed' );
+                }
+            }
+        } finally {
+            $released = $this->abilities_v2_release_effect_lock( $owner );
+        }
+        return $this->abilities_v2_with_lock_release( $result, $released );
+    }
+
+    /**
+     * @param array $request Request, already validated by abilities_v2_valid_payload().
+     * @return array
+     */
+    private function abilities_v2_delete_archive( $request ) {
+        $owner = $this->abilities_v2_acquire_effect_lock();
+        if ( false === $owner ) {
+            return $this->abilities_v2_error( 'lock_busy' );
+        }
+        $result = null;
+        try {
+            $replay = $this->abilities_v2_replay( $request['request_ref'], $request );
+            if ( null !== $replay ) {
+                $result = $replay;
+            } else {
+                $archive = $this->abilities_v2_resolve_archive( $request['archive_ref'] );
+                if ( $this->abilities_v2_is_error( $archive ) ) {
+                    $result = $archive;
+                } elseif ( ! is_array( $archive ) ) {
+                    $result = $this->abilities_v2_error( 'not_found' );
+                } elseif ( $archive['size_bytes'] !== $request['expected_size_bytes'] || $archive['modified_at'] !== $request['expected_modified_at'] ) {
+                    $result = $this->abilities_v2_error( 'request_conflict' );
+                } else {
+                    $records = $this->abilities_v2_prepare_records();
+                    if ( $this->abilities_v2_is_error( $records ) ) {
+                        $result = $records;
+                    } else {
+                        $receipt = array(
+                            'request_ref'  => $request['request_ref'],
+                            'request_hash' => $this->abilities_v2_request_hash( $request ),
+                            'created_at'   => $this->abilities_v2_now(),
+                            'state'        => 'pending',
+                            'response'     => null,
+                        );
+                        $records['receipts'][ $request['request_ref'] ] = $receipt;
+                        if ( ! $this->abilities_v2_write_records( $records ) ) {
+                            $result = $this->abilities_v2_error( 'storage_failed' );
+                        } else {
+                            $effect = $this->abilities_v2_delete_archive_effect( $archive );
+                            if ( ! is_array( $effect ) || empty( $effect['deleted'] ) || is_array( $this->abilities_v2_resolve_archive( $request['archive_ref'] ) ) ) {
+                                $result = $this->abilities_v2_error( 'outcome_unknown' );
+                            } else {
+                                $response = array(
+                                    'archive_ref'               => $request['archive_ref'],
+                                    'deleted'                   => true,
+                                    'already_absent'            => false,
+                                    'auxiliary_records_removed' => isset( $effect['auxiliary_records_removed'] ) ? min( 10, max( 0, (int) $effect['auxiliary_records_removed'] ) ) : 0,
+                                );
+                                $receipt['state']    = 'completed';
+                                $receipt['response'] = $response;
+                                $records['receipts'][ $request['request_ref'] ] = $receipt;
+                                $result = $this->abilities_v2_write_records( $records ) ? $response : $this->abilities_v2_error( 'outcome_unknown' );
+                            }
+                        }
+                    }
+                }
+            }
+        } finally {
+            $released = $this->abilities_v2_release_effect_lock( $owner );
+        }
+        return $this->abilities_v2_with_lock_release( $result, $released );
+    }
+
+    /**
+     * @param array $request Request, already validated by abilities_v2_valid_payload().
+     * @return array
+     */
+    private function abilities_v2_start_transfer( $request ) {
+        $owner = $this->abilities_v2_acquire_effect_lock();
+        if ( false === $owner ) {
+            return $this->abilities_v2_error( 'lock_busy' );
+        }
+        $result = null;
+        try {
+            $replay = $this->abilities_v2_replay( $request['request_ref'], $request );
+            if ( null !== $replay ) {
+                $result = $replay;
+            } else {
+                $archive     = $this->abilities_v2_resolve_archive( $request['archive_ref'] );
+                $destination = $this->abilities_v2_resolve_destination( $request['destination_ref'] );
+                if ( $this->abilities_v2_is_error( $archive ) ) {
+                    $result = $archive;
+                } elseif ( ! is_array( $archive ) || null === $destination ) {
+                    $result = $this->abilities_v2_error( 'not_found' );
+                } else {
+                    $record  = $this->abilities_v2_new_operation( $request['request_ref'], $this->abilities_v2_request_hash( $request ), 'transfer', $request['archive_ref'], $request['destination_ref'] );
+                    $records = $this->abilities_v2_prepare_records();
+                    if ( $this->abilities_v2_is_error( $records ) ) {
+                        $result = $records;
+                    } else {
+                        $records['operations'][ $record['operation_ref'] ] = $record;
+                        if ( ! $this->abilities_v2_write_records( $records ) ) {
+                            $result = $this->abilities_v2_error( 'storage_failed' );
+                        } elseif ( ! $this->abilities_v2_start_transfer_effect( $archive, $destination, $record['serial'] ) ) {
+                            $record['state']      = 'failed';
+                            $record['updated_at'] = $this->abilities_v2_now();
+                            $records['operations'][ $record['operation_ref'] ] = $record;
+                            $result = $this->abilities_v2_write_records( $records ) ? $this->abilities_v2_error( 'effect_failed' ) : $this->abilities_v2_error( 'outcome_unknown' );
+                        } else {
+                            $result = array( 'operation' => $this->abilities_v2_public_operation( $record ) );
+                        }
+                    }
+                }
+            }
+        } finally {
+            $released = $this->abilities_v2_release_effect_lock( $owner );
+        }
+        return $this->abilities_v2_with_lock_release( $result, $released );
+    }
+
+    /**
+     * @param string $ref Archive ref.
+     * @return array|null
+     */
+    private function abilities_v2_resolve_archive( $ref ) {
+        $archives = $this->abilities_v2_archives();
+        if ( $this->abilities_v2_is_error( $archives ) ) {
+            return $archives;
+        }
+        foreach ( $archives as $archive ) {
+            if ( hash_equals( $this->abilities_v2_ref( 'arc', $archive['internal_id'] ), $ref ) ) {
+                return $archive;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @param string $ref Destination ref.
+     * @return string|null
+     */
+    private function abilities_v2_resolve_destination( $ref ) {
+        $options = $this->abilities_v2_read_options();
+        $items   = isset( $options['remote_destinations'] ) && is_array( $options['remote_destinations'] ) ? $options['remote_destinations'] : array();
+        foreach ( $items as $id => $destination ) {
+            if ( is_array( $destination ) && isset( $destination['type'] ) && is_string( $destination['type'] ) && $this->abilities_v2_destination_configured( strtolower( $destination['type'] ), $destination ) && hash_equals( $this->abilities_v2_ref( 'dst', (string) $id ), $ref ) ) {
+                return (string) $id;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @param array  $profile Profile.
+     * @param string $serial Serial.
+     * @param array  $steps Steps.
+     * @return bool
+     */
+    protected function abilities_v2_start_backup_effect( $profile, $serial, $steps ) {
+        if ( ! class_exists( '\\pb_backupbuddy_backup' ) ) {
+            // require_once on a path that is not there is an uncatchable compile error, so it would
+            // take the request down past the caller's failure handling and past the finally that
+            // releases the effect lock: the record stays queued and every later effect answers
+            // lock_busy until the lock's 120s TTL runs out.
+            if ( ! method_exists( '\\pb_backupbuddy', 'plugin_path' ) ) {
+                return false;
+            }
+            $backup_class_file = \pb_backupbuddy::plugin_path() . '/classes/backup.php';
+            if ( ! file_exists( $backup_class_file ) ) {
+                return false;
+            }
+            require_once $backup_class_file; // NOSONAR - WP compatible.
+            if ( ! class_exists( '\\pb_backupbuddy_backup' ) ) {
+                // A file that loaded without defining the class leaves the same uncatchable ending
+                // as a missing one: instantiating an undefined class is an Error nothing here
+                // catches, so the caller's effect_failed path would be skipped just the same.
+                return false;
+            }
+        }
+        $backup = new \pb_backupbuddy_backup();
+        return method_exists( $backup, 'start_backup_process' ) && true === $backup->start_backup_process( $profile, 'manual', array(), $steps, '', $serial, array(), '', '' );
+    }
+
+    /**
+     * @param array $record Record.
+     * @return array
+     */
+    protected function abilities_v2_probe_operation( $record ) {
+        // Not every BackupBuddy build carries getLogDirectory(), which is why every other caller in
+        // this file tests for it first. Without it there is no record to read, so the record is
+        // returned as it stands: no new evidence rather than a clean bill of health. Nothing here
+        // moves updated_at, so abilities_v2_settle_stale_operation() still ages the record out.
+        if ( ! class_exists( $this->backupbuddy_core_class ) || ! method_exists( $this->backupbuddy_core_class, 'getLogDirectory' ) ) {
+            return $record;
+        }
+        $prefix = 'transfer' === $record['kind'] ? 'send-mainwp-ability-' : '';
+        $file   = \backupbuddy_core::getLogDirectory() . 'fileoptions/' . $prefix . $record['serial'] . '.txt';
+        if ( ! file_exists( $file ) || ! class_exists( '\\pb_backupbuddy_fileoptions' ) ) {
+            return $record;
+        }
+        $options = new \pb_backupbuddy_fileoptions( $file, true );
+        if ( ! method_exists( $options, 'is_ok' ) || true !== $options->is_ok() || ! isset( $options->options ) || ! is_array( $options->options ) ) {
+            return $record;
+        }
+        $data = $options->options;
+        if ( 'transfer' === $record['kind'] ) {
+            if ( isset( $data['status'] ) && 'success' === $data['status'] && ! empty( $data['finish_time'] ) ) {
+                $record['state']    = 'succeeded';
+                $record['progress'] = 100;
+            } elseif ( isset( $data['status'] ) && in_array( $data['status'], array( 'failure', 'timeout', 'aborted' ), true ) ) {
+                $record['state'] = 'failed';
+            } elseif ( isset( $data['status'] ) && 'running' === $data['status'] ) {
+                $record['state'] = 'running';
+                // 'running' is written once when the send is dispatched and nothing clears it if the
+                // worker dies, so the status on its own says nothing about liveness: dating the record
+                // by it would keep a dead send fresh on every read and it could never age out. What
+                // does advance is the send record itself, which BackupBuddy rewrites as the transfer
+                // progresses, so that is the observation time - the same discipline the backup branch
+                // takes from updated_time below.
+                $activity = $this->abilities_v2_send_activity_time( $data, $file );
+                if ( null !== $activity ) {
+                    $record['updated_at'] = max( $record['updated_at'], min( $this->abilities_v2_now(), $activity ) );
+                }
+            }
+            return $record;
+        }
+        if ( ! empty( $data['finish_time'] ) && ! empty( $data['archive_file'] ) && file_exists( $data['archive_file'] ) ) {
+            $record['state']       = 'succeeded';
+            $record['progress']    = 100;
+            $record['archive_ref'] = $this->abilities_v2_ref( 'arc', basename( $data['archive_file'] ) );
+        } elseif ( ! empty( $data['error'] ) ) {
+            $record['state'] = 'failed';
+        } else {
+            if ( in_array( $record['state'], array( 'queued', 'unknown' ), true ) ) {
+                $record['state'] = 'running';
+            }
+            // A backup fileoptions file with no finish and no error says nothing about liveness on
+            // its own: a crashed run leaves exactly that behind. BackupBuddy stamps updated_time on
+            // every step and judges its own timeouts by it (see get_backup_status()), so it is the
+            // one signal that separates a long backup from an abandoned one. Adopting it as the
+            // observation time keeps a genuine long run out of the staleness settle below while an
+            // abandoned run still ages out of the ledger. A stamp the trust check rejects is not a
+            // step the Child can date, so it buys the record nothing: the min() below is only there
+            // to absorb the few minutes of skew a stamp is allowed to be ahead by, and clamping an
+            // arbitrary future value would report the current time on every probe of a record that
+            // stopped changing days ago.
+            $activity = $this->abilities_v2_trusted_time( isset( $data['updated_time'] ) ? $data['updated_time'] : null );
+            if ( null !== $activity ) {
+                $record['updated_at'] = max( $record['updated_at'], min( $this->abilities_v2_now(), $activity ) );
+            }
+        }
+        return $record;
+    }
+
+    /**
+     * Last time BackupBuddy itself touched a remote send record.
+     *
+     * A send stamps update_time as it works through the file. Where a build does not carry that key,
+     * or stamps something the trust check refuses, the record is still rewritten on every chunk, so
+     * the file's own modification time states the same fact, and a send that died stops moving
+     * either way. Both readings go through the trust check: a stamp ahead of this clock is not a
+     * later observation of anything, and a record nothing rewrites stops advancing its own mtime
+     * too, so neither reading can keep a dead send looking alive.
+     *
+     * @param array  $data Send record contents.
+     * @param string $file Send record path.
+     * @return int|null
+     */
+    private function abilities_v2_send_activity_time( $data, $file ) {
+        if ( isset( $data['update_time'] ) ) {
+            $stamped = $this->abilities_v2_trusted_time( $data['update_time'] );
+            if ( null !== $stamped ) {
+                return $stamped;
+            }
+        }
+        $modified = filemtime( $file );
+        return false === $modified ? null : $this->abilities_v2_trusted_time( $modified );
+    }
+
+    /**
+     * @param string $serial Serial.
+     * @return bool
+     */
+    protected function abilities_v2_set_stop_signal( $serial ) {
+        set_transient( 'pb_backupbuddy_stop_backup-' . $serial, true, DAY_IN_SECONDS );
+        return true === get_transient( 'pb_backupbuddy_stop_backup-' . $serial );
+    }
+
+    /**
+     * @param array $archive Archive.
+     * @return array
+     */
+    protected function abilities_v2_delete_archive_effect( $archive ) {
+        if ( ! isset( $archive['path'] ) || ! is_string( $archive['path'] ) || ! file_exists( $archive['path'] ) || is_link( $archive['path'] ) ) {
+            return array( 'deleted' => false, 'auxiliary_records_removed' => 0 );
+        }
+        // wp_delete_file() only gained a return value in WP 6.7 and the wp_delete_file filter can move
+        // the delete elsewhere, so on the 6.2+ range we support absence on readback is the only truth.
+        wp_delete_file( $archive['path'] );
+        clearstatcache( true, $archive['path'] );
+        if ( file_exists( $archive['path'] ) ) {
+            return array( 'deleted' => false, 'auxiliary_records_removed' => 0 );
+        }
+        $removed = 0;
+        if ( class_exists( $this->backupbuddy_core_class ) && method_exists( $this->backupbuddy_core_class, 'get_serial_from_file' ) && method_exists( $this->backupbuddy_core_class, 'getLogDirectory' ) ) {
+            $serial = \backupbuddy_core::get_serial_from_file( $archive['internal_id'] );
+            foreach ( array( \backupbuddy_core::getLogDirectory() . 'fileoptions/' . $serial . '.txt', \backupbuddy_core::getLogDirectory() . 'fileoptions/' . $serial . '.txt.lock' ) as $auxiliary ) {
+                if ( ! file_exists( $auxiliary ) ) {
+                    continue;
+                }
+                wp_delete_file( $auxiliary );
+                clearstatcache( true, $auxiliary );
+                if ( ! file_exists( $auxiliary ) ) {
+                    ++$removed;
+                }
+            }
+        }
+        return array( 'deleted' => true, 'auxiliary_records_removed' => $removed );
+    }
+
+    /**
+     * @param array  $archive Archive.
+     * @param string $destination Destination ID.
+     * @param string $serial Serial.
+     * @return bool
+     */
+    protected function abilities_v2_start_transfer_effect( $archive, $destination, $serial ) {
+        if ( ! class_exists( $this->backupbuddy_core_class ) || ! method_exists( $this->backupbuddy_core_class, 'schedule_single_event' ) ) {
+            return false;
+        }
+        return false !== \backupbuddy_core::schedule_single_event( $this->abilities_v2_now(), 'remote_send', array( $destination, $archive['path'], 'mainwp-ability-' . $serial, false, false ) );
     }
 
     /**
@@ -978,7 +2468,11 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
             $deleted_files = array();
             foreach ( $item_ids as $item ) {
                 if ( file_exists( \backupbuddy_core::getBackupDirectory() . $item ) ) {
-                    if ( wp_delete_file( \backupbuddy_core::getBackupDirectory() . $item ) === true ) { // NOSONAR .
+                    // wp_delete_file() only gained a return value in WP 6.7 and we support 6.2+, so
+                    // absence on readback is the only truth available here.
+                    wp_delete_file( \backupbuddy_core::getBackupDirectory() . $item ); // NOSONAR .
+                    clearstatcache( true, \backupbuddy_core::getBackupDirectory() . $item );
+                    if ( ! file_exists( \backupbuddy_core::getBackupDirectory() . $item ) ) {
                         $deleted_files[] = $item;
 
                         $backup_files = glob( \backupbuddy_core::getBackupDirectory() . '*.zip' );
@@ -1233,8 +2727,14 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
             $chk_valid = true;
         }
 
-        if ( $chk_valid && false === wp_delete_file( $fileoptions_file ) ) { // NOSONAR - safe.
-            $alerts[] = 'Error #456765545. Unable to wipe cached fileoptions file `' . $fileoptions_file . '`.';
+        if ( $chk_valid ) {
+            // wp_delete_file() only gained a return value in WP 6.7 and we support 6.2+, so the
+            // alert has to rest on the file still being there, not on the call's return.
+            wp_delete_file( $fileoptions_file ); // NOSONAR - safe.
+            clearstatcache( true, $fileoptions_file );
+            if ( file_exists( $fileoptions_file ) ) {
+                $alerts[] = 'Error #456765545. Unable to wipe cached fileoptions file `' . $fileoptions_file . '`.';
+            }
         }
 
         \pb_backupbuddy::status( 'details', 'Fileoptions instance #28.' );
@@ -1905,7 +3405,9 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \pb_backupbuddy::flush()
      */
     public function view_log() {
-        $serial  = isset( $_POST['serial'] ) ? sanitize_text_field( wp_unslash( $_POST['serial'] ) ) : '';
+        $serial = isset( $_POST['serial'] ) ? sanitize_text_field( wp_unslash( $_POST['serial'] ) ) : '';
+        // The serial becomes part of the log path below; restrict it to BackupBuddy's serial alphabet so it cannot traverse out of the log directory.
+        $serial  = preg_replace( '/[^a-zA-Z0-9_-]/', '', $serial );
         $logFile = \backupbuddy_core::getLogDirectory() . 'status-' . $serial . '_sum_' . \pb_backupbuddy::$options['log_serial'] . '.txt';
 
         if ( ! file_exists( $logFile ) ) {
@@ -1926,18 +3428,18 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
                 if ( isset( $line['u'] ) ) {
                     $u = '.' . $line['u'];
                 }
-                echo \pb_backupbuddy::$format->date( $line['time'], 'G:i:s' ) . $u . "\t\t";
-                echo $line['run'] . "sec\t";
-                echo $line['mem'] . "MB\t";
-                echo $line['event'] . "\t";
-                echo $line['data'] . "\n";
+                echo esc_html( \pb_backupbuddy::$format->date( $line['time'], 'G:i:s' ) . $u ) . "\t\t";
+                echo esc_html( $line['run'] ) . "sec\t";
+                echo esc_html( $line['mem'] ) . "MB\t";
+                echo esc_html( $line['event'] ) . "\t";
+                echo esc_html( $line['data'] ) . "\n";
             } else {
-                echo $rawline . "\n";
+                echo esc_html( $rawline ) . "\n";
             }
         }
         ?>
             </textarea><br><br>
-        <small>Log file: <?php echo $logFile; ?></small>
+        <small>Log file: <?php echo esc_html( $logFile ); ?></small>
         <br>
         <?php
         echo '<small>Last modified: ' . \pb_backupbuddy::$format->date( filemtime( $logFile ) ) . ' (' . \pb_backupbuddy::$format->time_ago( filemtime( $logFile ) ) . ' ago)'; // NOSONAR .
@@ -2271,8 +3773,12 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
         if ( '1' === \pb_backupbuddy::$options['lock_archives_directory'] ) {
 
             if ( file_exists( \backupbuddy_core::getBackupDirectory() . '.htaccess' ) ) {
-                $unlink_status = wp_delete_file( \backupbuddy_core::getBackupDirectory() . '.htaccess' );
-                if ( false === $unlink_status ) {
+                // wp_delete_file() only gained a return value in WP 6.7 and we support 6.2+; a
+                // download served through a still-present .htaccess would fail anyway, so the
+                // readback is what decides.
+                wp_delete_file( \backupbuddy_core::getBackupDirectory() . '.htaccess' );
+                clearstatcache( true, \backupbuddy_core::getBackupDirectory() . '.htaccess' );
+                if ( file_exists( \backupbuddy_core::getBackupDirectory() . '.htaccess' ) ) {
                     die( 'Error #844594. Unable to temporarily remove .htaccess security protection on archives directory to allow downloading. Please verify permissions of the BackupBuddy archives directory or manually download via FTP.' );
                 }
             }

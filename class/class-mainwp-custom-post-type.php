@@ -37,6 +37,20 @@ class MainWP_Custom_Post_Type {
     public static $information = array();
 
     /**
+     * Whether the current request uses the bounded v2 response contract.
+     *
+     * @var bool
+     */
+    private static $v2_action = false;
+
+    /**
+     * Whether the current v2 action has already written child content.
+     *
+     * @var bool
+     */
+    private static $v2_mutation_started = false;
+
+    /**
      * Public variable to hold the information about the language domain.
      *
      * @var string 'mainwp-child' languge domain.
@@ -154,13 +168,32 @@ class MainWP_Custom_Post_Type {
 
 
     /**
+     * Return the truthful closed outcome for a fatal during a v2 import.
+     *
+     * `rejected` promises the child was left untouched, so it may only be reported while
+     * nothing has been written yet. Once the first row, meta delete or term unlink has run
+     * the request may have applied in part, which the Dashboard has to reconcile rather
+     * than retry.
+     *
+     * @return array Closed fatal outcome.
+     */
+    private static function v2_fatal_outcome() {
+        return array(
+            'outcome' => static::$v2_mutation_started ? 'unknown' : 'rejected',
+            'reason'  => 'child_failure',
+        );
+    }
+
+    /**
      * Method mainwp_custom_post_type_handle_fatal_error()
      *
      * Custom post type fatal error handler.
      */
     public static function mainwp_custom_post_type_handle_fatal_error() {
         $error = error_get_last();
-        if ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
+        if ( self::$v2_action && isset( $error['type'] ) && E_ERROR === $error['type'] ) {
+            $data = static::v2_fatal_outcome();
+        } elseif ( isset( $error['type'] ) && E_ERROR === $error['type'] && isset( $error['message'] ) ) {
             $data = array( 'error' => 'MainWPChild fatal error : ' . $error['message'] . ' Line: ' . $error['line'] . ' File: ' . $error['file'] );
         } else {
             $data = static::$information;
@@ -186,6 +219,13 @@ class MainWP_Custom_Post_Type {
 
         if ( 'custom_post_type_import' === $mwp_action ) {
             $information = $this->import_custom_post();
+        } elseif ( 'custom_post_type_import_v2' === $mwp_action ) {
+            self::$v2_action     = true;
+            static::$information = array(
+                'outcome' => 'rejected',
+                'reason'  => 'child_failure',
+            );
+            $information         = $this->import_custom_post_v2();
         } else {
             $information = array( 'error' => 'Unknown action' );
         }
@@ -228,6 +268,361 @@ class MainWP_Custom_Post_Type {
             }
         }
         return $return;
+    }
+
+    /**
+     * Import one strictly bounded v2 custom post payload.
+     *
+     * @return array Closed v2 result.
+     */
+    private function import_custom_post_v2() { // phpcs:ignore -- bounded orchestration is clearer in one method.
+        self::$v2_mutation_started = false;
+        add_filter( 'http_request_host_is_external', '__return_true' );
+
+        // phpcs:disable WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        if ( ! isset( $_POST['data'] ) ) {
+            return $this->v2_rejected( 'invalid_payload' );
+        }
+        $raw = wp_unslash( $_POST['data'] );
+        if ( is_string( $raw ) ) {
+            if ( 0 === strlen( $raw ) || 16777216 < strlen( $raw ) ) {
+                return $this->v2_rejected( 'invalid_payload' );
+            }
+            $data = json_decode( $raw, true, 10 );
+            if ( JSON_ERROR_NONE !== json_last_error() ) {
+                return $this->v2_rejected( 'invalid_payload' );
+            }
+        } elseif ( is_array( $raw ) ) {
+            $data    = $raw;
+            $encoded = wp_json_encode( $data );
+            if ( ! is_string( $encoded ) || 16777216 < strlen( $encoded ) ) {
+                return $this->v2_rejected( 'invalid_payload' );
+            }
+        } else {
+            return $this->v2_rejected( 'invalid_payload' );
+        }
+        $edit_id = isset( $_POST['post_id'] ) ? $this->v2_positive_id( wp_unslash( $_POST['post_id'] ) ) : 0;
+        // phpcs:enable
+        if ( false === $edit_id || ! $this->validate_v2_payload( $data, false ) ) {
+            return $this->v2_rejected( 'invalid_payload' );
+        }
+
+        $post_type    = $data['post']['post_type'];
+        $custom_types = get_post_types( array( '_builtin' => false ) );
+        if ( ! in_array( $post_type, $custom_types, true ) ) {
+            return $this->v2_rejected( 'unsupported_post_type' );
+        }
+        if ( isset( $data['product_variation'] ) ) {
+            foreach ( $data['product_variation'] as $variation_payload ) {
+                // Variations reach wp_insert_post through the same writer, so they need the same
+                // registered-and-not-builtin gate; without it any post type could be imported here.
+                if ( ! in_array( $variation_payload['post']['post_type'], $custom_types, true ) ) {
+                    return $this->v2_rejected( 'unsupported_post_type' );
+                }
+            }
+        }
+        $mode = 'created';
+        if ( $edit_id > 0 ) {
+            $existing = get_post( $edit_id, ARRAY_A );
+            if ( is_array( $existing ) ) {
+                if ( 'trash' === get_post_status( $edit_id ) || $post_type !== $existing['post_type'] ) {
+                    return $this->v2_rejected( 'target_rejected' );
+                }
+                $mode = 'updated';
+            } else {
+                $edit_id = 0;
+                $mode    = 'recreated_after_stale_mapping';
+            }
+        }
+
+        $main = $this->insert_post_v2( $data, $edit_id, 0 );
+        if ( empty( $main['post_id'] ) ) {
+            return $this->v2_rejected( 'child_failure' );
+        }
+
+        $stages     = $main['failed_stages'];
+        $variations = array(
+            'total'     => 0,
+            'succeeded' => 0,
+            'failed'    => 0,
+        );
+        if ( isset( $data['product_variation'] ) ) {
+            $variations['total'] = count( $data['product_variation'] );
+            foreach ( $data['product_variation'] as $variation ) {
+                $result = $this->insert_post_v2( $variation, 0, $main['post_id'] );
+                if ( empty( $result['post_id'] ) || ! empty( $result['failed_stages'] ) ) {
+                    ++$variations['failed'];
+                } else {
+                    ++$variations['succeeded'];
+                }
+            }
+            if ( $variations['failed'] > 0 ) {
+                $stages[] = 'variations';
+            }
+        }
+
+        $stages = array_values( array_unique( $stages ) );
+        return array(
+            'outcome'        => empty( $stages ) ? 'complete' : 'partial',
+            'content_status' => empty( $stages ) ? 'complete' : 'partial',
+            'partial_stage'  => $this->v2_partial_stage( $stages ),
+            'post_id'        => (int) $main['post_id'],
+            'mode'           => $mode,
+            'variations'     => $variations,
+        );
+    }
+
+    /**
+     * Validate a complete main or variation payload before mutation.
+     *
+     * @param mixed $data Payload.
+     * @param bool  $variation Whether this is a variation payload.
+     * @return bool
+     */
+    private function validate_v2_payload( $data, $variation ) { // phpcs:ignore -- explicit closed validation.
+        if ( ! is_array( $data ) ) {
+            return false;
+        }
+        $required = $variation ? array( 'post', 'postmeta', 'extras' ) : array( 'post', 'postmeta', 'terms', 'extras', 'categories', 'post_only_existing' );
+        $allowed  = $required;
+        if ( ! $variation ) {
+            $allowed[] = 'product_variation';
+        }
+        if ( array() !== array_diff( $required, array_keys( $data ) ) || array() !== array_diff( array_keys( $data ), $allowed ) ) {
+            return false;
+        }
+        $post_keys = array( 'post_date', 'post_date_gmt', 'post_content', 'post_title', 'post_excerpt', 'post_status', 'comment_status', 'ping_status', 'post_password', 'post_name', 'to_ping', 'pinged', 'post_modified', 'post_modified_gmt', 'post_content_filtered', 'menu_order', 'post_type' );
+        if ( ! is_array( $data['post'] ) || array() !== array_diff( $post_keys, array_keys( $data['post'] ) ) || array() !== array_diff( array_keys( $data['post'] ), $post_keys ) ) {
+            return false;
+        }
+        foreach ( $post_keys as $key ) {
+            if ( 'menu_order' === $key ) {
+                if ( ! is_int( $data['post'][ $key ] ) ) {
+                    return false;
+                }
+            } elseif ( ! is_string( $data['post'][ $key ] ) || ( in_array( $key, array( 'post_content', 'post_content_filtered' ), true ) ? 8388608 : 65535 ) < strlen( $data['post'][ $key ] ) ) {
+                return false;
+            }
+        }
+        if ( ! is_array( $data['postmeta'] ) || 2000 < count( $data['postmeta'] ) ) {
+            return false;
+        }
+        // A null meta_value is accepted and reaches strlen() as null, which PHP 8.1+ deprecates; the
+        // notice would print ahead of the payload on a site with display_errors on and break the
+        // Dashboard's parse of an otherwise valid import. The cast keeps every verdict identical.
+        foreach ( $data['postmeta'] as $meta ) {
+            $meta_keys = is_array( $meta ) ? array_keys( $meta ) : array();
+            sort( $meta_keys );
+            if ( array( 'meta_key', 'meta_value' ) !== $meta_keys || ! is_string( $meta['meta_key'] ) || '' === $meta['meta_key'] || 255 < strlen( $meta['meta_key'] ) || ( ! is_scalar( $meta['meta_value'] ) && null !== $meta['meta_value'] ) || 1048576 < strlen( (string) maybe_serialize( $meta['meta_value'] ) ) ) {
+                return false;
+            }
+        }
+        if ( ! is_array( $data['extras'] ) || array_diff( array_keys( $data['extras'] ), array( 'upload_dir', 'featured_image', 'woocommerce' ) ) || ! isset( $data['extras']['upload_dir']['baseurl'] ) || ! is_array( $data['extras']['upload_dir'] ) || array_diff( array_keys( $data['extras']['upload_dir'] ), array( 'path', 'url', 'subdir', 'basedir', 'baseurl', 'error' ) ) || ! is_string( $data['extras']['upload_dir']['baseurl'] ) || 2048 < strlen( $data['extras']['upload_dir']['baseurl'] ) || ! in_array( wp_parse_url( $data['extras']['upload_dir']['baseurl'], PHP_URL_SCHEME ), array( 'http', 'https' ), true ) ) {
+            return false;
+        }
+        if ( isset( $data['extras']['woocommerce'] ) && ( ! is_array( $data['extras']['woocommerce'] ) || array_diff( array_keys( $data['extras']['woocommerce'] ), array( 'product_images' ) ) ) ) {
+            return false;
+        }
+        $media = array();
+        if ( isset( $data['extras']['featured_image'] ) ) {
+            $media[] = $data['extras']['featured_image'];
+        }
+        if ( isset( $data['extras']['woocommerce']['product_images'] ) ) {
+            if ( ! is_array( $data['extras']['woocommerce']['product_images'] ) ) {
+                return false;
+            }
+            $media = array_merge( $media, $data['extras']['woocommerce']['product_images'] );
+        }
+        if ( 500 < count( $media ) ) {
+            return false;
+        }
+        foreach ( $media as $url ) {
+            if ( ! is_string( $url ) || 2048 < strlen( $url ) || ! in_array( wp_parse_url( $url, PHP_URL_SCHEME ), array( 'http', 'https' ), true ) ) {
+                return false;
+            }
+        }
+        if ( $variation ) {
+            return true;
+        }
+        if ( array() !== $data['categories'] || 0 !== $data['post_only_existing'] || ! is_array( $data['terms'] ) || 1000 < count( $data['terms'] ) || ( isset( $data['product_variation'] ) && ( ! is_array( $data['product_variation'] ) || 200 < count( $data['product_variation'] ) ) ) ) {
+            return false;
+        }
+        if ( isset( $data['product_variation'] ) ) {
+            foreach ( $data['product_variation'] as $variation_payload ) {
+                if ( ! $this->validate_v2_payload( $variation_payload, true ) ) {
+                    return false;
+                }
+            }
+        }
+        foreach ( $data['terms'] as $term ) {
+            $term_keys = is_array( $term ) ? array_keys( $term ) : array();
+            sort( $term_keys );
+            if ( array( 'description', 'name', 'parent', 'slug', 'taxonomy', 'term_group', 'term_order' ) !== $term_keys || ! is_string( $term['name'] ) || '' === $term['name'] || ! is_string( $term['slug'] ) || '' === $term['slug'] || ! is_string( $term['taxonomy'] ) || sanitize_key( $term['taxonomy'] ) !== $term['taxonomy'] || ! is_string( $term['description'] ) || 200 < strlen( $term['name'] ) || 200 < strlen( $term['slug'] ) || 32 < strlen( $term['taxonomy'] ) || 2000 < strlen( $term['description'] ) || ! $this->v2_nonnegative_integer( $term['parent'] ) || ! $this->v2_nonnegative_integer( $term['term_group'] ) || ! $this->v2_nonnegative_integer( $term['term_order'] ) ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Create or update the main row before subordinate content stages.
+     *
+     * @param array $data Validated entity payload.
+     * @param int   $edit_id Existing post ID.
+     * @param int   $parent_id Parent post ID.
+     * @return array
+     */
+    private function insert_post_v2( $data, $edit_id, $parent_id ) {
+        $insert                 = $data['post'];
+        $insert['post_author']  = get_current_user_id();
+        $insert['post_title']   = htmlspecialchars( $insert['post_title'] );
+        $insert['post_excerpt'] = MainWP_Utility::esc_content( $insert['post_excerpt'], 'mixed' );
+        if ( $parent_id > 0 ) {
+            $insert['post_parent'] = $parent_id;
+        }
+        self::$v2_mutation_started = true;
+        if ( $edit_id > 0 ) {
+            $insert['ID'] = $edit_id;
+            $post_id      = wp_update_post( $insert, true );
+        } else {
+            $post_id = wp_insert_post( $insert, true );
+        }
+        if ( is_wp_error( $post_id ) || $post_id < 1 ) {
+            return array(
+                'post_id'       => 0,
+                'failed_stages' => array(),
+            );
+        }
+
+        $failed = array();
+        $media  = $this->search_images_v2( $insert['post_content'], $data['extras']['upload_dir'], $edit_id > 0 );
+        if ( $media['failed'] > 0 ) {
+            $failed[] = 'content_media';
+        }
+        if ( $media['content'] !== $insert['post_content'] ) {
+            $updated = wp_update_post(
+                array(
+                    'ID'           => $post_id,
+                    'post_content' => $media['content'],
+                ),
+                true
+            );
+            if ( is_wp_error( $updated ) ) {
+                $failed[] = 'content_media';
+            }
+        }
+
+        if ( $edit_id > 0 ) {
+            foreach ( get_post_meta( $post_id ) as $meta_key => $unused ) {
+                if ( ! delete_post_meta( $post_id, $meta_key ) ) {
+                    $failed[] = 'postmeta';
+                    break;
+                }
+            }
+            wp_delete_object_term_relationships( $post_id, get_object_taxonomies( $insert['post_type'] ) );
+        }
+        $is_woocommerce  = in_array( $insert['post_type'], array( 'product', 'product_variation' ), true ) && function_exists( 'wc_product_has_unique_sku' );
+        $metadata_stages = array();
+        if ( ! empty( $data['postmeta'] ) && true !== $this->insert_postmeta( $post_id, $data, $edit_id > 0, $is_woocommerce, $metadata_stages ) && empty( $metadata_stages ) ) {
+            $metadata_stages[] = 'postmeta';
+        }
+        $failed = array_merge( $failed, $metadata_stages );
+        if ( isset( $data['terms'] ) && true !== $this->insert_custom_data( $post_id, $data ) ) {
+            $failed[] = 'taxonomy';
+        }
+        return array(
+            'post_id'       => (int) $post_id,
+            'failed_stages' => array_values( array_unique( $failed ) ),
+        );
+    }
+
+    /**
+     * Rewrite content images while counting bounded failures.
+     *
+     * @param string $content Content.
+     * @param array  $upload_dir Source upload directory.
+     * @param bool   $check_image Whether existing images may be reused.
+     * @return array
+     */
+    private function search_images_v2( $content, $upload_dir, $check_image ) {
+        $failed  = 0;
+        $matches = array();
+        preg_match_all( '/<img[^>\/]*src="((.*?)(png|gif|jpg|jpeg|avif))"/ix', $content, $matches, PREG_SET_ORDER );
+        foreach ( $matches as $match ) {
+            $url = $match[1];
+            if ( false === strripos( $url, $upload_dir['baseurl'] ) ) {
+                continue;
+            }
+            try {
+                $uploaded = MainWP_Utility::upload_image( $url, array(), $check_image );
+                if ( ! is_array( $uploaded ) || empty( $uploaded['url'] ) || ! is_string( $uploaded['url'] ) ) {
+                    ++$failed;
+                    continue;
+                }
+                $content = str_replace( $url, $uploaded['url'], $content );
+            } catch ( MainWP_Exception $e ) {
+                ++$failed;
+            }
+        }
+        return array(
+            'content' => $content,
+            'failed'  => $failed,
+        );
+    }
+
+    /**
+     * Return a closed pre-mutation rejection.
+     *
+     * @param string $reason Stable rejection reason.
+     * @return array
+     */
+    private function v2_rejected( $reason ) {
+        return array(
+            'outcome' => 'rejected',
+            'reason'  => $reason,
+        );
+    }
+
+    /**
+     * Normalize an optional positive ID.
+     *
+     * @param mixed $value Candidate ID.
+     * @return int|false
+     */
+    private function v2_positive_id( $value ) {
+        if ( is_int( $value ) && $value > 0 ) {
+            return $value;
+        }
+        if ( ! is_string( $value ) || ! preg_match( '/^[1-9][0-9]*$/', $value ) || (string) (int) $value !== $value ) {
+            return false;
+        }
+        return (int) $value;
+    }
+
+    /**
+     * Return whether a stored numeric field is a bounded non-negative integer.
+     *
+     * @param mixed $value Candidate numeric value.
+     * @return bool
+     */
+    private function v2_nonnegative_integer( $value ) {
+        if ( is_int( $value ) ) {
+            return $value >= 0;
+        }
+        return is_string( $value ) && preg_match( '/^(0|[1-9][0-9]*)$/', $value ) && strlen( $value ) <= 20;
+    }
+
+    /**
+     * Select the first bounded partial stage.
+     *
+     * @param array $stages Failed stages.
+     * @return string
+     */
+    private function v2_partial_stage( $stages ) {
+        if ( empty( $stages ) ) {
+            return 'none';
+        }
+        return 1 === count( $stages ) ? $stages[0] : 'multiple';
     }
 
     /**
@@ -623,16 +1018,17 @@ class MainWP_Custom_Post_Type {
     /**
      * Insert post meta.
      *
-     * @param int    $post_id Post ID to update.
-     * @param string $data Meta datat add.
-     * @param bool   $check_image_existed Whether or not to check if image exists. true|false.
-     * @param bool   $is_woocomerce Whether or not the post is a woocommerce product. true|false.
+     * @param int        $post_id Post ID to update.
+     * @param string     $data Meta datat add.
+     * @param bool       $check_image_existed Whether or not to check if image exists. true|false.
+     * @param bool       $is_woocomerce    Whether or not the post is a woocommerce product. true|false.
+     * @param array|null $v2_failed_stages Optional v2 failure-stage collector.
      *
      * @return array|bool|string[] Response array, true|false, Error message.
      *
      * @uses \MainWP\Child\MainWP_Utility::upload_image()\
      */
-    private function insert_postmeta( $post_id, $data, $check_image_existed, $is_woocomerce ) { //phpcs:ignore -- NOSONAR - complex.
+    private function insert_postmeta( $post_id, $data, $check_image_existed, $is_woocomerce, &$v2_failed_stages = null ) { //phpcs:ignore -- NOSONAR - complex.
         foreach ( $data['postmeta'] as $key ) {
             if ( isset( $key['meta_key'] ) && isset( $key['meta_value'] ) ) {
                 $meta_value = $key['meta_value'];
@@ -642,7 +1038,7 @@ class MainWP_Custom_Post_Type {
                     }
                     if ( '_product_image_gallery' === $key['meta_key'] ) {
                         if ( isset( $data['extras']['woocommerce']['product_images'] ) ) {
-                            $ret = $this->upload_postmeta_image( $data['extras']['woocommerce']['product_images'], $meta_value, $check_image_existed );
+                            $ret = $this->upload_postmeta_image( $data['extras']['woocommerce']['product_images'], $meta_value, $check_image_existed, $v2_failed_stages );
                             if ( true !== $ret ) {
                                 return $ret;
                             }
@@ -660,9 +1056,16 @@ class MainWP_Custom_Post_Type {
                             if ( null !== $upload_featured_image ) {
                                 $meta_value = $upload_featured_image['id'];
                             } else {
+                                if ( is_array( $v2_failed_stages ) ) {
+                                    $v2_failed_stages[] = 'content_media';
+                                    continue;
+                                }
                                 return array( 'error' => esc_html__( 'Cannot add featured image', 'mainwp-child' ) );
                             }
                         } catch ( MainWP_Exception $e ) {
+                            if ( is_array( $v2_failed_stages ) ) {
+                                $v2_failed_stages[] = 'content_media';
+                            }
                             continue;
                         }
                     } else {
@@ -725,15 +1128,16 @@ class MainWP_Custom_Post_Type {
      *
      * Upload post meta image.
      *
-     * @param array $product_images      Woocomerce product images.
-     * @param array $meta_value          Meta values.
-     * @param bool  $check_image_existed Determins if the images already exists.
+     * @param array      $product_images      Woocomerce product images.
+     * @param array      $meta_value          Meta values.
+     * @param bool       $check_image_existed Determins if the images already exists.
+     * @param array|null $v2_failed_stages   Optional v2 failure-stage collector.
      *
      * @return array|bool Error message array or TRUE on success.
      *
      * @uses \MainWP\Child\MainWP_Utility::upload_image()
      */
-    private function upload_postmeta_image( $product_images, &$meta_value, $check_image_existed ) {
+    private function upload_postmeta_image( $product_images, &$meta_value, $check_image_existed, &$v2_failed_stages = null ) {
         $product_image_gallery = array();
         foreach ( $product_images as $product_image ) {
             try {
@@ -742,13 +1146,20 @@ class MainWP_Custom_Post_Type {
                 if ( null !== $upload_featured_image ) {
                     $product_image_gallery[] = $upload_featured_image['id'];
                 } else {
+                    if ( is_array( $v2_failed_stages ) ) {
+                        $v2_failed_stages[] = 'content_media';
+                        continue;
+                    }
                     return array( 'error' => esc_html__( 'Cannot add product image', 'mainwp-child' ) );
                 }
             } catch ( MainWP_Exception $e ) {
+                if ( is_array( $v2_failed_stages ) ) {
+                    $v2_failed_stages[] = 'content_media';
+                }
                 continue;
             }
         }
-        $meta_value = implode( $product_image_gallery, ',' );
+        $meta_value = implode( ',', $product_image_gallery );
         return true;
     }
 

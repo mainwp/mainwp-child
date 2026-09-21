@@ -42,8 +42,6 @@ class MainWP_Child_System_Monitor_Cron {
      * Execute the monitor.
      *
      * @param array $context Running context data.
-     *
-     * @return array
      */
     public function run( array $context = array() ) {
 

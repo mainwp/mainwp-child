@@ -966,10 +966,11 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @since 6.2
      *
-     * @param array $target_path Target path.
-     * @param array $get_args Payload args.
+     * @param array  $target_path Target path.
+     * @param array  $get_args Payload args.
+     * @param string $perform Perform action.
      *
-     * @return array {
+     * @return mixed|array {
      *     Result array indicating request success or failure state.
      *
      *     @type int    $success 1 on success.
@@ -977,7 +978,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
      *     @type string $content Raw HTML or JSON body returned by the target URL.
      * }
      */
-    public function simulate_admin_visit( $target_path, $get_args ) {
+    public function simulate_admin_visit( $target_path, $get_args, $perform ) { // phpcs:ignore -- NOSONAR - complex.
 
         // Authorization check.
         if ( ! current_user_can( 'manage_options' ) ) {
@@ -1008,7 +1009,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         $request_args = array(
             'redirection' => 5,
             'decompress'  => false,
-            'timeout'     => 600,
+            'timeout'     => 60,
             'cookies'     => array(
                 new \WP_Http_Cookie(
                     array(
@@ -1025,22 +1026,62 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             ),
         );
 
+        if ( 'premium_update' === $perform ) {
+            $request_args ['blocking'] = false;
+            $request_args ['timeout']  = 5;
+        }
+
         // Build Final Target URL.
         $full_url = add_query_arg( $get_args, admin_url( '/' . $path ) );
 
-        add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
-
-        // Execute Remote GET.
-        $response = wp_remote_get( $full_url, $request_args );
-
-        if ( is_wp_error( $response ) ) {
-            return array( 'error' => 'wp_remote_get error: ' . $response->get_error_message() );
+        add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls_child' ), 99, 2 );
+        try {
+            // Execute Remote GET.
+            $response = wp_remote_get( $full_url, $request_args );
+        } finally {
+            remove_filter(
+                'http_request_args',
+                array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls_child' ),
+                99,
+                2
+            );
         }
 
-        wp_remote_retrieve_body( $response );
+        if ( 'premium_update' === $perform ) {
+
+            $dispatch_success = ! is_wp_error( $response );
+
+            $upgrades_started = array();
+
+            if ( ! empty( $get_args['list'] ) ) {
+                foreach ( explode( ',', $get_args['list'] ) as $slug ) {
+                    $slug = trim( $slug );
+                    if ( '' !== $slug ) {
+                        $upgrades_started[ $slug ] = $dispatch_success;
+                    }
+                }
+            }
+
+            return array(
+                'status'           => $dispatch_success ? 'started' : 'failed',
+                'upgrades_started' => $upgrades_started,
+                'message'          => $dispatch_success
+                    ? esc_html__( 'Premium action requested. Please wait a moment and sync the data again later.', 'mainwp-child' )
+                    : esc_html__( 'Premium action request failed. Please try again later.', 'mainwp-child' ),
+                'message_code'     => $dispatch_success ? 'PREMIUM_ACTION_REQUESTED' : 'PREMIUM_ACTION_FAILED',
+            );
+        }
+
+        $http_code = wp_remote_retrieve_response_code( $response );
+
+        if ( 200 === (int) $http_code ) {
+            return array(
+                'success' => 1,
+            );
+        }
 
         return array(
-            'success' => 1,
+            'http_code' => $http_code,
         );
     }
 

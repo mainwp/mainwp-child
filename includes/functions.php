@@ -272,6 +272,21 @@ if ( ! function_exists( '\mainwp_child_is_dashboard_request' ) ) {
     }
 }
 
+if ( ! function_exists( '\mainwp_child_is_dashboard_premium_update_request' ) ) {
+    /**
+     * Check if the request is a premium update request from the Dashboard.
+     *
+     * @since 6.2
+     *
+     * @return bool True if the request is a Dashboard premium update request.
+     */
+    function mainwp_child_is_dashboard_premium_update_request() {
+        return ! empty( $_POST['perform_premium_action'] )
+            && 'premium_update' === $_POST['perform_premium_action'];
+    }
+}
+
+
 if ( ! function_exists( '\mainwp_is_rest_api' ) ) {
     /**
      * True if it is frontend

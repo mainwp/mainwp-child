@@ -175,6 +175,11 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             return;
         }
 
+        // Also triggered from the Dashboard.
+        if ( mainwp_child_is_dashboard_premium_update_request() ) {
+            return;
+        }
+
         // to support get duration time for non-mainwp changes logs.
         $this->init_exec_time();
 
@@ -228,6 +233,9 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      * Get current plugins info.
      */
     public function get_current_plugins_info() {
+        if ( empty( $this->current_plugins_info ) ) {
+            $this->current_plugins_info = $this->get_plugins();
+        }
         return $this->current_plugins_info;
     }
 

@@ -41,7 +41,7 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Public variable to hold the MainWP Child plugin branding options.
      *
-     * @var string Default null
+     * @var array|null Default null
      */
     public $child_branding_options = null;
 
@@ -219,8 +219,613 @@ class MainWP_Child_Branding { //phpcs:ignore -- NOSONAR - multi methods.
         $mwp_action  = MainWP_System::instance()->validate_params( 'action' );
         if ( 'update_branding' === $mwp_action ) {
             $information = $this->update_branding();
+        } elseif ( 'capabilities_abilities_v2' === $mwp_action ) {
+            $information = array(
+                'protocol'   => '2',
+                'capability' => 'apply_abilities_v2',
+                'supported'  => true,
+            );
+        } elseif ( 'apply_abilities_v2' === $mwp_action ) {
+            $settings    = isset( $_POST['settings'] ) && is_string( $_POST['settings'] ) ? json_decode( base64_decode( wp_unslash( $_POST['settings'] ), true ), true ) : null; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Authenticated Child protocol.
+            $information = $this->apply_abilities_v2(
+                array(
+                    'protocol'      => isset( $_POST['protocol'] ) && is_scalar( $_POST['protocol'] ) ? (string) wp_unslash( $_POST['protocol'] ) : '', // phpcs:ignore WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Authenticated Child protocol.
+                    'operation_ref' => isset( $_POST['operation_ref'] ) && is_scalar( $_POST['operation_ref'] ) ? (string) wp_unslash( $_POST['operation_ref'] ) : '', // phpcs:ignore WordPress.Security.NonceVerification,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Authenticated Child protocol.
+                    'settings'      => $settings,
+                )
+            );
         }
         MainWP_Helper::write( $information );
+    }
+
+    /**
+     * Apply a closed, replay-safe Branding configuration request.
+     *
+     * @param array $request Typed request.
+     * @return array Closed protocol result.
+     */
+    public function apply_abilities_v2( $request ) {
+        $operation_ref = is_array( $request ) && isset( $request['operation_ref'] ) && is_string( $request['operation_ref'] ) ? $request['operation_ref'] : '';
+        if ( ! $this->abilities_v2_valid_request( $request ) ) {
+            return $this->abilities_v2_error( $operation_ref, 'invalid_request', 'The Branding request is invalid.' );
+        }
+
+        $settings = $this->abilities_v2_normalize_settings( $request['settings'] );
+        if ( false === $settings ) {
+            return $this->abilities_v2_error( $operation_ref, 'invalid_settings', 'The Branding settings are invalid.' );
+        }
+
+        // Everything below is a read-modify-write over one settings option plus staged and
+        // deleted files; two concurrent applies would interleave and delete an asset the
+        // other request just recorded as current.
+        $lock = $this->abilities_v2_begin_lock();
+        if ( null === $lock ) {
+            return $this->abilities_v2_error( $operation_ref, 'storage_unavailable', 'The Branding operation lock could not be reached.' );
+        }
+        if ( true !== $lock ) {
+            return $this->abilities_v2_error( $operation_ref, 'lock_busy', 'Another Branding operation is already running.' );
+        }
+        try {
+            return $this->abilities_v2_apply_locked( $operation_ref, $settings );
+        } finally {
+            $this->abilities_v2_end_lock();
+        }
+    }
+
+    /**
+     * Apply one validated Branding request while holding the mutation lock.
+     *
+     * @param string $operation_ref Operation reference.
+     * @param array  $settings      Normalized desired settings.
+     * @return array Closed protocol result.
+     */
+    private function abilities_v2_apply_locked( $operation_ref, $settings ) { // phpcs:ignore -- NOSONAR - effect reconciliation is intentionally explicit.
+        $desired_hash = hash( 'sha256', wp_json_encode( $this->abilities_v2_canonicalize( $settings ) ) );
+        $receipts     = $this->abilities_v2_prune_receipts( $this->abilities_v2_read_receipts() );
+        if ( isset( $receipts[ $operation_ref ] ) ) {
+            $receipt = $receipts[ $operation_ref ];
+            if ( ! is_array( $receipt ) || ! isset( $receipt['desired_hash'], $receipt['result'] ) || ! hash_equals( (string) $receipt['desired_hash'], $desired_hash ) ) {
+                return $this->abilities_v2_error( $operation_ref, 'request_conflict', 'The operation reference is already bound to another request.' );
+            }
+            if ( ! $this->abilities_v2_valid_result( $receipt['result'] ) ) {
+                return $this->abilities_v2_error( $operation_ref, 'receipt_invalid', 'The stored operation receipt is invalid.' );
+            }
+            return $this->abilities_v2_success( $operation_ref, $receipt['result'] );
+        }
+
+        $current = $this->abilities_v2_read_settings();
+        if ( ! is_array( $current ) ) {
+            return $this->abilities_v2_error( $operation_ref, 'settings_read_failed', 'The current Branding settings could not be verified.' );
+        }
+
+        $current_extra = isset( $current['extra_settings'] ) && is_array( $current['extra_settings'] ) ? $current['extra_settings'] : array();
+        $target        = $this->abilities_v2_project_settings( $settings, $current );
+        $target_extra  = $target['extra_settings'];
+        $image_state   = array();
+        $warnings      = array();
+        $staged_paths  = array();
+        $old_paths     = array();
+
+        foreach ( array(
+            'login'   => 'child_login_image_url',
+            'favicon' => 'child_favico_image_url',
+        ) as $kind => $setting_key ) {
+            $asset_key   = 'login' === $kind ? 'login_image' : 'favico_image';
+            $source      = $settings[ $setting_key ];
+            $source_hash = hash( 'sha256', $source );
+            $old_hash    = isset( $current_extra['abilities_v2_asset_hashes'][ $kind ] ) && is_string( $current_extra['abilities_v2_asset_hashes'][ $kind ] ) ? $current_extra['abilities_v2_asset_hashes'][ $kind ] : '';
+            $old_asset   = isset( $current_extra[ $asset_key ] ) && is_array( $current_extra[ $asset_key ] ) ? $current_extra[ $asset_key ] : array();
+
+            if ( hash_equals( $old_hash, $source_hash ) ) {
+                $target_extra[ $asset_key ] = $old_asset;
+                $image_state[ $kind ]       = 'unchanged';
+                continue;
+            }
+
+            if ( '' === $source ) {
+                $target_extra[ $asset_key ]                         = array();
+                $target_extra['abilities_v2_asset_hashes'][ $kind ] = $source_hash;
+                $image_state[ $kind ]                               = 'removed';
+                if ( isset( $old_asset['path'] ) && is_string( $old_asset['path'] ) && '' !== $old_asset['path'] ) {
+                    $old_paths[] = $old_asset['path'];
+                }
+                continue;
+            }
+
+            $staged = $this->abilities_v2_stage_image( $source );
+            if ( ! is_array( $staged ) || array( 'path', 'url' ) !== array_keys( $staged ) || ! is_string( $staged['path'] ) || '' === $staged['path'] || ! is_string( $staged['url'] ) || '' === $staged['url'] ) {
+                $target_extra[ $asset_key ] = $old_asset;
+                if ( '' !== $old_hash ) {
+                    $target_extra['abilities_v2_asset_hashes'][ $kind ] = $old_hash;
+                } else {
+                    unset( $target_extra['abilities_v2_asset_hashes'][ $kind ] );
+                }
+                $image_state[ $kind ] = 'failed';
+                $warnings[]           = $kind . '_image_failed';
+                continue;
+            }
+
+            $target_extra[ $asset_key ]                         = $staged;
+            $target_extra['abilities_v2_asset_hashes'][ $kind ] = $source_hash;
+            $image_state[ $kind ]                               = 'applied';
+            $staged_paths[]                                     = $staged['path'];
+            if ( isset( $old_asset['path'] ) && is_string( $old_asset['path'] ) && '' !== $old_asset['path'] && $old_asset['path'] !== $staged['path'] ) {
+                $old_paths[] = $old_asset['path'];
+            }
+        }
+
+        $target['extra_settings'] = $target_extra;
+        $changed                  = $this->abilities_v2_canonicalize( $current ) !== $this->abilities_v2_canonicalize( $target );
+        $written                  = $this->abilities_v2_write_settings( $target );
+        $readback                 = $this->abilities_v2_read_settings();
+        if ( ( ! $written && $changed ) || ! is_array( $readback ) || $this->abilities_v2_canonicalize( $readback ) !== $this->abilities_v2_canonicalize( $target ) ) {
+            foreach ( $staged_paths as $path ) {
+                $this->abilities_v2_delete_file( $path );
+            }
+            return $this->abilities_v2_error( $operation_ref, 'settings_write_failed', 'The Branding settings could not be saved and verified.' );
+        }
+
+        foreach ( array_unique( $old_paths ) as $path ) {
+            $this->abilities_v2_delete_file( $path );
+        }
+
+        $result                     = array(
+            'state'          => ! empty( $warnings ) ? 'partial' : ( $changed ? 'applied' : 'unchanged' ),
+            'settings_saved' => true,
+            'images'         => $image_state,
+            'warnings'       => $warnings,
+        );
+        $receipts[ $operation_ref ] = array(
+            'created_at'   => time(),
+            'desired_hash' => $desired_hash,
+            'result'       => $result,
+        );
+        $receipts                   = $this->abilities_v2_prune_receipts( $receipts );
+        if ( ! $this->abilities_v2_write_receipts( $receipts ) || $this->abilities_v2_read_receipts() !== $receipts ) {
+            return $this->abilities_v2_error( $operation_ref, 'receipt_write_failed', 'The Branding operation receipt could not be verified.' );
+        }
+
+        $this->child_branding_options = $target;
+        return $this->abilities_v2_success( $operation_ref, $result );
+    }
+
+    /**
+     * Return this installation's named Branding mutation lock.
+     *
+     * @return string
+     */
+    protected function abilities_v2_lock_name() {
+        return 'mainwp_branding_v2_' . substr( hash( 'sha256', home_url( '/' ) ), 0, 32 );
+    }
+
+    /**
+     * Acquire the Child-wide Branding mutation lock without waiting.
+     *
+     * @return bool|null True when acquired, false when another session holds it, null when the lock backend could not answer.
+     */
+    protected function abilities_v2_begin_lock() {
+        global $wpdb;
+        if ( ! is_object( $wpdb ) || ! is_callable( array( $wpdb, 'prepare' ) ) || ! is_callable( array( $wpdb, 'get_var' ) ) ) {
+            return null;
+        }
+        $wpdb->last_error = '';
+        $locked           = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,0)', $this->abilities_v2_lock_name() ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Named lock is the serialization primitive.
+        if ( ! empty( $wpdb->last_error ) ) {
+            return null;
+        }
+        if ( '1' === (string) $locked ) {
+            return true;
+        }
+        // Only '0' means someone else holds it. GET_LOCK() answers NULL on an error or an
+        // interrupted wait, which says nothing about who holds the lock, so it is not reported
+        // as contention the Child never observed.
+        return '0' === (string) $locked ? false : null;
+    }
+
+    /**
+     * Release the Child-wide Branding mutation lock.
+     *
+     * @return bool
+     */
+    protected function abilities_v2_end_lock() {
+        global $wpdb;
+        if ( ! is_object( $wpdb ) || ! is_callable( array( $wpdb, 'prepare' ) ) || ! is_callable( array( $wpdb, 'get_var' ) ) ) {
+            return false;
+        }
+        // A lock this session fails to give back outlives the request on a persistent connection
+        // and blocks every later mutation with no way for an operator to clear it, so one failed
+        // release earns a second attempt before it is given up on.
+        for ( $attempt = 0; $attempt < 2; $attempt++ ) {
+            $wpdb->last_error = '';
+            $released         = $wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $this->abilities_v2_lock_name() ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Named lock release must be checked.
+            // RELEASE_LOCK() answers NULL when the named lock does not exist, which is the state
+            // the caller asked for.
+            if ( empty( $wpdb->last_error ) && ( null === $released || '1' === (string) $released ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Validate the closed v2 request.
+     *
+     * @param mixed $request Request.
+     * @return bool
+     */
+    private function abilities_v2_valid_request( $request ) {
+        if ( ! is_array( $request ) ) {
+            return false;
+        }
+        $actual = array_keys( $request );
+        sort( $actual );
+        return array( 'operation_ref', 'protocol', 'settings' ) === $actual
+            && '2' === $request['protocol']
+            && is_string( $request['operation_ref'] )
+            && 1 === preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D', $request['operation_ref'] )
+            && is_array( $request['settings'] );
+    }
+
+    /**
+     * Validate and normalize the complete desired map.
+     *
+     * @param mixed $settings Settings.
+     * @return array|false
+     */
+    private function abilities_v2_normalize_settings( $settings ) { // phpcs:ignore -- NOSONAR - explicit closed schema.
+        $boolean_keys  = array(
+            'child_plugin_hide',
+            'child_show_support_button',
+            'child_remove_restore',
+            'child_remove_setting',
+            'child_remove_server_info',
+            'child_remove_wp_tools',
+            'child_remove_wp_setting',
+            'child_remove_permalink',
+            'child_remove_widget_welcome',
+            'child_remove_widget_glance',
+            'child_remove_widget_activity',
+            'child_remove_widget_quick',
+            'child_remove_widget_news',
+            'child_hide_nag',
+            'child_hide_screen_opts',
+            'child_hide_help_box',
+            'child_hide_metabox_post_excerpt',
+            'child_hide_metabox_post_slug',
+            'child_hide_metabox_post_tags',
+            'child_hide_metabox_post_author',
+            'child_hide_metabox_post_comments',
+            'child_hide_metabox_post_revisions',
+            'child_hide_metabox_post_discussion',
+            'child_hide_metabox_post_categories',
+            'child_hide_metabox_post_custom_fields',
+            'child_hide_metabox_post_trackbacks',
+            'child_hide_metabox_page_custom_fields',
+            'child_hide_metabox_page_author',
+            'child_hide_metabox_page_discussion',
+            'child_hide_metabox_page_revisions',
+            'child_hide_metabox_page_attributes',
+            'child_hide_metabox_page_slug',
+            'child_preserve_branding',
+            'child_disable_switching_theme',
+        );
+        $string_bounds = array(
+            'child_plugin_name'           => 256,
+            'child_plugin_desc'           => 2000,
+            'child_plugin_author'         => 256,
+            'child_plugin_author_uri'     => 2048,
+            'child_plugin_uri'            => 2048,
+            'child_support_email'         => 320,
+            'child_support_message'       => 10000,
+            'child_button_contact_label'  => 256,
+            'child_send_email_message'    => 2000,
+            'child_message_return_sender' => 320,
+            'child_submit_button_title'   => 256,
+            'child_global_footer'         => 10000,
+            'child_dashboard_footer'      => 10000,
+            'child_login_image_link'      => 2048,
+            'child_login_image_title'     => 1000,
+            'child_site_generator'        => 1000,
+            'child_generator_link'        => 2048,
+            'child_admin_css'             => 65536,
+            'child_login_css'             => 65536,
+            'child_login_image_url'       => 2048,
+            'child_favico_image_url'      => 2048,
+        );
+        $expected      = array_merge( array_keys( $string_bounds ), $boolean_keys, array( 'child_show_support_button_in', 'child_texts_replace', 'child_disable_wp_branding' ) );
+        sort( $expected );
+        $actual = is_array( $settings ) ? array_keys( $settings ) : array();
+        sort( $actual );
+        $encoded = wp_json_encode( $settings );
+        if ( $expected !== $actual || ! is_string( $encoded ) || strlen( $encoded ) > 262144 ) {
+            return false;
+        }
+        foreach ( $string_bounds as $key => $maximum ) {
+            if ( ! is_string( $settings[ $key ] ) || strlen( $settings[ $key ] ) > $maximum || preg_match( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $settings[ $key ] ) || wp_check_invalid_utf8( $settings[ $key ] ) !== $settings[ $key ] ) {
+                return false;
+            }
+        }
+        foreach ( $boolean_keys as $key ) {
+            if ( ! is_bool( $settings[ $key ] ) ) {
+                return false;
+            }
+        }
+        if ( ! is_int( $settings['child_show_support_button_in'] ) || $settings['child_show_support_button_in'] < 0 || $settings['child_show_support_button_in'] > 3 ) {
+            return false;
+        }
+        if ( ! in_array( $settings['child_disable_wp_branding'], array( 'Y', 'N' ), true ) ) {
+            return false;
+        }
+        if ( ! is_array( $settings['child_texts_replace'] ) || count( $settings['child_texts_replace'] ) > 100 ) {
+            return false;
+        }
+        foreach ( $settings['child_texts_replace'] as $search => $replace ) {
+            if ( ! is_string( $search ) || '' === $search || strlen( $search ) > 1000 || ! is_string( $replace ) || strlen( $replace ) > 1000 ) {
+                return false;
+            }
+        }
+        foreach ( array( 'child_login_image_url', 'child_favico_image_url' ) as $key ) {
+            if ( '' !== $settings[ $key ] ) {
+                $parts = wp_parse_url( $settings[ $key ] );
+                if ( ! is_array( $parts ) || ! isset( $parts['scheme'], $parts['host'] ) || ! in_array( strtolower( $parts['scheme'] ), array( 'http', 'https' ), true ) || '' === $parts['host'] ) {
+                    return false;
+                }
+            }
+        }
+        return $settings;
+    }
+
+    /**
+     * Project the normalized desired map into the legacy stored shape.
+     *
+     * @param array $settings Desired settings.
+     * @param array $current  Current settings.
+     * @return array
+     */
+    private function abilities_v2_project_settings( $settings, $current ) {
+        $target                             = $current;
+        $target['branding_ext_enabled']     = 'Y';
+        $target['branding_header']          = array(
+            'name'        => $settings['child_plugin_name'],
+            'description' => $settings['child_plugin_desc'],
+            'author'      => $settings['child_plugin_author'],
+            'authoruri'   => $settings['child_plugin_author_uri'],
+            'pluginuri'   => $settings['child_plugin_uri'],
+        );
+        $target['preserve_branding']        = $settings['child_preserve_branding'];
+        $target['support_email']            = $settings['child_support_email'];
+        $target['support_message']          = $settings['child_support_message'];
+        $target['remove_restore']           = $settings['child_remove_restore'];
+        $target['remove_setting']           = $settings['child_remove_setting'];
+        $target['remove_server_info']       = $settings['child_remove_server_info'];
+        $target['remove_connection_detail'] = isset( $current['remove_connection_detail'] ) ? $current['remove_connection_detail'] : 0;
+        $target['remove_wp_tools']          = $settings['child_remove_wp_tools'];
+        $target['remove_wp_setting']        = $settings['child_remove_wp_setting'];
+        $target['remove_permalink']         = $settings['child_remove_permalink'];
+        $target['contact_label']            = $settings['child_button_contact_label'];
+        $target['email_message']            = $settings['child_send_email_message'];
+        $target['message_return_sender']    = $settings['child_message_return_sender'];
+        $target['submit_button_title']      = $settings['child_submit_button_title'];
+        $target['hide']                     = $settings['child_plugin_hide'] ? 'T' : '';
+        $target['show_support']             = $settings['child_show_support_button'] && '' !== $settings['child_support_email'] ? 'T' : '';
+        $target['disable_switching_theme']  = $settings['child_disable_switching_theme'] ? 'T' : '';
+        $target['disable_wp_branding']      = $settings['child_disable_wp_branding'];
+
+        $extra = isset( $current['extra_settings'] ) && is_array( $current['extra_settings'] ) ? $current['extra_settings'] : array();
+        $map   = array(
+            'show_button_in'                  => 'child_show_support_button_in',
+            'global_footer'                   => 'child_global_footer',
+            'dashboard_footer'                => 'child_dashboard_footer',
+            'remove_widget_welcome'           => 'child_remove_widget_welcome',
+            'remove_widget_glance'            => 'child_remove_widget_glance',
+            'remove_widget_activity'          => 'child_remove_widget_activity',
+            'remove_widget_quick'             => 'child_remove_widget_quick',
+            'remove_widget_news'              => 'child_remove_widget_news',
+            'login_image_link'                => 'child_login_image_link',
+            'login_image_title'               => 'child_login_image_title',
+            'site_generator'                  => 'child_site_generator',
+            'generator_link'                  => 'child_generator_link',
+            'admin_css'                       => 'child_admin_css',
+            'login_css'                       => 'child_login_css',
+            'texts_replace'                   => 'child_texts_replace',
+            'hide_nag'                        => 'child_hide_nag',
+            'hide_screen_opts'                => 'child_hide_screen_opts',
+            'hide_help_box'                   => 'child_hide_help_box',
+            'hide_metabox_post_excerpt'       => 'child_hide_metabox_post_excerpt',
+            'hide_metabox_post_slug'          => 'child_hide_metabox_post_slug',
+            'hide_metabox_post_tags'          => 'child_hide_metabox_post_tags',
+            'hide_metabox_post_author'        => 'child_hide_metabox_post_author',
+            'hide_metabox_post_comments'      => 'child_hide_metabox_post_comments',
+            'hide_metabox_post_revisions'     => 'child_hide_metabox_post_revisions',
+            'hide_metabox_post_discussion'    => 'child_hide_metabox_post_discussion',
+            'hide_metabox_post_categories'    => 'child_hide_metabox_post_categories',
+            'hide_metabox_post_custom_fields' => 'child_hide_metabox_post_custom_fields',
+            'hide_metabox_post_trackbacks'    => 'child_hide_metabox_post_trackbacks',
+            'hide_metabox_page_custom_fields' => 'child_hide_metabox_page_custom_fields',
+            'hide_metabox_page_author'        => 'child_hide_metabox_page_author',
+            'hide_metabox_page_discussion'    => 'child_hide_metabox_page_discussion',
+            'hide_metabox_page_revisions'     => 'child_hide_metabox_page_revisions',
+            'hide_metabox_page_attributes'    => 'child_hide_metabox_page_attributes',
+            'hide_metabox_page_slug'          => 'child_hide_metabox_page_slug',
+        );
+        foreach ( $map as $stored_key => $desired_key ) {
+            $extra[ $stored_key ] = $settings[ $desired_key ];
+        }
+        if ( ! isset( $extra['abilities_v2_asset_hashes'] ) || ! is_array( $extra['abilities_v2_asset_hashes'] ) ) {
+            $extra['abilities_v2_asset_hashes'] = array();
+        }
+        $target['extra_settings'] = $extra;
+        return $target;
+    }
+
+    /**
+     * Read the stored Branding settings.
+     *
+     * @return array
+     */
+    protected function abilities_v2_read_settings() {
+        $settings = get_option( 'mainwp_child_branding_settings', array() );
+        return is_array( $settings ) ? $settings : array();
+    }
+
+    /**
+     * Write the stored Branding settings.
+     *
+     * @param array $settings Settings.
+     * @return bool
+     */
+    protected function abilities_v2_write_settings( $settings ) {
+        return MainWP_Helper::update_option( 'mainwp_child_branding_settings', $settings );
+    }
+
+    /**
+     * Read operation receipts.
+     *
+     * @return array
+     */
+    protected function abilities_v2_read_receipts() {
+        $receipts = get_option( 'mainwp_child_branding_ability_receipts_v1', array() );
+        return is_array( $receipts ) ? $receipts : array();
+    }
+
+    /**
+     * Write operation receipts.
+     *
+     * @param array $receipts Receipts.
+     * @return bool
+     */
+    protected function abilities_v2_write_receipts( $receipts ) {
+        return MainWP_Helper::update_option( 'mainwp_child_branding_ability_receipts_v1', $receipts );
+    }
+
+    /**
+     * Stage one remote image through the existing safe downloader.
+     *
+     * @param string $url Image URL.
+     * @return array|false
+     */
+    protected function abilities_v2_stage_image( $url ) {
+        try {
+            $image = $this->branding_upload_image( $url );
+            return is_array( $image ) ? $image : false;
+        } catch ( MainWP_Exception $e ) {
+            return false;
+        }
+    }
+
+    /**
+     * Delete one owned image file.
+     *
+     * @param string $path File path.
+     * @return bool
+     */
+    protected function abilities_v2_delete_file( $path ) {
+        if ( ! is_string( $path ) || '' === $path || ! file_exists( $path ) ) {
+            return true;
+        }
+        // wp_delete_file() only gained a return value in WP 6.7 and we support 6.2+, so casting it
+        // reported every successful delete as a failure on the older half of the range.
+        wp_delete_file( $path );
+        clearstatcache( true, $path );
+        return ! file_exists( $path );
+    }
+
+    /**
+     * Prune receipts to the retention window and cap.
+     *
+     * @param array $receipts Receipts.
+     * @return array
+     */
+    private function abilities_v2_prune_receipts( $receipts ) {
+        $now   = time();
+        $valid = array();
+        if ( is_array( $receipts ) ) {
+            foreach ( $receipts as $reference => $receipt ) {
+                if ( is_string( $reference ) && is_array( $receipt ) && isset( $receipt['created_at'] ) && is_int( $receipt['created_at'] ) && $receipt['created_at'] >= $now - DAY_IN_SECONDS ) {
+                    $valid[ $reference ] = $receipt;
+                }
+            }
+        }
+        uasort(
+            $valid,
+            static function ( $left, $right ) {
+                return $left['created_at'] <=> $right['created_at'];
+            }
+        );
+        return count( $valid ) > 100 ? array_slice( $valid, -100, null, true ) : $valid;
+    }
+
+    /**
+     * Sort associative values for stable comparison and hashing.
+     *
+     * @param mixed $value Value.
+     * @return mixed
+     */
+    private function abilities_v2_canonicalize( $value ) {
+        if ( is_array( $value ) ) {
+            if ( array_keys( $value ) !== range( 0, count( $value ) - 1 ) ) {
+                ksort( $value );
+            }
+            foreach ( $value as $key => $item ) {
+                $value[ $key ] = $this->abilities_v2_canonicalize( $item );
+            }
+        }
+        return $value;
+    }
+
+    /**
+     * Validate a stored terminal result.
+     *
+     * @param mixed $result Result.
+     * @return bool
+     */
+    private function abilities_v2_valid_result( $result ) {
+        return is_array( $result )
+            && array( 'state', 'settings_saved', 'images', 'warnings' ) === array_keys( $result )
+            && in_array( $result['state'], array( 'applied', 'unchanged', 'partial' ), true )
+            && true === $result['settings_saved']
+            && is_array( $result['images'] )
+            && array( 'login', 'favicon' ) === array_keys( $result['images'] )
+            && in_array( $result['images']['login'], array( 'applied', 'unchanged', 'removed', 'failed' ), true )
+            && in_array( $result['images']['favicon'], array( 'applied', 'unchanged', 'removed', 'failed' ), true )
+            && is_array( $result['warnings'] )
+            && count( $result['warnings'] ) <= 2;
+    }
+
+    /**
+     * Build a closed successful protocol envelope.
+     *
+     * @param string $operation_ref Operation reference.
+     * @param array  $result        Result.
+     * @return array
+     */
+    private function abilities_v2_success( $operation_ref, $result ) {
+        return array(
+            'protocol'      => '2',
+            'operation_ref' => $operation_ref,
+            'ok'            => true,
+            'result'        => $result,
+        );
+    }
+
+    /**
+     * Build a closed redacted error envelope.
+     *
+     * @param string $operation_ref Operation reference.
+     * @param string $code          Code.
+     * @param string $message       Message.
+     * @return array
+     */
+    private function abilities_v2_error( $operation_ref, $code, $message ) {
+        return array(
+            'protocol'      => '2',
+            'operation_ref' => $operation_ref,
+            'ok'            => false,
+            'error'         => array(
+                'code'    => $code,
+                'message' => $message,
+            ),
+        );
     }
 
     /**

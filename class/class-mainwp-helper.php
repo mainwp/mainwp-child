@@ -28,6 +28,15 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public static $instance = null;
 
+
+    /**
+     * Private static variable to hold the start runtime.
+     *
+     * @var mixed Default null
+     */
+    private static $start_run = null;
+
+
     /**
      * Method get_class_name()
      *
@@ -543,6 +552,34 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         // phpcs:enable
         return $r;
     }
+
+    /**
+     * Method reject_unsafe_urls_child()
+     *
+     * Reject unsafe URLs in HTTP Basic Authentication handler.
+     *
+     * @param array $r Array containing the request data.
+     *
+     * @return array $r Updated array containing the request data.
+     */
+    public static function reject_unsafe_urls_child( $r ) {
+        $r['reject_unsafe_urls'] = false;
+        // phpcs:disable WordPress.Security.NonceVerification
+        $wpadmin_user   = isset( $_POST['wp_http_user'] ) && ! empty( $_POST['wp_http_user'] ) ? wp_unslash( $_POST['wp_http_user'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $wpadmin_passwd = isset( $_POST['wp_http_pass'] ) && ! empty( $_POST['wp_http_pass'] ) ? wp_unslash( $_POST['wp_http_pass'] ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+
+        if ( ! empty( $wpadmin_user ) && ! empty( $wpadmin_passwd ) ) {
+            $auth                          = base64_encode( $wpadmin_user . ':' . $wpadmin_passwd ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for backwards compatibility.
+            $r['headers']['Authorization'] = "Basic $auth";
+        }
+
+        if ( isset( $_POST['sslVerify'] ) && '0' === $_POST['sslVerify'] ) {
+            $r['sslverify'] = false;
+        }
+        // phpcs:enable
+        return $r;
+    }
+
 
     /**
      * Method starts_with()
@@ -1400,5 +1437,41 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         set_time_limit( $timeout );
         ini_set( 'max_execution_time', $timeout );
         // phpcs:enable
+    }
+
+    /**
+     * Method start_runtime().
+     *
+     * Init execution time start value.
+     */
+    public static function start_runtime() {
+        if ( null === static::$start_run ) {
+            static::$start_run = microtime( true );
+        }
+        return static::$start_run;
+    }
+
+    /**
+     * Method get_runtime().
+     *
+     * Get the execution time value.
+     *
+     * @param  bool $ret_microsec Whether return micro seconds.
+     *
+     * @since 6.2
+     *
+     * @return int|float execution time.
+     */
+    public static function get_runtime( $ret_microsec = false ) {
+        if ( empty( static::$start_run ) ) {
+            return 0;
+        }
+
+        $runtime = microtime( true ) - static::$start_run; // seconds.
+
+        if ( $ret_microsec ) {
+            return round( $runtime * 1000000, 4 );
+        }
+        return round( $runtime, 4 );
     }
 }

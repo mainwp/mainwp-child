@@ -46,6 +46,17 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
     public $is_plugin_installed = false;
 
     /**
+     * Seconds a stored timestamp may lead the current time by and still be usable.
+     *
+     * Receipts come out of a WordPress option, so their timestamps are untrusted input. A small
+     * allowance keeps a site whose clock drifted or moved backwards from calling its own recent
+     * receipts corrupt, while anything further ahead is an impossible moment this store never wrote.
+     *
+     * @var int
+     */
+    private const ABILITIES_V2_CLOCK_SKEW = 300;
+
+    /**
      * Create a public static instance of MainWP_Child_IThemes_Security.
      *
      * @return MainWP_Child_IThemes_Security|null
@@ -178,9 +189,19 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function action() {
         $information = array();
+
+        $mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
+
+        $abilities_v2_response = $this->abilities_v2_action_response( $mwp_action );
+        if ( null !== $abilities_v2_response ) {
+            MainWP_Helper::write( $abilities_v2_response );
+            return;
+        }
+
         if ( ! class_exists( '\ITSEC_Core' ) || ! class_exists( '\ITSEC_Modules' ) ) {
             $information['error'] = 'NO_ITHEME';
             MainWP_Helper::write( $information );
+            return;
         }
 
         /**
@@ -192,7 +213,6 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
 
         $mainwp_itsec_modules_path = \ITSEC_Core::get_core_dir() . '/modules/';
 
-        $mwp_action = MainWP_System::instance()->validate_params( 'mwp_action' );
         if ( ! empty( $mwp_action ) ) {
             switch ( $mwp_action ) {
                 case 'set_showhide':
@@ -251,6 +271,1386 @@ class MainWP_Child_IThemes_Security { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
         MainWP_Helper::write( $information );
+    }
+
+    /**
+     * Answer an abilities_v2 request ahead of the v1 provider gate.
+     *
+     * This has to run before the NO_ITHEME bail: on a site without Solid the v2
+     * protocol still owes the Dashboard its own closed envelope (capabilities,
+     * plugin_unavailable), and the v1 bail would take the whole protocol off the
+     * air instead.
+     *
+     * @param string $mwp_action Validated action name.
+     * @return array<string,mixed>|null Closed protocol response, or null for a v1 request.
+     */
+    protected function abilities_v2_action_response( $mwp_action ) {
+        if ( 'abilities_v2' !== $mwp_action ) {
+            return null;
+        }
+
+        /**
+         * Itsec modules path.
+         *
+         * @global string $mainwp_itsec_modules_path MainWP itsec modules path.
+         */
+        global $mainwp_itsec_modules_path;
+
+        // Mutations reach v1 helpers that read this global, and action() now assigns it downstream of this branch.
+        if ( is_callable( array( '\ITSEC_Core', 'get_core_dir' ) ) ) {
+            $mainwp_itsec_modules_path = \ITSEC_Core::get_core_dir() . '/modules/';
+        }
+
+        // phpcs:disable WordPress.Security.NonceVerification
+        $raw_request = isset( $_POST['request'] ) && is_string( $_POST['request'] ) ? wp_unslash( $_POST['request'] ) : '';
+        // phpcs:enable
+        // release_lockouts accepts 100 lockout refs, and 100 sha256 hexes plus the envelope is about
+        // 6.9 KB, so the old 4 KB bound rejected a payload the validator calls legal.
+        $request = 16384 >= strlen( $raw_request ) ? json_decode( $raw_request, true ) : null;
+        return $this->abilities_v2( $request );
+    }
+
+    /**
+     * Execute the additive Solid Security abilities protocol.
+     *
+     * @param mixed $request Decoded request object.
+     * @return array<string,mixed> Closed protocol response.
+     */
+    public function abilities_v2( $request ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity.TooHigh -- Closed operation table is intentionally linear.
+        $operation = is_array( $request ) && isset( $request['operation'] ) && is_string( $request['operation'] ) ? $request['operation'] : 'unknown';
+        $reads     = array( 'ability_solid_file_permissions_v2', 'ability_solid_summary_v2', 'ability_solid_whitelist_v2', 'ability_solid_lockouts_v2' );
+        $mutations = array( 'ability_solid_release_lockouts_v2', 'ability_solid_replace_whitelist_v2', 'ability_solid_file_scan_v2', 'ability_solid_backup_v2', 'ability_solid_malware_scan_v2', 'ability_solid_clear_logs_v2' );
+        $root_keys = in_array( $operation, $mutations, true ) ? array( 'protocol', 'operation', 'request_ref', 'payload' ) : array( 'protocol', 'operation', 'payload' );
+        if ( ! is_array( $request ) || ! $this->abilities_v2_exact_keys( $request, $root_keys ) || '2' !== $request['protocol'] || ! is_array( $request['payload'] ) ) {
+            return $this->abilities_v2_error( 'unknown', 'invalid_request' );
+        }
+
+        if ( 'capabilities' === $operation ) {
+            // Negotiation is supported; a payload on it is a malformed request, not an unknown operation.
+            if ( array() !== $request['payload'] ) {
+                return $this->abilities_v2_error( $operation, 'invalid_request' );
+            }
+
+            return array(
+                'protocol'           => '2',
+                'operation'          => 'capabilities',
+                'ok'                 => true,
+                'operations'         => array_merge( $reads, $mutations ),
+                'mutation_supported' => $this->abilities_v2_provider_supports_mutation(),
+            );
+        }
+
+        if ( 'ability_solid_file_permissions_v2' === $operation ) {
+            if ( array() !== $request['payload'] ) {
+                return $this->abilities_v2_error( $operation, 'invalid_request' );
+            }
+
+            if ( ! $this->abilities_v2_provider_available() ) {
+                return $this->abilities_v2_error( $operation, 'plugin_unavailable' );
+            }
+
+            return $this->abilities_v2_file_permissions();
+        }
+
+        if ( 'ability_solid_summary_v2' === $operation ) {
+            if ( array() !== $request['payload'] ) {
+                return $this->abilities_v2_error( $operation, 'invalid_request' );
+            }
+
+            if ( ! $this->abilities_v2_provider_available() ) {
+                return $this->abilities_v2_error( $operation, 'plugin_unavailable' );
+            }
+
+            return $this->abilities_v2_summary();
+        }
+
+        if ( 'ability_solid_whitelist_v2' === $operation ) {
+            if ( array() !== $request['payload'] ) {
+                return $this->abilities_v2_error( $operation, 'invalid_request' );
+            }
+
+            if ( ! $this->abilities_v2_provider_available() ) {
+                return $this->abilities_v2_error( $operation, 'plugin_unavailable' );
+            }
+
+            return $this->abilities_v2_whitelist();
+        }
+
+        if ( ! in_array( $operation, array_merge( $reads, $mutations ), true ) || ! $this->abilities_v2_valid_provider_payload( $operation, $request['payload'] ) ) {
+            return $this->abilities_v2_error( $operation, in_array( $operation, array_merge( $reads, $mutations ), true ) ? 'invalid_request' : 'unsupported_operation' );
+        }
+        if ( in_array( $operation, $mutations, true ) && ! $this->abilities_v2_valid_request_ref( $request['request_ref'] ) ) {
+            return $this->abilities_v2_error( $operation, 'invalid_request' );
+        }
+
+        if ( in_array( $operation, $mutations, true ) ) {
+            return $this->abilities_v2_execute_mutation( $operation, strtolower( $request['request_ref'] ), $request['payload'] );
+        }
+
+        // Only reads reach here, and each one answers from Solid-owned storage that does not exist without Solid.
+        if ( ! $this->abilities_v2_provider_available() ) {
+            return $this->abilities_v2_error( $operation, 'plugin_unavailable' );
+        }
+
+        try {
+            $result = $this->abilities_v2_provider_operation( $operation, $request['payload'] );
+        } catch ( \Throwable $throwable ) {
+            return $this->abilities_v2_error( $operation, 'plugin_unavailable' );
+        }
+        if ( is_wp_error( $result ) ) {
+            return $this->abilities_v2_provider_error( $operation, $result );
+        }
+        if ( ! $this->abilities_v2_valid_provider_result( $operation, $result ) ) {
+            return $this->abilities_v2_error( $operation, 'provider_schema_invalid' );
+        }
+        return array_merge(
+            array(
+                'protocol'  => '2',
+                'operation' => $operation,
+                'ok'        => true,
+            ),
+            $result
+        );
+    }
+
+    /**
+     * Execute one serialized mutation with exact replay and checked receipt storage.
+     *
+     * @param string $operation   Closed operation name.
+     * @param string $request_ref Canonical replay reference.
+     * @param array  $payload     Validated operation payload.
+     * @return array Closed protocol response.
+     */
+    private function abilities_v2_execute_mutation( $operation, $request_ref, $payload ) {
+        if ( ! $this->abilities_v2_provider_supports_mutation() ) {
+            return $this->abilities_v2_error( $operation, 'plugin_unavailable' );
+        }
+        if ( ! $this->abilities_v2_begin_mutation() ) {
+            return $this->abilities_v2_error( $operation, 'lock_busy' );
+        }
+
+        $response = $this->abilities_v2_error( $operation, 'outcome_unknown' );
+        try {
+            $preview     = in_array( $operation, array( 'ability_solid_replace_whitelist_v2', 'ability_solid_clear_logs_v2' ), true ) && true === $payload['dry_run'];
+            $receipts    = get_option( 'mainwp_solid_abilities_v2_receipts', array() );
+            $effect_hash = hash( 'sha256', wp_json_encode( array( $operation, $payload ) ) );
+            if ( ! is_array( $receipts ) ) {
+                $response = $this->abilities_v2_error( $operation, 'storage_unavailable' );
+            } elseif ( ! $preview && isset( $receipts[ $request_ref ] ) ) {
+                $receipt = $receipts[ $request_ref ];
+                if ( ! is_array( $receipt ) || ! $this->abilities_v2_exact_keys( $receipt, array( 'effect_hash', 'created_at', 'response' ) ) || ! $this->abilities_v2_valid_hash( $receipt['effect_hash'] ) || ! $this->abilities_v2_trusted_timestamp( $receipt['created_at'] ) || ! $this->abilities_v2_valid_receipt_response( $operation, $request_ref, $receipt['response'] ) ) {
+                    $response = $this->abilities_v2_error( $operation, 'storage_unavailable' );
+                } elseif ( 'ability_solid_file_scan_v2' === $operation && $this->abilities_v2_receipt_awaits_completion( $receipt ) ) {
+                    $result = $this->abilities_v2_poll_file_scan();
+                    if ( is_wp_error( $result ) ) {
+                        $response = $this->abilities_v2_provider_error( $operation, $result );
+                    } elseif ( ! $this->abilities_v2_valid_provider_result( $operation, $result ) ) {
+                        $response = $this->abilities_v2_error( $operation, 'provider_schema_invalid' );
+                    } else {
+                        $response                             = array_merge(
+                            array(
+                                'protocol'    => '2',
+                                'operation'   => $operation,
+                                'ok'          => true,
+                                'request_ref' => $request_ref,
+                            ),
+                            $result
+                        );
+                        $receipts[ $request_ref ]['response'] = $response;
+                        if ( ! update_option( 'mainwp_solid_abilities_v2_receipts', $receipts, false ) && get_option( 'mainwp_solid_abilities_v2_receipts', array() ) !== $receipts ) {
+                            $response = $this->abilities_v2_error( $operation, 'outcome_unknown' );
+                        }
+                    }
+                } else {
+                    $response = hash_equals( $receipt['effect_hash'], $effect_hash ) ? $receipt['response'] : $this->abilities_v2_error( $operation, 'request_conflict' );
+                }
+            } else {
+                // Room is made before the effect runs, never after: a full store has to refuse the
+                // mutation rather than dispatch it and then find nowhere to record what it did.
+                $room = $preview ? $receipts : $this->abilities_v2_receipt_room( $receipts );
+                if ( false === $room ) {
+                    $response = $this->abilities_v2_error( $operation, 'storage_unavailable' );
+                } else {
+                    $receipts = $room;
+                    try {
+                        $result = $this->abilities_v2_provider_operation( $operation, $payload );
+                    } catch ( \Throwable $throwable ) {
+                        $result = new \WP_Error( 'outcome_unknown' );
+                    }
+                    if ( is_wp_error( $result ) ) {
+                        $response = $this->abilities_v2_provider_error( $operation, $result );
+                    } elseif ( ! $this->abilities_v2_valid_provider_result( $operation, $result ) ) {
+                        $response = $this->abilities_v2_error( $operation, 'provider_schema_invalid' );
+                    } else {
+                        $response = array_merge(
+                            array(
+                                'protocol'    => '2',
+                                'operation'   => $operation,
+                                'ok'          => true,
+                                'request_ref' => $request_ref,
+                            ),
+                            $result
+                        );
+                        if ( ! $preview ) {
+                            $receipts[ $request_ref ] = array(
+                                'effect_hash' => $effect_hash,
+                                'created_at'  => time(),
+                                'response'    => $response,
+                            );
+                            if ( ! update_option( 'mainwp_solid_abilities_v2_receipts', $receipts, false ) && get_option( 'mainwp_solid_abilities_v2_receipts', array() ) !== $receipts ) {
+                                $response = $this->abilities_v2_error( $operation, 'outcome_unknown' );
+                            }
+                        }
+                    }
+                }
+            }
+        } finally {
+            if ( ! $this->abilities_v2_end_mutation() ) {
+                $response = $this->abilities_v2_error( $operation, 'outcome_unknown' );
+            }
+        }
+        return $response;
+    }
+
+    /**
+     * Free one receipt slot without ever dropping a receipt a retry could still land on.
+     *
+     * A receipt is the only thing between a repeated Dashboard request and a second dispatch of
+     * the same mutation, so among readable receipts age is the one safe reason to drop one: past
+     * the retry horizon the Dashboard has stopped asking. An accepted file scan is exempt from
+     * that at any age, because its receipt is also the handle the Dashboard polls for the result.
+     * Entries that are not readable receipts at all are dropped first at any age. When nothing can
+     * be freed, the caller refuses the mutation instead of forcing room, which is why this must run
+     * before the effect and not after it.
+     *
+     * @param array $receipts Stored receipts.
+     * @return array|false Receipts with a free slot, or false when none can be freed.
+     */
+    private function abilities_v2_receipt_room( $receipts ) {
+        $limit = 100;
+        if ( $limit > count( $receipts ) ) {
+            return $receipts;
+        }
+
+        $horizon    = time() - DAY_IN_SECONDS;
+        $candidates = array();
+        foreach ( $receipts as $ref => $receipt ) {
+            // Structure decides first. A receipt the Child can no longer read answers
+            // storage_unavailable on replay anyway, so protecting it protects nothing, while a
+            // hand-edited entry that merely looks like an open scan would otherwise hold the store
+            // shut for good. Corrupt entries go first, ahead of anything genuinely aged out.
+            if ( ! $this->abilities_v2_valid_stored_receipt( $ref, $receipt ) ) {
+                $candidates[ $ref ] = 0;
+                continue;
+            }
+            if ( $this->abilities_v2_receipt_awaits_completion( $receipt ) ) {
+                continue;
+            }
+            if ( $receipt['created_at'] < $horizon ) {
+                $candidates[ $ref ] = $receipt['created_at'];
+            }
+        }
+
+        asort( $candidates, SORT_NUMERIC );
+        foreach ( array_keys( $candidates ) as $ref ) {
+            if ( $limit > count( $receipts ) ) {
+                break;
+            }
+            unset( $receipts[ $ref ] );
+        }
+
+        return $limit > count( $receipts ) ? $receipts : false;
+    }
+
+    /**
+     * Whether one stored entry is a receipt at all, before anything is decided from it.
+     *
+     * The store is a WordPress option, so every entry is untrusted input. This asks only what the
+     * entry is, not what it says: the key has to be the reference the receipt is filed under, and
+     * the recorded response has to be a response the Child would have written for that reference.
+     *
+     * @param mixed $ref     Stored key.
+     * @param mixed $receipt Stored receipt.
+     * @return bool
+     */
+    private function abilities_v2_valid_stored_receipt( $ref, $receipt ) {
+        if ( ! $this->abilities_v2_valid_request_ref( $ref ) || ! is_array( $receipt ) || ! $this->abilities_v2_exact_keys( $receipt, array( 'effect_hash', 'created_at', 'response' ) ) ) {
+            return false;
+        }
+        if ( ! $this->abilities_v2_valid_hash( $receipt['effect_hash'] ) || ! $this->abilities_v2_trusted_timestamp( $receipt['created_at'] ) || ! is_array( $receipt['response'] ) || ! isset( $receipt['response']['operation'] ) || ! is_string( $receipt['response']['operation'] ) ) {
+            return false;
+        }
+        return $this->abilities_v2_valid_receipt_response( $receipt['response']['operation'], strtolower( $ref ), $receipt['response'] );
+    }
+
+    /**
+     * Whether a stored timestamp is a moment this store could actually have written.
+     *
+     * A value that is not an integer, not positive, or further in the future than clock skew
+     * explains is not a younger timestamp; it is an unusable one, so nothing may read age from it.
+     * An entry carrying one is therefore not a receipt worth protecting either, however much of the
+     * rest of it looks like an open scan.
+     *
+     * @param mixed $value Stored timestamp.
+     * @return bool
+     */
+    private function abilities_v2_trusted_timestamp( $value ) {
+        return is_int( $value ) && 0 < $value && time() + self::ABILITIES_V2_CLOCK_SKEW >= $value;
+    }
+
+    /**
+     * Whether a receipt records an accepted operation whose outcome is still open.
+     *
+     * @param mixed $receipt Stored receipt.
+     * @return bool
+     */
+    private function abilities_v2_receipt_awaits_completion( $receipt ) {
+        if ( ! is_array( $receipt ) || ! isset( $receipt['response'] ) || ! is_array( $receipt['response'] ) ) {
+            return false;
+        }
+
+        $response = $receipt['response'];
+        return isset( $response['accepted'], $response['completed'], $response['outcome'] ) && true === $response['accepted'] && false === $response['completed'] && 'accepted' === $response['outcome'];
+    }
+
+    /**
+     * Map a provider error to the closed protocol vocabulary.
+     *
+     * @param string    $operation Closed operation name.
+     * @param \WP_Error $error     Provider error.
+     * @return array Closed protocol error.
+     */
+    private function abilities_v2_provider_error( $operation, $error ) {
+        $code = $error->get_error_code();
+        $safe = array( 'plugin_unavailable', 'unsupported_version', 'invalid_stored_state', 'target_not_found', 'stale_revision', 'state_conflict', 'lock_busy', 'write_failed', 'outcome_unknown', 'storage_unavailable' );
+        return $this->abilities_v2_error( $operation, in_array( $code, $safe, true ) ? $code : 'plugin_unavailable' );
+    }
+
+    /** Acquire the Child-wide Solid mutation lock. */
+    private function abilities_v2_begin_mutation() {
+        global $wpdb;
+        if ( ! is_object( $wpdb ) || ! is_callable( array( $wpdb, 'prepare' ) ) || ! is_callable( array( $wpdb, 'get_var' ) ) ) {
+            return false;
+        }
+        $name   = 'mainwp_solid_v2_' . substr( hash( 'sha256', home_url( '/' ) ), 0, 32 );
+        $result = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 0)', $name ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Exact named lock is the serialization primitive.
+        return 1 === (int) $result;
+    }
+
+    /** Release and verify the Child-wide Solid mutation lock. */
+    private function abilities_v2_end_mutation() {
+        global $wpdb;
+        if ( ! is_object( $wpdb ) || ! is_callable( array( $wpdb, 'prepare' ) ) || ! is_callable( array( $wpdb, 'get_var' ) ) ) {
+            return false;
+        }
+        $name   = 'mainwp_solid_v2_' . substr( hash( 'sha256', home_url( '/' ) ), 0, 32 );
+        $result = $wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $name ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Exact named lock release must be checked.
+        return 1 === (int) $result;
+    }
+
+    /**
+     * Validate a stored mutation receipt response.
+     *
+     * @param string $operation   Operation name.
+     * @param string $request_ref Request reference.
+     * @param mixed  $response    Stored response.
+     * @return bool
+     */
+    private function abilities_v2_valid_receipt_response( $operation, $request_ref, $response ) {
+        if ( ! is_array( $response ) || ! isset( $response['protocol'], $response['operation'], $response['ok'], $response['request_ref'] ) || '2' !== $response['protocol'] || ! is_string( $response['operation'] ) || ! hash_equals( $operation, $response['operation'] ) || true !== $response['ok'] || ! is_string( $response['request_ref'] ) || ! hash_equals( $request_ref, strtolower( $response['request_ref'] ) ) ) {
+            return false;
+        }
+        $result = $response;
+        unset( $result['protocol'], $result['operation'], $result['ok'], $result['request_ref'] );
+        return $this->abilities_v2_valid_provider_result( $operation, $result );
+    }
+
+    /**
+     * Return bounded coarse Solid posture without identities or findings.
+     *
+     * @return array<string,mixed> Closed summary response.
+     */
+    private function abilities_v2_summary() { // phpcs:ignore Generic.Metrics.CyclomaticComplexity.TooHigh -- version-gated read projection.
+        if ( ! class_exists( '\ITSEC_Core' ) ) {
+            return $this->abilities_v2_error( 'ability_solid_summary_v2', 'plugin_unavailable' );
+        }
+
+        $complete      = true;
+        $lockout_count = null;
+        $banned_count  = null;
+        $latest_scan   = array(
+            'status'       => 'unknown',
+            'completed_at' => null,
+        );
+
+        global $itsec_lockout;
+        if ( is_object( $itsec_lockout ) && is_callable( array( $itsec_lockout, 'get_lockouts' ) ) ) {
+            try {
+                $lockouts = $itsec_lockout->get_lockouts(
+                    'all',
+                    array(
+                        'limit'   => 1001,
+                        'current' => true,
+                        'order'   => 'DESC',
+                        'orderby' => 'lockout_start',
+                    )
+                );
+                if ( is_array( $lockouts ) && count( $lockouts ) <= 1000 ) {
+                    $lockout_count = count( $lockouts );
+                } else {
+                    $complete = false;
+                }
+            } catch ( \Throwable $throwable ) { // NOSONAR - third-party version boundary.
+                $complete = false;
+            }
+        } else {
+            $complete = false;
+        }
+
+        if ( class_exists( '\iThemesSecurity\Ban_Users\Database_Repository' ) && class_exists( '\iThemesSecurity\Ban_Hosts\Filters' ) && is_callable( array( '\ITSEC_Modules', 'get_container' ) ) ) {
+            try {
+                $repository = \ITSEC_Modules::get_container()->get( \iThemesSecurity\Ban_Users\Database_Repository::class );
+                $count      = $repository->count_bans( new \iThemesSecurity\Ban_Hosts\Filters() );
+                if ( is_int( $count ) && $count >= 0 && $count <= 100000 ) {
+                    $banned_count = $count;
+                } else {
+                    $complete = false;
+                }
+            } catch ( \Throwable $throwable ) { // NOSONAR - third-party version boundary.
+                $complete = false;
+            }
+        } else {
+            $complete = false;
+        }
+
+        if ( class_exists( '\WP_REST_Request' ) ) {
+            try {
+                $request = new \WP_REST_Request( 'GET', '/ithemes-security/v1/site-scanner/scans' );
+                $now     = \ITSEC_Core::get_current_time_gmt();
+                $request->set_query_params(
+                    array(
+                        'after'  => \ITSEC_Lib::to_rest_date( strtotime( '-30 days', $now ) ),
+                        'before' => \ITSEC_Lib::to_rest_date( $now ),
+                    )
+                );
+                $response = rest_do_request( $request );
+                if ( ! is_wp_error( $response ) ) {
+                    $scans = rest_get_server()->response_to_data( $response, true );
+                    if ( is_array( $scans ) && array() === $scans ) {
+                        $latest_scan = array(
+                            'status'       => 'never_run',
+                            'completed_at' => null,
+                        );
+                    } elseif ( is_array( $scans ) && isset( $scans[0] ) && is_array( $scans[0] ) ) {
+                        $latest_scan = $this->abilities_v2_scan_projection( $scans[0], $complete );
+                    } else {
+                        $complete = false;
+                    }
+                } else {
+                    $complete = false;
+                }
+            } catch ( \Throwable $throwable ) { // NOSONAR - third-party REST boundary.
+                $complete = false;
+            }
+        } else {
+            $complete = false;
+        }
+
+        return $this->abilities_v2_summary_response( $lockout_count, $banned_count, $latest_scan, $complete, gmdate( 'Y-m-d\TH:i:s\Z' ) );
+    }
+
+    /**
+     * Normalize one latest-scan row to a closed coarse state.
+     *
+     * @param array $scan     Provider-owned scan row.
+     * @param bool  $complete Whether the whole summary remains complete.
+     * @return array<string,string|null> Coarse scan state.
+     */
+    private function abilities_v2_scan_projection( $scan, &$complete ) {
+        if ( ! isset( $scan['status'], $scan['time'] ) || ! is_string( $scan['status'] ) || ( ! is_string( $scan['time'] ) && ! is_int( $scan['time'] ) ) ) {
+            $complete = false;
+            return array(
+                'status'       => 'unknown',
+                'completed_at' => null,
+            );
+        }
+
+        $timestamp = is_int( $scan['time'] ) ? $scan['time'] : strtotime( $scan['time'] );
+        $status    = strtolower( $scan['status'] );
+        if ( false === $timestamp || $timestamp < 1 ) {
+            $complete = false;
+            return array(
+                'status'       => 'unknown',
+                'completed_at' => null,
+            );
+        }
+        if ( 'clean' === $status ) {
+            $coarse = 'clean';
+        } elseif ( in_array( $status, array( 'failed', 'error' ), true ) ) {
+            $coarse = 'failed';
+        } elseif ( in_array( $status, array( 'issues', 'issues_found', 'warning' ), true ) ) {
+            $coarse = 'issues_found';
+        } else {
+            $complete = false;
+            $coarse   = 'unknown';
+        }
+
+        return array(
+            'status'       => $coarse,
+            'completed_at' => gmdate( 'Y-m-d\TH:i:s\Z', $timestamp ),
+        );
+    }
+
+    /**
+     * Build the closed summary envelope and source generation.
+     *
+     * @param int|null $lockout_count Active lockout count.
+     * @param int|null $banned_count  Active ban count.
+     * @param array    $latest_scan   Coarse latest scan state.
+     * @param bool     $complete      Whether every source was complete.
+     * @param string   $observed_at   Observation timestamp.
+     * @return array<string,mixed> Closed summary response.
+     */
+    private function abilities_v2_summary_response( $lockout_count, $banned_count, $latest_scan, $complete, $observed_at ) {
+        $state = array(
+            'complete'             => (bool) $complete,
+            'active_lockout_count' => $lockout_count,
+            'banned_count'         => $banned_count,
+            'latest_scan'          => $latest_scan,
+            'observed_at'          => $observed_at,
+        );
+
+        return array(
+            'protocol'             => '2',
+            'operation'            => 'ability_solid_summary_v2',
+            'ok'                   => true,
+            'complete'             => $state['complete'],
+            'active_lockout_count' => $state['active_lockout_count'],
+            'banned_count'         => $state['banned_count'],
+            'latest_scan'          => $state['latest_scan'],
+            'observed_at'          => $state['observed_at'],
+            'source_generation'    => hash_hmac( 'sha256', 'mainwp-solid-summary-v1|' . wp_json_encode( $state ), wp_salt( 'auth' ) ),
+        );
+    }
+
+    /**
+     * Return permission posture for fixed WordPress targets without paths.
+     *
+     * @return array<string,mixed> Closed permission response.
+     */
+    private function abilities_v2_file_permissions() {
+        $upload     = wp_get_upload_dir();
+        $upload_dir = is_array( $upload ) && isset( $upload['basedir'] ) && is_string( $upload['basedir'] ) ? $upload['basedir'] : null;
+        $wp_config  = ABSPATH . 'wp-config.php';
+        if ( ! file_exists( $wp_config ) && ! is_link( $wp_config ) ) {
+            $parent_config = dirname( rtrim( ABSPATH, '/\\' ) ) . '/wp-config.php';
+            $wp_config     = file_exists( $parent_config ) || is_link( $parent_config ) ? $parent_config : $wp_config;
+        }
+        $server_config = ABSPATH . '.htaccess';
+        $web_config    = ABSPATH . 'web.config';
+        if ( ! file_exists( $server_config ) && ! is_link( $server_config ) && ( file_exists( $web_config ) || is_link( $web_config ) ) ) {
+            $server_config = $web_config;
+        }
+
+        $definitions = array(
+            array( 'wordpress_root', ABSPATH, '0755' ),
+            array( 'wp_includes', ABSPATH . WPINC, '0755' ),
+            array( 'wp_admin', ABSPATH . 'wp-admin', '0755' ),
+            array( 'wp_admin_js', ABSPATH . 'wp-admin/js', '0755' ),
+            array( 'wp_content', WP_CONTENT_DIR, '0755' ),
+            array( 'themes', get_theme_root(), '0755' ),
+            array( 'plugins', WP_PLUGIN_DIR, '0755' ),
+            array( 'uploads', $upload_dir, '0755' ),
+            array( 'wp_config', $wp_config, '0444' ),
+            array( 'server_config', $server_config, '0444' ),
+        );
+        $targets     = array();
+
+        foreach ( $definitions as $definition ) {
+            $targets[] = $this->abilities_v2_permission_target( $definition[0], $definition[1], $definition[2] );
+        }
+
+        return array(
+            'protocol'    => '2',
+            'operation'   => 'ability_solid_file_permissions_v2',
+            'ok'          => true,
+            'targets'     => $targets,
+            'observed_at' => gmdate( 'Y-m-d\TH:i:s\Z' ),
+        );
+    }
+
+    /**
+     * Project one fixed permission target without returning its path.
+     *
+     * @param string      $target        Logical target name.
+     * @param string|null $path          Server-owned fixed path.
+     * @param string      $expected_mode Expected four-digit mode.
+     * @return array<string,string|null>
+     */
+    private function abilities_v2_permission_target( $target, $path, $expected_mode ) {
+        $actual_mode = null;
+        $status      = 'missing';
+
+        if ( is_string( $path ) && '' !== $path && is_link( $path ) ) {
+            $status = 'unreadable';
+        } elseif ( is_string( $path ) && '' !== $path && file_exists( $path ) ) {
+            if ( ! is_readable( $path ) ) {
+                $status = 'unreadable';
+            } else {
+                $permissions = fileperms( $path );
+                if ( false === $permissions ) {
+                    $status = 'unreadable';
+                } else {
+                    $actual_mode = sprintf( '%04o', $permissions & 0777 );
+                    $status      = $expected_mode === $actual_mode ? 'ok' : 'warning';
+                }
+            }
+        }
+
+        return array(
+            'target'        => $target,
+            'expected_mode' => $expected_mode,
+            'actual_mode'   => $actual_mode,
+            'status'        => $status,
+        );
+    }
+
+    /**
+     * Return temporary-whitelist state without exposing the stored address.
+     *
+     * Expired state is projected as inactive without deleting the legacy
+     * option, keeping this protocol operation read-only.
+     *
+     * @return array<string,mixed> Closed whitelist response.
+     */
+    private function abilities_v2_whitelist() {
+        $operation = 'ability_solid_whitelist_v2';
+        $stored    = get_site_option( 'itsec_temp_whitelist_ip', false );
+        if ( false === $stored ) {
+            return $this->abilities_v2_whitelist_response( false, null, null, null );
+        }
+        if ( ! is_array( $stored ) || ! $this->abilities_v2_exact_keys( $stored, array( 'ip', 'exp' ) ) || ! is_string( $stored['ip'] ) || ! is_int( $stored['exp'] ) || $stored['exp'] < 1 ) {
+            return $this->abilities_v2_error( $operation, 'invalid_stored_state' );
+        }
+
+        $packed = inet_pton( $stored['ip'] );
+        if ( false === $packed ) {
+            return $this->abilities_v2_error( $operation, 'invalid_stored_state' );
+        }
+
+        if ( $stored['exp'] <= time() ) {
+            return $this->abilities_v2_whitelist_response( false, null, null, null );
+        }
+
+        $family = 4 === strlen( $packed ) ? 'ipv4' : 'ipv6';
+
+        return $this->abilities_v2_whitelist_response( true, $stored['exp'], $family, bin2hex( $packed ) );
+    }
+
+    /**
+     * Build a privacy-safe temporary-whitelist response and revision.
+     *
+     * @param bool        $active           Whether the stored entry is active.
+     * @param int|null    $expires_at       Expiry timestamp.
+     * @param string|null $family           Coarse address family.
+     * @param string|null $address_material Canonical address material for HMAC only.
+     * @return array<string,mixed> Closed whitelist response.
+     */
+    private function abilities_v2_whitelist_response( $active, $expires_at, $family, $address_material ) {
+        $state                              = array(
+            'active'         => $active,
+            'expires_at'     => null === $expires_at ? null : gmdate( 'Y-m-d\TH:i:s\Z', $expires_at ),
+            'address_family' => $family,
+        );
+        $revision_state                     = $state;
+        $revision_state['address_material'] = $address_material;
+
+        return array(
+            'protocol'       => '2',
+            'operation'      => 'ability_solid_whitelist_v2',
+            'ok'             => true,
+            'active'         => $state['active'],
+            'expires_at'     => $state['expires_at'],
+            'address_family' => $state['address_family'],
+            'revision'       => hash_hmac( 'sha256', 'mainwp-solid-whitelist-v1|' . wp_json_encode( $revision_state ), wp_salt( 'auth' ) ),
+        );
+    }
+
+    /**
+     * Check whether Solid Security is active on this site.
+     *
+     * @return bool
+     */
+    protected function abilities_v2_provider_available() {
+        return class_exists( '\ITSEC_Core' );
+    }
+
+    /**
+     * Check whether the installed Solid version has a typed mutation adapter.
+     *
+     * Mutation support currently adds nothing beyond the provider being
+     * present, but the two seams answer different questions and reads gate on
+     * availability alone.
+     *
+     * @return bool
+     */
+    protected function abilities_v2_provider_supports_mutation() {
+        return $this->abilities_v2_provider_available();
+    }
+
+    /**
+     * Execute one version-specific Solid operation.
+     *
+     * Supported free/Pro versions override this seam only after their result
+     * can satisfy the closed validators below.
+     *
+     * @param string $operation Operation name.
+     * @param array  $payload   Closed payload.
+     * @return array|WP_Error
+     */
+    protected function abilities_v2_provider_operation( $operation, $payload ) {
+        if ( 'ability_solid_lockouts_v2' === $operation ) {
+            return $this->abilities_v2_provider_lockouts( $payload );
+        }
+        if ( 'ability_solid_release_lockouts_v2' === $operation ) {
+            return $this->abilities_v2_provider_release_lockouts( $payload );
+        }
+        if ( 'ability_solid_replace_whitelist_v2' === $operation ) {
+            return $this->abilities_v2_provider_replace_whitelist( $payload );
+        }
+        if ( 'ability_solid_file_scan_v2' === $operation ) {
+            return $this->abilities_v2_provider_file_scan();
+        }
+        if ( 'ability_solid_backup_v2' === $operation ) {
+            return $this->abilities_v2_provider_backup();
+        }
+        if ( 'ability_solid_malware_scan_v2' === $operation ) {
+            return $this->abilities_v2_provider_malware_scan();
+        }
+        if ( 'ability_solid_clear_logs_v2' === $operation ) {
+            return $this->abilities_v2_provider_clear_logs( $payload['dry_run'] );
+        }
+        return new \WP_Error( 'unsupported_version' );
+    }
+
+    /**
+     * Return one bounded opaque page of current lockouts.
+     *
+     * @param array $payload Validated cursor and page limit.
+     * @return array|\WP_Error Closed lockout page or error.
+     */
+    private function abilities_v2_provider_lockouts( $payload ) {
+        $state = $this->abilities_v2_current_lockouts();
+        if ( is_wp_error( $state ) ) {
+            return $state;
+        }
+
+        $start = 0;
+        if ( null !== $payload['after_lockout_ref'] ) {
+            $found = false;
+            foreach ( $state['rows'] as $index => $row ) {
+                if ( hash_equals( $payload['after_lockout_ref'], $row['lockout_ref'] ) ) {
+                    $start = $index + 1;
+                    $found = true;
+                    break;
+                }
+            }
+            if ( ! $found ) {
+                return new \WP_Error( 'target_not_found' );
+            }
+        }
+
+        $page      = array_slice( $state['rows'], $start, $payload['limit'] );
+        $truncated = $start + count( $page ) < count( $state['rows'] );
+        $public    = array();
+        foreach ( $page as $row ) {
+            $public[] = array(
+                'lockout_ref' => $row['lockout_ref'],
+                'kind'        => $row['kind'],
+                'expires_at'  => $row['expires_at'],
+            );
+        }
+
+        return array(
+            'lockouts'               => $public,
+            'next_after_lockout_ref' => $truncated && array() !== $public ? $public[ count( $public ) - 1 ]['lockout_ref'] : null,
+            'truncated'              => $truncated,
+            'revision'               => $state['revision'],
+        );
+    }
+
+    /**
+     * Release exact current lockouts selected by opaque reference.
+     *
+     * @param array $payload Validated references and revision.
+     * @return array|\WP_Error Closed mutation result or error.
+     */
+    private function abilities_v2_provider_release_lockouts( $payload ) {
+        $state = $this->abilities_v2_current_lockouts();
+        if ( is_wp_error( $state ) ) {
+            return $state;
+        }
+        if ( ! hash_equals( $payload['if_match'], $state['revision'] ) ) {
+            return new \WP_Error( 'stale_revision' );
+        }
+
+        $current = array();
+        foreach ( $state['rows'] as $row ) {
+            $current[ $row['lockout_ref'] ] = $row;
+        }
+        foreach ( $payload['lockout_refs'] as $lockout_ref ) {
+            if ( ! isset( $current[ $lockout_ref ] ) ) {
+                return new \WP_Error( 'target_not_found' );
+            }
+        }
+
+        global $wpdb;
+        $released = 0;
+        $absent   = 0;
+        $failed   = 0;
+        foreach ( $payload['lockout_refs'] as $lockout_ref ) {
+            $wpdb->last_error = '';
+            $changed          = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Exact extension table CAS.
+                $wpdb->base_prefix . 'itsec_lockouts',
+                array( 'lockout_active' => 0 ),
+                array(
+                    'lockout_id'     => $current[ $lockout_ref ]['database_id'],
+                    'lockout_active' => 1,
+                ),
+                array( '%d' ),
+                array( '%d', '%d' )
+            );
+            if ( '' !== $wpdb->last_error || false === $changed ) {
+                ++$failed;
+            } elseif ( 1 === (int) $changed ) {
+                ++$released;
+            } else {
+                $wpdb->last_error = '';
+                $active           = $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Exact CAS readback.
+                    $wpdb->prepare(
+                        'SELECT lockout_active FROM `' . $wpdb->base_prefix . 'itsec_lockouts` WHERE lockout_id=%d LIMIT 1', // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- wpdb base prefix is trusted.
+                        $current[ $lockout_ref ]['database_id']
+                    )
+                );
+                if ( '' !== $wpdb->last_error ) {
+                    ++$failed;
+                } elseif ( null === $active || 0 === (int) $active ) {
+                    ++$absent;
+                } else {
+                    ++$failed;
+                }
+            }
+        }
+        if ( 0 < $released && class_exists( '\ITSEC_Lib' ) && is_callable( array( '\ITSEC_Lib', 'clear_caches' ) ) ) {
+            \ITSEC_Lib::clear_caches();
+        }
+        $after = $this->abilities_v2_current_lockouts();
+        if ( is_wp_error( $after ) ) {
+            return new \WP_Error( 'outcome_unknown' );
+        }
+        return array(
+            'requested_count'      => count( $payload['lockout_refs'] ),
+            'releasable_count'     => $released + $failed,
+            'released_count'       => $released,
+            'already_absent_count' => $absent,
+            'failed_count'         => $failed,
+            'revision'             => $after['revision'],
+        );
+    }
+
+    /** Read the complete bounded current lockout set with private row IDs. */
+    private function abilities_v2_current_lockouts() {
+        global $wpdb;
+        if ( ! is_object( $wpdb ) || ! isset( $wpdb->base_prefix ) || ! is_string( $wpdb->base_prefix ) || ! is_callable( array( $wpdb, 'get_results' ) ) || ! is_callable( array( $wpdb, 'prepare' ) ) ) {
+            return new \WP_Error( 'storage_unavailable' );
+        }
+        $wpdb->last_error = '';
+        $rows             = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Bounded exact extension table read.
+            $wpdb->prepare(
+                'SELECT lockout_id,lockout_host,lockout_user,lockout_username,lockout_expire_gmt FROM `' . $wpdb->base_prefix . 'itsec_lockouts` WHERE lockout_active=1 AND lockout_expire_gmt>%s ORDER BY lockout_id ASC LIMIT 1001', // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- wpdb base prefix is trusted.
+                gmdate( 'Y-m-d H:i:s' )
+            ),
+            ARRAY_A
+        );
+        if ( '' !== $wpdb->last_error || ! is_array( $rows ) ) {
+            return new \WP_Error( 'storage_unavailable' );
+        }
+        if ( 1000 < count( $rows ) ) {
+            return new \WP_Error( 'state_conflict' );
+        }
+
+        $normalized = array();
+        foreach ( $rows as $row ) {
+            if ( ! is_array( $row ) || ! $this->abilities_v2_exact_keys( $row, array( 'lockout_id', 'lockout_host', 'lockout_user', 'lockout_username', 'lockout_expire_gmt' ) ) ) {
+                return new \WP_Error( 'invalid_stored_state' );
+            }
+            $database_id = $this->abilities_v2_positive_integer( $row['lockout_id'] );
+            $user_id     = $this->abilities_v2_nonnegative_integer( null === $row['lockout_user'] ? 0 : $row['lockout_user'] );
+            $host        = null === $row['lockout_host'] ? '' : $row['lockout_host'];
+            $username    = null === $row['lockout_username'] ? '' : $row['lockout_username'];
+            if ( null === $database_id || null === $user_id || ! is_string( $host ) || ! is_string( $username ) || ! is_string( $row['lockout_expire_gmt'] ) || 19 !== strlen( $row['lockout_expire_gmt'] ) ) {
+                return new \WP_Error( 'invalid_stored_state' );
+            }
+            $expires = strtotime( $row['lockout_expire_gmt'] . ' UTC' );
+            if ( false === $expires || gmdate( 'Y-m-d H:i:s', $expires ) !== $row['lockout_expire_gmt'] ) {
+                return new \WP_Error( 'invalid_stored_state' );
+            }
+            $signals = array();
+            if ( '' !== $host ) {
+                $signals[] = 'host';
+            }
+            if ( 0 < $user_id ) {
+                $signals[] = 'user';
+            }
+            if ( '' !== $username ) {
+                $signals[] = 'username';
+            }
+            $kind         = 1 === count( $signals ) ? $signals[0] : 'multiple';
+            $ref          = hash_hmac( 'sha256', implode( '|', array( 'mainwp-solid-lockout-v1', home_url( '/' ), $database_id, $kind, $row['lockout_expire_gmt'] ) ), wp_salt( 'auth' ) );
+            $normalized[] = array(
+                'database_id' => $database_id,
+                'lockout_ref' => $ref,
+                'kind'        => $kind,
+                'expires_at'  => gmdate( 'Y-m-d\TH:i:s\Z', $expires ),
+            );
+        }
+        usort(
+            $normalized,
+            static function ( $left, $right ) {
+                return strcmp( $left['lockout_ref'], $right['lockout_ref'] );
+            }
+        );
+        $public = array();
+        foreach ( $normalized as $row ) {
+            $public[] = array( $row['lockout_ref'], $row['kind'], $row['expires_at'] );
+        }
+        return array(
+            'rows'     => $normalized,
+            'revision' => hash_hmac( 'sha256', 'mainwp-solid-lockouts-v1|' . wp_json_encode( $public ), wp_salt( 'auth' ) ),
+        );
+    }
+
+    /**
+     * Replace or remove the temporary whitelist and prove exact readback.
+     *
+     * @param array $payload Validated desired state, revision, and preview flag.
+     * @return array|\WP_Error Closed mutation result or error.
+     */
+    private function abilities_v2_provider_replace_whitelist( $payload ) {
+        $before = $this->abilities_v2_whitelist();
+        if ( ! is_array( $before ) || ! isset( $before['ok'] ) || true !== $before['ok'] ) {
+            return new \WP_Error( isset( $before['code'] ) && is_string( $before['code'] ) ? $before['code'] : 'invalid_stored_state' );
+        }
+        if ( ! hash_equals( $payload['if_match'], $before['revision'] ) ) {
+            return new \WP_Error( 'stale_revision' );
+        }
+
+        $desired = false;
+        if ( null !== $payload['ip_address'] ) {
+            $packed = inet_pton( $payload['ip_address'] );
+            if ( false === $packed || inet_ntop( $packed ) !== strtolower( $payload['ip_address'] ) ) {
+                return new \WP_Error( 'invalid_stored_state' );
+            }
+            $desired = array(
+                'ip'  => strtolower( $payload['ip_address'] ),
+                'exp' => time() + $payload['ttl_seconds'],
+            );
+        }
+        $stored  = get_site_option( 'itsec_temp_whitelist_ip', false );
+        $changed = $stored !== $desired;
+        if ( $payload['dry_run'] ) {
+            if ( false === $desired ) {
+                $after = $this->abilities_v2_whitelist_response( false, null, null, null );
+            } else {
+                $packed = inet_pton( $desired['ip'] );
+                $after  = $this->abilities_v2_whitelist_response( true, $desired['exp'], 4 === strlen( $packed ) ? 'ipv4' : 'ipv6', bin2hex( $packed ) ); // phpcs:ignore WordPress.PHP.YodaConditions.NotYoda -- Constant is deliberately first.
+            }
+            return array(
+                'changed'        => $changed,
+                'active'         => $after['active'],
+                'expires_at'     => $after['expires_at'],
+                'address_family' => $after['address_family'],
+                'revision'       => $after['revision'],
+            );
+        }
+        if ( $changed ) {
+            if ( false === $desired ) {
+                delete_site_option( 'itsec_temp_whitelist_ip' );
+            } else {
+                update_site_option( 'itsec_temp_whitelist_ip', $desired );
+            }
+            if ( get_site_option( 'itsec_temp_whitelist_ip', false ) !== $desired ) {
+                return new \WP_Error( 'outcome_unknown' );
+            }
+        }
+        $after = $this->abilities_v2_whitelist();
+        if ( ! is_array( $after ) || ! isset( $after['ok'] ) || true !== $after['ok'] ) {
+            return new \WP_Error( 'outcome_unknown' );
+        }
+        return array(
+            'changed'        => $changed,
+            'active'         => $after['active'],
+            'expires_at'     => $after['expires_at'],
+            'address_family' => $after['address_family'],
+            'revision'       => $after['revision'],
+        );
+    }
+
+    /** Request a file-change scan and retain no provider findings. */
+    private function abilities_v2_provider_file_scan() {
+        $result = $this->file_change();
+        $ok     = is_array( $result ) && isset( $result['result'] ) && 'success' === $result['result'];
+        return $this->abilities_v2_coarse_operation_result( 'file_scan', $ok, false, $ok ? 'accepted' : 'failed' );
+    }
+
+    /**
+     * Load the Solid File Change module the way the v1 file_change() path does.
+     *
+     * Solid leaves this module unloaded on a normal request, so a poll arrives
+     * with both classes absent and would report plugin_unavailable forever on a
+     * site that is in fact running Solid.
+     */
+    private function abilities_v2_load_file_change_module() {
+        /**
+         * Itsec modules path.
+         *
+         * @global string $mainwp_itsec_modules_path MainWP itsec modules path.
+         */
+        global $mainwp_itsec_modules_path;
+
+        if ( ! is_string( $mainwp_itsec_modules_path ) || '' === $mainwp_itsec_modules_path ) {
+            return;
+        }
+
+        $files = array(
+            '\ITSEC_File_Change_Scanner' => $mainwp_itsec_modules_path . 'file-change/scanner.php',
+            '\ITSEC_File_Change'         => $mainwp_itsec_modules_path . 'file-change/class-itsec-file-change.php',
+        );
+        foreach ( $files as $class => $file ) {
+            // Unlike v1, this path also runs where Solid is absent or has moved the module, so a missing file must not fatal.
+            if ( ! class_exists( $class ) && file_exists( $file ) ) {
+                require_once $file; // NOSONAR - WP compatible.
+            }
+        }
+    }
+
+    /** Poll the active File Change scan without submitting a second scan request. */
+    private function abilities_v2_poll_file_scan() {
+        $this->abilities_v2_load_file_change_module();
+
+        if ( ! class_exists( '\ITSEC_File_Change_Scanner' ) || ! is_callable( array( '\ITSEC_File_Change_Scanner', 'get_status' ) ) ) {
+            return new \WP_Error( 'plugin_unavailable' );
+        }
+
+        try {
+            if ( is_callable( array( '\ITSEC_File_Change_Scanner', 'is_running' ) ) && \ITSEC_File_Change_Scanner::is_running() ) {
+                return $this->abilities_v2_coarse_operation_result( 'file_scan', true, false, 'accepted' );
+            }
+            $status = \ITSEC_File_Change_Scanner::get_status();
+        } catch ( \Throwable $throwable ) { // NOSONAR - third-party version boundary.
+            return new \WP_Error( 'outcome_unknown' );
+        }
+
+        if ( ! is_array( $status ) || empty( $status['complete'] ) || ! class_exists( '\ITSEC_File_Change' ) || ! is_callable( array( '\ITSEC_File_Change', 'get_latest_changes' ) ) ) {
+            return $this->abilities_v2_coarse_operation_result( 'file_scan', true, false, 'accepted' );
+        }
+
+        try {
+            $changes = \ITSEC_File_Change::get_latest_changes();
+        } catch ( \Throwable $throwable ) { // NOSONAR - third-party version boundary.
+            return new \WP_Error( 'outcome_unknown' );
+        }
+        if ( ! is_array( $changes ) ) {
+            return new \WP_Error( 'outcome_unknown' );
+        }
+        foreach ( $changes as $change_group ) {
+            if ( ! is_array( $change_group ) ) {
+                return new \WP_Error( 'outcome_unknown' );
+            }
+            if ( array() !== $change_group ) {
+                return $this->abilities_v2_coarse_operation_result( 'file_scan', true, true, 'changes_found' );
+            }
+        }
+        return $this->abilities_v2_coarse_operation_result( 'file_scan', true, true, 'clean' );
+    }
+
+    /** Run the configured database backup and retain no artifact details. */
+    private function abilities_v2_provider_backup() {
+        $result = $this->backup_db();
+        $ok     = is_array( $result ) && isset( $result['result'] ) && 'success' === $result['result'];
+        return $this->abilities_v2_coarse_operation_result( 'database_backup', $ok, true, $ok ? 'backup_created' : 'failed' );
+    }
+
+    /** Run the malware scan and reduce the result to the latest coarse state. */
+    private function abilities_v2_provider_malware_scan() {
+        $before = $this->abilities_v2_summary();
+        if ( ! is_array( $before ) || empty( $before['ok'] ) || empty( $before['complete'] ) || ! isset( $before['latest_scan']['completed_at'] ) || ( null !== $before['latest_scan']['completed_at'] && ! $this->abilities_v2_valid_date( $before['latest_scan']['completed_at'] ) ) ) {
+            return $this->abilities_v2_coarse_operation_result( 'malware_scan', false, true, 'outcome_unknown' );
+        }
+        $before_timestamp = null === $before['latest_scan']['completed_at'] ? null : strtotime( $before['latest_scan']['completed_at'] );
+        $result           = $this->malware_scan();
+        if ( ! is_array( $result ) || isset( $result['error'] ) ) {
+            return $this->abilities_v2_coarse_operation_result( 'malware_scan', false, true, 'failed' );
+        }
+        $summary = $this->abilities_v2_summary();
+        if ( ! is_array( $summary ) || empty( $summary['ok'] ) || empty( $summary['complete'] ) || ! isset( $summary['latest_scan']['status'], $summary['latest_scan']['completed_at'] ) || null === $summary['latest_scan']['completed_at'] || ! $this->abilities_v2_valid_date( $summary['latest_scan']['completed_at'] ) ) {
+            return $this->abilities_v2_coarse_operation_result( 'malware_scan', true, true, 'outcome_unknown' );
+        }
+        $after_timestamp = strtotime( $summary['latest_scan']['completed_at'] );
+        if ( false === $after_timestamp || ( null !== $before_timestamp && $after_timestamp <= $before_timestamp ) ) {
+            return $this->abilities_v2_coarse_operation_result( 'malware_scan', true, true, 'outcome_unknown' );
+        }
+        $outcome = $summary['latest_scan']['status'];
+        if ( ! in_array( $outcome, array( 'clean', 'issues_found', 'failed' ), true ) ) {
+            $outcome = 'outcome_unknown';
+        }
+        return $this->abilities_v2_coarse_operation_result( 'malware_scan', true, true, $outcome );
+    }
+
+    /**
+     * Count or delete the exact Solid log table with checked postconditions.
+     *
+     * @param bool $dry_run Whether to return counts without deletion.
+     * @return array|\WP_Error Closed deletion result or error.
+     */
+    private function abilities_v2_provider_clear_logs( $dry_run ) {
+        global $wpdb;
+        if ( ! is_object( $wpdb ) || ! isset( $wpdb->base_prefix ) || ! is_string( $wpdb->base_prefix ) || ! is_callable( array( $wpdb, 'get_var' ) ) || ! is_callable( array( $wpdb, 'prepare' ) ) || ! is_callable( array( $wpdb, 'query' ) ) ) {
+            return new \WP_Error( 'storage_unavailable' );
+        }
+        $table            = $wpdb->base_prefix . 'itsec_log';
+        $wpdb->last_error = '';
+        $before_raw       = $wpdb->get_var( 'SELECT COUNT(*) FROM `' . $table . '`' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- Exact discovered extension table.
+        $before           = $this->abilities_v2_nonnegative_integer( $before_raw );
+        if ( '' !== $wpdb->last_error ) {
+            return new \WP_Error( 'plugin_unavailable' );
+        }
+        if ( null === $before ) {
+            return new \WP_Error( 'storage_unavailable' );
+        }
+        if ( $dry_run ) {
+            return array(
+                'rows_before'  => $before,
+                'rows_deleted' => 0,
+                'rows_after'   => $before,
+                'changed'      => false,
+                'generation'   => hash_hmac( 'sha256', 'mainwp-solid-clear-logs-v1|' . $before, wp_salt( 'auth' ) ),
+            );
+        }
+        $wpdb->last_error = '';
+        $deleted          = $wpdb->query( 'DELETE FROM `' . $table . '`' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- Exact discovered extension table.
+        if ( '' !== $wpdb->last_error || false === $deleted ) {
+            return new \WP_Error( 'outcome_unknown' );
+        }
+        $wpdb->last_error = '';
+        $after_raw        = $wpdb->get_var( 'SELECT COUNT(*) FROM `' . $table . '`' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- Exact discovered extension table.
+        $after            = $this->abilities_v2_nonnegative_integer( $after_raw );
+        if ( '' !== $wpdb->last_error || null === $after || 0 !== $after || $before - $after !== (int) $deleted ) {
+            return new \WP_Error( 'outcome_unknown' );
+        }
+        return array(
+            'rows_before'  => $before,
+            'rows_deleted' => $before,
+            'rows_after'   => 0,
+            'changed'      => 0 < $before,
+            'generation'   => hash_hmac( 'sha256', 'mainwp-solid-clear-logs-v1|0', wp_salt( 'auth' ) ),
+        );
+    }
+
+    /**
+     * Build a closed coarse result for one provider operation.
+     *
+     * @param string $type      Operation type.
+     * @param bool   $accepted  Whether the provider accepted it.
+     * @param bool   $completed Whether the provider completed it.
+     * @param string $outcome   Closed coarse outcome.
+     * @return array Closed result.
+     */
+    private function abilities_v2_coarse_operation_result( $type, $accepted, $completed, $outcome ) {
+        return array(
+            'accepted'   => (bool) $accepted,
+            'completed'  => (bool) $completed,
+            'outcome'    => $outcome,
+            'generation' => hash_hmac( 'sha256', implode( '|', array( 'mainwp-solid-operation-v1', $type, $accepted ? '1' : '0', $completed ? '1' : '0', $outcome, time() ) ), wp_salt( 'auth' ) ),
+        );
+    }
+
+    /**
+     * Normalize a positive database integer without accepting padded values.
+     *
+     * @param mixed $value Candidate value.
+     * @return int|null Normalized value.
+     */
+    private function abilities_v2_positive_integer( $value ) {
+        if ( is_int( $value ) ) {
+            return 0 < $value ? $value : null;
+        }
+        return is_string( $value ) && 1 === preg_match( '/^[1-9][0-9]*$/D', $value ) && (string) (int) $value === $value ? (int) $value : null;
+    }
+
+    /**
+     * Normalize a nonnegative database integer without accepting padded values.
+     *
+     * @param mixed $value Candidate value.
+     * @return int|null Normalized value.
+     */
+    private function abilities_v2_nonnegative_integer( $value ) {
+        if ( is_int( $value ) ) {
+            return 0 <= $value ? $value : null;
+        }
+        return is_string( $value ) && 1 === preg_match( '/^(?:0|[1-9][0-9]*)$/D', $value ) && (string) (int) $value === $value ? (int) $value : null;
+    }
+
+    /**
+     * Validate one provider payload.
+     *
+     * @param string $operation Operation name.
+     * @param array  $payload   Operation payload.
+     * @return bool
+     */
+    private function abilities_v2_valid_provider_payload( $operation, $payload ) {
+        if ( 'ability_solid_lockouts_v2' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'limit', 'after_lockout_ref' ) ) && is_int( $payload['limit'] ) && 1 <= $payload['limit'] && 100 >= $payload['limit'] && ( null === $payload['after_lockout_ref'] || $this->abilities_v2_valid_hash( $payload['after_lockout_ref'] ) );
+        }
+        if ( 'ability_solid_release_lockouts_v2' === $operation ) {
+            if ( ! $this->abilities_v2_exact_keys( $payload, array( 'lockout_refs', 'if_match' ) ) || ! is_array( $payload['lockout_refs'] ) || 1 > count( $payload['lockout_refs'] ) || 100 < count( $payload['lockout_refs'] ) || count( $payload['lockout_refs'] ) !== count( array_unique( $payload['lockout_refs'] ) ) || ! $this->abilities_v2_valid_hash( $payload['if_match'] ) ) {
+                return false;
+            }
+            foreach ( $payload['lockout_refs'] as $lockout_ref ) {
+                if ( ! $this->abilities_v2_valid_hash( $lockout_ref ) ) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        if ( 'ability_solid_replace_whitelist_v2' === $operation ) {
+            if ( ! $this->abilities_v2_exact_keys( $payload, array( 'ip_address', 'ttl_seconds', 'if_match', 'dry_run' ) ) || ! $this->abilities_v2_valid_hash( $payload['if_match'] ) || ! is_bool( $payload['dry_run'] ) ) {
+                return false;
+            }
+            if ( null === $payload['ip_address'] ) {
+                return null === $payload['ttl_seconds'];
+            }
+            return is_string( $payload['ip_address'] ) && 45 >= strlen( $payload['ip_address'] ) && false !== inet_pton( $payload['ip_address'] ) && is_int( $payload['ttl_seconds'] ) && 300 <= $payload['ttl_seconds'] && 86400 >= $payload['ttl_seconds'];
+        }
+        if ( 'ability_solid_clear_logs_v2' === $operation ) {
+            return $this->abilities_v2_exact_keys( $payload, array( 'dry_run' ) ) && is_bool( $payload['dry_run'] );
+        }
+        return in_array( $operation, array( 'ability_solid_file_scan_v2', 'ability_solid_backup_v2', 'ability_solid_malware_scan_v2' ), true ) && array() === $payload;
+    }
+
+    /**
+     * Validate one provider result.
+     *
+     * @param string $operation Operation name.
+     * @param mixed  $result    Provider result.
+     * @return bool
+     */
+    private function abilities_v2_valid_provider_result( $operation, $result ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity.TooHigh -- Closed result matrix.
+        if ( ! is_array( $result ) ) {
+            return false;
+        }
+        if ( 'ability_solid_lockouts_v2' === $operation ) {
+            if ( ! $this->abilities_v2_exact_keys( $result, array( 'lockouts', 'next_after_lockout_ref', 'truncated', 'revision' ) ) || ! is_array( $result['lockouts'] ) || 100 < count( $result['lockouts'] ) || ( null !== $result['next_after_lockout_ref'] && ! $this->abilities_v2_valid_hash( $result['next_after_lockout_ref'] ) ) || ! is_bool( $result['truncated'] ) || ! $this->abilities_v2_valid_hash( $result['revision'] ) ) {
+                return false;
+            }
+            foreach ( $result['lockouts'] as $lockout ) {
+                if ( ! is_array( $lockout ) || ! $this->abilities_v2_exact_keys( $lockout, array( 'lockout_ref', 'kind', 'expires_at' ) ) || ! $this->abilities_v2_valid_hash( $lockout['lockout_ref'] ) || ! in_array( $lockout['kind'], array( 'host', 'user', 'username', 'multiple' ), true ) || ! $this->abilities_v2_valid_date( $lockout['expires_at'] ) ) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        if ( 'ability_solid_release_lockouts_v2' === $operation ) {
+            return $this->abilities_v2_exact_keys( $result, array( 'requested_count', 'releasable_count', 'released_count', 'already_absent_count', 'failed_count', 'revision' ) ) && $this->abilities_v2_count( $result['requested_count'], 1, 100 ) && $this->abilities_v2_count( $result['releasable_count'], 0, 100 ) && $this->abilities_v2_count( $result['released_count'], 0, 100 ) && $this->abilities_v2_count( $result['already_absent_count'], 0, 100 ) && $this->abilities_v2_count( $result['failed_count'], 0, 100 ) && $result['requested_count'] === $result['released_count'] + $result['already_absent_count'] + $result['failed_count'] && $this->abilities_v2_valid_hash( $result['revision'] );
+        }
+        if ( 'ability_solid_replace_whitelist_v2' === $operation ) {
+            return $this->abilities_v2_exact_keys( $result, array( 'changed', 'active', 'expires_at', 'address_family', 'revision' ) ) && is_bool( $result['changed'] ) && is_bool( $result['active'] ) && ( null === $result['expires_at'] || $this->abilities_v2_valid_date( $result['expires_at'] ) ) && in_array( $result['address_family'], array( 'ipv4', 'ipv6', null ), true ) && $this->abilities_v2_valid_hash( $result['revision'] ) && ( $result['active'] ? null !== $result['expires_at'] && null !== $result['address_family'] : null === $result['expires_at'] && null === $result['address_family'] );
+        }
+        if ( in_array( $operation, array( 'ability_solid_file_scan_v2', 'ability_solid_malware_scan_v2' ), true ) ) {
+            return $this->abilities_v2_exact_keys( $result, array( 'accepted', 'completed', 'outcome', 'generation' ) ) && is_bool( $result['accepted'] ) && is_bool( $result['completed'] ) && in_array( $result['outcome'], array( 'accepted', 'clean', 'changes_found', 'issues_found', 'failed', 'outcome_unknown' ), true ) && $this->abilities_v2_valid_hash( $result['generation'] );
+        }
+        if ( 'ability_solid_backup_v2' === $operation ) {
+            return $this->abilities_v2_exact_keys( $result, array( 'accepted', 'completed', 'outcome', 'generation' ) ) && is_bool( $result['accepted'] ) && is_bool( $result['completed'] ) && in_array( $result['outcome'], array( 'accepted', 'backup_created', 'failed', 'outcome_unknown' ), true ) && $this->abilities_v2_valid_hash( $result['generation'] );
+        }
+        return 'ability_solid_clear_logs_v2' === $operation && $this->abilities_v2_exact_keys( $result, array( 'rows_before', 'rows_deleted', 'rows_after', 'changed', 'generation' ) ) && $this->abilities_v2_count( $result['rows_before'], 0, PHP_INT_MAX ) && $this->abilities_v2_count( $result['rows_deleted'], 0, PHP_INT_MAX ) && $this->abilities_v2_count( $result['rows_after'], 0, PHP_INT_MAX ) && $result['rows_deleted'] <= $result['rows_before'] && $result['rows_after'] === $result['rows_before'] - $result['rows_deleted'] && is_bool( $result['changed'] ) && ( 0 < $result['rows_deleted'] ) === $result['changed'] && $this->abilities_v2_valid_hash( $result['generation'] );
+    }
+
+    /**
+     * Validate an inclusive integer count.
+     *
+     * @param mixed $value   Candidate value.
+     * @param int   $minimum Minimum value.
+     * @param int   $maximum Maximum value.
+     * @return bool
+     */
+    private function abilities_v2_count( $value, $minimum, $maximum ) {
+        return is_int( $value ) && $minimum <= $value && $maximum >= $value;
+    }
+
+    /**
+     * Validate a SHA-256 reference.
+     *
+     * @param mixed $value Candidate value.
+     * @return bool
+     */
+    private function abilities_v2_valid_hash( $value ) {
+        return is_string( $value ) && 1 === preg_match( '/^[a-f0-9]{64}$/D', $value );
+    }
+
+    /**
+     * Validate a UUID request reference.
+     *
+     * @param mixed $value Candidate value.
+     * @return bool
+     */
+    private function abilities_v2_valid_request_ref( $value ) {
+        return is_string( $value ) && 1 === preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/Di', $value );
+    }
+
+    /**
+     * Validate a UTC date-time.
+     *
+     * @param mixed $value Candidate value.
+     * @return bool
+     */
+    private function abilities_v2_valid_date( $value ) {
+        if ( ! is_string( $value ) || 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/D', $value ) ) {
+            return false;
+        }
+        $date   = \DateTimeImmutable::createFromFormat( '!Y-m-d\TH:i:s\Z', $value, new \DateTimeZone( 'UTC' ) );
+        $errors = \DateTimeImmutable::getLastErrors();
+        return false !== $date && ( false === $errors || ( 0 === $errors['warning_count'] && 0 === $errors['error_count'] ) ) && $date->format( 'Y-m-d\TH:i:s\Z' ) === $value;
+    }
+
+    /**
+     * Check an exact associative-key set.
+     *
+     * @param array $value Input object.
+     * @param array $keys  Expected keys.
+     * @return bool
+     */
+    private function abilities_v2_exact_keys( $value, $keys ) {
+        $actual = array_keys( $value );
+        sort( $actual, SORT_STRING );
+        sort( $keys, SORT_STRING );
+
+        return $actual === $keys;
+    }
+
+    /**
+     * Build a closed abilities protocol error.
+     *
+     * @param string $operation Protocol operation.
+     * @param string $code      Stable error code.
+     * @return array<string,string|bool>
+     */
+    private function abilities_v2_error( $operation, $code ) {
+        return array(
+            'protocol'  => '2',
+            'operation' => $operation,
+            'ok'        => false,
+            'code'      => $code,
+        );
     }
 
 
