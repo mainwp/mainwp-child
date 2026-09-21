@@ -60,7 +60,8 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
      *
      * @param array     $cursor   Resume cursor (empty array on first call).
      * @param array     $config   { tables: string[], pairs: array<int,array{from:string,to:string}>,
-     *                            exclude: array<string,string[]>, preserve_options?: array<string,string[]> }.
+     *                            exclude: array<string,string[]>, preserve_options?: array<string,string[]>,
+     *                            preserve_option_prefixes?: array<string,string[]> }.
      * @param float|int $deadline Absolute epoch the slice must yield by.
      *
      * @return array { done: bool, cursor: array }
@@ -88,11 +89,12 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
                 );
             }
 
-            $table            = $tables[ $cursor['table_index'] ];
-            $exclude          = isset( $config['exclude'][ $table ] ) ? $config['exclude'][ $table ] : array();
-            $preserve_options = isset( $config['preserve_options'][ $table ] ) ? $config['preserve_options'][ $table ] : array();
-            $consumed         = $this->rewrite_page( $table, $cursor['offset'], $config['pairs'], $exclude, $preserve_options );
-            $did_work         = true;
+            $table                    = $tables[ $cursor['table_index'] ];
+            $exclude                  = isset( $config['exclude'][ $table ] ) ? $config['exclude'][ $table ] : array();
+            $preserve_options         = isset( $config['preserve_options'][ $table ] ) ? $config['preserve_options'][ $table ] : array();
+            $preserve_option_prefixes = isset( $config['preserve_option_prefixes'][ $table ] ) ? $config['preserve_option_prefixes'][ $table ] : array();
+            $consumed                 = $this->rewrite_page( $table, $cursor['offset'], $config['pairs'], $exclude, $preserve_options, $preserve_option_prefixes );
+            $did_work                 = true;
 
             if ( $consumed < $this->page_size() ) {
                 ++$cursor['table_index'];
@@ -118,11 +120,12 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
      * @param array  $pairs            Replacement pairs.
      * @param array  $exclude          Column names to skip.
      * @param array  $preserve_options Option names whose rows must remain unchanged.
+     * @param array  $preserve_option_prefixes Option-name prefixes whose rows must remain unchanged.
      *
      * @return int Rows fetched (less than a full page means the table
      *             is done).
      */
-    protected function rewrite_page( $table, $offset, $pairs, $exclude, $preserve_options = array() ) {
+    protected function rewrite_page( $table, $offset, $pairs, $exclude, $preserve_options = array(), $preserve_option_prefixes = array() ) {
         global $wpdb;
 
         $pk_columns = $this->primary_key_columns( $table );
@@ -142,6 +145,13 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
         foreach ( $rows as $row ) {
             if ( isset( $row['option_name'] ) && in_array( $row['option_name'], $preserve_options, true ) ) {
                 continue;
+            }
+            if ( isset( $row['option_name'] ) ) {
+                foreach ( $preserve_option_prefixes as $prefix ) {
+                    if ( 0 === strpos( $row['option_name'], $prefix ) ) {
+                        continue 2;
+                    }
+                }
             }
             $this->rewrite_row( $table, $row, $pairs, $exclude, $pk_columns );
         }

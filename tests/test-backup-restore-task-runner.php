@@ -1281,6 +1281,45 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertTrue( $this->spine->read_sub_state( $task, $this->dir )['verification']['row_counts_ok'] );
 	}
 
+	public function test_cross_prefix_rewrite_preserves_live_and_dump_only_ledgers() {
+		global $wpdb;
+		$engine = $this->runner->fake_engine;
+		$engine->tables = array( 'options' => array( 'status' => 'ok', 'rows' => 4 ) );
+		$engine->verify_real_counts = true;
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ), array( 'source_prefix' => 'wp_' ) );
+		$initial = $this->spine->read_sub_state( $this->spine->get_task( $task_id ), $this->dir );
+		$tmp_table = $engine->tmp_prefix( $initial['params']['restore_id'] ) . 'options';
+		$expected = array();
+		try {
+			$this->assertNotFalse( $wpdb->query( 'CREATE TABLE `' . $tmp_table . '` LIKE `rt_options`' ) );
+			foreach ( array( 'mainwp_child_request_id_', 'mainwp_child_blocked_request_id_', 'mainwp_child_advanced_request_id_' ) as $prefix ) {
+				foreach ( array( 'live', 'dump' ) as $origin ) {
+					$name = $prefix . hash( 'sha256', $origin );
+					$row = array( 'option_name' => $name, 'option_value' => 'wp_' . $origin, 'autoload' => 'off' );
+					$expected[ $name ] = $row;
+					$this->assertSame( 1, $wpdb->insert( 'live' === $origin ? 'rt_options' : $tmp_table, $row ) );
+				}
+			}
+			$this->assertSame( 1, $wpdb->insert( $tmp_table, array( 'option_name' => 'rewrite_control', 'option_value' => 'wp_control', 'autoload' => 'no' ) ) );
+			$engine->on_database_live = function () use ( $wpdb, $tmp_table ) {
+				$this->assertNotFalse( $wpdb->query( 'DELETE FROM `rt_options`' ) );
+				$this->assertSame( 4, $wpdb->query( 'INSERT INTO `rt_options` SELECT * FROM `' . $tmp_table . '`' ) );
+			};
+			$task = $this->drive( $task_id );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+			$this->assertSame( 'wp_', $engine->last_replay_config['source_prefix'] );
+			$this->assertSame( 'rt_control', $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM `rt_options` WHERE option_name = %s', 'rewrite_control' ) ) );
+			foreach ( $expected as $name => $row ) {
+				$this->assertSame( $row, $wpdb->get_row( $wpdb->prepare( 'SELECT option_name, option_value, autoload FROM `rt_options` WHERE option_name = %s', $name ), ARRAY_A ), $name );
+			}
+		} finally {
+			$wpdb->query( 'DROP TABLE IF EXISTS `' . $tmp_table . '`' );
+			$wpdb->query( 'DELETE FROM `rt_options`' );
+			$wpdb->delete( $this->spine->get_table_name(), array( 'task_id' => $task_id ) );
+			$this->commit_transaction();
+		}
+	}
+
 	public function test_connection_identity_capture_is_not_replaced_on_reentry() {
 		global $wpdb;
 		$capture = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'capture_connection_identity' );
@@ -1562,6 +1601,39 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		// A second call with the persisted capture cannot turn the delta into zero.
 		$restore->invokeArgs( $this->runner, array( &$state ) );
 		$this->assertSame( 1, $state['identity_preserve_delta'] );
+	}
+
+	/**
+	 * @dataProvider identity_retry_operations
+	 */
+	public function test_identity_persistent_failure_preserves_error_message( $operation ) {
+		$restore = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'restore_connection_identity' );
+		$restore->setAccessible( true );
+		$state = array( 'identity_preserve' => array( array( 'option_name' => 'mainwp_child_pubkey', 'option_value' => 'live-key', 'autoload' => 'no' ) ) );
+		global $wpdb;
+		$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'mainwp_child_pubkey', 'option_value' => 'dump-key', 'autoload' => 'no' ) ) );
+		$attempts = 0;
+		$fail = static function ( $sql ) use ( $operation, &$attempts ) {
+			if ( 0 === strpos( $sql, $operation ) && false !== strpos( $sql, '`rt_options`' ) ) {
+				++$attempts;
+				return 'SELECT mainwp_identity_forced_read_or_write_failure';
+			}
+			return $sql;
+		};
+		add_filter( 'query', $fail );
+		try {
+			try {
+				$restore->invokeArgs( $this->runner, array( &$state ) );
+				$this->fail( 'Persistent identity failure must exhaust the retries.' );
+			} catch ( MainWP_Exception $e ) {
+				$this->assertSame( 'UPDATE' === $operation ? 'Could not restore the live Child connection identity.' : 'Could not read the restored Child connection identity.', $e->getMessage() );
+				$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $e->get_message_error_code() );
+				$this->assertSame( 3, $attempts );
+				$this->assertArrayNotHasKey( 'identity_preserve_delta', $state );
+			}
+		} finally {
+			remove_filter( 'query', $fail );
+		}
 	}
 
 	public function test_restore_keeps_previously_recorded_request_rejected() {

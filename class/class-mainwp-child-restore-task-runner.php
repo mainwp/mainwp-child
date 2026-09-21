@@ -2014,10 +2014,16 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $outcome = $this->url_rewriter()->rewrite_slice(
             $cursor,
             array(
-                'tables'           => $tables,
-                'pairs'            => $pairs,
-                'exclude'          => $this->guid_exclusions( $this->loaded_stems( $sub_state ), $target_prefix ),
-                'preserve_options' => array( $target_prefix . 'options' => self::IDENTITY_OPTIONS ),
+                'tables'                   => $tables,
+                'pairs'                    => $pairs,
+                'exclude'                  => $this->guid_exclusions( $this->loaded_stems( $sub_state ), $target_prefix ),
+                'preserve_options'         => array( $target_prefix . 'options' => self::IDENTITY_OPTIONS ),
+                // A prefix pair replaces its substring inside option_name too, and `wp_` sits inside
+                // every `mainwp_child_*` ledger name, so an exact-name list is not enough here. It
+                // could not cover the dump-only ledger rows in any case: they are not in the capture.
+                // Every other unprotected option is still rewritten on a cross-prefix restore, which
+                // predates the preservation feature and is tracked separately.
+                'preserve_option_prefixes' => array( $target_prefix . 'options' => self::IDENTITY_PREFIXES ),
             ),
             $deadline
         );
@@ -2305,7 +2311,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $table    = $this->target_prefix() . 'options';
         $suppress = $wpdb->suppress_errors( true );
         try {
-            $ledgers = array_diff_key( $saved, array_flip( self::IDENTITY_OPTIONS ) );
+            $ledgers        = array_diff_key( $saved, array_flip( self::IDENTITY_OPTIONS ) );
+            $last_exception = null;
             for ( $attempt = 1; $attempt <= 3; ++$attempt ) {
                 $result = false;
                 try {
@@ -2342,6 +2349,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                                 $args[] = $row['autoload'];
                             }
                             $values = implode( ', ', array_fill( 0, count( $chunk ), '(%s, %s, %s)' ) );
+                            // This upsert relies on the unique option_name key; a dump without it appends duplicate ledger rows instead of updating them.
                             $result = $wpdb->query( $wpdb->prepare( 'INSERT INTO `' . $table . '` (option_name, option_value, autoload) VALUES ' . $values . ' ON DUPLICATE KEY UPDATE option_value = VALUES(option_value), autoload = VALUES(autoload)', $args ) ); // phpcs:ignore WordPress.DB -- bounded replay ledger upserts preserve dump-only rows.
                             if ( false === $result ) {
                                 break;
@@ -2355,7 +2363,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                         $delta = self::identity_count( $table ) - $sub_state['identity_dump_count'];
                     }
                 } catch ( MainWP_Exception $e ) {
-                    $result = false;
+                    $last_exception = $e;
+                    $result         = false;
                 }
                 if ( false !== $result ) {
                     wp_cache_delete( 'alloptions', 'options' );
@@ -2364,7 +2373,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                     return;
                 }
                 if ( 3 === $attempt ) {
-                    throw new MainWP_Exception( 'Could not restore the live Child connection identity.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+                    $message = null !== $last_exception ? $last_exception->getMessage() : 'Could not restore the live Child connection identity.';
+                    $code    = null !== $last_exception && '' !== $last_exception->get_message_error_code() ? $last_exception->get_message_error_code() : MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY;
+                    throw new MainWP_Exception( $message, null, $code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
                 }
                 usleep( 100000 );
             }
