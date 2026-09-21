@@ -986,6 +986,27 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 		$this->assertContains( 'wp-content/cache/wp-rocket', $expanded );
 	}
 
+	public function test_wall_clock_deadline_waits_for_lease_expiry() {
+		global $wpdb;
+		$spine = MainWP_Child_Backup_Task::instance();
+		foreach ( array( 'full', 'restore_db' ) as $type ) {
+			$task_id = $spine->create_task( $type );
+			$task = $spine->get_task( $task_id );
+			$this->assertTrue( $spine->acquire_lease( $task_id, 'live-worker', (int) $task->version, 180 ) );
+			$this->assertSame( 1, $wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET max_wall_clock_at = DATE_SUB(NOW(), INTERVAL 60 SECOND) WHERE task_id = %s', $task_id ) ) );
+			$before = $spine->get_task( $task_id );
+			$this->assertFalse( $spine->enforce_wall_clock_deadline( $task_id ) );
+			$after = $spine->get_task( $task_id );
+			$this->assertSame( $before->phase, $after->phase );
+			$this->assertSame( $before->version, $after->version );
+			$this->assertSame( 'live-worker', $after->lease_owner );
+
+			$this->assertSame( 1, $wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $task_id ) ) );
+			$this->assertTrue( $spine->enforce_wall_clock_deadline( $task_id ) );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $spine->get_task( $task_id )->phase );
+		}
+	}
+
 	/**
 	 * A task past its wall-clock deadline is marked failed regardless of
 	 * resume_count - the dashboard-checked deadline closes the stuck-forever

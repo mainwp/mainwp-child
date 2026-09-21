@@ -711,6 +711,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                 'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
                 " SET phase = 'failed', sub_state = %s, version = version + 1
                  WHERE task_id = %s AND phase NOT IN ('completed','failed')
+                   AND ( lease_owner IS NULL OR lease_expires_at < NOW() )
                    AND ( max_wall_clock_at < NOW()
                          OR ( phase = %s AND started_at < DATE_SUB( NOW(), INTERVAL %d SECOND ) ) )",
                 $sub_state,

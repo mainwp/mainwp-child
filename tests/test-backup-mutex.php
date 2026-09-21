@@ -123,6 +123,31 @@ class BackupMutexTest extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_malformed_future_holder_is_taken_over() {
+		$future = (string) ( time() + 3600 );
+		foreach ( array( 'bogus||' . $future, 'bogus|owner|' . $future, 'native||' . $future, 'native|owner|' . $future . 'junk' ) as $value ) {
+			add_option( MainWP_Child_Backup_Mutex::OPTION_NAME, $value, '', false );
+			try {
+				$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'new', 300 ), $value );
+				$this->assertSame( 'new', MainWP_Child_Backup_Mutex::holder()['owner'] );
+			} finally {
+				delete_option( MainWP_Child_Backup_Mutex::OPTION_NAME );
+			}
+		}
+	}
+
+	public function test_clear_after_restore_requires_matching_raw_value() {
+		$value = 'native|Holder|' . ( time() + 3600 );
+		$this->assertTrue( add_option( MainWP_Child_Backup_Mutex::OPTION_NAME, $value, '', false ) );
+		foreach ( array( '', null, false, 'native|other|1', strtolower( $value ) ) as $expected ) {
+			$this->assertTrue( MainWP_Child_Backup_Mutex::clear_after_restore( $expected ) );
+			$this->assertSame( $value, MainWP_Child_Backup_Mutex::raw_value() );
+		}
+		$this->assertTrue( MainWP_Child_Backup_Mutex::clear_after_restore( $value ) );
+		$this->assertSame( '', MainWP_Child_Backup_Mutex::raw_value() );
+		$this->assertFalse( get_option( MainWP_Child_Backup_Mutex::OPTION_NAME ) );
+	}
+
 	public function test_only_holder_can_refresh_including_in_the_same_second() {
 		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'holder', 300 ) );
 		$before = MainWP_Child_Backup_Mutex::holder();

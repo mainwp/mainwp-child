@@ -1055,7 +1055,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			$deletes  = 0;
 			$verified = 0;
 			$observe  = static function ( $query ) use ( &$deletes, &$verified, $engine ) {
-				if ( 0 === strpos( $query, 'DELETE FROM' ) && false !== strpos( $query, MainWP_Child_Backup_Mutex::OPTION_NAME ) && false === strpos( $query, 'BINARY' ) ) {
+				if ( 0 === strpos( $query, 'DELETE FROM' ) && false !== strpos( $query, MainWP_Child_Backup_Mutex::OPTION_NAME ) && false !== strpos( $query, 'BINARY option_value =' ) ) {
 					++$deletes;
 					// The row-count check counts the replayed options table; the clear must follow it.
 					$verified += in_array( 'verify_row_counts', $engine->calls, true ) ? 1 : 0;
@@ -1066,6 +1066,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			try {
 				$task = $this->drive( $task_id );
 				$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+				$sub_state = $this->spine->read_sub_state( $task, $this->dir );
+				$this->assertStringStartsWith( 'native|completed-backup|', $sub_state['restored_mutex'] );
 				$this->assertSame( 1, $seeded );
 				$this->assertSame( 1, $deletes );
 				$this->assertSame( 1, $verified );
@@ -1076,6 +1078,56 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 				$this->assertSame( $fk ? 0 : 1, count( preg_grep( '/^swap_tables:/', $engine->calls ) ) );
 			} finally {
 				remove_filter( 'query', $observe );
+				delete_option( MainWP_Child_Backup_Mutex::OPTION_NAME );
+			}
+		}
+	}
+
+	public function test_terminal_failure_after_database_live_clears_captured_mutex() {
+		foreach ( array( false, true ) as $fk ) {
+			$engine = new class() extends Fake_Restore_Engine {
+				public $on_live;
+
+				public function verify_row_counts( $expected, $target_prefix ) {
+					if ( ! empty( $this->last_replay_config['fk_path'] ) ) {
+						throw new MainWP_Exception( 'Forced verification failure', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+					}
+					return parent::verify_row_counts( $expected, $target_prefix );
+				}
+
+				public function replay_slice( $cursor, $config, $deadline, $unclean = false ) {
+					$outcome = parent::replay_slice( $cursor, $config, $deadline, $unclean );
+					if ( $outcome['done'] && ! empty( $config['fk_path'] ) ) {
+						call_user_func( $this->on_live );
+					}
+					return $outcome;
+				}
+
+				public function swap_tables( $stems, $config ) {
+					$outcome = parent::swap_tables( $stems, $config );
+					if ( $outcome['done'] ) {
+						call_user_func( $this->on_live );
+					}
+					return $outcome;
+				}
+			};
+			$seeded = 0;
+			$engine->on_live = function () use ( &$seeded ) {
+				++$seeded;
+				$value = 'native|completed-backup|' . ( time() + 3600 );
+				$this->assertTrue( add_option( MainWP_Child_Backup_Mutex::OPTION_NAME, $value, '', false ) );
+				wp_cache_set( MainWP_Child_Backup_Mutex::OPTION_NAME, $value, 'options' );
+			};
+			$engine->verify_ok = false;
+			$this->runner->fake_engine = $engine;
+			$task_id = $this->make_task( 'db', array( $this->make_db_artifact( $fk ) ), $fk ? array( 'source_prefix' => 'rt_' ) : array() );
+			try {
+				$task = $this->drive( $task_id );
+				$this->assertSame( 1, $seeded );
+				$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+				$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $this->spine->status_payload( $task )['error_code'] );
+				$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+			} finally {
 				delete_option( MainWP_Child_Backup_Mutex::OPTION_NAME );
 			}
 		}
@@ -1100,6 +1152,23 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			} finally {
 				MainWP_Child_Backup_Mutex::release( 'live-owner' );
 			}
+		}
+	}
+
+	public function test_restore_create_reclaims_abandoned_backup_mutex() {
+		global $wpdb;
+		$dead_id = $this->spine->create_task( 'full', array() );
+		$this->assertIsString( $dead_id );
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', $dead_id, 3600 ) );
+		try {
+			$this->assertSame( 1, $wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET started_at = DATE_SUB(NOW(), INTERVAL 901 SECOND) WHERE task_id = %s', $dead_id ) ) );
+			$task_id = $this->make_task( 'db', array() );
+			$this->assertIsString( $task_id );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $this->spine->get_task( $dead_id )->phase );
+			$this->assertSame( $task_id, $this->spine->get_active_tasks()[0]->task_id );
+			$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+		} finally {
+			MainWP_Child_Backup_Mutex::release( $dead_id );
 		}
 	}
 
@@ -1611,9 +1680,9 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			$this->assertNotSame( MainWP_Child_Backup_Task::PHASE_FAILED, $after->phase );
 			$completed = $this->drive( $task_id );
 			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $completed->phase );
-			// The one permitted statement is the post-swap clear of the row the dump carried.
+			// An absent dump mutex needs only a capture read, never a delete.
 			$this->assertCount( 1, $mutex_queries, 'Restore slices and terminal checkpoints must not acquire, refresh, or release the backup mutex.' );
-			$this->assertStringStartsWith( 'DELETE FROM', $mutex_queries[0] );
+			$this->assertStringStartsWith( 'SELECT option_value FROM', $mutex_queries[0] );
 			$this->assertStringNotContainsString( 'LIKE', $mutex_queries[0] );
 		} finally {
 			remove_filter( 'query', $record_mutex_query );

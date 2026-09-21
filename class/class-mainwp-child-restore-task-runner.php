@@ -111,6 +111,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     public function create_restore_task( $sub_type, $params ) {
         $spine = MainWP_Child_Backup_Task::instance();
         $spine->install();
+        // An idle site's watchdog may never clear a deadline-expired task.
+        $spine->reclaim_expired_tasks();
 
         $owner = 'restore-create-' . strtolower( wp_generate_password( 12, false ) );
         $held  = MainWP_Child_Backup_Mutex::acquire( 'native', $owner, 60 );
@@ -122,8 +124,6 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) . $engine ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message and holder.
         }
         try {
-            // An idle site's watchdog may never clear a deadline-expired task.
-            $spine->reclaim_expired_tasks();
             if ( ! empty( $spine->get_active_tasks() ) ) {
                 throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
             }
@@ -1626,6 +1626,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             // In-place replay finished: leave maintenance mode and skip
             // the swap phase entirely (the live tables already hold the
             // restored data).
+            $sub_state['restored_mutex'] = MainWP_Child_Backup_Mutex::raw_value();
             $engine->exit_maintenance();
             return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_REWRITING_URLS );
         }
@@ -1887,6 +1888,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             throw new MainWP_Exception( esc_html( $outcome['error'] ), null, $outcome['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
         }
 
+        $sub_state['restored_mutex'] = MainWP_Child_Backup_Mutex::raw_value();
         $engine->exit_maintenance();
 
         $sub_state['old_tables'] = $outcome['old_tables'];
@@ -2534,7 +2536,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         // replayed options table carries that row. Drop it only now: the
         // row-count check above compares the live table against the dump,
         // and removing the row earlier fails a correct restore by one row.
-        MainWP_Child_Backup_Mutex::clear_after_restore();
+        MainWP_Child_Backup_Mutex::clear_after_restore( isset( $sub_state['restored_mutex'] ) ? $sub_state['restored_mutex'] : '' );
 
         $sub_state['verification'] = array(
             'row_counts_ok'              => true,
@@ -3098,6 +3100,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      */
     protected function terminal_cleanup( $task, $sub_state, $backup_dir ) {
         try {
+            if ( isset( $sub_state['restored_mutex'] ) && is_string( $sub_state['restored_mutex'] ) && '' !== $sub_state['restored_mutex'] ) {
+                MainWP_Child_Backup_Mutex::clear_after_restore( $sub_state['restored_mutex'] );
+            }
             $engine = $this->restore_engine();
             if ( isset( $sub_state['params']['restore_id'] ) ) {
                 $engine->cleanup_tmp_tables( $sub_state['params']['restore_id'] );

@@ -56,7 +56,7 @@ class MainWP_Child_Backup_Mutex {
                 continue;
             }
             $parts = explode( '|', $old );
-            if ( 3 === count( $parts ) && (int) $parts[2] >= time() ) {
+            if ( 3 === count( $parts ) && in_array( $parts[0], array( 'legacy', 'native' ), true ) && '' !== $parts[1] && ctype_digit( $parts[2] ) && (int) $parts[2] >= time() ) {
                 return array(
                     'engine'     => $parts[0],
                     'owner'      => $parts[1],
@@ -82,16 +82,34 @@ class MainWP_Child_Backup_Mutex {
     }
 
     /**
-     * A restored options table carries the dump's mutex, never a live owner.
+     * Bypass cached options so a restore captures the row the dump carried.
+     *
+     * @return string Raw value, or an empty string when absent.
+     */
+    public static function raw_value() {
+        global $wpdb;
+        return (string) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- the object cache may still hold the pre-restore value.
+            $wpdb->prepare( "SELECT option_value FROM $wpdb->options WHERE option_name = %s", self::OPTION_NAME )
+        );
+    }
+
+    /**
+     * Remove only the captured dump value, preserving any later owner.
      * Best effort: the restored data is already live when this runs, so a
      * failed delete leaves the stale row for the TTL rather than failing
      * the restore.
      *
-     * @return bool Whether the delete statement ran.
+     * @param string $expected_value Raw mutex captured before maintenance ended.
+     * @return bool Whether no delete was needed or the delete statement ran.
      */
-    public static function clear_after_restore() {
+    public static function clear_after_restore( $expected_value ) {
         global $wpdb;
-        $result = $wpdb->delete( $wpdb->options, array( 'option_name' => self::OPTION_NAME ), array( '%s' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- the restored row must be removed regardless of its owner.
+        if ( ! is_string( $expected_value ) || '' === $expected_value ) {
+            return true;
+        }
+        $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- a later owner must survive restore cleanup.
+            $wpdb->prepare( "DELETE FROM $wpdb->options WHERE option_name = %s AND BINARY option_value = %s", self::OPTION_NAME, $expected_value )
+        );
         wp_cache_delete( self::OPTION_NAME, 'options' );
         wp_cache_delete( 'alloptions', 'options' );
         return false !== $result;
