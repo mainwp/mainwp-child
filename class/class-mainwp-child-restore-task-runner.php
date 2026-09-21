@@ -132,6 +132,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         }
         $task_id = $spine->create_task( $type, array( 'params' => $params ), self::RESTORE_MAX_RESUMES, $deadline, null, true );
         if ( false === $task_id ) {
+            if ( ! empty( $spine->get_active_tasks() ) ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
             throw new MainWP_Exception( 'The restore task could not be created on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
         }
 

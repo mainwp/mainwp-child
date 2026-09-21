@@ -3399,7 +3399,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$insert_race  = function ( $query ) use ( &$insert_race, &$competing_id ) {
 			if ( 0 === strpos( $query, 'INSERT INTO ' . $this->spine->get_table_name() . ' ' ) ) {
 				remove_filter( 'query', $insert_race );
-				$competing_id = $this->spine->create_task( 'full' );
+				$competing_id = $this->spine->create_task( 'full', array(), null, null, null, true );
 			}
 			return $query;
 		};
@@ -3408,7 +3408,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			$this->make_task( 'db', array() );
 			$this->fail( 'A competing task inserted after the pre-check must block the restore.' );
 		} catch ( \MainWP\Child\MainWP_Exception $e ) {
-			$this->assertSame( 'The restore task could not be created on this site.', $e->getMessage() );
+			$this->assertSame( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), $e->getMessage() );
+			$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
 		} finally {
 			remove_filter( 'query', $insert_race );
 		}
@@ -3416,6 +3417,40 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertNotEmpty( $competing_id );
 		$this->assertSame( 1, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $this->spine->get_table_name() ) );
 		$this->assertSame( $competing_id, $this->spine->get_active_tasks()[0]->task_id );
+		$this->assertEmpty( $this->runner->fake_engine->calls );
+	}
+
+	/**
+	 * An insert failure on an idle spine keeps the generic error on both paths.
+	 */
+	public function test_guarded_creates_keep_generic_error_when_insert_fails() {
+		$fail = function ( $query ) {
+			return 0 === strpos( $query, 'INSERT INTO ' . $this->spine->get_table_name() . ' ' ) ? '' : $query;
+		};
+		add_filter( 'query', $fail );
+		try {
+			foreach ( array( 'backup', 'restore' ) as $kind ) {
+				try {
+					if ( 'backup' === $kind ) {
+						$this->runner->create_task_for_params( 'full', array() );
+					} else {
+						$this->make_task( 'db', array() );
+					}
+					$this->fail( 'An insert failure must throw.' );
+				} catch ( \MainWP\Child\MainWP_Exception $e ) {
+					$this->assertSame( 'The ' . $kind . ' task could not be created on this site.', $e->getMessage() );
+					$this->assertSame( '', $e->get_message_error_code() );
+					$this->assertEmpty( $this->spine->get_active_tasks() );
+					$this->assertNull( \MainWP\Child\MainWP_Child_Backup_Mutex::holder() );
+				}
+			}
+		} finally {
+			remove_filter( 'query', $fail );
+			$holder = \MainWP\Child\MainWP_Child_Backup_Mutex::holder();
+			if ( null !== $holder ) {
+				\MainWP\Child\MainWP_Child_Backup_Mutex::release( $holder['owner'] );
+			}
+		}
 		$this->assertEmpty( $this->runner->fake_engine->calls );
 	}
 
