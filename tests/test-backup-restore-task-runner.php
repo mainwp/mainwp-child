@@ -154,10 +154,12 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 
 	public $committed_old_tables = array();
 
+	public $swap_committed_answers = array();
+
 	public function is_swap_committed( $stems, $config, &$old_tables = array() ) {
 		$this->calls[] = 'is_swap_committed';
 		$old_tables = $this->committed_old_tables;
-		return $this->swap_committed;
+		return empty( $this->swap_committed_answers ) ? $this->swap_committed : array_shift( $this->swap_committed_answers );
 	}
 
 	/**
@@ -1246,7 +1248,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( 1, $became_live );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_REWRITING_URLS, $task->phase );
 		$state = $this->spine->read_sub_state( $task, $this->dir );
-		$this->assertSame( $delta, $state['identity_preserve_delta'] );
+		$this->assertSame( $delta + 3, $state['identity_preserve_delta'] );
 		$captured = array_column( $state['identity_preserve'], null, 'option_name' );
 		foreach ( $names as $name ) {
 			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT option_name, option_value, autoload FROM `rt_options` WHERE option_name = %s', $name ), ARRAY_A );
@@ -1255,10 +1257,16 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 				$this->assertSame( $expected, $row, $name );
 				$this->assertSame( $expected, $captured[ $name ], 'Capture must retain the pre-restore row.' );
 			} else {
-				$this->assertNull( $row, $name );
+				if ( in_array( $name, MainWP_Child_Restore_Task_Runner::IDENTITY_OPTIONS, true ) ) {
+					$this->assertNull( $row, $name );
+				} else {
+					$this->assertSame( array( 'option_name' => $name, 'option_value' => $dump[ $name ][0], 'autoload' => $dump[ $name ][1] ), $row );
+				}
 				$this->assertArrayNotHasKey( $name, $captured );
 			}
-			$this->assertFalse( wp_cache_get( $name, 'options' ), $name );
+			if ( isset( $live[ $name ] ) || in_array( $name, MainWP_Child_Restore_Task_Runner::IDENTITY_OPTIONS, true ) ) {
+				$this->assertFalse( wp_cache_get( $name, 'options' ), $name );
+			}
 		}
 		$this->assertFalse( wp_cache_get( 'alloptions', 'options' ) );
 		$this->assertFalse( wp_cache_get( 'notoptions', 'options' ) );
@@ -1269,7 +1277,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		foreach ( $live as $name => $row ) {
 			$this->assertSame( array( 'option_value' => $row[0], 'autoload' => $row[1] ), $wpdb->get_row( $wpdb->prepare( 'SELECT option_value, autoload FROM `rt_options` WHERE option_name = %s', $name ), ARRAY_A ), 'URL/prefix rewriting must preserve ' . $name );
 		}
-		$this->assertSame( count( $dump ) + 1 + $delta, $engine->last_verify_expected['options'] );
+		$this->assertSame( count( $dump ) + 1 + $delta + 3, $engine->last_verify_expected['options'] );
 		$this->assertTrue( $this->spine->read_sub_state( $task, $this->dir )['verification']['row_counts_ok'] );
 	}
 
@@ -1353,7 +1361,14 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( -7, $state['identity_preserve_delta'] );
 	}
 
-	public function test_swapping_resume_skips_committed_swap_and_preserves_delta() {
+	public static function committed_swap_answers() {
+		return array( 'committed' => array( array( true ) ), 'transient read failure' => array( array( null, true ) ) );
+	}
+
+	/**
+	 * @dataProvider committed_swap_answers
+	 */
+	public function test_swapping_resume_skips_committed_swap_and_preserves_delta( $answers ) {
 		global $wpdb;
 		$this->runner->fake_engine->replay_yield_once = true;
 		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
@@ -1379,6 +1394,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$state = $this->spine->read_sub_state( $task, $this->dir );
 		$engine = $this->runner->fake_engine;
 		$engine->swap_committed = true;
+		$engine->swap_committed_answers = $answers;
 		$engine->swap_error = 'A committed swap must never run again';
 		$engine->committed_old_tables = array( $engine->old_prefix( $state['params']['restore_id'] ) . 'options' );
 		$swap = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'run_swapping_db' );
@@ -1389,7 +1405,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$state = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertSame( 1, $state['identity_preserve_delta'] );
 		$this->assertSame( $engine->committed_old_tables, $state['old_tables'] );
-		$this->assertContains( 'is_swap_committed', $engine->calls );
+		$this->assertCount( count( $answers ), array_keys( $engine->calls, 'is_swap_committed', true ) );
 		$this->assertCount( 0, preg_grep( '/^swap_tables:/', $engine->calls ) );
 		$this->assertContains( 'exit_maintenance', $engine->calls );
 		$this->assertGreaterThan( 0, $this->runner->cache_flushes );
@@ -1478,14 +1494,24 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			$task = $this->drive( $task_id );
 			$this->assertSame( null === $committed ? MainWP_Child_Backup_Task::PHASE_FAILED : MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
 			$this->assertContains( 'is_swap_committed', $this->runner->fake_engine->calls );
-			$this->assertContains( 'swap_tables:items', $this->runner->fake_engine->calls );
 			if ( null === $committed ) {
-				$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_SWAP_FAILED, $this->spine->status_payload( $task )['error_code'] );
+				$this->assertNotContains( 'swap_tables:items', $this->runner->fake_engine->calls );
+				$this->assertCount( 3, array_keys( $this->runner->fake_engine->calls, 'is_swap_committed', true ) );
+				$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $this->spine->status_payload( $task )['error_code'] );
+			} else {
+				$this->assertContains( 'swap_tables:items', $this->runner->fake_engine->calls );
 			}
 		}
 	}
 
-	public function test_identity_retry_after_third_row_matches_clean_delta() {
+	public static function identity_retry_operations() {
+		return array( 'write' => array( 'UPDATE' ), 'existence read' => array( 'SELECT option_name' ), 'baseline read' => array( 'SELECT COUNT(*)' ) );
+	}
+
+	/**
+	 * @dataProvider identity_retry_operations
+	 */
+	public function test_identity_retry_after_third_row_matches_clean_delta( $operation ) {
 		global $wpdb;
 		$restore = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'restore_connection_identity' );
 		$restore->setAccessible( true );
@@ -1501,8 +1527,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 				$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => $name, 'option_value' => 'dump', 'autoload' => 'yes' ) ) );
 			}
 			$attempts = 0;
-			$fail_write = static function ( $sql ) use ( $fail_once, &$attempts ) {
-				if ( 0 === strpos( $sql, 'UPDATE ' ) && false !== strpos( $sql, '`rt_options`' ) && false !== strpos( $sql, 'mainwp_child_nonce' ) ) {
+			$fail_write = static function ( $sql ) use ( $fail_once, $operation, &$attempts ) {
+				if ( 0 === strpos( $sql, $operation ) && false !== strpos( $sql, '`rt_options`' ) && false !== strpos( $sql, 'mainwp_child_nonce' ) ) {
 					++$attempts;
 					if ( $fail_once && 1 === $attempts ) {
 						return 'SELECT mainwp_identity_forced_write_failure';
@@ -1518,7 +1544,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 				remove_filter( 'query', $fail_write );
 			}
 			$rows = $wpdb->get_results( 'SELECT option_name, option_value, autoload FROM `rt_options` ORDER BY option_name', ARRAY_A );
-			$this->assertSame( $fail_once ? 2 : 1, $attempts );
+			$this->assertSame( ( $fail_once ? 2 : 1 ) + ( 'SELECT COUNT(*)' === $operation ? 1 : 0 ), $attempts );
 			$this->assertSame( 1, $state['identity_preserve_delta'] );
 			if ( ! $fail_once ) {
 				$clean_rows = $rows;
@@ -1557,15 +1583,97 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_swap_preserves_dump_ledger_beyond_live_capture_cap() {
+		global $wpdb;
+		$engine = $this->runner->fake_engine;
+		$engine->tables = array( 'options' => array( 'status' => 'ok', 'rows' => 2001 ) );
+		$engine->verify_real_counts = true;
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$initial = $this->spine->read_sub_state( $this->spine->get_task( $task_id ), $this->dir );
+		$tmp_table = $engine->tmp_prefix( $initial['params']['restore_id'] ) . 'options';
+		$overflow = 'mainwp_child_blocked_request_id_' . hash( 'sha256', '0' );
+		try {
+			$this->assertNotFalse( $wpdb->query( 'CREATE TABLE `' . $tmp_table . '` LIKE `rt_options`' ) );
+			$values = array();
+			// Exceed both the former cap and the reduced cap so the original deletion fails this test.
+			for ( $i = 0; $i <= 2000; ++$i ) {
+				$values[] = $wpdb->prepare( '(%s, %s, %s)', 'mainwp_child_blocked_request_id_' . hash( 'sha256', (string) $i ), 'blocked', 'off' );
+			}
+			$this->assertSame( 2001, $wpdb->query( 'INSERT INTO `rt_options` (option_name, option_value, autoload) VALUES ' . implode( ',', $values ) ) );
+			$this->assertSame( 2001, $wpdb->query( 'INSERT INTO `' . $tmp_table . '` SELECT * FROM `rt_options`' ) );
+			$engine->on_database_live = function () use ( $wpdb, $tmp_table ) {
+				$this->assertNotFalse( $wpdb->query( 'DELETE FROM `rt_options`' ) );
+				$this->assertSame( 2001, $wpdb->query( 'INSERT INTO `rt_options` SELECT * FROM `' . $tmp_table . '`' ) );
+			};
+			$task = $this->drive( $task_id );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+			$this->assertContains( 'swap_tables:options', $engine->calls );
+			$this->assertNotContains( 'is_swap_committed', $engine->calls );
+			$this->assertSame( 'blocked', $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM `rt_options` WHERE option_name = %s', $overflow ) ) );
+			$this->assertSame( 2001, $engine->last_verify_expected['options'] );
+		} finally {
+			$wpdb->query( 'DROP TABLE IF EXISTS `' . $tmp_table . '`' );
+			$wpdb->query( 'DELETE FROM `rt_options`' );
+			$wpdb->delete( $this->spine->get_table_name(), array( 'task_id' => $task_id ) );
+			$this->commit_transaction();
+		}
+	}
+
+	public function test_ledger_batches_retry_with_exact_identity_first_and_stable_delta() {
+		global $wpdb;
+		$saved = array( array( 'option_name' => 'mainwp_child_pubkey', 'option_value' => 'live-key', 'autoload' => 'no' ) );
+		for ( $i = 0; $i < 501; ++$i ) {
+			$saved[] = array( 'option_name' => 'mainwp_child_request_id_' . $i, 'option_value' => "opaque'\\value", 'autoload' => 'off' );
+		}
+		$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'mainwp_child_blocked_request_id_dump', 'option_value' => 'blocked', 'autoload' => 'off' ) ) );
+		$state = array( 'identity_preserve' => $saved );
+		$batches = 0;
+		$identity_written = false;
+		$fail_batch = function ( $sql ) use ( &$batches, &$identity_written ) {
+			if ( 0 === strpos( $sql, 'INSERT INTO `rt_options`' ) || 0 === strpos( $sql, 'UPDATE `rt_options`' ) ) {
+				if ( false !== strpos( $sql, 'mainwp_child_pubkey' ) ) {
+					$identity_written = true;
+				}
+				if ( false !== strpos( $sql, 'ON DUPLICATE KEY UPDATE' ) ) {
+					$this->assertTrue( $identity_written );
+					++$batches;
+					if ( 2 === $batches ) {
+						return 'SELECT mainwp_identity_forced_batch_failure';
+					}
+				}
+			}
+			return $sql;
+		};
+		$restore = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'restore_connection_identity' );
+		$restore->setAccessible( true );
+		add_filter( 'query', $fail_batch );
+		try {
+			$restore->invokeArgs( $this->runner, array( &$state ) );
+		} finally {
+			remove_filter( 'query', $fail_batch );
+		}
+		$this->assertSame( 5, $batches );
+		$this->assertSame( 1, $state['identity_dump_count'] );
+		$this->assertSame( 502, $state['identity_preserve_delta'] );
+		$this->assertSame( '503', $wpdb->get_var( 'SELECT COUNT(*) FROM `rt_options`' ) );
+		foreach ( $saved as $row ) {
+			$this->assertSame( $row, $wpdb->get_row( $wpdb->prepare( 'SELECT option_name, option_value, autoload FROM `rt_options` WHERE option_name = %s', $row['option_name'] ), ARRAY_A ) );
+		}
+		$restore->invokeArgs( $this->runner, array( &$state ) );
+		$this->assertSame( 502, $state['identity_preserve_delta'] );
+	}
+
 	public function test_identity_capture_caps_each_ledger_by_newest_option_id() {
 		global $wpdb;
+		$limit = MainWP_Child_Restore_Task_Runner::IDENTITY_LEDGER_CAPTURE_LIMIT;
+		$this->assertSame( 500, $limit );
 		$prefixes = array( 'mainwp_child_request_id_', 'mainwp_child_blocked_request_id_', 'mainwp_child_advanced_request_id_' );
 		foreach ( $prefixes as $prefix ) {
 			$values = array();
-			for ( $i = 0; $i <= 2000; ++$i ) {
+			for ( $i = 0; $i <= $limit; ++$i ) {
 				$values[] = $wpdb->prepare( '(%s, %s, %s)', $prefix . hash( 'sha256', (string) $i ), (string) ( 1750000000 - $i ), 'off' );
 			}
-			$this->assertSame( 2001, $wpdb->query( 'INSERT INTO `rt_options` (option_name, option_value, autoload) VALUES ' . implode( ',', $values ) ) );
+			$this->assertSame( $limit + 1, $wpdb->query( 'INSERT INTO `rt_options` (option_name, option_value, autoload) VALUES ' . implode( ',', $values ) ) );
 		}
 		$unrelated = 'mainwpXchildXrequestXidXunrelated';
 		$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => $unrelated, 'option_value' => 'keep', 'autoload' => 'yes' ) ) );
@@ -1574,28 +1682,33 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$state = array();
 		$capture->invokeArgs( $this->runner, array( &$state ) );
 		$saved = array_column( $state['identity_preserve'], null, 'option_name' );
-		$this->assertCount( 6000, $saved );
+		$this->assertCount( 3 * $limit, $saved );
 		$this->assertArrayNotHasKey( $unrelated, $saved );
 		foreach ( $prefixes as $prefix ) {
 			$this->assertArrayNotHasKey( $prefix . hash( 'sha256', '0' ), $saved );
 			$this->assertArrayHasKey( $prefix . hash( 'sha256', '1' ), $saved );
-			$this->assertArrayHasKey( $prefix . hash( 'sha256', '2000' ), $saved );
+			$this->assertArrayHasKey( $prefix . hash( 'sha256', (string) $limit ), $saved );
 		}
 	}
 
-	public function test_empty_identity_capture_also_deletes_dump_ledgers() {
+	public function test_empty_identity_capture_keeps_dump_ledgers() {
 		global $wpdb;
 		foreach ( array( 'mainwp_child_request_id_', 'mainwp_child_blocked_request_id_', 'mainwp_child_advanced_request_id_' ) as $prefix ) {
 			$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => $prefix . hash( 'sha256', 'dump-only' ), 'option_value' => '1750000000', 'autoload' => 'off' ) ) );
 		}
+		$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'mainwp_child_pubkey', 'option_value' => 'dump-key', 'autoload' => 'yes' ) ) );
 		$unrelated = 'mainwpXchildXrequestXidXunrelated';
 		$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => $unrelated, 'option_value' => 'keep', 'autoload' => 'yes' ) ) );
 		$state = array( 'identity_preserve' => array() );
 		$restore = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'restore_connection_identity' );
 		$restore->setAccessible( true );
 		$restore->invokeArgs( $this->runner, array( &$state ) );
-		$this->assertSame( -3, $state['identity_preserve_delta'] );
-		$this->assertSame( array( $unrelated ), $wpdb->get_col( 'SELECT option_name FROM `rt_options`' ) );
+		$this->assertSame( -1, $state['identity_preserve_delta'] );
+		$this->assertNull( $wpdb->get_var( "SELECT option_name FROM `rt_options` WHERE option_name = 'mainwp_child_pubkey'" ) );
+		$this->assertCount( 4, $wpdb->get_col( 'SELECT option_name FROM `rt_options`' ) );
+		foreach ( MainWP_Child_Restore_Task_Runner::IDENTITY_PREFIXES as $prefix ) {
+			$this->assertSame( '1750000000', $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM `rt_options` WHERE option_name = %s', $prefix . hash( 'sha256', 'dump-only' ) ) ) );
+		}
 	}
 
 	public static function identity_write_failure_cases() {

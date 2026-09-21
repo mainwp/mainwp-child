@@ -84,6 +84,11 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     );
 
     /**
+     * Dump ledgers survive independently; bound recent live additions to limit cursor growth.
+     */
+    const IDENTITY_LEDGER_CAPTURE_LIMIT = 500;
+
+    /**
      * Singleton (separate from the backup runner's).
      *
      * @var MainWP_Child_Restore_Task_Runner|null
@@ -1938,7 +1943,20 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             'target_prefix' => $this->target_prefix(),
         );
         $old_tables = array();
-        if ( $reentry && true === $engine->is_swap_committed( $stems, $config, $old_tables ) ) {
+        $committed  = false;
+        if ( $reentry ) {
+            for ( $attempt = 1; $attempt <= 3; ++$attempt ) {
+                $committed = $engine->is_swap_committed( $stems, $config, $old_tables );
+                if ( null !== $committed ) {
+                    break;
+                }
+                if ( 3 === $attempt ) {
+                    throw new MainWP_Exception( 'Could not determine whether the restore database swap committed.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+                }
+                usleep( 100000 );
+            }
+        }
+        if ( true === $committed ) {
             $outcome = array(
                 'done'       => true,
                 'old_tables' => $old_tables,
@@ -2214,8 +2232,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 throw new MainWP_Exception( 'Could not capture the live Child connection identity.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
             }
             foreach ( self::IDENTITY_PREFIXES as $prefix ) {
-                // Blocked IDs never expire; cap each family so the cursor stays bounded.
-                $ledger = $wpdb->get_results( $wpdb->prepare( 'SELECT option_name, option_value, autoload FROM `' . $table . '` WHERE option_name LIKE %s ORDER BY option_id DESC LIMIT %d', $wpdb->esc_like( $prefix ) . '%', 2000 ), ARRAY_A ); // phpcs:ignore WordPress.DB -- raw replay ledger capture.
+                // The dump supplies older ledger rows; keep the newest live additions without bloating every checkpoint.
+                $ledger = $wpdb->get_results( $wpdb->prepare( 'SELECT option_name, option_value, autoload FROM `' . $table . '` WHERE option_name LIKE %s ORDER BY option_id DESC LIMIT %d', $wpdb->esc_like( $prefix ) . '%', self::IDENTITY_LEDGER_CAPTURE_LIMIT ), ARRAY_A ); // phpcs:ignore WordPress.DB -- raw replay ledger capture.
                 if ( '' !== $wpdb->last_error || ! is_array( $ledger ) ) {
                     throw new MainWP_Exception( 'Could not capture the live Child connection identity.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
                 }
@@ -2224,7 +2242,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             if ( empty( $sub_state['db_replay']['fk_path'] ) && in_array( 'options', $this->loaded_stems( $sub_state ), true ) ) {
                 // Persist the dump baseline before the rename, including across a partial write-back.
                 $tmp_table                        = $this->restore_engine()->tmp_prefix( $sub_state['params']['restore_id'] ) . 'options';
-                $sub_state['identity_dump_count'] = count( self::identity_names( $tmp_table ) );
+                $sub_state['identity_dump_count'] = self::identity_count( $tmp_table );
             }
             $sub_state['identity_preserve'] = $rows;
         } finally {
@@ -2233,13 +2251,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     }
 
     /**
-     * Keep the dump baseline and deletion scope consistent for exact names and ledgers.
+     * Use the same row scope before and after write-back so retries cannot skew verification.
      *
      * @param string $table Options table.
      * @throws MainWP_Exception When the identity rows cannot be read.
-     * @return string[] Identity names present in the table.
+     * @return int Identity and ledger row count.
      */
-    private static function identity_names( $table ) {
+    private static function identity_count( $table ) {
         global $wpdb;
         $where = 'option_name IN (' . implode( ', ', array_fill( 0, count( self::IDENTITY_OPTIONS ), '%s' ) ) . ')';
         $args  = self::IDENTITY_OPTIONS;
@@ -2247,18 +2265,18 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $where .= ' OR option_name LIKE %s';
             $args[] = $wpdb->esc_like( $prefix ) . '%';
         }
-        $names = $wpdb->get_col( $wpdb->prepare( 'SELECT option_name FROM `' . $table . '` WHERE ' . $where, $args ) ); // phpcs:ignore WordPress.DB -- identity scope includes all dump-only ledger rows.
-        if ( '' !== $wpdb->last_error || ! is_array( $names ) ) {
+        $count = $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM `' . $table . '` WHERE ' . $where, $args ) ); // phpcs:ignore WordPress.DB -- identity scope includes all dump-only ledger rows.
+        if ( '' !== $wpdb->last_error || null === $count ) {
             throw new MainWP_Exception( 'Could not read the restored Child connection identity.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
         }
-        return $names;
+        return (int) $count;
     }
 
     /**
      * Restore captured rows and remove dump-only identity rows while maintenance is on.
      *
      * @param array $sub_state Restore cursor, updated with the fixed row-count delta.
-     * @throws MainWP_Exception When any identity read or all write attempts fail.
+     * @throws MainWP_Exception When all identity write-back attempts fail.
      */
     protected function restore_connection_identity( &$sub_state ) {
         // Older cursors have no capture; reading here would preserve the dump's identity.
@@ -2287,33 +2305,57 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $table    = $this->target_prefix() . 'options';
         $suppress = $wpdb->suppress_errors( true );
         try {
-            $dump_names = self::identity_names( $table );
-            if ( ! isset( $sub_state['identity_dump_count'] ) ) {
-                // FK replay has no tmp options table; keep its baseline before the first write.
-                $sub_state['identity_dump_count'] = count( $dump_names );
-            }
-            $delta = count( $saved ) - $sub_state['identity_dump_count'];
-            $names = array_unique( array_merge( self::IDENTITY_OPTIONS, $dump_names, array_keys( $saved ) ) );
+            $ledgers = array_diff_key( $saved, array_flip( self::IDENTITY_OPTIONS ) );
             for ( $attempt = 1; $attempt <= 3; ++$attempt ) {
-                foreach ( $names as $name ) {
-                    if ( ! isset( $saved[ $name ] ) ) {
-                        $result = $wpdb->query( $wpdb->prepare( 'DELETE FROM `' . $table . '` WHERE option_name = %s', $name ) ); // phpcs:ignore WordPress.DB -- remove a dump-only identity row.
-                    } else {
-                        $exists = $wpdb->get_var( $wpdb->prepare( 'SELECT option_name FROM `' . $table . '` WHERE option_name = %s', $name ) ); // phpcs:ignore WordPress.DB -- cache cannot establish restored row presence.
-                        if ( '' !== $wpdb->last_error ) {
-                            throw new MainWP_Exception( 'Could not read the restored Child connection identity.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
-                        }
-                        $row = $saved[ $name ];
-                        if ( null === $exists ) {
-                            $result = $wpdb->query( $wpdb->prepare( 'INSERT INTO `' . $table . '` (option_name, option_value, autoload) VALUES (%s, %s, %s)', $name, $row['option_value'], $row['autoload'] ) ); // phpcs:ignore WordPress.DB -- preserve the raw stored row.
+                $result = false;
+                try {
+                    if ( ! isset( $sub_state['identity_dump_count'] ) ) {
+                        // FK replay has no tmp options table; keep its baseline before the first write.
+                        $sub_state['identity_dump_count'] = self::identity_count( $table );
+                    }
+                    foreach ( self::IDENTITY_OPTIONS as $name ) {
+                        if ( ! isset( $saved[ $name ] ) ) {
+                            $result = $wpdb->query( $wpdb->prepare( 'DELETE FROM `' . $table . '` WHERE option_name = %s', $name ) ); // phpcs:ignore WordPress.DB -- remove a dump-only identity row.
                         } else {
-                            $result = $wpdb->query( $wpdb->prepare( 'UPDATE `' . $table . '` SET option_value = %s, autoload = %s WHERE option_name = %s', $row['option_value'], $row['autoload'], $name ) ); // phpcs:ignore WordPress.DB -- preserve raw value and autoload, including unchanged rows.
+                            $exists = $wpdb->get_var( $wpdb->prepare( 'SELECT option_name FROM `' . $table . '` WHERE option_name = %s', $name ) ); // phpcs:ignore WordPress.DB -- cache cannot establish restored row presence.
+                            if ( '' !== $wpdb->last_error ) {
+                                throw new MainWP_Exception( 'Could not read the restored Child connection identity.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+                            }
+                            $row = $saved[ $name ];
+                            if ( null === $exists ) {
+                                $result = $wpdb->query( $wpdb->prepare( 'INSERT INTO `' . $table . '` (option_name, option_value, autoload) VALUES (%s, %s, %s)', $name, $row['option_value'], $row['autoload'] ) ); // phpcs:ignore WordPress.DB -- preserve the raw stored row.
+                            } else {
+                                $result = $wpdb->query( $wpdb->prepare( 'UPDATE `' . $table . '` SET option_value = %s, autoload = %s WHERE option_name = %s', $row['option_value'], $row['autoload'], $name ) ); // phpcs:ignore WordPress.DB -- preserve raw value and autoload, including unchanged rows.
+                            }
+                        }
+                        if ( false === $result ) {
+                            break;
+                        }
+                        wp_cache_delete( $name, 'options' );
+                    }
+                    if ( false !== $result ) {
+                        foreach ( array_chunk( $ledgers, 250, true ) as $chunk ) {
+                            $args = array();
+                            foreach ( $chunk as $row ) {
+                                $args[] = $row['option_name'];
+                                $args[] = $row['option_value'];
+                                $args[] = $row['autoload'];
+                            }
+                            $values = implode( ', ', array_fill( 0, count( $chunk ), '(%s, %s, %s)' ) );
+                            $result = $wpdb->query( $wpdb->prepare( 'INSERT INTO `' . $table . '` (option_name, option_value, autoload) VALUES ' . $values . ' ON DUPLICATE KEY UPDATE option_value = VALUES(option_value), autoload = VALUES(autoload)', $args ) ); // phpcs:ignore WordPress.DB -- bounded replay ledger upserts preserve dump-only rows.
+                            if ( false === $result ) {
+                                break;
+                            }
+                            foreach ( $chunk as $name => $row ) {
+                                wp_cache_delete( $name, 'options' );
+                            }
                         }
                     }
-                    if ( false === $result ) {
-                        break;
+                    if ( false !== $result ) {
+                        $delta = self::identity_count( $table ) - $sub_state['identity_dump_count'];
                     }
-                    wp_cache_delete( $name, 'options' );
+                } catch ( MainWP_Exception $e ) {
+                    $result = false;
                 }
                 if ( false !== $result ) {
                     wp_cache_delete( 'alloptions', 'options' );
