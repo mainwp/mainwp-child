@@ -1643,6 +1643,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             // the swap phase entirely (the live tables already hold the
             // restored data).
             $sub_state['restored_mutex'] = MainWP_Child_Backup_Mutex::raw_value();
+            if ( ! isset( $sub_state['identity_preserve'] ) || ! is_array( $sub_state['identity_preserve'] ) ) {
+                return $this->enter_fk_rollback( $task, $version, $sub_state, $backup_dir, 'The restore could not preserve the site connection because its identity capture is missing. The restore was rolled back. Retry the restore.', MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+            }
             try {
                 $this->restore_connection_identity( $sub_state );
             } catch ( \Throwable $e ) {
@@ -2205,9 +2208,18 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             return;
         }
 
+        $saved = array();
+        foreach ( $sub_state['identity_preserve'] as $row ) {
+            if ( is_array( $row ) && isset( $row['option_name'] ) && is_string( $row['option_name'] ) && '' !== $row['option_name'] ) {
+                $saved[ $row['option_name'] ] = $row;
+            }
+        }
+        if ( ! empty( $sub_state['identity_preserve'] ) && empty( $saved ) ) {
+            return;
+        }
+
         global $wpdb;
         $table    = $this->target_prefix() . 'options';
-        $saved    = array_column( $sub_state['identity_preserve'], null, 'option_name' );
         $delta    = 0;
         $suppress = $wpdb->suppress_errors( true );
         try {

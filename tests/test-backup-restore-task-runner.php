@@ -1262,6 +1262,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		return array(
 			'absent capture'    => array( array() ),
 			'non-array capture' => array( array( 'identity_preserve' => 'invalid' ) ),
+			'scalar entry'      => array( array( 'identity_preserve' => array( 'invalid' ) ) ),
+			'unnamed entry'     => array( array( 'identity_preserve' => array( array( 'x' => 1 ) ) ) ),
 		);
 	}
 
@@ -1290,6 +1292,30 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( $before, $wpdb->get_results( 'SELECT option_name, option_value, autoload FROM `rt_options` ORDER BY option_name', ARRAY_A ) );
 		$this->assertArrayNotHasKey( 'identity_preserve_delta', $state );
 		$this->assertSame( $original, $state );
+	}
+
+	public function test_empty_identity_capture_deletes_dump_rows() {
+		global $wpdb;
+		$names = array(
+			'mainwp_child_pubkey',
+			'mainwp_child_uniqueId',
+			'mainwp_child_nonce',
+			'mainwp_child_connected_admin',
+			'mainwp_child_server',
+			'mainwp_child_openssl_sign_algo',
+			'mainwp_child_auth',
+		);
+		foreach ( $names as $name ) {
+			$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => $name, 'option_value' => 'dump-' . $name, 'autoload' => 'yes' ) ) );
+		}
+		$state = array( 'identity_preserve' => array() );
+		$restore = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'restore_connection_identity' );
+		$restore->setAccessible( true );
+		$restore->invokeArgs( $this->runner, array( &$state ) );
+		foreach ( $names as $name ) {
+			$this->assertNull( $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM `rt_options` WHERE option_name = %s', $name ) ), $name );
+		}
+		$this->assertSame( -7, $state['identity_preserve_delta'] );
 	}
 
 	public static function identity_write_failure_cases() {
@@ -2308,6 +2334,55 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertNotFalse( $snapshot_at, 'The snapshot must run on the foreign-key path.' );
 		$this->assertNotFalse( $replay_at );
 		$this->assertLessThan( $replay_at, $snapshot_at, 'The aside snapshot must precede the in-place replay.' );
+	}
+
+	/**
+	 * A pre-feature cursor cannot preserve the connection after an FK replay.
+	 */
+	public function test_fk_missing_identity_capture_enters_rollback_and_keeps_live_rows() {
+		global $wpdb;
+		$names = array(
+			'mainwp_child_pubkey',
+			'mainwp_child_uniqueId',
+			'mainwp_child_nonce',
+			'mainwp_child_connected_admin',
+			'mainwp_child_server',
+			'mainwp_child_openssl_sign_algo',
+			'mainwp_child_auth',
+		);
+		foreach ( $names as $name ) {
+			$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => $name, 'option_value' => 'live-' . $name, 'autoload' => 'no' ) ) );
+		}
+		$before = $wpdb->get_results( 'SELECT option_name, option_value, autoload FROM `rt_options` ORDER BY option_name', ARRAY_A );
+		$this->runner->fake_engine->replay_yield_once = true;
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
+		$task = $this->spine->get_task( $task_id );
+		for ( $slice = 0; $slice < 20 && MainWP_Child_Backup_Task::PHASE_REPLAYING_DB !== $task->phase; ++$slice ) {
+			$task = $this->runner->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
+		}
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $task->phase );
+		$state = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertTrue( $state['db_replay']['snapshot_done'] );
+		unset( $state['identity_preserve'] );
+		$this->assertNotFalse( $this->spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => $state ) ) );
+		$task = $this->spine->get_task( $task_id );
+		$state = $this->spine->read_sub_state( $task, $this->dir );
+		$replay = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'run_replaying_db' );
+		$replay->setAccessible( true );
+		$replay->invokeArgs( $this->runner, array( $task, (int) $task->version, &$state, time() + 30, $this->dir ) );
+		$task = $this->spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK, $task->phase );
+		$state = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $state['fk_rollback']['original_error_code'] );
+		$this->assertStringContainsString( 'identity capture is missing', $state['fk_rollback']['original_error'] );
+		$this->assertStringContainsString( 'Retry the restore', $state['fk_rollback']['original_error'] );
+		$this->assertArrayNotHasKey( 'identity_preserve_delta', $state );
+		$this->assertSame( $before, $wpdb->get_results( 'SELECT option_name, option_value, autoload FROM `rt_options` ORDER BY option_name', ARRAY_A ) );
+		$task = $this->drive( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_ROLLED_BACK, $this->spine->status_payload( $task )['error_code'] );
+		$this->assertContains( 'rollback_aside_slice', $this->runner->fake_engine->calls );
+		$this->assertSame( $before, $wpdb->get_results( 'SELECT option_name, option_value, autoload FROM `rt_options` ORDER BY option_name', ARRAY_A ) );
 	}
 
 	/**
