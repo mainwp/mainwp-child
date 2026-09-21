@@ -367,6 +367,40 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
+     * Detect a committed rename without requiring an aside on a fresh target.
+     *
+     * @param string[] $stems      Bare table stems the phase would swap.
+     * @param array    $config     Restore id and target prefix.
+     * @param string[] $old_tables Aside tables, populated from the same enumeration.
+     *
+     * @return bool|null Whether all targets exist without tmp counterparts, or null on query failure.
+     */
+    public function is_swap_committed( $stems, $config, &$old_tables = array() ) {
+        $old_tables = array();
+        $conn       = $this->connect();
+        if ( ! is_object( $conn ) ) {
+            return null;
+        }
+        $tables = $this->list_tables( $conn );
+        $this->close_connection( $conn );
+        if ( null === $tables ) {
+            return null;
+        }
+        foreach ( $stems as $stem ) {
+            if ( ! in_array( $config['target_prefix'] . $stem, $tables, true ) || in_array( $this->tmp_prefix( $config['restore_id'] ) . $stem, $tables, true ) ) {
+                return false;
+            }
+        }
+        $old_prefix = $this->old_prefix( $config['restore_id'] );
+        foreach ( $tables as $table ) {
+            if ( 0 === strpos( $table, $old_prefix ) ) {
+                $old_tables[] = $table;
+            }
+        }
+        return ! empty( $stems );
+    }
+
+    /**
      * Build the single atomic multi-table RENAME statement.
      *
      * Live tables move aside to old-prefixed names in the same statement
