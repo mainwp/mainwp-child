@@ -257,7 +257,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * @param string|null $task_id          Task id reserved by the engine mutex, or null to generate one.
      * @param bool        $require_idle     Refuse creation while any non-terminal task exists.
      *
-     * @return string|false Task id, or false on insert failure or an occupied slot.
+     * @return string|false|null Task id on success, false on query failure, or null when a guarded insert finds an occupied slot.
      */
     public function create_task( $type = 'full', $sub_state = array(), $max_resumes = null, $deadline_seconds = null, $task_id = null, $require_idle = false ) {
         global $wpdb;
@@ -290,7 +290,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         );
 
         if ( 1 !== $result ) {
-            return false;
+            return $require_idle && 0 === $result ? null : false;
         }
 
         // Arm the fallback watchdog so the task resumes even if the

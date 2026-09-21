@@ -157,18 +157,22 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         try {
+            if ( ! empty( $spine->get_active_tasks() ) ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
             // Older legacy requests may have a pid file without a mutex.
             $backup_dir = $this->backup_dir();
             if ( MainWP_Backup::is_pid_lock_fresh( $backup_dir ) ) {
                 throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
             }
             $spine->sweep_stale_markers( $backup_dir, 10800, $task_id );
-            $params = $this->resolve_staged_manifest( $type, is_array( $params ) ? $params : array() );
-            $params = $this->spill_parent_manifest( $params );
-            if ( false === $spine->create_task( $type, array( 'params' => $params ), null, null, $task_id ) ) {
-                if ( ! empty( $spine->get_active_tasks() ) ) {
-                    throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
-                }
+            $params  = $this->resolve_staged_manifest( $type, is_array( $params ) ? $params : array() );
+            $params  = $this->spill_parent_manifest( $params );
+            $created = $spine->create_task( $type, array( 'params' => $params ), null, null, $task_id );
+            if ( null === $created ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
+            if ( false === $created ) {
                 throw new MainWP_Exception( 'The backup task could not be created on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
             }
         } catch ( \Throwable $e ) {

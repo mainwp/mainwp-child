@@ -112,30 +112,38 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $spine = MainWP_Child_Backup_Task::instance();
         $spine->install();
 
-        if ( ! empty( $spine->get_active_tasks() ) ) {
+        $owner = 'restore-create-' . strtolower( wp_generate_password( 12, false ) );
+        if ( true !== MainWP_Child_Backup_Mutex::acquire( 'native', $owner, 60 ) ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
         }
-
-        $total_bytes = 0;
-        foreach ( (array) $params['artifacts'] as $artifact ) {
-            $total_bytes += isset( $artifact['size'] ) ? (int) $artifact['size'] : 0;
-        }
-        // The horizon scales with payload (transfer, extraction, and replay
-        // all do): one hour base plus a second per half-megabyte.
-        $deadline = self::RESTORE_MIN_DEADLINE_SECONDS + (int) ( $total_bytes / 524288 );
-
-        $type = 'restore';
-        if ( 'db' === $sub_type ) {
-            $type = 'restore_db';
-        } elseif ( 'files' === $sub_type ) {
-            $type = 'restore_files';
-        }
-        $task_id = $spine->create_task( $type, array( 'params' => $params ), self::RESTORE_MAX_RESUMES, $deadline, null, true );
-        if ( false === $task_id ) {
+        try {
             if ( ! empty( $spine->get_active_tasks() ) ) {
                 throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
             }
-            throw new MainWP_Exception( 'The restore task could not be created on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+
+            $total_bytes = 0;
+            foreach ( (array) $params['artifacts'] as $artifact ) {
+                $total_bytes += isset( $artifact['size'] ) ? (int) $artifact['size'] : 0;
+            }
+            // The horizon scales with payload (transfer, extraction, and replay
+            // all do): one hour base plus a second per half-megabyte.
+            $deadline = self::RESTORE_MIN_DEADLINE_SECONDS + (int) ( $total_bytes / 524288 );
+
+            $type = 'restore';
+            if ( 'db' === $sub_type ) {
+                $type = 'restore_db';
+            } elseif ( 'files' === $sub_type ) {
+                $type = 'restore_files';
+            }
+            $task_id = $spine->create_task( $type, array( 'params' => $params ), self::RESTORE_MAX_RESUMES, $deadline, null, true );
+            if ( null === $task_id ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
+            if ( false === $task_id ) {
+                throw new MainWP_Exception( 'The restore task could not be created on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+            }
+        } finally {
+            MainWP_Child_Backup_Mutex::release( $owner );
         }
 
         $scratch = $this->scratch_dir( $task_id, $this->backup_dir() );

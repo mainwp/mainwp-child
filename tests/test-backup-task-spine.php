@@ -91,8 +91,23 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 		foreach ( array( MainWP_Child_Backup_Task::PHASE_QUEUED, MainWP_Child_Backup_Task::PHASE_DUMPING_DB ) as $phase ) {
 			$task = $spine->get_task( $task_id );
 			$this->assertNotFalse( $spine->checkpoint( $task_id, (int) $task->version, array( 'phase' => $phase ) ) );
-			$this->assertFalse( $spine->create_task( 'restore', array(), null, null, null, true ), $phase );
+			$this->assertNull( $spine->create_task( 'restore', array(), null, null, null, true ), $phase );
 			$this->assertSame( 1, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $spine->get_table_name() ), $phase );
+		}
+	}
+
+	public function test_create_task_query_failure_is_false_for_guarded_and_unguarded_inserts() {
+		$spine = MainWP_Child_Backup_Task::instance();
+		$fail = static function ( $query ) use ( $spine ) {
+			return 0 === strpos( $query, 'INSERT INTO ' . $spine->get_table_name() . ' ' ) ? '' : $query;
+		};
+		add_filter( 'query', $fail );
+		try {
+			$this->assertFalse( $spine->create_task( 'full' ) );
+			$this->assertFalse( $spine->create_task( 'restore', array(), null, null, null, true ) );
+			$this->assertEmpty( $spine->get_active_tasks() );
+		} finally {
+			remove_filter( 'query', $fail );
 		}
 	}
 

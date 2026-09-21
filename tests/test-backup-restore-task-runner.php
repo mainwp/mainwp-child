@@ -3420,16 +3420,176 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertEmpty( $this->runner->fake_engine->calls );
 	}
 
+	public function test_restore_create_refuses_backup_mutex_holder() {
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'backup-owner', 300 ) );
+		$holder = MainWP_Child_Backup_Mutex::holder();
+		try {
+			$this->make_task( 'db', array() );
+			$this->fail( 'A backup mutex must block restore creation.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+			$this->assertSame( $holder, MainWP_Child_Backup_Mutex::holder() );
+			$this->assertEmpty( $this->spine->get_active_tasks() );
+		} finally {
+			MainWP_Child_Backup_Mutex::release( 'backup-owner' );
+		}
+	}
+
+	public function test_restore_create_releases_short_mutex_after_insert() {
+		$observed = null;
+		$started  = time();
+		$observe  = function ( $query ) use ( &$observed ) {
+			if ( 0 === strpos( $query, 'INSERT INTO ' . $this->spine->get_table_name() . ' ' ) ) {
+				$observed = MainWP_Child_Backup_Mutex::holder();
+			}
+			return $query;
+		};
+		add_filter( 'query', $observe );
+		try {
+			$id = $this->make_task( 'db', array() );
+			$this->assertStringStartsWith( 'task-', $id );
+			$this->assertNotNull( $observed );
+			$this->assertSame( 'native', $observed['engine'] );
+			$this->assertStringStartsWith( 'restore-create-', $observed['owner'] );
+			$this->assertGreaterThanOrEqual( $started + 60, $observed['expires_at'] );
+			$this->assertLessThanOrEqual( time() + 60, $observed['expires_at'] );
+			$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+		} finally {
+			remove_filter( 'query', $observe );
+		}
+	}
+
+	public function test_backup_create_rechecks_spine_after_mutex_acquire() {
+		$competing_id = null;
+		$race = function ( $query ) use ( &$race, &$competing_id ) {
+			if ( false !== strpos( $query, 'INSERT IGNORE INTO' ) && false !== strpos( $query, MainWP_Child_Backup_Mutex::OPTION_NAME ) ) {
+				remove_filter( 'query', $race );
+				$competing_id = $this->spine->create_task( 'restore_db' );
+			}
+			return $query;
+		};
+		add_filter( 'query', $race );
+		try {
+			$this->runner->create_task_for_params( 'full', array() );
+			$this->fail( 'The post-acquire check must see the competing restore.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+			$this->assertSame( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), $e->getMessage() );
+			$this->assertSame( $competing_id, $this->spine->get_active_tasks()[0]->task_id );
+			$this->assertCount( 1, $this->spine->get_active_tasks() );
+			$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+		} finally {
+			remove_filter( 'query', $race );
+		}
+	}
+
+	public function test_backup_busy_read_survives_occupant_becoming_terminal() {
+		global $wpdb;
+		$competing_id = null;
+		$reads = 0;
+		$race = function ( $query ) use ( &$race, &$competing_id, &$reads, $wpdb ) {
+			if ( 0 === strpos( $query, 'SELECT * FROM ' . $this->spine->get_table_name() . ' WHERE phase NOT IN' ) && 3 === ++$reads ) {
+				remove_filter( 'query', $race );
+				$competing_id = $this->spine->create_task( 'restore_db' );
+				$this->spine->checkpoint( $competing_id, 0, array( 'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED ) );
+				// Return the occupied snapshot even though its row has just finished.
+				return $wpdb->prepare( 'SELECT %s AS task_id', $competing_id );
+			}
+			return $query;
+		};
+		add_filter( 'query', $race );
+		try {
+			$this->runner->create_task_for_params( 'full', array() );
+			$this->fail( 'An occupied read must retain its retryable error.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( 3, $reads );
+			$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+			$this->assertEmpty( $this->spine->get_active_tasks() );
+			$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+		} finally {
+			remove_filter( 'query', $race );
+		}
+	}
+
+	public function test_restore_occupied_result_survives_occupant_becoming_terminal() {
+		global $wpdb;
+		$competing_id = null;
+		$refused = null;
+		$race = function ( $query ) use ( &$race, &$competing_id, &$refused, $wpdb ) {
+			if ( 0 === strpos( $query, 'INSERT INTO ' . $this->spine->get_table_name() . ' ' ) ) {
+				remove_filter( 'query', $race );
+				$competing_id = $this->spine->create_task( 'full' );
+				$refused = $wpdb->query( $query );
+				$this->spine->checkpoint( $competing_id, 0, array( 'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED ) );
+				// Return the refused statement's zero-row result after the occupant finishes.
+				return 'SELECT 1 WHERE 1 = 0';
+			}
+			return $query;
+		};
+		add_filter( 'query', $race );
+		try {
+			$this->make_task( 'db', array() );
+			$this->fail( 'Occupancy must survive the occupant finishing.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( 0, $refused );
+			$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+			$this->assertSame( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), $e->getMessage() );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $this->spine->get_task( $competing_id )->phase );
+			$this->assertEmpty( $this->spine->get_active_tasks() );
+			$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+		} finally {
+			remove_filter( 'query', $race );
+		}
+	}
+
+	public function test_create_query_failure_is_not_reclassified_by_new_occupant() {
+		foreach ( array( 'backup', 'restore' ) as $kind ) {
+			$occupant = null;
+			$fail = function ( $query ) use ( &$fail, &$occupant ) {
+				if ( 0 === strpos( $query, 'INSERT INTO ' . $this->spine->get_table_name() . ' ' ) ) {
+					remove_filter( 'query', $fail );
+					$occupant = $this->spine->create_task( 'full' );
+					return '';
+				}
+				return $query;
+			};
+			add_filter( 'query', $fail );
+			try {
+				if ( 'backup' === $kind ) {
+					$this->runner->create_task_for_params( 'full', array() );
+				} else {
+					$this->make_task( 'db', array() );
+				}
+				$this->fail( 'Query failure must throw the generic error.' );
+			} catch ( MainWP_Exception $e ) {
+				$this->assertSame( '', $e->get_message_error_code() );
+				$this->assertSame( 'The ' . $kind . ' task could not be created on this site.', $e->getMessage() );
+				$this->assertNotNull( $occupant );
+				$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+			} finally {
+				remove_filter( 'query', $fail );
+				if ( null !== $occupant ) {
+					$this->spine->checkpoint( $occupant, 0, array( 'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED ) );
+				}
+			}
+		}
+	}
+
 	/**
 	 * An insert failure on an idle spine keeps the generic error on both paths.
 	 */
 	public function test_guarded_creates_keep_generic_error_when_insert_fails() {
-		$fail = function ( $query ) {
+		$observed = null;
+		$fail = function ( $query ) use ( &$observed ) {
+			if ( 0 === strpos( $query, 'INSERT INTO ' . $this->spine->get_table_name() . ' ' ) ) {
+				$observed = MainWP_Child_Backup_Mutex::holder();
+			}
 			return 0 === strpos( $query, 'INSERT INTO ' . $this->spine->get_table_name() . ' ' ) ? '' : $query;
 		};
 		add_filter( 'query', $fail );
 		try {
 			foreach ( array( 'backup', 'restore' ) as $kind ) {
+				$started = time();
 				try {
 					if ( 'backup' === $kind ) {
 						$this->runner->create_task_for_params( 'full', array() );
@@ -3440,6 +3600,11 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 				} catch ( \MainWP\Child\MainWP_Exception $e ) {
 					$this->assertSame( 'The ' . $kind . ' task could not be created on this site.', $e->getMessage() );
 					$this->assertSame( '', $e->get_message_error_code() );
+					$this->assertNotNull( $observed );
+					if ( 'restore' === $kind ) {
+						$this->assertGreaterThanOrEqual( $started + 60, $observed['expires_at'] );
+						$this->assertLessThanOrEqual( time() + 60, $observed['expires_at'] );
+					}
 					$this->assertEmpty( $this->spine->get_active_tasks() );
 					$this->assertNull( \MainWP\Child\MainWP_Child_Backup_Mutex::holder() );
 				}
