@@ -804,9 +804,11 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
 
         if ( 'premium_update' === $perform && is_wp_error( $response ) ) {
             return array(
-                'status'       => 'failed',
-                'message'      => esc_html__( 'Premium update request failed. Please try again later.', 'mainwp-child' ),
-                'message_code' => 'PREMIUM_ACTION_FAILED',
+                'status'         => 'failed',
+                'error'          => esc_html__( 'Premium update request failed. Please try again later.', 'mainwp-child' ),
+                'error_code'     => 'PREMIUM_ACTION_FAILED',
+                'rep_error'      => $response->get_error_message(),
+                'rep_error_code' => $response->get_error_code(),
             );
         }
 
