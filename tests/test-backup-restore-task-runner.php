@@ -1161,18 +1161,20 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->seed_woo_tables();
 		$this->runner->yield_before_url_rewrite = true;
 		$live = array(
-			'mainwp_child_pubkey'           => array( 'live-src_public-key', 'yes' ),
-			'mainwp_child_uniqueId'         => array( 'live-unique-id', 'no' ),
-			'mainwp_child_connected_admin'  => array( '', 'auto-off' ),
-			'mainwp_child_server'           => array( 'ciphertext:/+=\'"\\opaque', 'on' ),
-			'mainwp_child_openssl_sign_algo' => array( '0', 'off' ),
+			'mainwp_child_pubkey'                 => array( 'live-src_public-key', 'yes' ),
+			'mainwp_child_uniqueId'               => array( 'live-unique-id', 'no' ),
+			'mainwp_child_connected_admin'        => array( '', 'auto-off' ),
+			'mainwp_child_server'                 => array( 'ciphertext:/+=\'"\\opaque', 'on' ),
+			'mainwp_child_openssl_sign_algo'      => array( '0', 'off' ),
+			'mainwp_child_backup_task_db_version' => array( MainWP_Child_Backup_Task::DB_VERSION, 'yes' ),
 		);
 		$dump = array(
-			'mainwp_child_pubkey'           => array( 'dump-public-key', 'no' ),
-			'mainwp_child_nonce'            => array( 'dump-only-nonce', 'yes' ),
-			'mainwp_child_connected_admin'  => array( 'dump-admin', 'yes' ),
-			'mainwp_child_server'           => array( 'dump-ciphertext', 'no' ),
-			'mainwp_child_openssl_sign_algo' => array( '1', 'yes' ),
+			'mainwp_child_pubkey'                 => array( 'dump-public-key', 'no' ),
+			'mainwp_child_nonce'                  => array( 'dump-only-nonce', 'yes' ),
+			'mainwp_child_connected_admin'        => array( 'dump-admin', 'yes' ),
+			'mainwp_child_server'                 => array( 'dump-ciphertext', 'no' ),
+			'mainwp_child_openssl_sign_algo'      => array( '1', 'yes' ),
+			'mainwp_child_backup_task_db_version' => array( 'dump-stale-db-version', 'no' ),
 		);
 		if ( 1 === $delta ) {
 			$live['mainwp_child_auth'] = array( 'live-auth', 'auto-on' );

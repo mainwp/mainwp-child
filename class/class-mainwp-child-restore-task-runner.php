@@ -55,6 +55,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * Values stay as stored, including encrypted mainwp_child_server. Dump-only
      * rows are removed. siteurl/home follow url_pairs(); active_plugins follows
      * the dump.
+     *
+     * The task-spine marker mainwp_child_backup_task_db_version rides along
+     * because the restore keeps the live spine table (it is in skip_stems)
+     * while a dump from before the spine reverted the marker that describes
+     * that table's schema. MainWP_Backup gates assert_no_active_spine_task()
+     * on that marker, so without it a legacy backup skips the active-task
+     * check and overlaps the restore's tail.
      */
     const IDENTITY_OPTIONS = array(
         'mainwp_child_pubkey',
@@ -64,6 +71,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         'mainwp_child_server',
         'mainwp_child_auth',
         'mainwp_child_openssl_sign_algo',
+        'mainwp_child_backup_task_db_version',
     );
 
     /**
