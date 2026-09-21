@@ -1891,6 +1891,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @param string $backup_dir Scratch root.
      *
      * @throws MainWP_Exception When the swap fails.
+     * @throws \Throwable When identity write-back fails after the swap.
      *
      * @return array Slice result.
      */
@@ -1922,7 +1923,15 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         }
 
         $sub_state['restored_mutex'] = MainWP_Child_Backup_Mutex::raw_value();
-        $this->restore_connection_identity( $sub_state );
+        try {
+            $this->restore_connection_identity( $sub_state );
+        } catch ( \Throwable $e ) {
+            // run_phase() catches with its own by-value copy of the cursor, which
+            // predates the capture above, so the dump's mutex would outlive the
+            // failed restore unless it is cleared here.
+            MainWP_Child_Backup_Mutex::clear_after_restore( $sub_state['restored_mutex'] );
+            throw $e;
+        }
         $engine->exit_maintenance();
 
         $sub_state['old_tables'] = $outcome['old_tables'];
@@ -2189,6 +2198,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @throws MainWP_Exception When any identity read or write fails.
      */
     protected function restore_connection_identity( &$sub_state ) {
+        // A cursor written before this feature carries no capture. Preserving
+        // nothing is the old behaviour; capturing here would freeze the dump's
+        // identity, because the foreign-key path calls this after the replay.
+        if ( ! isset( $sub_state['identity_preserve'] ) || ! is_array( $sub_state['identity_preserve'] ) ) {
+            return;
+        }
+
         global $wpdb;
         $table    = $this->target_prefix() . 'options';
         $saved    = array_column( $sub_state['identity_preserve'], null, 'option_name' );

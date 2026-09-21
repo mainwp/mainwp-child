@@ -1258,6 +1258,40 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		}
 	}
 
+	public static function missing_identity_capture_cases() {
+		return array(
+			'absent capture'    => array( array() ),
+			'non-array capture' => array( array( 'identity_preserve' => 'invalid' ) ),
+		);
+	}
+
+	/**
+	 * @dataProvider missing_identity_capture_cases
+	 */
+	public function test_missing_identity_capture_leaves_live_rows_untouched( $state ) {
+		global $wpdb;
+		$names = array(
+			'mainwp_child_pubkey',
+			'mainwp_child_uniqueId',
+			'mainwp_child_nonce',
+			'mainwp_child_connected_admin',
+			'mainwp_child_server',
+			'mainwp_child_openssl_sign_algo',
+			'mainwp_child_auth',
+		);
+		foreach ( $names as $name ) {
+			$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => $name, 'option_value' => 'live-' . $name, 'autoload' => 'no' ) ) );
+		}
+		$before = $wpdb->get_results( 'SELECT option_name, option_value, autoload FROM `rt_options` ORDER BY option_name', ARRAY_A );
+		$original = $state;
+		$restore = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'restore_connection_identity' );
+		$restore->setAccessible( true );
+		$restore->invokeArgs( $this->runner, array( &$state ) );
+		$this->assertSame( $before, $wpdb->get_results( 'SELECT option_name, option_value, autoload FROM `rt_options` ORDER BY option_name', ARRAY_A ) );
+		$this->assertArrayNotHasKey( 'identity_preserve_delta', $state );
+		$this->assertSame( $original, $state );
+	}
+
 	public static function identity_write_failure_cases() {
 		return array(
 			'swap update' => array( false, 'UPDATE' ),
@@ -1281,7 +1315,11 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$engine = $this->runner->fake_engine;
 		$armed = false;
 		$failed = false;
-		$engine->on_database_live = function () use ( $wpdb, $operation, &$armed ) {
+		$engine->on_database_live = function () use ( $wpdb, $operation, $fk, &$armed ) {
+			if ( ! $fk ) {
+				$value = 'native|completed-backup|' . ( time() + 3600 );
+				$this->assertTrue( add_option( MainWP_Child_Backup_Mutex::OPTION_NAME, $value, '', false ) );
+			}
 			$this->assertNotFalse( $wpdb->delete( 'rt_options', array( 'option_name' => 'mainwp_child_pubkey' ) ) );
 			if ( 'INSERT' !== $operation ) {
 				$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'mainwp_child_pubkey', 'option_value' => 'dump-key', 'autoload' => 'no' ) ) );
@@ -1310,6 +1348,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			$this->assertContains( 'rollback_aside_slice', $engine->calls );
 		} else {
 			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $this->spine->status_payload( $task )['error_code'] );
+			$this->assertSame( '', MainWP_Child_Backup_Mutex::raw_value() );
+			$this->assertFalse( get_option( MainWP_Child_Backup_Mutex::OPTION_NAME ) );
 		}
 		$this->assertNotContains( 'drop_old_tables', $engine->calls );
 		$this->assertNotContains( 'verify_row_counts', $engine->calls );
