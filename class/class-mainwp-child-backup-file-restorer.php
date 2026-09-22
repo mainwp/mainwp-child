@@ -336,7 +336,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                         throw new \Exception( sprintf( 'Could not read archive entry: %s.', esc_html( $entry['name'] ) ) );
                     }
                     try {
-                        $this->write_entry_stream( $stream, $target, $cursor, 0, $entry['name'] );
+                        $this->write_entry_stream( $stream, $target, $cursor, 0, $entry['name'], $extract_to );
                     } finally {
                         fclose( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
                     }
@@ -826,7 +826,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         }
 
         try {
-            $this->write_entry_stream( $stream, $target, $cursor, $stat['comp_size'], $name );
+            $this->write_entry_stream( $stream, $target, $cursor, $stat['comp_size'], $name, $extract_to );
         } finally {
             fclose( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with getStream above.
         }
@@ -840,11 +840,12 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @param array    $cursor     Cumulative extraction counters (by reference).
      * @param int      $compressed Compressed entry size, zero for tar entries.
      * @param string   $entry_name Archive entry name.
+     * @param string   $extract_to Extraction root.
      *
      * @throws \Exception When writing or promoting the entry fails.
      * @throws \Throwable After discarding failed temporary output.
      */
-    private function write_entry_stream( $stream, $target, &$cursor, $compressed, $entry_name ) {
+    private function write_entry_stream( $stream, $target, &$cursor, $compressed, $entry_name, $extract_to ) {
         $directory = dirname( $target );
         $this->sweep_entry_temps( $directory );
         $perms = false;
@@ -870,7 +871,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             }
             $this->promote_entry_temp( $temp, $target, $mode, $entry_name );
             // Only promoted dump members belong to the replay set, including across slices.
-            if ( isset( $cursor['dump_files'] ) && preg_match( '/^dbBackup.*\.sql\.php$/D', basename( $target ) ) && ! in_array( $target, $cursor['dump_files'], true ) ) {
+            $dump_root = rtrim( $extract_to, '/' );
+            if ( in_array( dirname( $target ), array( $dump_root, $dump_root . '/wp-content' ), true ) && isset( $cursor['dump_files'] ) && preg_match( '/^dbBackup.*\.sql\.php$/D', basename( $target ) ) && ! in_array( $target, $cursor['dump_files'], true ) ) {
                 $cursor['dump_files'][] = $target;
             }
             clearstatcache( true, $target );

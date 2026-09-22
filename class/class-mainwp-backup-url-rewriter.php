@@ -49,7 +49,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
     private $failed_updates = 0;
 
     /**
-     * Deleted stale rename targets, by table, for pagination and count verification.
+     * Removed duplicate role rows, by table, for pagination and count verification.
      *
      * @var array
      */
@@ -138,7 +138,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
      * Rewrite one page of one table.
      *
      * @param string $table            Table name.
-     * @param int    $offset           Row offset, adjusted for deleted rename targets.
+     * @param int    $offset           Row offset, adjusted for removed duplicate role rows.
      * @param array  $pairs            Replacement pairs.
      * @param array  $exclude          Columns excluded from pair replacement.
      * @param array  $preserve_options Option names whose rows must remain unchanged.
@@ -170,7 +170,12 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
         }
 
         $renamed_before = $this->renamed_over[ $table ] ?? 0;
+        // A target already fetched in this page must not overwrite the newly published roles.
+        $renamed_targets = array();
         foreach ( $rows as $row ) {
+            if ( isset( $row['option_name'] ) && in_array( $row['option_name'], $renamed_targets, true ) ) {
+                continue;
+            }
             if ( isset( $row['option_name'] ) && in_array( $row['option_name'], $preserve_options, true ) ) {
                 continue;
             }
@@ -182,10 +187,13 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
                 }
             }
             $this->rewrite_row( $table, $row, $pairs, $exclude, $pk_columns, $rename_columns, $prefix_anchored, $prefix_pair );
+            if ( isset( $row['option_name'], $rename_columns['option_name'][ $row['option_name'] ] ) ) {
+                $renamed_targets[] = $rename_columns['option_name'][ $row['option_name'] ];
+            }
         }
 
         if ( ! empty( $pk_columns ) && ( $this->renamed_over[ $table ] ?? 0 ) > $renamed_before ) {
-            // A deleted target can precede this page or sit in it; keep the next offset at its original end key.
+            // A removed duplicate can precede this page or sit in it; keep the next offset at its original end key.
             $last         = end( $rows );
             $columns      = implode( ', ', array_map( array( $this, 'quote_ident' ), $pk_columns ) );
             $placeholders = implode( ', ', array_fill( 0, count( $pk_columns ), '%s' ) );
@@ -215,6 +223,8 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
      * @param array  $rename_columns Exact replacements by column for prefix-derived lookup keys.
      * @param array  $prefix_anchored Columns whose leading prefix can change.
      * @param array  $prefix_pair Source and target prefixes.
+     *
+     * @throws MainWP_Exception When a required role-key rename cannot complete.
      */
     protected function rewrite_row( $table, $row, $pairs, $exclude, $pk_columns, $rename_columns = array(), $prefix_anchored = array(), $prefix_pair = array() ) {
         global $wpdb;
@@ -230,18 +240,6 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
             // Lookup keys must only follow the prefix when WordPress derives their names from it.
             if ( isset( $rename_columns[ $column ][ $value ] ) ) {
                 $new = $rename_columns[ $column ][ $value ];
-                if ( $new !== $value && 'option_name' === $column && 'options' === substr( $table, -7 ) ) {
-                    // The source roles take precedence over a stale target left by an earlier restore.
-                    $deleted = $wpdb->delete( $table, array( 'option_name' => $new ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- remove only the exact rename target.
-                    if ( false === $deleted ) {
-                        ++$this->failed_updates;
-                        $this->last_error = 'A stale role-key rename target could not be removed.';
-                        return;
-                    }
-                    if ( $deleted > 0 ) {
-                        $this->renamed_over[ $table ] = ( $this->renamed_over[ $table ] ?? 0 ) + $deleted;
-                    }
-                }
             } elseif ( in_array( $column, $prefix_anchored, true ) ) {
                 $from = $prefix_pair['from'] ?? '';
                 $new  = '' !== $from && 0 === strpos( $value, $from ) ? $prefix_pair['to'] . substr( $value, strlen( $from ) ) : $value;
@@ -274,7 +272,32 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
             );
         }
 
+        $role_rename = isset( $updates['option_name'], $rename_columns['option_name'][ $row['option_name'] ] ) && 'options' === substr( $table, -7 );
+        if ( $role_rename ) {
+            $target_where = array( 'option_name' => $updates['option_name'] );
+            $target       = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . $this->quote_ident( $table ) . ' WHERE option_name = %s', $updates['option_name'] ), ARRAY_A ); // phpcs:ignore WordPress.DB -- exact restored role key.
+            if ( '' !== $wpdb->last_error ) {
+                throw new MainWP_Exception( 'Could not read the role-key rename target.' );
+            }
+            if ( null !== $target ) {
+                // Publish usable roles before removing the source, so interruption leaves a retryable pair.
+                $replacement = array_diff_key( array_merge( $row, $updates ), array_flip( $pk_columns ) );
+                if ( false === $this->persist_update( $table, $replacement, $target_where ) ) {
+                    throw new MainWP_Exception( 'Could not write the role-key rename target.' );
+                }
+                $deleted = $wpdb->delete( $table, $where ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- the target already holds the restored roles.
+                if ( false === $deleted || 0 === $deleted ) {
+                    throw new MainWP_Exception( 'Could not remove the role-key rename source.' );
+                }
+                $this->renamed_over[ $table ] = ( $this->renamed_over[ $table ] ?? 0 ) + $deleted;
+                return;
+            }
+        }
+
         if ( false === $this->persist_update( $table, $updates, $where ) ) {
+            if ( $role_rename ) {
+                throw new MainWP_Exception( 'Could not rename the restored role key.' );
+            }
             ++$this->failed_updates;
             $error            = (string) $wpdb->last_error;
             $this->last_error = '' !== $error ? $error : 'A restored row could not be URL-rewritten.';

@@ -956,7 +956,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			}
 			$actual = null;
 			try {
-				$method->invokeArgs( $restorer, array( $stream, $path, &$cursor, 0, 'file.txt' ) );
+				$method->invokeArgs( $restorer, array( $stream, $path, &$cursor, 0, 'file.txt', $this->extract_to ) );
 			} catch ( Exception $e ) {
 				$actual = $e->getMessage();
 			}
@@ -1157,6 +1157,18 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertTrue( $result['done'] );
 		$this->assertGreaterThan( 1, $result['slices'] );
 		$this->assertSame( array( $this->extract_to . '/' . $member ), $result['cursor']['dump_files'] );
+	}
+
+	public function test_nested_dump_member_is_restored_as_ordinary_content() {
+		$nested = 'wp-content/plugins/example/dbBackup-data.sql.php';
+		$root = 'dbBackup-root.sql.php';
+		$content = 'wp-content/dbBackup-content.sql.php';
+		$zip = $this->make_zip( 'nested-dumps.zip', array( $nested => 'plugin content', $root => 'root dump', $content => 'content dump' ) );
+		$result = $this->run_sliced( $this->config( array( $zip ) ) );
+		$this->assertTrue( $result['done'] );
+		$this->assertNull( $result['error'] );
+		$this->assertSame( 'plugin content', file_get_contents( $this->extract_to . '/' . $nested ) );
+		$this->assertSame( array( $this->extract_to . '/' . $root, $this->extract_to . '/' . $content ), $result['cursor']['dump_files'] );
 	}
 
 	public function test_failed_dump_member_is_not_recorded() {

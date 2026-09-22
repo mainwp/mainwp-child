@@ -3158,7 +3158,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                     wp_delete_file( $litter );
                     clearstatcache( true, $litter );
                     if ( $require_deleted && file_exists( $litter ) ) {
-                        throw new MainWP_Exception( esc_html( 'Could not remove stale database dump before extraction: ' . $litter ), null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+                        MainWP_Helper::log_debug( '[MainWP Backup] Could not remove stale database dump before extraction: ' . $litter );
+                        throw new MainWP_Exception( esc_html( 'Could not remove stale database dump before extraction: ' . basename( $litter ) ), null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
                     }
                 }
             }

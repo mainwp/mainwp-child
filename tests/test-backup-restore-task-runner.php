@@ -3798,6 +3798,11 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 
 	public function test_dump_litter_is_swept_before_embedded_replay() {
 		global $wpdb;
+		$session_query = 'SELECT @@SESSION.sql_mode AS sql_mode, @@SESSION.foreign_key_checks AS foreign_key_checks, @@SESSION.unique_checks AS unique_checks, @@SESSION.wait_timeout AS wait_timeout, @@SESSION.net_read_timeout AS net_read_timeout, @@SESSION.net_write_timeout AS net_write_timeout';
+		// The replay runs on the shared test connection, which outlives this
+		// test; production's dedicated connection dies with the permissive
+		// session instead, so the fixture has to put it back.
+		$session_pristine = $wpdb->get_row( $session_query, ARRAY_A );
 		$artifact = $this->make_full_archive_with_embedded_dump();
 		$zip = new ZipArchive();
 		$zip->open( $this->dir . '/full001.zip' );
@@ -3829,12 +3834,34 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 
 		// Use the real replay parser on the test connection so its temporary tables remain visible.
 		$this->runner->fake_engine = new class extends Fake_Restore_Engine {
+			private $saved_session;
+
 			protected function connect() {
 				global $wpdb;
+				// A later connect() would capture the permissive session this
+				// replay just set, so only the first one is the clean state.
+				if ( null === $this->saved_session ) {
+					$this->saved_session = $wpdb->get_row( 'SELECT @@SESSION.sql_mode AS sql_mode, @@SESSION.foreign_key_checks AS foreign_key_checks, @@SESSION.unique_checks AS unique_checks, @@SESSION.wait_timeout AS wait_timeout, @@SESSION.net_read_timeout AS net_read_timeout, @@SESSION.net_write_timeout AS net_write_timeout', ARRAY_A );
+					if ( ! is_array( $this->saved_session ) ) {
+						throw new RuntimeException( 'Could not save the shared test session.' );
+					}
+				}
 				return $wpdb->dbh;
 			}
 			protected function close_connection( $conn ) {
-				// The WordPress test harness owns this connection.
+				global $wpdb;
+				// The shared connection outlives the replay, unlike the production connection.
+				foreach ( $this->saved_session as $name => $value ) {
+					// Only sql_mode takes a quoted value; the numeric session
+					// variables refuse a string and would leave the session
+					// permissive for every later test in this process.
+					$sql = 'sql_mode' === $name
+						? $wpdb->prepare( 'SET SESSION sql_mode = %s', $value )
+						: $wpdb->prepare( 'SET SESSION ' . $name . ' = %d', $value );
+					if ( false === $wpdb->query( $sql ) ) {
+						throw new RuntimeException( 'Could not restore the shared test session.' );
+					}
+				}
 			}
 			protected function run_statement( $conn, $sql ) {
 				global $wpdb;
@@ -3858,7 +3885,19 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $stale );
 		$this->assertFileExists( $this->site . '/' . $member );
 		$this->assertNull( $this->runner->fake_engine->last_replay_config );
-		$task = $this->drive( $task_id );
+		try {
+			$task = $this->drive( $task_id );
+		} finally {
+			foreach ( $session_pristine as $name => $value ) {
+				// Only sql_mode takes a quoted value; the numeric session
+				// variables refuse a string and leave the session permissive.
+				$sql = 'sql_mode' === $name
+					? $wpdb->prepare( 'SET SESSION sql_mode = %s', $value )
+					: $wpdb->prepare( 'SET SESSION ' . $name . ' = %d', $value );
+				$this->assertNotFalse( $wpdb->query( $sql ), $name );
+			}
+		}
+		$this->assertSame( $session_pristine, $wpdb->get_row( $session_query, ARRAY_A ), 'This test must not leave the shared connection permissive for the tests after it.' );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
 		$state = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertSame( array( $this->site . '/' . $member ), $state['dump_files'] );
@@ -3902,7 +3941,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
 		$payload = $this->spine->status_payload( $task );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $payload['error_code'] );
-		$this->assertStringContainsString( $stale, $payload['error'] );
+		$this->assertStringContainsString( basename( $stale ), $payload['error'] );
+		$this->assertStringNotContainsString( $this->site, $payload['error'] );
 		$this->assertFileExists( $stale );
 		$this->assertFileDoesNotExist( $this->site . '/wp-content/uploads/restored.txt' );
 		$this->assertNull( $this->runner->fake_engine->last_replay_config );

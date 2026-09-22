@@ -6,6 +6,7 @@
  */
 
 use MainWP\Child\MainWP_Backup_Url_Rewriter;
+use MainWP\Child\MainWP_Exception;
 
 /**
  * Small-page rewriter so pagination and budget yields are exercised
@@ -215,6 +216,41 @@ class BackupUrlRewriterTest extends WP_UnitTestCase {
 			$this->assertSame( array( array( 'option_name' => 'rt_user_roles', 'value' => 'source https://new.example' ) ), $wpdb->get_results( 'SELECT option_name, value FROM `' . $this->table . '` WHERE option_name IS NOT NULL', ARRAY_A ) );
 			$this->assertSame( 'https://new.example/after', $this->fetch( 'after' )['value'] );
 		}
+	}
+
+	/**
+	 * A rename that cannot write its target must not have deleted that
+	 * target first: a site whose roles row is removed before the
+	 * replacement lands comes back with no roles at all, and the failure
+	 * is only advisory, so the restore would still report success.
+	 */
+	public function test_role_key_rename_keeps_target_when_the_write_fails() {
+		global $wpdb;
+		$this->assertNotFalse( $wpdb->query( 'ALTER TABLE `' . $this->table . '` ADD option_name VARCHAR(191), ADD UNIQUE KEY (option_name)' ) );
+		foreach ( array( 'wp_user_roles' => 'source roles', 'rt_user_roles' => 'target roles' ) as $name => $value ) {
+			$this->assertSame( 1, $wpdb->insert( $this->table, array( 'option_name' => $name, 'value' => $value ) ) );
+		}
+
+		$this->rewriter = new Failing_Url_Rewriter();
+		$thrown         = null;
+		try {
+			$this->run_all( $this->config( array(
+				'exclude'        => array( $this->table => array( 'option_name' ) ),
+				'rename_columns' => array( $this->table => array( 'option_name' => array( 'wp_user_roles' => 'rt_user_roles' ) ) ),
+			) ) );
+		} catch ( MainWP_Exception $e ) {
+			$thrown = $e;
+		}
+
+		$this->assertNotNull( $thrown, 'A role-key rename that cannot be completed must fail the restore, not be recorded as advisory.' );
+		$this->assertSame(
+			array(
+				array( 'option_name' => 'wp_user_roles', 'value' => 'source roles' ),
+				array( 'option_name' => 'rt_user_roles', 'value' => 'target roles' ),
+			),
+			$wpdb->get_results( 'SELECT option_name, value FROM `' . $this->table . '` WHERE option_name IS NOT NULL ORDER BY id', ARRAY_A ),
+			'Neither role row may be removed when the rename cannot be written.'
+		);
 	}
 
 	/**

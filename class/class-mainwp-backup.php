@@ -190,9 +190,16 @@ class MainWP_Backup {
     /**
      * Lazy ZIP writes can fail after addFile() has accepted an entry.
      *
-     * @var string[] Entries added since the archive was opened.
+     * @var string[] First ten entries added since the archive was opened.
      */
     private $zip_pending_entries = array();
+
+    /**
+     * Keep diagnostics bounded even when descriptor limits disable intermediate closes.
+     *
+     * @var int
+     */
+    private $zip_pending_count = 0;
 
     /**
      * Progress callback forwarded to the archiver.
@@ -1149,6 +1156,7 @@ class MainWP_Backup {
         $this->zipArchiveSizeCount = 0;
         $this->zipArchiveFileName  = $archive;
         $this->zip_pending_entries = array();
+        $this->zip_pending_count   = 0;
 
         $zipRes = $this->zip->open( $archive, \ZipArchive::CREATE );
         if ( $zipRes ) {
@@ -1401,19 +1409,20 @@ class MainWP_Backup {
             }
             if ( true !== $result ) {
                 // libzip cannot identify which lazy source read failed, so report the pending batch.
-                $remaining = count( $this->zip_pending_entries ) - 10;
+                $remaining = $this->zip_pending_count - 10;
                 $message   = sprintf(
                     'Failed to close ZIP archive "%s". Pending entries: %s%s.',
                     basename( (string) $this->zipArchiveFileName ),
-                    wp_json_encode( array_slice( $this->zip_pending_entries, 0, 10 ) ),
+                    wp_json_encode( array_map( 'basename', $this->zip_pending_entries ) ),
                     $remaining > 0 ? sprintf( ' (%d more)', $remaining ) : ''
                 );
-                MainWP_Helper::log_debug( $message );
+                MainWP_Helper::log_debug( $message . ' Pending entry paths: ' . wp_json_encode( $this->zip_pending_entries ) );
                 throw new MainWP_Exception( esc_html( $message ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
             }
         } finally {
             $this->zip                 = null;
             $this->zip_pending_entries = array();
+            $this->zip_pending_count   = 0;
         }
     }
 
@@ -1712,6 +1721,7 @@ class MainWP_Backup {
         $this->zipArchiveFileName  = $filepath;
         $this->zip_slice_progress  = false;
         $this->zip_pending_entries = array();
+        $this->zip_pending_count   = 0;
         $zipRes                    = $this->zip->open( $filepath, \ZipArchive::CREATE );
         if ( $this->zip_append && ( true !== $zipRes || \ZipArchive::ER_OK !== $this->zip->status ) ) {
             // A killed close can leave a partial that has no usable resume point.
@@ -2133,8 +2143,8 @@ class MainWP_Backup {
             // Existing directories still need traversal to reach their unfinished children.
             if ( ! $this->zip_append || false === $this->zip->locateName( $entry ) ) {
                 if ( $this->zip->addEmptyDir( $entry ) ) {
-                    $this->zip_pending_entries[] = $entry;
-                    $this->zip_slice_progress    = true;
+                    $this->record_pending_zip_entry( $entry );
+                    $this->zip_slice_progress = true;
                     if ( null !== $this->slice_deadline && time() >= $this->slice_deadline ) {
                         $this->close_zip_archive();
                         throw new MainWP_Backup_Budget_Exception( 'File archiving exceeded its time budget for this slice.', null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal control-flow message, code is a registry class constant.
@@ -2180,6 +2190,18 @@ class MainWP_Backup {
     }
 
     /**
+     * Retain enough entry names to diagnose lazy ZIP read failures without site-sized state.
+     *
+     * @param string $entry Accepted archive entry name.
+     */
+    private function record_pending_zip_entry( $entry ) {
+        ++$this->zip_pending_count;
+        if ( count( $this->zip_pending_entries ) < 10 ) {
+            $this->zip_pending_entries[] = $entry;
+        }
+    }
+
+    /**
      * Add file from a string to zip file.
      *
      * @param resource $file   File to add to zip.
@@ -2190,7 +2212,7 @@ class MainWP_Backup {
     public function add_file_from_string_to_zip( $file, $str ) {
         $added = $this->zip->addFromString( $file, $str );
         if ( $added ) {
-            $this->zip_pending_entries[] = $file;
+            $this->record_pending_zip_entry( $file );
         }
         return $added;
     }
@@ -2289,8 +2311,8 @@ class MainWP_Backup {
         if ( false === $added ) {
             $this->record_failed_add( $path );
         } elseif ( $this->zip instanceof \ZipArchive ) {
-            $this->zip_pending_entries[] = $zipEntryName;
-            $this->zip_slice_progress    = true;
+            $this->record_pending_zip_entry( $zipEntryName );
+            $this->zip_slice_progress = true;
             if ( null !== $this->slice_deadline && time() >= $this->slice_deadline ) {
                 $this->close_zip_archive();
                 throw new MainWP_Backup_Budget_Exception( 'File archiving exceeded its time budget for this slice.', null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal control-flow message, code is a registry class constant.

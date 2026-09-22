@@ -217,6 +217,74 @@ class BackupZipSliceDeadlineTest extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_failed_zip_close_redacts_absolute_entry_paths() {
+		$backup = new class() extends MainWP_Backup {
+			public function open_test_archive( $path ) {
+				$this->zipArchiveFileName = $path;
+				$this->zip = new class() extends ZipArchive {
+					public function close(): bool {
+						parent::close();
+						return false;
+					}
+				};
+				return $this->zip->open( $path, ZipArchive::CREATE );
+			}
+		};
+		$this->archive = $this->scratch . '/failed-close.zip';
+		$this->assertTrue( $backup->open_test_archive( $this->archive ) );
+		$this->assertTrue( $backup->add_file_from_string_to_zip( $this->scratch . '/tree/nested/private.txt', 'content' ) );
+		for ( $i = 0; $i < 11; ++$i ) {
+			$this->assertTrue( $backup->add_file_from_string_to_zip( 'extra-' . $i, 'content' ) );
+		}
+		$caught = null;
+		try {
+			$backup->close_zip_archive();
+		} catch ( MainWP_Exception $error ) {
+			$caught = $error;
+		}
+		$this->assertInstanceOf( MainWP_Exception::class, $caught );
+		$this->assertSame( MainWP_Backup_Error::ERR_ZIP_FAILED, $caught->get_message_error_code() );
+		$this->assertStringContainsString( 'private.txt', $caught->getMessage() );
+		$this->assertStringContainsString( '(2 more)', $caught->getMessage() );
+		$this->assertStringNotContainsString( $this->scratch, html_entity_decode( $caught->getMessage() ) );
+		$this->assertStringNotContainsString( str_replace( '/', '\/', $this->scratch ), html_entity_decode( $caught->getMessage() ) );
+	}
+
+	public function test_pending_zip_diagnostics_are_bounded_and_reset_after_close() {
+		$backup = new class() extends MainWP_Backup {
+			public function open_test_archive( $path, $root ) {
+				$this->zipArchiveFileName = $path;
+				$this->file_descriptors = 0;
+				$this->zipArchiveFileCount = 0;
+				$this->zipArchiveSizeCount = 0;
+				$this->allowed_backup_bases = array( $root );
+				$this->lastRun = time();
+				$this->zip = new ZipArchive();
+				return $this->zip->open( $path, ZipArchive::CREATE );
+			}
+		};
+		$this->archive = $this->scratch . '/bounded.zip';
+		$this->assertTrue( $backup->open_test_archive( $this->archive, $this->scratch ) );
+		for ( $i = 0; $i < 30; ++$i ) {
+			$this->assertTrue( $backup->add_file_from_string_to_zip( 'string-' . $i, 'content' ) );
+		}
+		file_put_contents( $this->scratch . '/tree/nested/file.txt', 'disk content' );
+		$backup->zip_add_dir( $this->scratch . '/tree', array() );
+		$entries = new ReflectionProperty( MainWP_Backup::class, 'zip_pending_entries' );
+		$entries->setAccessible( true );
+		$this->assertCount( 10, $entries->getValue( $backup ) );
+		$count = new ReflectionProperty( MainWP_Backup::class, 'zip_pending_count' );
+		$count->setAccessible( true );
+		$this->assertSame( 33, $count->getValue( $backup ), 'Count must include strings, both directories and the disk file.' );
+		$backup->close_zip_archive();
+		$this->assertSame( array(), $entries->getValue( $backup ) );
+		$this->assertSame( 0, $count->getValue( $backup ) );
+		$this->assertTrue( $backup->open_test_archive( $this->archive, $this->scratch ) );
+		$this->assertTrue( $backup->add_file_from_string_to_zip( 'next-batch', 'next' ) );
+		$this->assertSame( 1, $count->getValue( $backup ) );
+		$backup->close_zip_archive();
+	}
+
 	public function test_resumed_zip_with_expired_deadline_adds_last_entry_then_yields() {
 		$backup = new class() extends MainWP_Backup {
 			public $root;
