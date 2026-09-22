@@ -61,7 +61,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
      * @param array     $cursor   Resume cursor (empty array on first call).
      * @param array     $config   { tables: string[], pairs: array<int,array{from:string,to:string}>,
      *                            exclude: array<string,string[]>, preserve_options?: array<string,string[]>,
-     *                            preserve_option_prefixes?: array<string,string[]> }.
+     *                            preserve_option_prefixes?: array<string,string[]>, rename_option_names?: array<string,array<string,string>> }.
      * @param float|int $deadline Absolute epoch the slice must yield by.
      *
      * @return array { done: bool, cursor: array }
@@ -93,7 +93,8 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
             $exclude                  = isset( $config['exclude'][ $table ] ) ? $config['exclude'][ $table ] : array();
             $preserve_options         = isset( $config['preserve_options'][ $table ] ) ? $config['preserve_options'][ $table ] : array();
             $preserve_option_prefixes = isset( $config['preserve_option_prefixes'][ $table ] ) ? $config['preserve_option_prefixes'][ $table ] : array();
-            $consumed                 = $this->rewrite_page( $table, $cursor['offset'], $config['pairs'], $exclude, $preserve_options, $preserve_option_prefixes );
+            $rename_option_names      = isset( $config['rename_option_names'][ $table ] ) ? $config['rename_option_names'][ $table ] : array();
+            $consumed                 = $this->rewrite_page( $table, $cursor['offset'], $config['pairs'], $exclude, $preserve_options, $preserve_option_prefixes, $rename_option_names );
             $did_work                 = true;
 
             if ( $consumed < $this->page_size() ) {
@@ -121,11 +122,12 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
      * @param array  $exclude          Column names to skip.
      * @param array  $preserve_options Option names whose rows must remain unchanged.
      * @param array  $preserve_option_prefixes Option-name prefixes whose rows must remain unchanged.
+     * @param array  $rename_option_names Exact option-name replacements for prefix-derived lookup keys.
      *
      * @return int Rows fetched (less than a full page means the table
      *             is done).
      */
-    protected function rewrite_page( $table, $offset, $pairs, $exclude, $preserve_options = array(), $preserve_option_prefixes = array() ) {
+    protected function rewrite_page( $table, $offset, $pairs, $exclude, $preserve_options = array(), $preserve_option_prefixes = array(), $rename_option_names = array() ) {
         global $wpdb;
 
         $pk_columns = $this->primary_key_columns( $table );
@@ -153,7 +155,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
                     }
                 }
             }
-            $this->rewrite_row( $table, $row, $pairs, $exclude, $pk_columns );
+            $this->rewrite_row( $table, $row, $pairs, $exclude, $pk_columns, $rename_option_names );
         }
 
         return count( $rows );
@@ -167,8 +169,9 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
      * @param array  $pairs      Replacement pairs.
      * @param array  $exclude    Column names to skip.
      * @param array  $pk_columns Primary key column names.
+     * @param array  $rename_option_names Exact option-name replacements for prefix-derived lookup keys.
      */
-    protected function rewrite_row( $table, $row, $pairs, $exclude, $pk_columns ) {
+    protected function rewrite_row( $table, $row, $pairs, $exclude, $pk_columns, $rename_option_names = array() ) {
         global $wpdb;
 
         $updates = array();
@@ -179,11 +182,16 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
             if ( in_array( $column, $exclude, true ) || in_array( $column, $pk_columns, true ) ) {
                 continue;
             }
-            // Option names are lookup keys even though option_id is the primary key.
+            // An option name is a lookup key, so a substring pair must never touch it:
+            // `wp_` sits inside every `mainwp_child_*` name. The one name that does have
+            // to follow the prefix is `{prefix}user_roles`, which WordPress core derives
+            // from get_blog_prefix(); a site restored across prefixes has no roles at all
+            // without it. Renames are therefore an exact-name map, never a replacement.
             if ( 'option_name' === $column && 'options' === substr( $table, -7 ) ) {
-                continue;
+                $new = isset( $rename_option_names[ $value ] ) ? $rename_option_names[ $value ] : $value;
+            } else {
+                $new = $this->replace_value( $value, $pairs );
             }
-            $new = $this->replace_value( $value, $pairs );
             if ( $new !== $value ) {
                 $updates[ $column ] = $new;
             }

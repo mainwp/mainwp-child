@@ -84,9 +84,15 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     );
 
     /**
-     * Leave inline cursor room for identity rows and restore progress; dump ledgers survive independently.
+     * How many live ledger rows per family survive a restore. Lowering it to keep the
+     * capture inline does not work: at 90 the capture alone is 44 KB of the 49152-byte
+     * inline limit, and the rest of the cursor grows per restored table, so a stock
+     * 12-table site spills a sidecar anyway. Since the sidecar cannot be avoided by
+     * capping, the cap only decides how many blocked request ids survive, and a smaller
+     * number is strictly worse. Making the capture inline needs the aside-table read,
+     * not a constant.
      */
-    const IDENTITY_LEDGER_CAPTURE_LIMIT = 90;
+    const IDENTITY_LEDGER_CAPTURE_LIMIT = 500;
 
     /**
      * Singleton (separate from the backup runner's).
@@ -2015,6 +2021,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $tables[] = $target_prefix . $stem;
         }
 
+        $source_prefix       = isset( $sub_state['db_replay']['source_prefix'] ) ? (string) $sub_state['db_replay']['source_prefix'] : '';
+        $rename_option_names = array();
+        if ( '' !== $source_prefix && $source_prefix !== $target_prefix ) {
+            $rename_option_names[ $target_prefix . 'options' ] = array( $source_prefix . 'user_roles' => $target_prefix . 'user_roles' );
+        }
+
         $cursor  = isset( $sub_state['url_rewrite'] ) ? $sub_state['url_rewrite'] : array();
         $outcome = $this->url_rewriter()->rewrite_slice(
             $cursor,
@@ -2022,6 +2034,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 'tables'                   => $tables,
                 'pairs'                    => $pairs,
                 'exclude'                  => $this->guid_exclusions( $this->loaded_stems( $sub_state ), $target_prefix ),
+                'rename_option_names'      => $rename_option_names,
                 'preserve_options'         => array( $target_prefix . 'options' => self::IDENTITY_OPTIONS ),
                 // A prefix pair replaces its substring inside option_name too, and `wp_` sits inside
                 // every `mainwp_child_*` ledger name, so an exact-name list is not enough here. It

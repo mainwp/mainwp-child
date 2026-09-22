@@ -703,6 +703,59 @@ class Cloud_Pull_Test_Restore_Runner extends Testable_Restore_Task_Runner {
  * Restore runner whose DNS resolution is scripted so the SSRF host
  * checks run without real network lookups.
  */
+/**
+ * Captures the config the runner hands the URL rewriter, without running a rewrite.
+ */
+class Recording_Rewriter_Restore_Task_Runner extends Testable_Restore_Task_Runner {
+
+	/**
+	 * Config from the last rewrite_slice() call.
+	 *
+	 * @var array|null
+	 */
+	public $last_rewrite_config = null;
+
+	/**
+	 * Recording double.
+	 *
+	 * @return object
+	 */
+	protected function url_rewriter() {
+		$runner = $this;
+		return new class( $runner ) {
+			/**
+			 * Owning runner.
+			 *
+			 * @var Recording_Rewriter_Restore_Task_Runner
+			 */
+			private $runner;
+
+			/**
+			 * Constructor.
+			 *
+			 * @param Recording_Rewriter_Restore_Task_Runner $runner Owning runner.
+			 */
+			public function __construct( $runner ) {
+				$this->runner = $runner;
+			}
+
+			/**
+			 * Record and report the table set as finished.
+			 *
+			 * @param array $cursor   Resume cursor.
+			 * @param array $config   Rewrite config.
+			 * @param float $deadline Slice deadline.
+			 *
+			 * @return array
+			 */
+			public function rewrite_slice( $cursor, $config, $deadline ) {
+				$this->runner->last_rewrite_config = $config;
+				return array( 'done' => true, 'cursor' => $cursor, 'failed_updates' => 0, 'last_error' => '' );
+			}
+		};
+	}
+}
+
 class Ssrf_Resolver_Test_Restore_Runner extends MainWP_Child_Restore_Task_Runner {
 
 	/**
@@ -1320,6 +1373,9 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * Prefix replacement must not alter plugin lookup keys.
+	 */
 	public function test_cross_prefix_rewrite_preserves_option_names_and_rewrites_values() {
 		global $wpdb;
 		$names = array(
@@ -1328,31 +1384,93 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			'mainwp_child_request_id_' . hash( 'sha256', 'request' ),
 			'mainwp_child_blocked_request_id_' . hash( 'sha256', 'request' ),
 			'mainwp_child_advanced_request_id_' . hash( 'sha256', 'request' ),
-			'wp_user_roles',
+			'wp_mail_smtp',
 		);
 		foreach ( $names as $name ) {
 			$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => $name, 'option_value' => 'wp_value https://old.example/path', 'autoload' => 'no' ) ) );
 		}
 		$before = $wpdb->get_results( 'SELECT option_id, option_name FROM `rt_options` ORDER BY option_id', ARRAY_A );
+		$roles  = serialize( array( 'administrator' => array( 'capabilities' => array( 'manage_options' => true ) ) ) );
+		$this->assertSame(
+			1,
+			$wpdb->insert(
+				'rt_options',
+				array(
+					'option_name'  => 'wp_user_roles',
+					'option_value' => $roles,
+				)
+			)
+		);
 		$rewriter = new \MainWP\Child\MainWP_Backup_Url_Rewriter();
-		$outcome = $rewriter->rewrite_slice(
+		$outcome  = $rewriter->rewrite_slice(
 			array(),
 			array(
-				'tables'  => array( 'rt_options' ),
-				'pairs'   => array(
+				'tables'              => array( 'rt_options' ),
+				'pairs'               => array(
 					array( 'from' => 'wp_', 'to' => 'rt_' ),
 					array( 'from' => 'https://old.example', 'to' => 'https://new.example' ),
 				),
-				'exclude' => array(),
+				'exclude'             => array(),
+				'rename_option_names' => array( 'rt_options' => array( 'wp_user_roles' => 'rt_user_roles' ) ),
 			),
 			microtime( true ) + 10
 		);
 		$this->assertTrue( $outcome['done'] );
 		$this->assertSame( 0, $outcome['failed_updates'] );
-		$this->assertSame( $before, $wpdb->get_results( 'SELECT option_id, option_name FROM `rt_options` ORDER BY option_id', ARRAY_A ) );
+		$this->assertSame( $before, $wpdb->get_results( "SELECT option_id, option_name FROM `rt_options` WHERE option_name NOT IN ('wp_user_roles', 'rt_user_roles') ORDER BY option_id", ARRAY_A ) );
+		$this->assertNull( $wpdb->get_var( "SELECT option_value FROM `rt_options` WHERE option_name = 'wp_user_roles'" ) );
+		$this->assertSame( $roles, $wpdb->get_var( "SELECT option_value FROM `rt_options` WHERE option_name = 'rt_user_roles'" ) );
 		foreach ( $names as $name ) {
 			$this->assertSame( 'rt_value https://new.example/path', $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM `rt_options` WHERE option_name = %s', $name ) ), $name );
 		}
+	}
+
+	/**
+	 * Core roles must remain addressable after the runner rewrites the database, so
+	 * the runner has to hand the rewriter an exact rename for the dump's role key -
+	 * and only when the two prefixes actually differ.
+	 *
+	 * @param string $source_prefix Dump table prefix.
+	 * @param array  $expected      Rename map the runner must build.
+	 * @dataProvider role_prefix_cases
+	 */
+	public function test_restore_runner_renames_only_source_roles( $source_prefix, $expected ) {
+		$runner = new Recording_Rewriter_Restore_Task_Runner();
+		$runner->test_backup_dir = $this->dir;
+		$runner->test_site_root  = $this->dir;
+		$runner->fake_engine     = new Fake_Restore_Engine();
+
+		$sub_state = array(
+			'params'     => array( 'restore_id' => 'r1' ),
+			// A URL pair keeps the same-prefix case reaching the rewriter at all: with no
+			// pairs the runner skips the rewrite entirely and proves nothing about renames.
+			'db_replay'  => array(
+				'source_prefix' => $source_prefix,
+				'banner_info'   => array( 'site_url' => 'https://old.example' ),
+			),
+			'receiving'  => array(),
+			'url_rewrite' => array(),
+			'loaded'     => array( 'options' ),
+		);
+
+		$method = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'run_rewriting_urls' );
+		$method->setAccessible( true );
+		$method->invoke( $runner, $this->spine->get_task( $this->make_task( 'db', array( $this->make_db_artifact() ), array( 'source_prefix' => $source_prefix ) ) ), 1, $sub_state, microtime( true ) + 10, $this->dir );
+
+		$this->assertNotNull( $runner->last_rewrite_config, 'the runner must reach the rewriter' );
+		$this->assertSame( $expected, $runner->last_rewrite_config['rename_option_names'] );
+	}
+
+	/**
+	 * Equal prefixes must not trigger a role-key rename.
+	 *
+	 * @return array
+	 */
+	public static function role_prefix_cases() {
+		return array(
+			'cross prefix' => array( 'wp_', array( 'rt_options' => array( 'wp_user_roles' => 'rt_user_roles' ) ) ),
+			'same prefix'  => array( 'rt_', array() ),
+		);
 	}
 
 	public function test_connection_identity_capture_is_not_replaced_on_reentry() {
@@ -1808,7 +1926,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	public function test_identity_capture_caps_each_ledger_by_newest_option_id() {
 		global $wpdb;
 		$limit = MainWP_Child_Restore_Task_Runner::IDENTITY_LEDGER_CAPTURE_LIMIT;
-		$this->assertSame( 90, $limit );
+		$this->assertSame( 500, $limit );
 		$prefixes = array( 'mainwp_child_request_id_', 'mainwp_child_blocked_request_id_', 'mainwp_child_advanced_request_id_' );
 		foreach ( $prefixes as $prefix ) {
 			$values = array();
@@ -1833,9 +1951,13 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_identity_capture_at_cap_checkpoints_inline() {
+	/**
+	 * Ledger retention must survive either checkpoint representation.
+	 */
+	public function test_identity_capture_at_cap_round_trips() {
 		global $wpdb;
 		$limit = MainWP_Child_Restore_Task_Runner::IDENTITY_LEDGER_CAPTURE_LIMIT;
+		$this->assertSame( 500, $limit );
 		foreach ( MainWP_Child_Restore_Task_Runner::IDENTITY_PREFIXES as $prefix ) {
 			$values = array();
 			for ( $i = 0; $i < $limit; ++$i ) {
@@ -1857,22 +1979,38 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		foreach ( $identity as $name => $value ) {
 			$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => $name, 'option_value' => $value, 'autoload' => 'no' ) ) );
 		}
+		$expected = $wpdb->get_results( 'SELECT option_name, option_value, autoload FROM `rt_options` ORDER BY option_name', ARRAY_A );
+
 		$this->runner->fake_engine->replay_yield_once = true;
 		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
 		$task = $this->runner->advance_one_slice( $this->spine->get_task( $task_id ), MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $task->phase );
-		$state = json_decode( $task->sub_state, true );
+		$state = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertIsArray( $state );
-		$this->assertArrayNotHasKey( '_sidecar', $state );
 		$this->assertCount( 3 * $limit + 8, $state['identity_preserve'] );
 		$this->assertTrue( $state['db_replay']['snapshot_done'] );
 		$this->assertNotEmpty( $state['fk_snapshot']['files'] );
 		$this->assertArrayHasKey( 'params', $state );
 		$this->assertTrue( $state['receiving']['adoption_done'] );
-		$capture_bytes = strlen( wp_json_encode( array( 'identity_preserve' => $state['identity_preserve'] ) ) );
-		$this->assertLessThanOrEqual( 2048, strlen( $task->sub_state ) - $capture_bytes, 'The remaining restore cursor must fit its 2 KiB allowance.' );
-		$this->assertLessThanOrEqual( MainWP_Child_Backup_Task::SUB_STATE_INLINE_MAX - 2048, strlen( $task->sub_state ), 'The full checkpoint must retain at least 2 KiB of inline headroom.' );
-		$this->assertCount( 0, (array) glob( $this->dir . '/task_substate-' . $task_id . '-v*.json' ) );
+		$inline_task            = clone $task;
+		$inline_task->sub_state = wp_json_encode( $state );
+		$this->assertSame( $state, $this->spine->read_sub_state( $inline_task, $this->dir ) );
+		$sidecar_state            = $state;
+		$sidecar_state['padding'] = str_repeat( 'x', MainWP_Child_Backup_Task::SUB_STATE_INLINE_MAX );
+		$sidecar_task             = clone $task;
+		$sidecar_task->sub_state  = $this->spine->write_sub_state( $task_id, $sidecar_state, $this->dir, 999 );
+		$this->assertTrue( json_decode( $sidecar_task->sub_state, true )['_sidecar'] );
+		$restored = $this->spine->read_sub_state( $sidecar_task, $this->dir );
+		$captured = $restored['identity_preserve'];
+		usort(
+			$captured,
+			static function ( $left, $right ) {
+				return strcmp( $left['option_name'], $right['option_name'] );
+			}
+		);
+		$this->assertSame( $expected, $captured );
+		$this->assertSame( $state['identity_preserve'], $restored['identity_preserve'] );
+		$this->assertSame( $sidecar_state, $restored );
 	}
 
 	public function test_empty_identity_capture_keeps_dump_ledgers() {
