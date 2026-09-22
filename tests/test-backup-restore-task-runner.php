@@ -865,6 +865,10 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		parent::tear_down();
 		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
 		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+		// install() skips schema creation while the version option still says the
+		// schema is current, so dropping the table without clearing the option
+		// leaves any later test that calls create_task() inserting into nothing.
+		delete_option( MainWP_Child_Backup_Task::DB_VERSION_OPTION );
 		$wpdb->query( 'DROP TABLE IF EXISTS ' . $this->spine->get_table_name() );
 	}
 

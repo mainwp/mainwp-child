@@ -2045,7 +2045,10 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 $exclude[ $target_prefix . $stem ] = array( 'meta_key' );
             }
             if ( '' !== $source_prefix && $source_prefix !== $target_prefix && ( 'usermeta' === $stem || preg_match( '/^\d+_usermeta$/', (string) $stem ) ) ) {
-                // Multisite stores every blog's user keys in the shared usermeta table.
+                // A network keeps one shared usermeta table, so every blog's user keys
+                // arrive in this one table carrying that blog's own prefix suffix - which
+                // is why the suffix loop below is what makes multisite work, not the stem.
+                // The numbered stem is defensive only; WordPress never creates one.
                 foreach ( array_unique( $blog_suffixes ) as $blog_suffix ) {
                     foreach ( array( 'capabilities', 'user_level', 'persisted_preferences' ) as $key ) {
                         $rename_columns[ $target_prefix . $stem ]['meta_key'][ $source_prefix . $blog_suffix . $key ] = $target_prefix . $blog_suffix . $key;
