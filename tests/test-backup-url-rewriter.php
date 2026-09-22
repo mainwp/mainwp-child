@@ -7,6 +7,7 @@
 
 use MainWP\Child\MainWP_Backup_Url_Rewriter;
 use MainWP\Child\MainWP_Exception;
+use MainWP\Child\MainWP_Backup_Error;
 
 /**
  * Small-page rewriter so pagination and budget yields are exercised
@@ -243,6 +244,11 @@ class BackupUrlRewriterTest extends WP_UnitTestCase {
 		}
 
 		$this->assertNotNull( $thrown, 'A role-key rename that cannot be completed must fail the restore, not be recorded as advisory.' );
+		$this->assertSame(
+			MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY,
+			$thrown->get_message_error_code(),
+			'The Dashboard reads the code off the exception, so an empty one leaves a failed restore with no stable reason.'
+		);
 		$this->assertSame(
 			array(
 				array( 'option_name' => 'wp_user_roles', 'value' => 'source roles' ),

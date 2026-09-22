@@ -277,17 +277,17 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
             $target_where = array( 'option_name' => $updates['option_name'] );
             $target       = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . $this->quote_ident( $table ) . ' WHERE option_name = %s', $updates['option_name'] ), ARRAY_A ); // phpcs:ignore WordPress.DB -- exact restored role key.
             if ( '' !== $wpdb->last_error ) {
-                throw new MainWP_Exception( 'Could not read the role-key rename target.' );
+                throw new MainWP_Exception( 'Could not read the role-key rename target.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- literal message, no interpolated value.
             }
             if ( null !== $target ) {
                 // Publish usable roles before removing the source, so interruption leaves a retryable pair.
                 $replacement = array_diff_key( array_merge( $row, $updates ), array_flip( $pk_columns ) );
                 if ( false === $this->persist_update( $table, $replacement, $target_where ) ) {
-                    throw new MainWP_Exception( 'Could not write the role-key rename target.' );
+                    throw new MainWP_Exception( 'Could not write the role-key rename target.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- literal message, no interpolated value.
                 }
                 $deleted = $wpdb->delete( $table, $where ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- the target already holds the restored roles.
                 if ( false === $deleted || 0 === $deleted ) {
-                    throw new MainWP_Exception( 'Could not remove the role-key rename source.' );
+                    throw new MainWP_Exception( 'Could not remove the role-key rename source.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- literal message, no interpolated value.
                 }
                 $this->renamed_over[ $table ] = ( $this->renamed_over[ $table ] ?? 0 ) + $deleted;
                 return;
@@ -296,7 +296,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
 
         if ( false === $this->persist_update( $table, $updates, $where ) ) {
             if ( $role_rename ) {
-                throw new MainWP_Exception( 'Could not rename the restored role key.' );
+                throw new MainWP_Exception( 'Could not rename the restored role key.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- literal message, no interpolated value.
             }
             ++$this->failed_updates;
             $error            = (string) $wpdb->last_error;
