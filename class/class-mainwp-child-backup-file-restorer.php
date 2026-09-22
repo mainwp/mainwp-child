@@ -137,6 +137,10 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      *                 error_code: string|null }
      */
     public function restore_slice( $cursor, $config, $deadline ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- bounded extraction loop with integrity gates.
+        // Older partial cursors cannot reconstruct dumps written before this record existed.
+        if ( empty( $cursor ) ) {
+            $cursor = array( 'dump_files' => array() );
+        }
         $cursor = array_merge(
             array(
                 'part_index'     => 0,
@@ -865,6 +869,10 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 throw new \Exception( sprintf( 'Could not finish writing extracted file: %s.', esc_html( $entry_name ) ) );
             }
             $this->promote_entry_temp( $temp, $target, $mode, $entry_name );
+            // Only promoted dump members belong to the replay set, including across slices.
+            if ( isset( $cursor['dump_files'] ) && preg_match( '/^dbBackup.*\.sql\.php$/D', basename( $target ) ) && ! in_array( $target, $cursor['dump_files'], true ) ) {
+                $cursor['dump_files'][] = $target;
+            }
             clearstatcache( true, $target );
             // Ownership changes may be denied to PHP; restored bytes and mode remain valid.
             // phpcs:disable WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions -- native ownership preservation is best effort.

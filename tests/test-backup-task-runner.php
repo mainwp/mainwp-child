@@ -689,7 +689,9 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 						$this->assertIsCallable( $heartbeat );
 						if ( $foreign ) {
 							MainWP_Child_Backup_Mutex::release( $task_id );
-							$successor_id = $this->create_task( 'full' );
+							// The successor only has to own the mutex; the table allows one non-terminal task.
+							$successor_id = 'task-successor-' . uniqid();
+							$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', $successor_id, 3600 ) );
 							file_put_contents( $this->backup_dir . '/files.list.staged', 'successor manifest' );
 							file_put_contents( $this->backup_dir . '/walk-run-successor', 'successor walk' );
 							$heartbeat();
@@ -724,6 +726,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 						MainWP_Child_Backup_Mutex::release( $successor_id );
 					}
 					MainWP_Child_Backup_Mutex::release( $task_id );
+					$wpdb->delete( MainWP_Child_Backup_Task::instance()->get_table_name(), array( 'task_id' => $task_id ) );
 				}
 			}
 		} finally {
@@ -1656,6 +1659,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	public function test_same_lane_stolen_lease_failure_does_not_overwrite_new_holder() {
+		global $wpdb;
 		$spine = MainWP_Child_Backup_Task::instance();
 		foreach ( array( 'dashboard', 'watchdog' ) as $owner ) {
 			$task_id  = $this->create_task( 'db' );
@@ -1702,8 +1706,10 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 			$this->assertSame( $new_holder->version, $task->version, 'The stale runner must neither checkpoint nor release the new lease' );
 			$this->assertSame( $new_holder->sub_state, $task->sub_state );
 			$this->assertFileExists( $artifact, 'The new holder\'s artifacts must survive' );
-			// The task is left non-terminal by design, so nothing releases its mutex for the next lane.
+			// The task is left non-terminal by design, so nothing releases its mutex for the next lane,
+			// and the next lane cannot insert while its row still holds the active slot.
 			MainWP_Child_Backup_Mutex::release( $task_id );
+			$wpdb->delete( $spine->get_table_name(), array( 'task_id' => $task_id ) );
 		}
 	}
 

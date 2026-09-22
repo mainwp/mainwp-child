@@ -105,7 +105,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     /**
      * Database schema version for the task table.
      */
-    const DB_VERSION = '1.0.0';
+    const DB_VERSION = '1.1.0';
 
     /**
      * Option name holding the installed schema version.
@@ -220,6 +220,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         $sql = "CREATE TABLE {$table} (
             task_id varchar(64) NOT NULL,
             phase varchar(20) NOT NULL DEFAULT 'queued',
+            active_slot tinyint unsigned DEFAULT NULL,
             type varchar(20) NOT NULL DEFAULT 'full',
             sub_state longtext,
             started_at datetime DEFAULT NULL,
@@ -231,13 +232,96 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             lease_expires_at datetime DEFAULT NULL,
             version bigint(20) unsigned NOT NULL DEFAULT 0,
             PRIMARY KEY  (task_id),
+            UNIQUE KEY uniq_active_task (active_slot),
             KEY phase (phase)
         ) {$charset_collate};";
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php'; // NOSONAR - WP compatible.
-        dbDelta( $sql );
+        $suppress = $wpdb->suppress_errors( true );
+        try {
+            dbDelta( $sql );
+            if ( $this->repair_active_task_key() ) {
+                MainWP_Helper::update_option( self::DB_VERSION_OPTION, self::DB_VERSION );
+            }
+        } finally {
+            $wpdb->suppress_errors( $suppress );
+        }
+    }
 
-        MainWP_Helper::update_option( self::DB_VERSION_OPTION, self::DB_VERSION );
+    /**
+     * The version needs readback because dbDelta can report an ALTER that failed.
+     *
+     * @return bool Whether the active slot is backfilled and uniquely indexed.
+     */
+    protected function repair_active_task_key() {
+        global $wpdb;
+        $table = $this->get_table_name();
+
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- schema repair uses only the trusted spine table and prepared values.
+        $column = $wpdb->get_var( "SHOW COLUMNS FROM {$table} LIKE 'active_slot'" );
+        if ( '' !== $wpdb->last_error ) {
+            return false;
+        }
+        if ( empty( $column ) ) {
+            $wpdb->query( "ALTER TABLE {$table} ADD COLUMN active_slot tinyint unsigned DEFAULT NULL" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.SchemaChange -- repairs an incomplete upgrade.
+            $column = $wpdb->get_var( "SHOW COLUMNS FROM {$table} LIKE 'active_slot'" );
+            if ( empty( $column ) || '' !== $wpdb->last_error ) {
+                return false;
+            }
+        }
+
+        for ( $attempt = 0; $attempt < 2; ++$attempt ) {
+            $filled = $wpdb->query( "UPDATE {$table} SET active_slot = CASE WHEN phase NOT IN ('completed','failed') THEN 1 ELSE NULL END" );
+            $error  = $wpdb->last_error;
+            $index  = $wpdb->get_results( "SHOW INDEX FROM {$table} WHERE Key_name = 'uniq_active_task'" );
+            if ( '' !== $wpdb->last_error ) {
+                return false;
+            }
+            if ( false !== $filled && empty( $index ) ) {
+                $wpdb->query( "ALTER TABLE {$table} ADD UNIQUE KEY uniq_active_task (active_slot)" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.SchemaChange -- the database must enforce admission atomically.
+                $error = $wpdb->last_error;
+                $index = $wpdb->get_results( "SHOW INDEX FROM {$table} WHERE Key_name = 'uniq_active_task'" );
+                if ( '' !== $wpdb->last_error ) {
+                    return false;
+                }
+            }
+            $valid_index = 1 === count( (array) $index ) && 0 === (int) $index[0]->Non_unique && 1 === (int) $index[0]->Seq_in_index && 'active_slot' === $index[0]->Column_name;
+            if ( false !== $filled && $valid_index ) {
+                return true;
+            }
+            if ( 0 !== $attempt || false === strpos( $error, 'Duplicate entry' ) ) {
+                return false;
+            }
+
+            // dbDelta may have installed the key before the old rows were backfilled.
+            $rows = $wpdb->get_results( "SELECT task_id, version FROM {$table} WHERE phase NOT IN ('completed','failed') ORDER BY started_at DESC, task_id DESC" );
+            if ( '' !== $wpdb->last_error || count( (array) $rows ) < 2 ) {
+                return false;
+            }
+            $sub_state = wp_json_encode(
+                array(
+                    'error' => array(
+                        'code'    => MainWP_Backup_Error::ERR_ALREADY_RUNNING,
+                        'message' => 'Task failed during active-task uniqueness repair; a newer task remains active.',
+                    ),
+                )
+            );
+            foreach ( array_slice( $rows, 1 ) as $row ) {
+                $changed = $wpdb->query(
+                    $wpdb->prepare(
+                        "UPDATE {$table} SET phase = 'failed', active_slot = NULL, sub_state = %s, version = version + 1 WHERE task_id = %s AND version = %d AND phase NOT IN ('completed','failed')",
+                        $sub_state,
+                        $row->task_id,
+                        (int) $row->version
+                    )
+                );
+                if ( 1 !== $changed ) {
+                    return false;
+                }
+            }
+        }
+        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        return false;
     }
 
     /**
@@ -258,36 +342,48 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * @param bool        $require_idle     Refuse creation while any non-terminal task exists.
      *
      * @return string|false|null Task id on success, false on query failure, or null when a guarded insert finds an occupied slot.
+     * @throws MainWP_Exception When the unique active slot is already occupied.
      */
     public function create_task( $type = 'full', $sub_state = array(), $max_resumes = null, $deadline_seconds = null, $task_id = null, $require_idle = false ) {
         global $wpdb;
 
         $this->install();
+        if ( self::DB_VERSION !== get_option( self::DB_VERSION_OPTION ) ) {
+            return false;
+        }
 
         $max_resumes = null === $max_resumes ? self::DEFAULT_MAX_RESUMES : (int) $max_resumes;
         $task_id     = null === $task_id ? 'task-' . time() . '-' . strtolower( wp_generate_password( 12, false ) ) : $task_id;
         $deadline    = null === $deadline_seconds ? self::WALL_CLOCK_WINDOW_SECONDS : (int) $deadline_seconds;
 
         $sql = 'INSERT INTO ' . $this->get_table_name() .
-            ' (task_id, phase, type, sub_state, started_at, last_progress_at, max_wall_clock_at, resume_count, max_resumes, version)';
+            ' (task_id, phase, type, sub_state, started_at, last_progress_at, max_wall_clock_at, resume_count, max_resumes, version, active_slot)';
         if ( $require_idle ) {
-            $sql .= ' SELECT %s, %s, %s, %s, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL %d SECOND), 0, %d, 0
+            $sql .= ' SELECT %s, %s, %s, %s, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL %d SECOND), 0, %d, 0, 1
                 FROM DUAL WHERE NOT EXISTS ( SELECT 1 FROM ' . $this->get_table_name() . " WHERE phase NOT IN ('completed','failed') LIMIT 1 )";
         } else {
-            $sql .= ' VALUES (%s, %s, %s, %s, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL %d SECOND), 0, %d, 0)';
+            $sql .= ' VALUES (%s, %s, %s, %s, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL %d SECOND), 0, %d, 0, 1)';
         }
 
-        $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- dedicated spine table.
-            $wpdb->prepare(
-                $sql, // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed SQL and trusted table name; values are prepared below.
-                $task_id,
-                self::PHASE_QUEUED,
-                $type,
-                wp_json_encode( $sub_state ),
-                $deadline,
-                $max_resumes
-            )
-        );
+        $suppress = $wpdb->suppress_errors( true );
+        try {
+            $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- dedicated spine table.
+                $wpdb->prepare(
+                    $sql, // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed SQL and trusted table name; values are prepared below.
+                    $task_id,
+                    self::PHASE_QUEUED,
+                    $type,
+                    wp_json_encode( $sub_state ),
+                    $deadline,
+                    $max_resumes
+                )
+            );
+            if ( false === $result && false !== strpos( $wpdb->last_error, 'Duplicate entry' ) && false !== strpos( $wpdb->last_error, 'uniq_active_task' ) ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING );
+            }
+        } finally {
+            $wpdb->suppress_errors( $suppress );
+        }
 
         if ( 1 !== $result ) {
             return $require_idle && 0 === $result ? null : false;
@@ -419,6 +515,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         if ( isset( $fields['phase'] ) ) {
             $sets[] = 'phase = %s';
             $args[] = $fields['phase'];
+            $sets[] = 'active_slot = ' . ( self::is_terminal_phase( $fields['phase'] ) ? 'NULL' : '1' );
         }
         if ( isset( $fields['sub_state'] ) ) {
             $sets[] = 'sub_state = %s';
@@ -709,7 +806,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- conditional terminal write on the spine table.
             $wpdb->prepare(
                 'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
-                " SET phase = 'failed', sub_state = %s, version = version + 1
+                " SET phase = 'failed', active_slot = NULL, sub_state = %s, version = version + 1
                  WHERE task_id = %s AND phase NOT IN ('completed','failed')
                    AND ( lease_owner IS NULL OR lease_expires_at < NOW() )
                    AND ( max_wall_clock_at < NOW()
@@ -1162,6 +1259,19 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         global $wpdb;
         $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- dedicated spine table, always-fresh read.
             'SELECT * FROM ' . $this->get_table_name() . " WHERE phase NOT IN ('completed','failed')" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper, no user input.
+        );
+        return is_array( $rows ) ? $rows : array();
+    }
+
+    /**
+     * Terminal restore workers can still hold a lease while writing temp files.
+     *
+     * @return object[] Restore rows whose temp files must be preserved.
+     */
+    public function get_live_restore_tasks() {
+        global $wpdb;
+        $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- temp reclamation needs current lease state.
+            'SELECT * FROM ' . $this->get_table_name() . " WHERE type IN ('restore','restore_db','restore_files') AND (phase NOT IN ('completed','failed') OR lease_expires_at > NOW())" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper, no user input.
         );
         return is_array( $rows ) ? $rows : array();
     }

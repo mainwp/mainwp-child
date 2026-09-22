@@ -116,6 +116,20 @@ class BackupCheckpidTest extends WP_UnitTestCase {
 		$this->assertFalse( MainWP_Backup::is_pid_lock_fresh( $this->scratch ) );
 	}
 
+	public function test_is_pid_lock_fresh_ignores_pid_with_matching_done_file() {
+		file_put_contents( $this->scratch . '/backup-123.pid', 'legacy' );
+		file_put_contents( $this->scratch . '/backup-123.done', 'finished' );
+
+		$this->assertFalse( MainWP_Backup::is_pid_lock_fresh( $this->scratch ) );
+	}
+
+	public function test_is_pid_lock_fresh_detects_pid_with_different_done_file() {
+		file_put_contents( $this->scratch . '/backup-123.pid', 'legacy' );
+		file_put_contents( $this->scratch . '/backup-456.done', 'finished' );
+
+		$this->assertTrue( MainWP_Backup::is_pid_lock_fresh( $this->scratch ) );
+	}
+
 	/**
 	 * A caller's own pid file (the $except_pid_path it will itself write) is
 	 * never counted against it, matching create_full_backup()'s original

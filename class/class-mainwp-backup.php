@@ -27,6 +27,9 @@ class MainWP_Backup {
     /** Maximum directory depth for the backup readiness inventory. */
     const MAX_INVENTORY_DEPTH = 64;
 
+    /** Pid admission must allow for the legacy heartbeat interval. */
+    const PID_LOCK_FRESH_SECONDS = 160;
+
     /**
      * Nested legacy entry points share the outer request's lock.
      *
@@ -183,6 +186,13 @@ class MainWP_Backup {
      * @var bool
      */
     private $zip_slice_progress = false;
+
+    /**
+     * Lazy ZIP writes can fail after addFile() has accepted an entry.
+     *
+     * @var string[] Entries added since the archive was opened.
+     */
+    private $zip_pending_entries = array();
 
     /**
      * Progress callback forwarded to the archiver.
@@ -438,8 +448,8 @@ class MainWP_Backup {
 
     /**
      * Whether a legacy pid lock is currently held: a `*.pid` file in the
-     * backup directory fresher than the window create_full_backup() treats
-     * as a live process.
+     * backup directory without a matching completion marker and fresher than
+     * the window create_full_backup() treats as a live process.
      *
      * Extracted from create_full_backup()'s inline glob so a caller with no
      * pid of its own (the task spine, before it creates a task) can check
@@ -461,7 +471,10 @@ class MainWP_Backup {
             if ( basename( $file ) === basename( $except_pid_path ) ) {
                 continue;
             }
-            if ( ( time() - filemtime( $file ) ) < 160 ) {
+            if ( file_exists( substr( $file, 0, -4 ) . '.done' ) ) {
+                continue;
+            }
+            if ( ( time() - filemtime( $file ) ) < self::PID_LOCK_FRESH_SECONDS ) {
                 return true;
             }
         }
@@ -1134,6 +1147,8 @@ class MainWP_Backup {
         $this->zip                 = new \ZipArchive();
         $this->zipArchiveFileCount = 0;
         $this->zipArchiveSizeCount = 0;
+        $this->zipArchiveFileName  = $archive;
+        $this->zip_pending_entries = array();
 
         $zipRes = $this->zip->open( $archive, \ZipArchive::CREATE );
         if ( $zipRes ) {
@@ -1385,10 +1400,20 @@ class MainWP_Backup {
                 $result = false;
             }
             if ( true !== $result ) {
-                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ZIP_FAILED ) ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+                // libzip cannot identify which lazy source read failed, so report the pending batch.
+                $remaining = count( $this->zip_pending_entries ) - 10;
+                $message   = sprintf(
+                    'Failed to close ZIP archive "%s". Pending entries: %s%s.',
+                    basename( (string) $this->zipArchiveFileName ),
+                    wp_json_encode( array_slice( $this->zip_pending_entries, 0, 10 ) ),
+                    $remaining > 0 ? sprintf( ' (%d more)', $remaining ) : ''
+                );
+                MainWP_Helper::log_debug( $message );
+                throw new MainWP_Exception( esc_html( $message ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
             }
         } finally {
-            $this->zip = null;
+            $this->zip                 = null;
+            $this->zip_pending_entries = array();
         }
     }
 
@@ -1686,6 +1711,7 @@ class MainWP_Backup {
         $this->zipArchiveSizeCount = 0;
         $this->zipArchiveFileName  = $filepath;
         $this->zip_slice_progress  = false;
+        $this->zip_pending_entries = array();
         $zipRes                    = $this->zip->open( $filepath, \ZipArchive::CREATE );
         if ( $this->zip_append && ( true !== $zipRes || \ZipArchive::ER_OK !== $this->zip->status ) ) {
             // A killed close can leave a partial that has no usable resume point.
@@ -2097,7 +2123,9 @@ class MainWP_Backup {
 
         $this->heartbeat();
         if ( $this->zip instanceof \ZipArchive ) {
+            // One added entry per slice keeps create_full_backup()'s append loop convergent.
             if ( null !== $this->slice_deadline && $this->zip_slice_progress && time() >= $this->slice_deadline ) {
+                // A failed close must propagate before a budget yield can preserve this slice.
                 $this->close_zip_archive();
                 throw new MainWP_Backup_Budget_Exception( 'File archiving exceeded its time budget for this slice.', null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal control-flow message, code is a registry class constant.
             }
@@ -2105,7 +2133,12 @@ class MainWP_Backup {
             // Existing directories still need traversal to reach their unfinished children.
             if ( ! $this->zip_append || false === $this->zip->locateName( $entry ) ) {
                 if ( $this->zip->addEmptyDir( $entry ) ) {
-                    $this->zip_slice_progress = true;
+                    $this->zip_pending_entries[] = $entry;
+                    $this->zip_slice_progress    = true;
+                    if ( null !== $this->slice_deadline && time() >= $this->slice_deadline ) {
+                        $this->close_zip_archive();
+                        throw new MainWP_Backup_Budget_Exception( 'File archiving exceeded its time budget for this slice.', null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal control-flow message, code is a registry class constant.
+                    }
                 }
             }
         } else {
@@ -2116,7 +2149,8 @@ class MainWP_Backup {
             $this->add_file_to_zipp( rtrim( $path, '/' ) . '/.htaccess', rtrim( str_replace( ABSPATH, '', $path ), '/' ) . '/mainwp-htaccess' );
         }
 
-        $iterator = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $path ), \RecursiveIteratorIterator::SELF_FIRST );
+        // Explicit recursion handles descent; a recursive iterator would revisit each subtree.
+        $iterator = new \FilesystemIterator( $path );
 
         foreach ( $iterator as $path ) {
             $name = $path->__toString();
@@ -2125,11 +2159,6 @@ class MainWP_Backup {
             }
 
             $descent_chain = $ancestors;
-            // The iterator also descends regular directories outside our recursive calls.
-            $iterator_depth = $iterator->getDepth();
-            for ( $depth = 0; $depth <= $iterator_depth; ++$depth ) {
-                $descent_chain[] = $iterator->getSubIterator( $depth )->getPath();
-            }
             if ( ! static::is_safe_backup_path( $name, $this->allowed_backup_bases, $descent_chain ) ) {
                 static::record_skipped_path( $name );
                 continue;
@@ -2159,7 +2188,11 @@ class MainWP_Backup {
      * @return bool true|false.
      */
     public function add_file_from_string_to_zip( $file, $str ) {
-        return $this->zip->addFromString( $file, $str );
+        $added = $this->zip->addFromString( $file, $str );
+        if ( $added ) {
+            $this->zip_pending_entries[] = $file;
+        }
+        return $added;
     }
 
     /**
@@ -2225,7 +2258,9 @@ class MainWP_Backup {
 
         $this->heartbeat();
         if ( $this->zip instanceof \ZipArchive ) {
+            // One added entry per slice keeps create_full_backup()'s append loop convergent.
             if ( null !== $this->slice_deadline && $this->zip_slice_progress && time() >= $this->slice_deadline ) {
+                // A failed close must propagate before a budget yield can preserve this slice.
                 $this->close_zip_archive();
                 throw new MainWP_Backup_Budget_Exception( 'File archiving exceeded its time budget for this slice.', null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal control-flow message, code is a registry class constant.
             }
@@ -2254,7 +2289,12 @@ class MainWP_Backup {
         if ( false === $added ) {
             $this->record_failed_add( $path );
         } elseif ( $this->zip instanceof \ZipArchive ) {
-            $this->zip_slice_progress = true;
+            $this->zip_pending_entries[] = $zipEntryName;
+            $this->zip_slice_progress    = true;
+            if ( null !== $this->slice_deadline && time() >= $this->slice_deadline ) {
+                $this->close_zip_archive();
+                throw new MainWP_Backup_Budget_Exception( 'File archiving exceeded its time budget for this slice.', null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal control-flow message, code is a registry class constant.
+            }
         }
 
         if ( $this->gcCnt > 20 ) {

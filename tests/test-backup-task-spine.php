@@ -5,9 +5,11 @@
  * @package Mainwp_Child
  */
 
+use MainWP\Child\MainWP_Backup_Error;
 use MainWP\Child\MainWP_Child_Backup_Task;
 use MainWP\Child\MainWP_Child_Backup_Watchdog;
 use MainWP\Child\MainWP_Child_Stats;
+use MainWP\Child\MainWP_Exception;
 
 /**
  * Tests for the minimal child backup task spine.
@@ -139,16 +141,19 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 		$this->assertNull( $task->lease_expires_at );
 	}
 
-	public function test_unguarded_create_task_allows_active_task() {
+	public function test_unguarded_create_task_refuses_active_task() {
 		global $wpdb;
 		$spine = MainWP_Child_Backup_Task::instance();
 		$first = $spine->create_task( 'full' );
 		$this->assertNotFalse( $first );
-		$second = $spine->create_task( 'restore' );
-		$this->assertNotFalse( $second );
-		$this->assertNotSame( $first, $second );
-		$this->assertCount( 2, $spine->get_active_tasks() );
-		$this->assertSame( 2, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $spine->get_table_name() ) );
+		try {
+			$spine->create_task( 'restore' );
+			$this->fail( 'The unique active slot must refuse a second non-terminal task.' );
+		} catch ( MainWP_Exception $error ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $error->get_message_error_code() );
+		}
+		$this->assertCount( 1, $spine->get_active_tasks() );
+		$this->assertSame( 1, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $spine->get_table_name() ) );
 	}
 
 	/**

@@ -950,13 +950,13 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A dump name whose decoded form still holds a backtick is refused: the
-	 * doubled-backtick form is how a hostile archive would close the
-	 * identifier and append its own statement to the DROP the rollback runs.
+	 * An unpaired interior backtick or an unterminated identifier cannot name a snapshot.
 	 */
-	public function test_peek_table_name_rejects_backtick_in_decoded_name() {
-		$file = $this->write_dump( 'dbBackup-evil.sql.php', "DROP TABLE IF EXISTS `wp_a``; DROP TABLE wp_users; -- `;\n" );
-		$this->assertNull( $this->engine->peek_table_name( $file ) );
+	public function test_peek_table_name_rejects_malformed_header() {
+		foreach ( array( 'DROP TABLE IF EXISTS `wp_a`b`;', 'DROP TABLE IF EXISTS `wp_a``;' ) as $sql ) {
+			$file = $this->write_dump( 'dbBackup-malformed.sql.php', $sql . "\n" );
+			$this->assertNull( $this->engine->peek_table_name( $file ) );
+		}
 	}
 
 	/**
@@ -982,15 +982,16 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 	 * dump would create fresh; the live names use the target prefix.
 	 */
 	public function test_list_dump_live_tables_splits_existing_and_new() {
-		$this->engine->live_tables = array( 'wp_a', 'wp_options' );
+		$this->engine->live_tables = array( 'wp_a', 'wp_options', 'wp_a`b' );
 		$files                     = array(
 			$this->write_dump( 'dbBackup-wp_a.sql.php', "CREATE TABLE `wp_a` (id INT);\n" ),
+			$this->write_dump( 'dbBackup-wp_tick.sql.php', "CREATE TABLE `wp_a``b` (id INT);\n" ),
 			$this->write_dump( 'dbBackup-wp_new.sql.php', "CREATE TABLE `wp_new` (id INT);\n" ),
 		);
 
 		$result = $this->engine->list_dump_live_tables( $files, 'wp_', 'wp_', array() );
 
-		$this->assertSame( array( 'wp_a' ), $result['existing'] );
+		$this->assertSame( array( 'wp_a', 'wp_a`b' ), $result['existing'] );
 		$this->assertSame( array( 'new' ), $result['new_stems'] );
 	}
 
@@ -1276,6 +1277,65 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'FOREIGN KEY', $create[1] );
 
 		$this->assertEmpty( $wpdb->get_var( "SHOW TABLES LIKE '$orphan'" ) ); // phpcs:ignore WordPress.DB -- verification.
+	}
+
+	public function test_fk_snapshot_restores_backtick_table_after_replay_failure() {
+		global $wpdb;
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+		$table = 'fkt_a`b';
+		$quoted = '`fkt_a``b`';
+		$engine = new MainWP_Backup_Db_Restore_Engine();
+		try {
+			$this->assertNotFalse( $wpdb->query( 'DROP TABLE IF EXISTS ' . $quoted ) );
+			$this->assertNotFalse( $wpdb->query( 'CREATE TABLE ' . $quoted . ' (id INT NOT NULL, body LONGBLOB, PRIMARY KEY (id)) ENGINE=InnoDB' ) );
+			$this->assertSame( 1, $wpdb->query( "INSERT INTO $quoted (id, body) VALUES (1, UNHEX('006162ff6027'))" ) );
+			$this->assertNotFalse( $wpdb->query( 'COMMIT' ) );
+			$before = $wpdb->get_results( 'SELECT * FROM ' . $quoted . ' ORDER BY id', ARRAY_A );
+			$schema = $wpdb->get_row( 'SHOW CREATE TABLE ' . $quoted, ARRAY_N );
+			// The reads above opened an implicit transaction (autocommit is off);
+			// release its metadata lock before the engine's dedicated connection
+			// runs DDL on the same table, or it waits out MySQL's lock_wait_timeout.
+			$this->assertNotFalse( $wpdb->query( 'COMMIT' ) );
+			$file = $this->write_dump( 'dbBackup-src_tick.sql.php', "DROP TABLE IF EXISTS `src_a``b`;\nCREATE TABLE `src_a``b` (id INT NOT NULL, body LONGBLOB, PRIMARY KEY (id)) ENGINE=InnoDB;\nINSERT INTO `src_a``b` VALUES (9, 'replacement');\nINSERT INTO `src_a``b` (missing_column) VALUES (1);\n" );
+			$inventory = $engine->list_dump_live_tables( array( $file ), 'src_', 'fkt_' );
+			$this->assertSame( array( $table ), $inventory['existing'] );
+			$this->assertSame( array(), $inventory['new_stems'] );
+			$snap = array( 'cursor' => array() );
+			$guard = 0;
+			do {
+				$snap = $engine->snapshot_tables_slice( $snap['cursor'], array( 'tables' => $inventory['existing'], 'aside_prefix' => $this->dir . '/aside' ), microtime( true ) + 3600 );
+				$this->assertNull( $snap['error'] );
+			} while ( ! $snap['done'] && ++$guard < 50 );
+			$this->assertTrue( $snap['done'] );
+			$this->assertNotEmpty( $snap['files'] );
+			// The tier-2 dumper behind snapshot_tables_slice() reads schema and rows
+			// through the shared $wpdb handle (SHOW CREATE TABLE, SELECT ...), which
+			// left the same implicit transaction open; release it before replay_slice's
+			// dedicated connection drops/recreates the table.
+			$this->assertNotFalse( $wpdb->query( 'COMMIT' ) );
+			$result = $engine->replay_slice( array(), array( 'restore_id' => 'fktick', 'source_prefix' => 'src_', 'target_prefix' => 'fkt_', 'files' => array( $file ), 'fk_path' => true ), microtime( true ) + 3600 );
+			$this->assertFalse( $result['done'] );
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $result['error_code'] );
+			$this->assertSame( 'failed', $result['cursor']['tables']['a`b']['status'] );
+			$this->assertSame( 'replacement', $wpdb->get_var( 'SELECT body FROM ' . $quoted ) );
+			// Same lock-release as above: release the read's implicit transaction
+			// before the rollback loop's dedicated connection drops/renames the table.
+			$this->assertNotFalse( $wpdb->query( 'COMMIT' ) );
+			$rollback = array( 'cursor' => array() );
+			$guard = 0;
+			do {
+				$rollback = $engine->rollback_aside_slice( $rollback['cursor'], array( 'drop_tables' => $inventory['existing'], 'aside_files' => $snap['files'], 'target_prefix' => 'fkt_', 'restore_id' => 'fktick', 'skip_stems' => array() ), microtime( true ) + 3600 );
+				$this->assertNull( $rollback['error'] );
+			} while ( ! $rollback['done'] && ++$guard < 50 );
+			$this->assertTrue( $rollback['done'] );
+			$this->assertNotFalse( $wpdb->query( 'COMMIT' ) );
+			$this->assertSame( $before, $wpdb->get_results( 'SELECT * FROM ' . $quoted . ' ORDER BY id', ARRAY_A ) );
+			$this->assertSame( $schema, $wpdb->get_row( 'SHOW CREATE TABLE ' . $quoted, ARRAY_N ) );
+		} finally {
+			$wpdb->query( 'DROP TABLE IF EXISTS ' . $quoted );
+			$engine->exit_maintenance();
+		}
 	}
 
 	/**

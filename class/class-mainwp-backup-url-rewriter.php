@@ -49,6 +49,13 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
     private $failed_updates = 0;
 
     /**
+     * Deleted stale rename targets, by table, for pagination and count verification.
+     *
+     * @var array
+     */
+    private $renamed_over = array();
+
+    /**
      * The last write error seen during this run.
      *
      * @var string
@@ -60,6 +67,8 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
      *
      * @param array     $cursor   Resume cursor (empty array on first call).
      * @param array     $config   { tables: string[], pairs: array<int,array{from:string,to:string}>,
+     *                            table_pairs?: array<string,array>, prefix_pair?: array{from:string,to:string},
+     *                            prefix_anchored?: array<string,string[]>,
      *                            exclude: array<string,string[]>, preserve_options?: array<string,string[]>,
      *                            preserve_option_prefixes?: array<string,string[]>, rename_option_names?: array<string,array<string,string>>,
      *                            rename_columns?: array<string,array<string,array<string,string>>> }.
@@ -67,7 +76,8 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
      *                            They override pair exclusions; primary keys remain untouched.
      * @param float|int $deadline Absolute epoch the slice must yield by.
      *
-     * @return array { done: bool, cursor: array }
+     * @return array { done: bool, cursor: array, renamed_over: array<string,int>,
+     *                 failed_updates: int, last_error: string }
      */
     public function rewrite_slice( $cursor, $config, $deadline ) {
         $cursor = array_merge(
@@ -87,6 +97,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
                 return array(
                     'done'           => false,
                     'cursor'         => $cursor,
+                    'renamed_over'   => $this->renamed_over,
                     'failed_updates' => $this->failed_updates,
                     'last_error'     => $this->last_error,
                 );
@@ -97,11 +108,14 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
             $preserve_options         = isset( $config['preserve_options'][ $table ] ) ? $config['preserve_options'][ $table ] : array();
             $preserve_option_prefixes = isset( $config['preserve_option_prefixes'][ $table ] ) ? $config['preserve_option_prefixes'][ $table ] : array();
             $rename_columns           = isset( $config['rename_columns'][ $table ] ) ? $config['rename_columns'][ $table ] : array();
-            if ( isset( $config['rename_option_names'][ $table ] ) && 'options' === substr( $table, -7 ) && ! in_array( 'option_name', $exclude, true ) ) {
+            if ( isset( $config['rename_option_names'][ $table ] ) && 'options' === substr( $table, -7 ) ) {
                 $rename_columns['option_name'] = $config['rename_option_names'][ $table ];
             }
-            $consumed = $this->rewrite_page( $table, $cursor['offset'], $config['pairs'], $exclude, $preserve_options, $preserve_option_prefixes, $rename_columns );
-            $did_work = true;
+            $pairs           = $config['table_pairs'][ $table ] ?? $config['pairs'];
+            $prefix_anchored = $config['prefix_anchored'][ $table ] ?? array();
+            $prefix_pair     = $config['prefix_pair'] ?? array();
+            $consumed        = $this->rewrite_page( $table, $cursor['offset'], $pairs, $exclude, $preserve_options, $preserve_option_prefixes, $rename_columns, $prefix_anchored, $prefix_pair );
+            $did_work        = true;
 
             if ( $consumed < $this->page_size() ) {
                 ++$cursor['table_index'];
@@ -114,6 +128,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
         return array(
             'done'           => true,
             'cursor'         => $cursor,
+            'renamed_over'   => $this->renamed_over,
             'failed_updates' => $this->failed_updates,
             'last_error'     => $this->last_error,
         );
@@ -123,21 +138,25 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
      * Rewrite one page of one table.
      *
      * @param string $table            Table name.
-     * @param int    $offset           Row offset.
+     * @param int    $offset           Row offset, adjusted for deleted rename targets.
      * @param array  $pairs            Replacement pairs.
      * @param array  $exclude          Columns excluded from pair replacement.
      * @param array  $preserve_options Option names whose rows must remain unchanged.
      * @param array  $preserve_option_prefixes Option-name prefixes whose rows must remain unchanged.
      * @param array  $rename_columns Exact replacements by column for prefix-derived lookup keys.
+     * @param array  $prefix_anchored Columns whose leading prefix can change.
+     * @param array  $prefix_pair Source and target prefixes.
+     *
+     * @throws MainWP_Exception When the page boundary cannot be read after a deletion.
      *
      * @return int Rows fetched (less than a full page means the table
      *             is done).
      */
-    protected function rewrite_page( $table, $offset, $pairs, $exclude, $preserve_options = array(), $preserve_option_prefixes = array(), $rename_columns = array() ) {
+    protected function rewrite_page( $table, &$offset, $pairs, $exclude, $preserve_options = array(), $preserve_option_prefixes = array(), $rename_columns = array(), $prefix_anchored = array(), $prefix_pair = array() ) {
         global $wpdb;
 
         $pk_columns = $this->primary_key_columns( $table );
-        $order_sql  = empty( $pk_columns ) ? '' : ' ORDER BY `' . implode( '`, `', $pk_columns ) . '`';
+        $order_sql  = empty( $pk_columns ) ? '' : ' ORDER BY ' . implode( ', ', array_map( array( $this, 'quote_ident' ), $pk_columns ) );
 
         //phpcs:disable WordPress.DB -- direct paging reads over restored tables; names come from the restore config, not user input.
         $rows = $wpdb->get_results(
@@ -150,6 +169,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
             return 0;
         }
 
+        $renamed_before = $this->renamed_over[ $table ] ?? 0;
         foreach ( $rows as $row ) {
             if ( isset( $row['option_name'] ) && in_array( $row['option_name'], $preserve_options, true ) ) {
                 continue;
@@ -161,7 +181,24 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
                     }
                 }
             }
-            $this->rewrite_row( $table, $row, $pairs, $exclude, $pk_columns, $rename_columns );
+            $this->rewrite_row( $table, $row, $pairs, $exclude, $pk_columns, $rename_columns, $prefix_anchored, $prefix_pair );
+        }
+
+        if ( ! empty( $pk_columns ) && ( $this->renamed_over[ $table ] ?? 0 ) > $renamed_before ) {
+            // A deleted target can precede this page or sit in it; keep the next offset at its original end key.
+            $last         = end( $rows );
+            $columns      = implode( ', ', array_map( array( $this, 'quote_ident' ), $pk_columns ) );
+            $placeholders = implode( ', ', array_fill( 0, count( $pk_columns ), '%s' ) );
+            $values       = array();
+            foreach ( $pk_columns as $column ) {
+                $values[] = $last[ $column ];
+            }
+            $sql = 'SELECT COUNT(*) FROM ' . $this->quote_ident( $table ) . ' WHERE (' . $columns . ') <= (';
+            $end = $wpdb->get_var( $wpdb->prepare( str_replace( '%', '%%', $sql ) . $placeholders . ')', $values ) ); // phpcs:ignore WordPress.DB -- count the surviving rows through the page boundary.
+            if ( null === $end ) {
+                throw new MainWP_Exception( 'Could not resume rewriting after a role-key collision.' );
+            }
+            $offset = (int) $end - count( $rows );
         }
 
         return count( $rows );
@@ -176,8 +213,10 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
      * @param array  $exclude    Columns excluded from pair replacement.
      * @param array  $pk_columns Primary key column names.
      * @param array  $rename_columns Exact replacements by column for prefix-derived lookup keys.
+     * @param array  $prefix_anchored Columns whose leading prefix can change.
+     * @param array  $prefix_pair Source and target prefixes.
      */
-    protected function rewrite_row( $table, $row, $pairs, $exclude, $pk_columns, $rename_columns = array() ) {
+    protected function rewrite_row( $table, $row, $pairs, $exclude, $pk_columns, $rename_columns = array(), $prefix_anchored = array(), $prefix_pair = array() ) {
         global $wpdb;
 
         $updates = array();
@@ -191,6 +230,21 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
             // Lookup keys must only follow the prefix when WordPress derives their names from it.
             if ( isset( $rename_columns[ $column ][ $value ] ) ) {
                 $new = $rename_columns[ $column ][ $value ];
+                if ( $new !== $value && 'option_name' === $column && 'options' === substr( $table, -7 ) ) {
+                    // The source roles take precedence over a stale target left by an earlier restore.
+                    $deleted = $wpdb->delete( $table, array( 'option_name' => $new ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- remove only the exact rename target.
+                    if ( false === $deleted ) {
+                        ++$this->failed_updates;
+                        $this->last_error = 'A stale role-key rename target could not be removed.';
+                        return;
+                    }
+                    if ( $deleted > 0 ) {
+                        $this->renamed_over[ $table ] = ( $this->renamed_over[ $table ] ?? 0 ) + $deleted;
+                    }
+                }
+            } elseif ( in_array( $column, $prefix_anchored, true ) ) {
+                $from = $prefix_pair['from'] ?? '';
+                $new  = '' !== $from && 0 === strpos( $value, $from ) ? $prefix_pair['to'] . substr( $value, strlen( $from ) ) : $value;
             } elseif ( in_array( $column, $exclude, true ) || ( 'option_name' === $column && 'options' === substr( $table, -7 ) ) ) {
                 continue;
             } else {

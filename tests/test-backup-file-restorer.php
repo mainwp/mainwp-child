@@ -791,12 +791,25 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 	public function test_runner_temp_owner_liveness_uses_cached_active_tasks() {
 		global $wpdb;
 		$store = MainWP_Child_Backup_Task::instance();
-		$active = $store->create_task( 'restore_files' );
 		$completed = $store->create_task( 'restore' );
-		$this->assertIsString( $active );
 		$this->assertIsString( $completed );
+		$tasks = array( $completed );
 		try {
 			$this->assertSame( 1, $store->checkpoint( $completed, 0, array( 'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED ), false ) );
+			$leased = $store->create_task( 'restore_db' );
+			$tasks[] = $leased;
+			$this->assertIsString( $leased );
+			$this->assertSame( 1, $store->checkpoint( $leased, 0, array( 'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED ), false ) );
+			// Leases are written and compared against the database clock, which need not be UTC.
+			$this->assertSame( 1, $wpdb->query( $wpdb->prepare( 'UPDATE ' . $store->get_table_name() . ' SET lease_expires_at = DATE_ADD( NOW(), INTERVAL 1 HOUR ) WHERE task_id = %s', $leased ) ) );
+			$expired = $store->create_task( 'restore' );
+			$tasks[] = $expired;
+			$this->assertIsString( $expired );
+			$this->assertSame( 1, $store->checkpoint( $expired, 0, array( 'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED ), false ) );
+			$this->assertSame( 1, $wpdb->query( $wpdb->prepare( 'UPDATE ' . $store->get_table_name() . ' SET lease_expires_at = DATE_SUB( NOW(), INTERVAL 1 HOUR ) WHERE task_id = %s', $expired ) ) );
+			$active = $store->create_task( 'restore_files' );
+			$tasks[] = $active;
+			$this->assertIsString( $active );
 			$factory = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'file_restorer' );
 			$factory->setAccessible( true );
 			$restorer = $factory->invoke( MainWP_Child_Restore_Task_Runner::instance() );
@@ -808,12 +821,15 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			$this->assertTrue( $lookup( substr( hash( 'sha256', $active ), 0, 16 ) ) );
 			$this->assertSame( $queries + 1, $wpdb->num_queries, 'Read the active task set once.' );
 			$this->assertFalse( $lookup( substr( hash( 'sha256', $completed ), 0, 16 ) ) );
+			$this->assertTrue( $lookup( substr( hash( 'sha256', $leased ), 0, 16 ) ) );
+			$this->assertFalse( $lookup( substr( hash( 'sha256', $expired ), 0, 16 ) ) );
 			$this->assertFalse( $lookup( substr( hash( 'sha256', 'missing-restore-task' ), 0, 16 ) ) );
 			$this->assertTrue( $lookup( substr( hash( 'sha256', $active ), 0, 16 ) ) );
 			$this->assertSame( $queries + 1, $wpdb->num_queries, 'Further owners reuse this restorer\'s cached set.' );
 		} finally {
-			$wpdb->delete( $store->get_table_name(), array( 'task_id' => $active ) );
-			$wpdb->delete( $store->get_table_name(), array( 'task_id' => $completed ) );
+			foreach ( $tasks as $task_id ) {
+				$wpdb->delete( $store->get_table_name(), array( 'task_id' => $task_id ) );
+			}
 		}
 	}
 
@@ -1128,6 +1144,26 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		for ( $i = 0; $i < 9; $i++ ) {
 			$this->assertSame( "content-$i", file_get_contents( $this->extract_to . "/files/f$i.txt" ), "f$i" );
 		}
+	}
+
+	public function test_dump_member_record_survives_slices() {
+		$member = 'wp-content/dbBackup-task-original-wp_posts.sql.php';
+		$zip = $this->make_zip( 'dumps.zip', array(
+			$member => 'fresh dump',
+			'ordinary.txt' => 'site content',
+			'dbBackup.sql' => '',
+		) );
+		$result = $this->run_sliced( $this->config( array( $zip ) ) );
+		$this->assertTrue( $result['done'] );
+		$this->assertGreaterThan( 1, $result['slices'] );
+		$this->assertSame( array( $this->extract_to . '/' . $member ), $result['cursor']['dump_files'] );
+	}
+
+	public function test_failed_dump_member_is_not_recorded() {
+		$zip = $this->make_zip( 'bad-dump.zip', array( '../dbBackup-wp_posts.sql.php' => 'unsafe' ) );
+		$result = $this->run_all( $this->config( array( $zip ) ) );
+		$this->assertNotNull( $result['error'] );
+		$this->assertSame( array(), $result['cursor']['dump_files'] );
 	}
 
 	/**

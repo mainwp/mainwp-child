@@ -749,11 +749,9 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
      * @return string|null Bare stem or null for table-less statements.
      */
     private function statement_stem( $rewritten, $replacement ) {
-        if ( ! preg_match( '/`((?:[^`]|``)+)`/', $rewritten, $m ) ) {
-            return null;
-        }
-        $name = str_replace( '``', '`', $m[1] );
-        if ( 0 !== strpos( $name, $replacement ) ) {
+        $start = strpos( $rewritten, '`' );
+        $name  = false === $start ? null : $this->parse_table_name( substr( $rewritten, $start ) );
+        if ( null === $name || 0 !== strpos( $name, $replacement ) ) {
             return null;
         }
         return substr( $name, strlen( $replacement ) );
@@ -921,17 +919,24 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
         if ( false === $head ) {
             return null;
         }
-        if ( ! preg_match( '/(?:DROP\s+TABLE(?:\s+IF\s+EXISTS)?|CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?)\s+`((?:[^`]|``)+)`/i', $head, $m ) ) {
+        if ( ! preg_match( '/(?:DROP\s+TABLE(?:\s+IF\s+EXISTS)?|CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?)\s+(?=`)/i', $head, $m, PREG_OFFSET_CAPTURE ) ) {
             return null;
         }
-        $name = str_replace( '``', '`', $m[1] );
-        // Nothing this project's dumper writes leaves a backtick in the decoded
-        // name. One that survives came from a hostile archive trying to close
-        // the identifier and append its own SQL, so skip the file entirely.
-        if ( false !== strpos( $name, '`' ) ) {
+        return $this->parse_table_name( substr( $head, $m[0][1] + strlen( $m[0][0] ) ) );
+    }
+
+    /**
+     * Replay and rollback must agree on doubled backticks in dump identifiers.
+     *
+     * @param string $sql SQL starting at the table identifier.
+     *
+     * @return string|null Decoded name, or null for a malformed token.
+     */
+    private function parse_table_name( $sql ) {
+        if ( ! preg_match( '/^`((?:[^`]|``)++)`(?=\s|[;(,]|$)/', $sql, $matches ) ) {
             return null;
         }
-        return $name;
+        return str_replace( '``', '`', $matches[1] );
     }
 
     /**

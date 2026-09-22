@@ -24,6 +24,8 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 
 	public $verify_real_counts = false;
 
+	public $replay_real_sql = false;
+
 	/**
 	 * Error the replay should report, or null.
 	 *
@@ -113,6 +115,9 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 	public function replay_slice( $cursor, $config, $deadline, $unclean = false ) {
 		$this->calls[]            = 'replay_slice' . ( $unclean ? ':unclean' : '' ) . ( ! empty( $config['fk_path'] ) ? ':fk' : '' );
 		$this->last_replay_config = $config;
+		if ( $this->replay_real_sql ) {
+			return parent::replay_slice( $cursor, $config, $deadline, $unclean );
+		}
 		if ( $this->replay_throw ) {
 			throw new MainWP_Exception( 'replay exploded', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- test fixture message.
 		}
@@ -1341,9 +1346,18 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	public function test_cross_prefix_rewrite_preserves_live_and_dump_only_ledgers() {
 		global $wpdb;
 		$engine = $this->runner->fake_engine;
-		$engine->tables = array( 'options' => array( 'status' => 'ok', 'rows' => 4 ) );
+		$engine->tables = array( 'options' => array( 'status' => 'ok', 'rows' => 6 ) );
 		$engine->verify_real_counts = true;
-		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ), array( 'source_prefix' => 'wp_' ) );
+		$artifact = $this->make_db_artifact();
+		$zip = new ZipArchive();
+		$this->assertTrue( $zip->open( $this->dir . '/db.zip' ) );
+		$sql = $zip->getFromName( 'dbBackup-src_items.sql.php' );
+		$this->assertTrue( $zip->addFromString( 'dbBackup-src_items.sql.php', str_replace( '"site_url":"' . site_url() . '"', '"site_url":"https://old.example"', $sql ) ) );
+		$this->assertTrue( $zip->close() );
+		clearstatcache( true, $this->dir . '/db.zip' );
+		$artifact['size'] = filesize( $this->dir . '/db.zip' );
+		$artifact['sha256'] = hash_file( 'sha256', $this->dir . '/db.zip' );
+		$task_id = $this->make_task( 'db', array( $artifact ), array( 'source_prefix' => 'wp_' ) );
 		$initial = $this->spine->read_sub_state( $this->spine->get_task( $task_id ), $this->dir );
 		$tmp_table = $engine->tmp_prefix( $initial['params']['restore_id'] ) . 'options';
 		$expected = array();
@@ -1357,15 +1371,21 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 					$this->assertSame( 1, $wpdb->insert( 'live' === $origin ? 'rt_options' : $tmp_table, $row ) );
 				}
 			}
-			$this->assertSame( 1, $wpdb->insert( $tmp_table, array( 'option_name' => 'rewrite_control', 'option_value' => 'wp_control', 'autoload' => 'no' ) ) );
+			$this->assertSame( 1, $wpdb->insert( $tmp_table, array( 'option_name' => 'rewrite_control', 'option_value' => 'wp_control https://old.example/path', 'autoload' => 'no' ) ) );
+			foreach ( array( 'wp_user_roles' => 'source-roles', 'rt_user_roles' => 'stale-roles' ) as $name => $value ) {
+				$this->assertSame( 1, $wpdb->insert( $tmp_table, array( 'option_name' => $name, 'option_value' => $value, 'autoload' => 'no' ) ) );
+			}
 			$engine->on_database_live = function () use ( $wpdb, $tmp_table ) {
 				$this->assertNotFalse( $wpdb->query( 'DELETE FROM `rt_options`' ) );
-				$this->assertSame( 4, $wpdb->query( 'INSERT INTO `rt_options` SELECT * FROM `' . $tmp_table . '`' ) );
+				$this->assertSame( 6, $wpdb->query( 'INSERT INTO `rt_options` SELECT * FROM `' . $tmp_table . '`' ) );
 			};
 			$task = $this->drive( $task_id );
 			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
 			$this->assertSame( 'wp_', $engine->last_replay_config['source_prefix'] );
-			$this->assertSame( 'rt_control', $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM `rt_options` WHERE option_name = %s', 'rewrite_control' ) ) );
+			$this->assertSame( 'source-roles', $wpdb->get_var( "SELECT option_value FROM `rt_options` WHERE option_name = 'rt_user_roles'" ) );
+			$this->assertNull( $wpdb->get_var( "SELECT option_value FROM `rt_options` WHERE option_name = 'wp_user_roles'" ) );
+			$this->assertSame( array( 'rt_options' => 1 ), $this->spine->read_sub_state( $task, $this->dir )['verification']['url_rewrite_renamed_over'] );
+			$this->assertSame( 'wp_control ' . site_url() . '/path', $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM `rt_options` WHERE option_name = %s', 'rewrite_control' ) ) );
 			foreach ( $expected as $name => $row ) {
 				$this->assertSame( $row, $wpdb->get_row( $wpdb->prepare( 'SELECT option_name, option_value, autoload FROM `rt_options` WHERE option_name = %s', $name ), ARRAY_A ), $name );
 			}
@@ -1414,6 +1434,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 					array( 'from' => 'wp_', 'to' => 'rt_' ),
 					array( 'from' => 'https://old.example', 'to' => 'https://new.example' ),
 				),
+				'table_pairs'         => array( 'rt_options' => array( array( 'from' => 'https://old.example', 'to' => 'https://new.example' ) ) ),
 				'exclude'             => array(),
 				'rename_option_names' => array( 'rt_options' => array( 'wp_user_roles' => 'rt_user_roles' ) ),
 			),
@@ -1425,7 +1446,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertNull( $wpdb->get_var( "SELECT option_value FROM `rt_options` WHERE option_name = 'wp_user_roles'" ) );
 		$this->assertSame( $roles, $wpdb->get_var( "SELECT option_value FROM `rt_options` WHERE option_name = 'rt_user_roles'" ) );
 		foreach ( $names as $name ) {
-			$this->assertSame( 'rt_value https://new.example/path', $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM `rt_options` WHERE option_name = %s', $name ) ), $name );
+			$this->assertSame( 'wp_value https://new.example/path', $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM `rt_options` WHERE option_name = %s', $name ) ), $name );
 		}
 	}
 
@@ -1497,7 +1518,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$table = 'rt_' . $stem;
 		$this->identity_fixture_tables[] = $table;
 		$this->assertNotFalse( $wpdb->query( 'CREATE TABLE `' . $table . '` (meta_id BIGINT NOT NULL AUTO_INCREMENT, meta_key VARCHAR(255), meta_value LONGTEXT, PRIMARY KEY (meta_id))' ) );
-		$keys = array( '_wp_attached_file', '_wp_attachment_metadata', '_wp_page_template', '_wp_old_slug', '_menu_item_type', 'plugin_wp_key', 'wp_capabilities_extra' );
+		$keys = array( '_wp_attached_file', '_wp_attachment_metadata', '_wp_page_template', '_wp_old_slug', '_menu_item_type', 'plugin_wp_key', 'wp_capabilities_extra', 'wp_user-settings' );
 		foreach ( array( '', '2_', '10_' ) as $blog_suffix ) {
 			foreach ( array( 'capabilities', 'user_level', 'persisted_preferences' ) as $key ) {
 				$keys[] = $source_prefix . $blog_suffix . $key;
@@ -1538,15 +1559,46 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$expected_keys = $keys;
 		if ( 'usermeta' === substr( $stem, -8 ) && 'wp_' === $source_prefix ) {
 			foreach ( $expected_keys as &$key ) {
-				if ( preg_match( '/^wp_(?:2_|10_)?(?:capabilities|user_level|persisted_preferences)$/', $key ) ) {
+				if ( 0 === strpos( $key, 'wp_' ) ) {
 					$key = 'rt_' . substr( $key, 3 );
 				}
 			}
 			unset( $key );
 		}
 		$this->assertSame( $expected_keys, $wpdb->get_col( 'SELECT meta_key FROM `' . $table . '` ORDER BY meta_id' ) );
-		$expected_value = serialize( array( 'url' => site_url() . '/' . ( 'wp_' === $source_prefix ? 'rt_path' : 'wp_path' ) ) );
+		$expected_value = serialize( array( 'url' => site_url() . '/wp_path' ) );
 		$this->assertSame( array_fill( 0, count( $keys ), $expected_value ), $wpdb->get_col( 'SELECT meta_value FROM `' . $table . '` ORDER BY meta_id' ) );
+	}
+
+	public function test_restore_runner_preserves_attachment_filename_and_rewrites_url() {
+		global $wpdb;
+		$table = 'rt_postmeta';
+		$this->identity_fixture_tables[] = $table;
+		$this->assertNotFalse( $wpdb->query( 'CREATE TABLE `' . $table . '` (meta_id BIGINT NOT NULL AUTO_INCREMENT, meta_key VARCHAR(255), meta_value LONGTEXT, PRIMARY KEY (meta_id))' ) );
+		$value = array( 'file' => 'my_wp_logo.png', 'url' => 'https://old.example/my_wp_logo.png' );
+		$this->assertSame( 1, $wpdb->insert( $table, array( 'meta_key' => '_wp_attachment_metadata', 'meta_value' => serialize( $value ) ) ) );
+		$runner = new Recording_Rewriter_Restore_Task_Runner();
+		$runner->test_backup_dir = $this->dir;
+		$runner->test_site_root = $this->dir;
+		$runner->fake_engine = new Fake_Restore_Engine();
+		$sub_state = array(
+			'params' => array( 'restore_id' => 'r1' ),
+			'db_replay' => array(
+				'source_prefix' => 'wp_',
+				'banner_info' => array( 'site_url' => 'https://old.example' ),
+				'cursor' => array( 'tables' => array( 'postmeta' => array( 'status' => 'ok' ) ) ),
+			),
+			'receiving' => array(),
+		);
+		$method = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'run_rewriting_urls' );
+		$method->setAccessible( true );
+		$method->invoke( $runner, $this->spine->get_task( $this->make_task( 'db', array( $this->make_db_artifact() ), array( 'source_prefix' => 'wp_' ) ) ), 1, $sub_state, microtime( true ) + 10, $this->dir );
+		$rewriter = new \MainWP\Child\MainWP_Backup_Url_Rewriter();
+		$outcome = $rewriter->rewrite_slice( array(), $runner->last_rewrite_config, microtime( true ) + 10 );
+		$this->assertTrue( $outcome['done'] );
+		$this->assertSame( 0, $outcome['failed_updates'] );
+		$value['url'] = site_url() . '/my_wp_logo.png';
+		$this->assertSame( serialize( $value ), $wpdb->get_var( "SELECT meta_value FROM `$table` WHERE meta_key = '_wp_attachment_metadata'" ) );
 	}
 
 	public static function meta_prefix_cases() {
@@ -3697,6 +3749,118 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $this->site . '/dbBackup-old.sql.php' );
 		$this->assertFileDoesNotExist( $this->site . '/dbBackup.sql' );
 		$this->assertFileDoesNotExist( $this->site . '/wp-content/dbBackup-options.sql.php' );
+	}
+
+	public function test_dump_litter_is_swept_before_embedded_replay() {
+		global $wpdb;
+		$artifact = $this->make_full_archive_with_embedded_dump();
+		$zip = new ZipArchive();
+		$zip->open( $this->dir . '/full001.zip' );
+		$sql = str_replace( 'bn_', 'rt_', $zip->getFromName( 'wp-content/dbBackup-bn_items.sql.php' ) );
+		$zip->deleteName( 'wp-content/dbBackup-bn_items.sql.php' );
+		$member = 'wp-content/dbBackup-task-original-rt_items.sql.php';
+		$zip->addFromString( $member, $sql );
+		$zip->close();
+		clearstatcache();
+		$artifact['size'] = filesize( $this->dir . '/full001.zip' );
+		$artifact['sha256'] = hash_file( 'sha256', $this->dir . '/full001.zip' );
+		mkdir( $this->site . '/wp-content', 0777, true );
+		$stale = $this->site . '/wp-content/dbBackup-wp_posts.sql.php';
+		file_put_contents( $stale, str_replace( '(1),(2)', '(99)', $sql ) );
+
+		$this->runner = new class extends Testable_Restore_Task_Runner {
+			public $pause_before_replay = true;
+
+			protected function run_replaying_db( $task, $version, $sub_state, $deadline, $backup_dir ) {
+				if ( $this->pause_before_replay ) {
+					$this->pause_before_replay = false;
+					return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+				}
+				return parent::run_replaying_db( $task, $version, $sub_state, $deadline, $backup_dir );
+			}
+		};
+		$this->runner->test_backup_dir = $this->dir;
+		$this->runner->test_site_root = $this->site;
+
+		// Use the real replay parser on the test connection so its temporary tables remain visible.
+		$this->runner->fake_engine = new class extends Fake_Restore_Engine {
+			protected function connect() {
+				global $wpdb;
+				return $wpdb->dbh;
+			}
+			protected function close_connection( $conn ) {
+				// The WordPress test harness owns this connection.
+			}
+			protected function run_statement( $conn, $sql ) {
+				global $wpdb;
+				$result = $wpdb->query( $sql );
+				return false === $result ? $wpdb->last_error : (int) $result;
+			}
+		};
+		$this->runner->fake_engine->replay_real_sql = true;
+		$this->runner->fake_engine->verify_real_counts = true;
+		$task_id = $this->make_task( 'full', array( $artifact ), array( 'source_prefix' => 'rt_', 'has_foreign_keys' => true ) );
+		$task = $this->spine->get_task( $task_id );
+		for ( $i = 0; $i < 20; ++$i ) {
+			$task = $this->runner->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
+			$state = $this->spine->read_sub_state( $task, $this->dir );
+			if ( isset( $state['file_restore'] ) ) {
+				break;
+			}
+		}
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $task->phase );
+		$this->assertTrue( $state['file_restore']['dump_litter_swept'] );
+		$this->assertFileDoesNotExist( $stale );
+		$this->assertFileExists( $this->site . '/' . $member );
+		$this->assertNull( $this->runner->fake_engine->last_replay_config );
+		$task = $this->drive( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$state = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( array( $this->site . '/' . $member ), $state['dump_files'] );
+		$this->assertSame( $state['dump_files'], $this->runner->fake_engine->last_replay_config['files'] );
+		$this->assertSame( array( '1', '2' ), $wpdb->get_col( 'SELECT id FROM rt_items ORDER BY id' ) );
+		$this->assertSame( array( 'items' => 2 ), $this->runner->fake_engine->last_verify_expected );
+		$this->assertFileDoesNotExist( $this->site . '/' . $member );
+	}
+
+	public function test_find_embedded_dump_files_prefers_extraction_record() {
+		mkdir( $this->site . '/wp-content', 0777, true );
+		$fresh = $this->site . '/wp-content/dbBackup-task-original-wp_posts.sql.php';
+		$stale = $this->site . '/wp-content/dbBackup-wp_posts.sql.php';
+		file_put_contents( $fresh, 'fresh' );
+		file_put_contents( $stale, 'stale' );
+		$method = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'find_embedded_dump_files' );
+		$method->setAccessible( true );
+		$this->assertSame( array( $fresh ), $method->invoke( $this->runner, array( 'dump_files' => array( $fresh ) ) ) );
+		$this->assertSame( array(), $method->invoke( $this->runner, array( 'dump_files' => array() ) ) );
+		$this->assertEqualsCanonicalizing( array( $fresh, $stale ), $method->invoke( $this->runner, array() ) );
+	}
+
+	/**
+	 * A failed litter deletion must stop extraction before stale SQL can be replayed.
+	 */
+	public function test_undeletable_dump_litter_fails_before_extraction() {
+		mkdir( $this->site . '/wp-content', 0777, true );
+		$stale = $this->site . '/wp-content/dbBackup-wp_posts.sql.php';
+		file_put_contents( $stale, 'stale' );
+		$prevent_delete = static function ( $file ) use ( $stale ) {
+			return $stale === $file ? '' : $file;
+		};
+		add_filter( 'wp_delete_file', $prevent_delete );
+		try {
+			$task_id = $this->make_task( 'full', array( $this->make_full_archive_with_embedded_dump() ) );
+			$task = $this->drive( $task_id );
+		} finally {
+			remove_filter( 'wp_delete_file', $prevent_delete );
+		}
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$payload = $this->spine->status_payload( $task );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $payload['error_code'] );
+		$this->assertStringContainsString( $stale, $payload['error'] );
+		$this->assertFileExists( $stale );
+		$this->assertFileDoesNotExist( $this->site . '/wp-content/uploads/restored.txt' );
+		$this->assertNull( $this->runner->fake_engine->last_replay_config );
 	}
 
 	/**

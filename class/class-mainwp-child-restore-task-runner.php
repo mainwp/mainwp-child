@@ -1504,6 +1504,16 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             'part_cursor' => array(),
         );
 
+        if ( ! isset( $sub_state['file_restore'] ) ) {
+            // Sweep before extraction so a failed restore's dumps cannot enter replay.
+            // The slice checkpoint persists the sweep; an interrupted first slice restarts extraction.
+            $this->cleanup_dump_litter( true );
+            $cursor['dump_litter_swept']         = true;
+            $sub_state['dump_files']             = array();
+            $cursor['part_cursor']['dump_files'] = array();
+            $sub_state['file_restore']           = $cursor;
+        }
+
         $restorer = $this->file_restorer();
         $op_count = count( $ops );
 
@@ -1544,6 +1554,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 ),
                 $deadline
             );
+            if ( isset( $outcome['cursor']['dump_files'] ) ) {
+                $sub_state['dump_files'] = $outcome['cursor']['dump_files'];
+            }
             if ( $checkpoint_abandoned ) {
                 return $this->slice_result( $version, true, true );
             }
@@ -2010,7 +2023,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @return array Slice result.
      */
     protected function run_rewriting_urls( $task, $version, $sub_state, $deadline, $backup_dir ) {
-        $pairs = $this->url_pairs( $sub_state );
+        $url_pairs   = $this->url_pairs( $sub_state );
+        $prefix_pair = $this->prefix_pair( $sub_state );
+        $pairs       = $url_pairs;
+        if ( ! empty( $prefix_pair ) ) {
+            $pairs[] = $prefix_pair;
+        }
         if ( empty( $pairs ) ) {
             return $this->advance_or_merge_woo( $task, $version, $sub_state, $backup_dir );
         }
@@ -2032,28 +2050,18 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
         }
 
-        $exclude        = $this->guid_exclusions( $this->loaded_stems( $sub_state ), $target_prefix );
-        $rename_columns = array();
-        $blog_suffixes  = array( '' );
+        $exclude         = $this->guid_exclusions( $this->loaded_stems( $sub_state ), $target_prefix );
+        $table_pairs     = array();
+        $prefix_anchored = array();
         foreach ( $this->loaded_stems( $sub_state ) as $stem ) {
-            if ( preg_match( '/^(\d+)_/', (string) $stem, $matches ) ) {
-                $blog_suffixes[] = $matches[1] . '_';
+            if ( 'options' === substr( $stem, -7 ) || 'meta' === substr( $stem, -4 ) ) {
+                $table_pairs[ $target_prefix . $stem ] = $url_pairs;
             }
-        }
-        foreach ( $this->loaded_stems( $sub_state ) as $stem ) {
             if ( 'meta' === substr( $stem, -4 ) ) {
                 $exclude[ $target_prefix . $stem ] = array( 'meta_key' );
             }
-            if ( '' !== $source_prefix && $source_prefix !== $target_prefix && ( 'usermeta' === $stem || preg_match( '/^\d+_usermeta$/', (string) $stem ) ) ) {
-                // A network keeps one shared usermeta table, so every blog's user keys
-                // arrive in this one table carrying that blog's own prefix suffix - which
-                // is why the suffix loop below is what makes multisite work, not the stem.
-                // The numbered stem is defensive only; WordPress never creates one.
-                foreach ( array_unique( $blog_suffixes ) as $blog_suffix ) {
-                    foreach ( array( 'capabilities', 'user_level', 'persisted_preferences' ) as $key ) {
-                        $rename_columns[ $target_prefix . $stem ]['meta_key'][ $source_prefix . $blog_suffix . $key ] = $target_prefix . $blog_suffix . $key;
-                    }
-                }
+            if ( ! empty( $prefix_pair ) && ( 'usermeta' === $stem || preg_match( '/^\d+_usermeta$/', (string) $stem ) ) ) {
+                $prefix_anchored[ $target_prefix . $stem ] = array( 'meta_key' );
             }
         }
 
@@ -2065,19 +2073,21 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 'pairs'                    => $pairs,
                 'exclude'                  => $exclude,
                 'rename_option_names'      => $rename_option_names,
-                'rename_columns'           => $rename_columns,
+                'table_pairs'              => $table_pairs,
+                'prefix_pair'              => $prefix_pair,
+                'prefix_anchored'          => $prefix_anchored,
                 'preserve_options'         => array( $target_prefix . 'options' => self::IDENTITY_OPTIONS ),
-                // A prefix pair replaces its substring inside option_name too, and `wp_` sits inside
-                // every `mainwp_child_*` ledger name, so an exact-name list is not enough here. It
-                // could not cover the dump-only ledger rows in any case: they are not in the capture.
-                // Every other unprotected option is still rewritten on a cross-prefix restore, which
-                // predates the preservation feature and is tracked separately.
+                // Dump-only ledger rows also need protection from URL replacement.
                 'preserve_option_prefixes' => array( $target_prefix . 'options' => self::IDENTITY_PREFIXES ),
             ),
             $deadline
         );
 
         $sub_state['url_rewrite'] = $outcome['cursor'];
+        foreach ( $outcome['renamed_over'] ?? array() as $table => $count ) {
+            $prior = $sub_state['url_rewrite_renamed_over'][ $table ] ?? 0;
+            $sub_state['url_rewrite_renamed_over'][ $table ] = $prior + $count;
+        }
         if ( ! empty( $outcome['failed_updates'] ) ) {
             // A failed write leaves that row's URLs un-rewritten. The
             // restored data is intact, so this is not fatal, but it must
@@ -2282,13 +2292,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $suppress = $wpdb->suppress_errors( true );
         try {
             $names = implode( ', ', array_fill( 0, count( self::IDENTITY_OPTIONS ), '%s' ) );
-            $rows  = $wpdb->get_results( $wpdb->prepare( 'SELECT option_name, option_value, autoload FROM `' . $table . '` WHERE option_name IN (' . $names . ')', self::IDENTITY_OPTIONS ), ARRAY_A ); // phpcs:ignore WordPress.DB -- raw identity read from the target table.
+            $rows  = $wpdb->get_results( $wpdb->prepare( 'SELECT option_name, option_value, autoload FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name IN (' . $names . ')', self::IDENTITY_OPTIONS ), ARRAY_A ); // phpcs:ignore WordPress.DB -- raw identity read from the target table.
             if ( '' !== $wpdb->last_error || ! is_array( $rows ) ) {
                 throw new MainWP_Exception( 'Could not capture the live Child connection identity.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
             }
             foreach ( self::IDENTITY_PREFIXES as $prefix ) {
                 // The dump supplies older ledger rows; keep the newest live additions without bloating every checkpoint.
-                $ledger = $wpdb->get_results( $wpdb->prepare( 'SELECT option_name, option_value, autoload FROM `' . $table . '` WHERE option_name LIKE %s ORDER BY option_id DESC LIMIT %d', $wpdb->esc_like( $prefix ) . '%', self::IDENTITY_LEDGER_CAPTURE_LIMIT ), ARRAY_A ); // phpcs:ignore WordPress.DB -- raw replay ledger capture.
+                $ledger = $wpdb->get_results( $wpdb->prepare( 'SELECT option_name, option_value, autoload FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name LIKE %s ORDER BY option_id DESC LIMIT %d', $wpdb->esc_like( $prefix ) . '%', self::IDENTITY_LEDGER_CAPTURE_LIMIT ), ARRAY_A ); // phpcs:ignore WordPress.DB -- raw replay ledger capture.
                 if ( '' !== $wpdb->last_error || ! is_array( $ledger ) ) {
                     throw new MainWP_Exception( 'Could not capture the live Child connection identity.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
                 }
@@ -2320,7 +2330,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $where .= ' OR option_name LIKE %s';
             $args[] = $wpdb->esc_like( $prefix ) . '%';
         }
-        $count = $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM `' . $table . '` WHERE ' . $where, $args ) ); // phpcs:ignore WordPress.DB -- identity scope includes all dump-only ledger rows.
+        $count = $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . self::prepare_table_ident( $table ) . ' WHERE ' . $where, $args ) ); // phpcs:ignore WordPress.DB -- identity scope includes all dump-only ledger rows.
         if ( '' !== $wpdb->last_error || null === $count ) {
             throw new MainWP_Exception( 'Could not read the restored Child connection identity.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
         }
@@ -2371,17 +2381,17 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                     }
                     foreach ( self::IDENTITY_OPTIONS as $name ) {
                         if ( ! isset( $saved[ $name ] ) ) {
-                            $result = $wpdb->query( $wpdb->prepare( 'DELETE FROM `' . $table . '` WHERE option_name = %s', $name ) ); // phpcs:ignore WordPress.DB -- remove a dump-only identity row.
+                            $result = $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name = %s', $name ) ); // phpcs:ignore WordPress.DB -- remove a dump-only identity row.
                         } else {
-                            $exists = $wpdb->get_var( $wpdb->prepare( 'SELECT option_name FROM `' . $table . '` WHERE option_name = %s', $name ) ); // phpcs:ignore WordPress.DB -- cache cannot establish restored row presence.
+                            $exists = $wpdb->get_var( $wpdb->prepare( 'SELECT option_name FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name = %s', $name ) ); // phpcs:ignore WordPress.DB -- cache cannot establish restored row presence.
                             if ( '' !== $wpdb->last_error ) {
                                 throw new MainWP_Exception( 'Could not read the restored Child connection identity.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
                             }
                             $row = $saved[ $name ];
                             if ( null === $exists ) {
-                                $result = $wpdb->query( $wpdb->prepare( 'INSERT INTO `' . $table . '` (option_name, option_value, autoload) VALUES (%s, %s, %s)', $name, $row['option_value'], $row['autoload'] ) ); // phpcs:ignore WordPress.DB -- preserve the raw stored row.
+                                $result = $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $this->prepare_table_ident( $table ) . ' (option_name, option_value, autoload) VALUES (%s, %s, %s)', $name, $row['option_value'], $row['autoload'] ) ); // phpcs:ignore WordPress.DB -- preserve the raw stored row.
                             } else {
-                                $result = $wpdb->query( $wpdb->prepare( 'UPDATE `' . $table . '` SET option_value = %s, autoload = %s WHERE option_name = %s', $row['option_value'], $row['autoload'], $name ) ); // phpcs:ignore WordPress.DB -- preserve raw value and autoload, including unchanged rows.
+                                $result = $wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->prepare_table_ident( $table ) . ' SET option_value = %s, autoload = %s WHERE option_name = %s', $row['option_value'], $row['autoload'], $name ) ); // phpcs:ignore WordPress.DB -- preserve raw value and autoload, including unchanged rows.
                             }
                         }
                         if ( false === $result ) {
@@ -2400,11 +2410,11 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                             $values = implode( ', ', array_fill( 0, count( $chunk ), '(%s, %s, %s)' ) );
                             // The dump may lack a unique key; replace only captured names so dump-only ledger rows survive.
                             $names  = implode( ', ', array_fill( 0, count( $chunk ), '%s' ) );
-                            $result = $wpdb->query( $wpdb->prepare( 'DELETE FROM `' . $table . '` WHERE option_name IN (' . $names . ')', array_keys( $chunk ) ) ); // phpcs:ignore WordPress.DB -- bounded deletion includes only rows written straight back.
+                            $result = $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name IN (' . $names . ')', array_keys( $chunk ) ) ); // phpcs:ignore WordPress.DB -- bounded deletion includes only rows written straight back.
                             if ( false === $result ) {
                                 break;
                             }
-                            $result = $wpdb->query( $wpdb->prepare( 'INSERT INTO `' . $table . '` (option_name, option_value, autoload) VALUES ' . $values, $args ) ); // phpcs:ignore WordPress.DB -- bounded replay ledger inserts preserve raw captured rows.
+                            $result = $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $this->prepare_table_ident( $table ) . ' (option_name, option_value, autoload) VALUES ' . $values, $args ) ); // phpcs:ignore WordPress.DB -- bounded replay ledger inserts preserve raw captured rows.
                             if ( false === $result ) {
                                 break;
                             }
@@ -2449,7 +2459,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     protected function woo_live_option( $name ) {
         global $wpdb;
         $table = $this->target_prefix() . 'options';
-        $value = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM `' . $table . '` WHERE option_name = %s', $name ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- live read by prefix, cache bypassed.
+        $value = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name = %s', $name ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- live read by prefix, cache bypassed.
         return null === $value ? '' : (string) $value;
     }
 
@@ -2666,7 +2676,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- raw writes by live prefix, post-swap, cache bypassed.
         foreach ( (array) ( isset( $payload['users'] ) ? $payload['users'] : array() ) as $u ) {
             $id     = (int) $u['ID'];
-            $exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM `' . $users_tb . '` WHERE ID = %d', $id ) );
+            $exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $this->prepare_table_ident( $users_tb ) . ' WHERE ID = %d', $id ) );
             if ( $exists > 0 ) {
                 ++$summary['customers_present'];
                 continue;
@@ -2676,7 +2686,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             // INSERT IGNORE is the belt-and-braces against a reused id.
             $wpdb->query(
                 $wpdb->prepare(
-                    'INSERT IGNORE INTO `' . $users_tb . '` (ID, user_login, user_pass, user_nicename, user_email, user_url, user_registered, user_activation_key, user_status, display_name)'
+                    'INSERT IGNORE INTO ' . $this->prepare_table_ident( $users_tb ) . ' (ID, user_login, user_pass, user_nicename, user_email, user_url, user_registered, user_activation_key, user_status, display_name)'
                     . ' VALUES (%d, %s, %s, %s, %s, %s, %s, %s, %d, %s)',
                     $id,
                     (string) $u['user_login'],
@@ -2696,7 +2706,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         foreach ( (array) ( isset( $payload['usermeta'] ) ? $payload['usermeta'] : array() ) as $m ) {
             $wpdb->query(
                 $wpdb->prepare(
-                    'INSERT IGNORE INTO `' . $meta_tb . '` (umeta_id, user_id, meta_key, meta_value) VALUES (%d, %d, %s, %s)',
+                    'INSERT IGNORE INTO ' . $this->prepare_table_ident( $meta_tb ) . ' (umeta_id, user_id, meta_key, meta_value) VALUES (%d, %d, %s, %s)',
                     (int) $m['umeta_id'],
                     (int) $m['user_id'],
                     (string) $m['meta_key'],
@@ -2710,7 +2720,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $has_lookup = $this->table_exists( $lookup );
         foreach ( (array) ( isset( $payload['stock'] ) ? $payload['stock'] : array() ) as $s ) {
             $pid    = (int) $s['product_id'];
-            $exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM `' . $postmeta . '` WHERE post_id = %d', $pid ) );
+            $exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $this->prepare_table_ident( $postmeta ) . ' WHERE post_id = %d', $pid ) );
             if ( 0 === $exists ) {
                 ++$summary['products_missing'];
                 continue;
@@ -2722,15 +2732,15 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 if ( ! isset( $s[ $key ] ) ) {
                     continue;
                 }
-                $has_meta = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM `' . $postmeta . '` WHERE post_id = %d AND meta_key = %s', $pid, $key ) );
+                $has_meta = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $this->prepare_table_ident( $postmeta ) . ' WHERE post_id = %d AND meta_key = %s', $pid, $key ) );
                 if ( $has_meta > 0 ) {
-                    $wpdb->query( $wpdb->prepare( 'UPDATE `' . $postmeta . '` SET meta_value = %s WHERE post_id = %d AND meta_key = %s', (string) $s[ $key ], $pid, $key ) );
+                    $wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->prepare_table_ident( $postmeta ) . ' SET meta_value = %s WHERE post_id = %d AND meta_key = %s', (string) $s[ $key ], $pid, $key ) );
                 } else {
-                    $wpdb->query( $wpdb->prepare( 'INSERT INTO `' . $postmeta . '` (post_id, meta_key, meta_value) VALUES (%d, %s, %s)', $pid, $key, (string) $s[ $key ] ) );
+                    $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $this->prepare_table_ident( $postmeta ) . ' (post_id, meta_key, meta_value) VALUES (%d, %s, %s)', $pid, $key, (string) $s[ $key ] ) );
                 }
             }
             if ( $has_lookup && isset( $s['lookup_status'] ) ) {
-                $wpdb->query( $wpdb->prepare( 'UPDATE `' . $lookup . '` SET stock_quantity = %s, stock_status = %s WHERE product_id = %d', isset( $s['lookup_quantity'] ) ? (string) $s['lookup_quantity'] : '', (string) $s['lookup_status'], $pid ) );
+                $wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->prepare_table_ident( $lookup ) . ' SET stock_quantity = %s, stock_status = %s WHERE product_id = %d', isset( $s['lookup_quantity'] ) ? (string) $s['lookup_quantity'] : '', (string) $s['lookup_status'], $pid ) );
             }
             ++$summary['stock_applied'];
         }
@@ -2799,6 +2809,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $expected['options'] += (int) $sub_state['identity_preserve_delta'];
         }
 
+        foreach ( $sub_state['url_rewrite_renamed_over'] ?? array() as $table => $count ) {
+            $stem = substr( $table, strlen( $target_prefix ) );
+            if ( isset( $expected[ $stem ] ) ) {
+                $expected[ $stem ] -= (int) $count;
+            }
+        }
+
         // A preserve restore re-inserts the kept customers into users and
         // usermeta after the swap, so those tables hold more rows than the
         // backup by design. Drop them from the strict row-count check; their
@@ -2864,6 +2881,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             'sentinel_ok'                => true,
             'loopback_status'            => $this->loopback_status(),
             'sub_site_probes'            => $this->sub_site_probes(),
+            'url_rewrite_renamed_over'   => $sub_state['url_rewrite_renamed_over'] ?? array(),
             'url_rewrite_failed_updates' => isset( $sub_state['url_rewrite_failed_updates'] ) ? (int) $sub_state['url_rewrite_failed_updates'] : 0,
             'url_rewrite_error'          => isset( $sub_state['url_rewrite_error'] ) ? (string) $sub_state['url_rewrite_error'] : '',
         );
@@ -3009,7 +3027,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             // A plain full backup embeds its dump inside the site archive;
             // the file phase already extracted those .sql.php files. Replay
             // them in place and remove them once the replay is done.
-            $embedded = $this->find_embedded_dump_files();
+            $embedded = $this->find_embedded_dump_files( $sub_state );
             if ( empty( $embedded ) ) {
                 throw new MainWP_Exception( 'No database artifact was provided for this restore.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
             }
@@ -3120,8 +3138,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 
     /**
      * Remove database dump litter from the live site.
+     *
+     * @param bool $require_deleted Fail before extraction if litter survives deletion.
+     *
+     * @throws MainWP_Exception When pre-extraction litter cannot be removed.
      */
-    protected function cleanup_dump_litter() {
+    protected function cleanup_dump_litter( $require_deleted = false ) {
         $roots = array(
             rtrim( $this->site_root(), '/' ),
             rtrim( $this->site_root(), '/' ) . '/wp-content',
@@ -3130,6 +3152,10 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             foreach ( array_merge( (array) glob( $root . '/dbBackup*.sql.php' ), (array) glob( $root . '/dbBackup*.sql' ) ) as $litter ) {
                 if ( is_file( $litter ) ) {
                     wp_delete_file( $litter );
+                    clearstatcache( true, $litter );
+                    if ( $require_deleted && file_exists( $litter ) ) {
+                        throw new MainWP_Exception( esc_html( 'Could not remove stale database dump before extraction: ' . $litter ), null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+                    }
                 }
             }
         }
@@ -3141,14 +3167,24 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * The full backup places its per-table dumps under wp-content, and
      * some generations used the site root.
      *
+     * @param array $sub_state Restore cursor, including extracted dump paths when recorded.
+     *
      * @return string[] Dump file paths.
      */
-    protected function find_embedded_dump_files() {
+    protected function find_embedded_dump_files( $sub_state = array() ) {
         $candidates = array_merge(
             (array) glob( rtrim( $this->site_root(), '/' ) . '/dbBackup*.sql.php' ),
             (array) glob( rtrim( $this->site_root(), '/' ) . '/wp-content/dbBackup*.sql.php' )
         );
-        return array_values( array_filter( $candidates, 'is_file' ) );
+        $candidates = array_values( array_filter( $candidates, 'is_file' ) );
+        if ( isset( $sub_state['dump_files'] ) ) {
+            // An empty extraction record is authoritative too; only older cursors use the glob.
+            foreach ( array_diff( $candidates, $sub_state['dump_files'] ) as $ignored ) {
+                MainWP_Helper::log_debug( '[MainWP Backup] Ignoring database dump not recorded by extraction: ' . $ignored );
+            }
+            return $sub_state['dump_files'];
+        }
+        return $candidates;
     }
 
     /**
@@ -3187,7 +3223,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     }
 
     /**
-     * Build the URL (and prefix) replacement pairs from the dump banner.
+     * Build the URL replacement pairs from the dump banner.
      *
      * @param array $sub_state Cursor.
      *
@@ -3215,16 +3251,37 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
         }
 
+        return $pairs;
+    }
+
+    /**
+     * Keep prefix replacement separate so stored option and meta values can omit it.
+     *
+     * @param array $sub_state Cursor.
+     *
+     * @return array Prefix pair, or an empty array when unchanged.
+     */
+    private function prefix_pair( $sub_state ) {
         $source_prefix = isset( $sub_state['db_replay']['source_prefix'] ) ? (string) $sub_state['db_replay']['source_prefix'] : '';
         $target_prefix = $this->target_prefix();
         if ( '' !== $source_prefix && $source_prefix !== $target_prefix ) {
-            $pairs[] = array(
+            return array(
                 'from' => $source_prefix,
                 'to'   => $target_prefix,
             );
         }
+        return array();
+    }
 
-        return $pairs;
+    /**
+     * Escape identifiers before embedding them in a prepare() format string.
+     *
+     * @param string $table Table name.
+     *
+     * @return string Quoted identifier with literal percent signs.
+     */
+    private static function prepare_table_ident( $table ) {
+        return '`' . str_replace( array( '`', '%' ), array( '``', '%%' ), (string) $table ) . '`';
     }
 
     /**
@@ -3300,10 +3357,10 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $value = 'sentinel-' . $restore_id . '-' . time();
 
         //phpcs:disable WordPress.DB -- deliberate raw round trip against the just-swapped table, bypassing the object cache.
-        $wpdb->query( $wpdb->prepare( 'DELETE FROM `' . $table . '` WHERE option_name = %s', $key ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from the live prefix.
-        $inserted = $wpdb->query( $wpdb->prepare( 'INSERT INTO `' . $table . '` (option_name, option_value, autoload) VALUES (%s, %s, %s)', $key, $value, 'no' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from the live prefix.
-        $read     = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM `' . $table . '` WHERE option_name = %s', $key ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from the live prefix.
-        $wpdb->query( $wpdb->prepare( 'DELETE FROM `' . $table . '` WHERE option_name = %s', $key ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from the live prefix.
+        $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name = %s', $key ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from the live prefix.
+        $inserted = $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $this->prepare_table_ident( $table ) . ' (option_name, option_value, autoload) VALUES (%s, %s, %s)', $key, $value, 'no' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from the live prefix.
+        $read     = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name = %s', $key ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from the live prefix.
+        $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name = %s', $key ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from the live prefix.
         //phpcs:enable WordPress.DB
 
         return false !== $inserted && $read === $value;
@@ -3567,7 +3624,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                     $queried  = true;
                     $suppress = $wpdb->suppress_errors( true );
                     try {
-                        $tasks = MainWP_Child_Backup_Task::instance()->get_active_tasks();
+                        $tasks = MainWP_Child_Backup_Task::instance()->get_live_restore_tasks();
                         if ( '' === $wpdb->last_error ) {
                             $live_owners = array();
                             foreach ( $tasks as $task ) {

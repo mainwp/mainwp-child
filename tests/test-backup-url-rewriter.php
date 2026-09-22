@@ -191,6 +191,32 @@ class BackupUrlRewriterTest extends WP_UnitTestCase {
 		$this->assertNotNull( $this->fetch( 'plugin_wp_capabilities' ) );
 	}
 
+	public function test_role_key_rename_replaces_stale_target() {
+		global $wpdb;
+		$this->assertNotFalse( $wpdb->query( 'ALTER TABLE `' . $this->table . '` ADD option_name VARCHAR(191), ADD UNIQUE KEY (option_name)' ) );
+		foreach ( array( false, true ) as $stale_first ) {
+			$wpdb->query( 'DELETE FROM `' . $this->table . '`' );
+			$this->rewriter = new Testable_Url_Rewriter();
+			$roles = array( 'wp_user_roles' => 'source http://old.example', 'rt_user_roles' => 'stale' );
+			if ( $stale_first ) {
+				$roles = array_reverse( $roles, true );
+			}
+			foreach ( $roles as $name => $value ) {
+				$this->assertSame( 1, $wpdb->insert( $this->table, array( 'option_name' => $name, 'value' => $value ) ) );
+			}
+			$this->insert( 'after', 'http://old.example/after' );
+			$result = $this->run_all( $this->config( array(
+				'exclude' => array( $this->table => array( 'option_name' ) ),
+				'rename_columns' => array( $this->table => array( 'option_name' => array( 'wp_user_roles' => 'rt_user_roles' ) ) ),
+			) ) );
+			$this->assertTrue( $result['done'] );
+			$this->assertSame( 0, $result['failed_updates'] );
+			$this->assertSame( array( $this->table => 1 ), $result['renamed_over'] );
+			$this->assertSame( array( array( 'option_name' => 'rt_user_roles', 'value' => 'source https://new.example' ) ), $wpdb->get_results( 'SELECT option_name, value FROM `' . $this->table . '` WHERE option_name IS NOT NULL', ARRAY_A ) );
+			$this->assertSame( 'https://new.example/after', $this->fetch( 'after' )['value'] );
+		}
+	}
+
 	/**
 	 * Default config for the scratch table.
 	 *
@@ -309,6 +335,23 @@ class BackupUrlRewriterTest extends WP_UnitTestCase {
 		$this->assertSame( 'http://old.example/?p=1', $row['guid'] );
 	}
 
+	public function test_prefix_anchored_columns_override_exclusions() {
+		$this->insert( 'wp_user-settings', 'wp_value', 'wp_guid' );
+		$this->insert( 'plugin_wp_key', 'wp_value', 'wp_guid' );
+		$this->run_all( $this->config( array(
+			'pairs' => array( array( 'from' => 'wp_', 'to' => 'rt_' ) ),
+			'prefix_pair' => array( 'from' => 'wp_', 'to' => 'rt_' ),
+			'prefix_anchored' => array( $this->table => array( 'name' ), 'other_options' => array( 'guid' ) ),
+			'exclude' => array( $this->table => array( 'name' ) ),
+		) ) );
+		foreach ( array( 'rt_user-settings', 'plugin_wp_key' ) as $name ) {
+			$row = $this->fetch( $name );
+			$this->assertNotNull( $row );
+			$this->assertSame( 'rt_value', $row['value'] );
+			$this->assertSame( 'rt_guid', $row['guid'] );
+		}
+	}
+
 	/**
 	 * Multiple pairs apply in one pass (URL plus prefix rewrite).
 	 */
@@ -324,6 +367,27 @@ class BackupUrlRewriterTest extends WP_UnitTestCase {
 		$data = unserialize( $this->fetch( 'meta' )['value'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- verification.
 		$this->assertSame( 'dst_users', $data['k'] );
 		$this->assertSame( 'https://new.example', $data['u'] );
+	}
+
+	public function test_table_pairs_override_only_the_named_table() {
+		global $wpdb;
+		$other = 'urwt_other';
+		$this->assertNotFalse( $wpdb->query( 'CREATE TABLE `' . $other . '` LIKE `' . $this->table . '`' ) );
+		try {
+			$this->insert( 'meta', 'src_value http://old.example' );
+			$this->assertSame( 1, $wpdb->insert( $other, array( 'name' => 'meta', 'value' => 'src_value http://old.example' ) ) );
+			$config = $this->config();
+			$config['tables'][] = $other;
+			$config['table_pairs'] = array( $this->table => $config['pairs'] );
+			$config['pairs'][] = array( 'from' => 'src_', 'to' => 'dst_' );
+			$result = $this->run_all( $config );
+			$this->assertTrue( $result['done'] );
+			$this->assertSame( 0, $result['failed_updates'] );
+			$this->assertSame( 'src_value https://new.example', $this->fetch( 'meta' )['value'] );
+			$this->assertSame( 'dst_value https://new.example', $wpdb->get_var( 'SELECT value FROM `' . $other . '`' ) );
+		} finally {
+			$wpdb->query( 'DROP TABLE IF EXISTS `' . $other . '`' );
+		}
 	}
 
 	/**
