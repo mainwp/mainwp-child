@@ -260,6 +260,38 @@ class BackupUrlRewriterTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The boundary recount after a role-key deletion decides where the next
+	 * page starts. If it cannot be read the restore has to stop with a code
+	 * the Dashboard can classify, not with an empty one.
+	 */
+	public function test_boundary_recount_failure_carries_the_restore_error_code() {
+		global $wpdb;
+		$this->assertNotFalse( $wpdb->query( 'ALTER TABLE `' . $this->table . '` ADD option_name VARCHAR(191), ADD UNIQUE KEY (option_name)' ) );
+		foreach ( array( 'wp_user_roles' => 'source roles', 'rt_user_roles' => 'target roles' ) as $name => $value ) {
+			$this->assertSame( 1, $wpdb->insert( $this->table, array( 'option_name' => $name, 'value' => $value ) ) );
+		}
+
+		$break_recount = static function ( $query ) {
+			return false !== strpos( $query, ') <= (' ) ? 'SELECT NULL' : $query;
+		};
+		add_filter( 'query', $break_recount );
+		$thrown = null;
+		try {
+			$this->run_all( $this->config( array(
+				'exclude'        => array( $this->table => array( 'option_name' ) ),
+				'rename_columns' => array( $this->table => array( 'option_name' => array( 'wp_user_roles' => 'rt_user_roles' ) ) ),
+			) ) );
+		} catch ( MainWP_Exception $e ) {
+			$thrown = $e;
+		} finally {
+			remove_filter( 'query', $break_recount );
+		}
+
+		$this->assertNotNull( $thrown );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $thrown->get_message_error_code() );
+	}
+
+	/**
 	 * Default config for the scratch table.
 	 *
 	 * @param array $over Overrides.

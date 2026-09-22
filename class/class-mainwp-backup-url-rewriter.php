@@ -204,7 +204,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
             $sql = 'SELECT COUNT(*) FROM ' . $this->quote_ident( $table ) . ' WHERE (' . $columns . ') <= (';
             $end = $wpdb->get_var( $wpdb->prepare( str_replace( '%', '%%', $sql ) . $placeholders . ')', $values ) ); // phpcs:ignore WordPress.DB -- count the surviving rows through the page boundary.
             if ( null === $end ) {
-                throw new MainWP_Exception( 'Could not resume rewriting after a role-key collision.' );
+                throw new MainWP_Exception( 'Could not resume rewriting after a role-key collision.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- literal message, no interpolated value.
             }
             $offset = (int) $end - count( $rows );
         }
