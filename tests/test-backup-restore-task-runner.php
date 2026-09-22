@@ -1432,9 +1432,10 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	 *
 	 * @param string $source_prefix Dump table prefix.
 	 * @param array  $expected      Rename map the runner must build.
+	 * @param array  $stems         Loaded table stems.
 	 * @dataProvider role_prefix_cases
 	 */
-	public function test_restore_runner_renames_only_source_roles( $source_prefix, $expected ) {
+	public function test_restore_runner_renames_only_source_roles( $source_prefix, $expected, $stems = array( 'options' ) ) {
 		$runner = new Recording_Rewriter_Restore_Task_Runner();
 		$runner->test_backup_dir = $this->dir;
 		$runner->test_site_root  = $this->dir;
@@ -1447,10 +1448,10 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			'db_replay'  => array(
 				'source_prefix' => $source_prefix,
 				'banner_info'   => array( 'site_url' => 'https://old.example' ),
+				'cursor'        => array( 'tables' => array_fill_keys( $stems, array( 'status' => 'ok' ) ) ),
 			),
 			'receiving'  => array(),
 			'url_rewrite' => array(),
-			'loaded'     => array( 'options' ),
 		);
 
 		$method = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'run_rewriting_urls' );
@@ -1470,6 +1471,94 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		return array(
 			'cross prefix' => array( 'wp_', array( 'rt_options' => array( 'wp_user_roles' => 'rt_user_roles' ) ) ),
 			'same prefix'  => array( 'rt_', array() ),
+			'multisite'    => array(
+				'wp_',
+				array(
+					'rt_options'    => array( 'wp_user_roles' => 'rt_user_roles' ),
+					'rt_2_options'  => array( 'wp_2_user_roles' => 'rt_2_user_roles' ),
+					'rt_10_options' => array( 'wp_10_user_roles' => 'rt_10_user_roles' ),
+				),
+				array( 'options', '2_options', '10_options', 'plugin_options', '2_posts' ),
+			),
+		);
+	}
+
+	/**
+	 * Core meta keys are lookup names; only blog-derived user keys follow the prefix.
+	 *
+	 * @dataProvider meta_prefix_cases
+	 */
+	public function test_restore_runner_preserves_meta_keys_and_renames_user_keys( $stem, $source_prefix ) {
+		global $wpdb;
+		$table = 'rt_' . $stem;
+		$this->identity_fixture_tables[] = $table;
+		$this->assertNotFalse( $wpdb->query( 'CREATE TABLE `' . $table . '` (meta_id BIGINT NOT NULL AUTO_INCREMENT, meta_key VARCHAR(255), meta_value LONGTEXT, PRIMARY KEY (meta_id))' ) );
+		$keys = array( '_wp_attached_file', '_wp_attachment_metadata', '_wp_page_template', '_wp_old_slug', '_menu_item_type', 'plugin_wp_key', 'wp_capabilities_extra' );
+		foreach ( array( '', '2_', '10_' ) as $blog_suffix ) {
+			foreach ( array( 'capabilities', 'user_level', 'persisted_preferences' ) as $key ) {
+				$keys[] = $source_prefix . $blog_suffix . $key;
+			}
+		}
+		$value = serialize( array( 'url' => 'https://old.example/wp_path' ) );
+		foreach ( $keys as $key ) {
+			$this->assertSame( 1, $wpdb->insert( $table, array( 'meta_key' => $key, 'meta_value' => $value ) ) );
+		}
+		$runner = new Recording_Rewriter_Restore_Task_Runner();
+		$runner->test_backup_dir = $this->dir;
+		$runner->test_site_root  = $this->dir;
+		$runner->fake_engine     = new Fake_Restore_Engine();
+		$stems = array( 'options', '2_options', '10_options', $stem );
+		$sub_state = array(
+			'params'    => array( 'restore_id' => 'r1' ),
+			'db_replay' => array(
+				'source_prefix' => $source_prefix,
+				'banner_info'   => array( 'site_url' => 'https://old.example' ),
+				'cursor'        => array( 'tables' => array_fill_keys( $stems, array( 'status' => 'ok' ) ) ),
+			),
+			'receiving' => array(),
+		);
+		$sub_state['db_replay']['cursor']['tables']['99_options'] = array( 'status' => 'failed' );
+		$method = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'run_rewriting_urls' );
+		$method->setAccessible( true );
+		$method->invoke( $runner, $this->spine->get_task( $this->make_task( 'db', array( $this->make_db_artifact() ), array( 'source_prefix' => $source_prefix ) ) ), 1, $sub_state, microtime( true ) + 10, $this->dir );
+
+		$config = $runner->last_rewrite_config;
+		$this->assertNotNull( $config );
+		$this->assertContains( $table, $config['tables'] );
+		$this->assertNotContains( 'rt_99_options', $config['tables'] );
+		$config['tables'] = array( $table );
+		$rewriter = new \MainWP\Child\MainWP_Backup_Url_Rewriter();
+		$outcome = $rewriter->rewrite_slice( array(), $config, microtime( true ) + 10 );
+		$this->assertTrue( $outcome['done'] );
+		$this->assertSame( 0, $outcome['failed_updates'] );
+		$expected_keys = $keys;
+		if ( 'usermeta' === substr( $stem, -8 ) && 'wp_' === $source_prefix ) {
+			foreach ( $expected_keys as &$key ) {
+				if ( preg_match( '/^wp_(?:2_|10_)?(?:capabilities|user_level|persisted_preferences)$/', $key ) ) {
+					$key = 'rt_' . substr( $key, 3 );
+				}
+			}
+			unset( $key );
+		}
+		$this->assertSame( $expected_keys, $wpdb->get_col( 'SELECT meta_key FROM `' . $table . '` ORDER BY meta_id' ) );
+		$expected_value = serialize( array( 'url' => site_url() . '/' . ( 'wp_' === $source_prefix ? 'rt_path' : 'wp_path' ) ) );
+		$this->assertSame( array_fill( 0, count( $keys ), $expected_value ), $wpdb->get_col( 'SELECT meta_value FROM `' . $table . '` ORDER BY meta_id' ) );
+	}
+
+	public static function meta_prefix_cases() {
+		return array(
+			'postmeta'        => array( 'postmeta', 'wp_' ),
+			'blog postmeta'   => array( '2_postmeta', 'wp_' ),
+			'termmeta'        => array( 'termmeta', 'wp_' ),
+			'blog termmeta'   => array( '2_termmeta', 'wp_' ),
+			'commentmeta'     => array( 'commentmeta', 'wp_' ),
+			'blog commentmeta'=> array( '2_commentmeta', 'wp_' ),
+			'sitemeta'        => array( 'sitemeta', 'wp_' ),
+			'plugin meta'     => array( 'pluginmeta', 'wp_' ),
+			'usermeta'        => array( 'usermeta', 'wp_' ),
+			'blog usermeta'   => array( '2_usermeta', 'wp_' ),
+			'same postmeta'   => array( 'postmeta', 'rt_' ),
+			'same usermeta'   => array( 'usermeta', 'rt_' ),
 		);
 	}
 

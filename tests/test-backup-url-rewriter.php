@@ -168,6 +168,29 @@ class BackupUrlRewriterTest extends WP_UnitTestCase {
 		$this->assertSame( 0, $outcome['failed_updates'] );
 	}
 
+	public function test_exact_column_renames_are_scoped_and_override_pair_exclusions() {
+		$this->insert( 'wp_capabilities', 'http://old.example/wp_value', 'wp_capabilities' );
+		$this->insert( 'plugin_wp_capabilities', 'http://old.example/wp_value', 'plugin_wp_capabilities' );
+		$result = $this->run_all(
+			$this->config(
+				array(
+					'pairs' => array( array( 'from' => 'wp_', 'to' => 'rt_' ) ),
+					'exclude' => array( $this->table => array( 'name', 'guid' ) ),
+					'rename_columns' => array(
+						$this->table => array( 'name' => array( 'wp_capabilities' => 'rt_capabilities' ) ),
+						'other_options' => array( 'guid' => array( 'wp_capabilities' => 'wrong' ) ),
+					),
+				)
+			)
+		);
+		$this->assertSame( 0, $result['failed_updates'] );
+		$renamed = $this->fetch( 'rt_capabilities' );
+		$this->assertNotNull( $renamed );
+		$this->assertSame( 'wp_capabilities', $renamed['guid'] );
+		$this->assertSame( 'http://old.example/rt_value', $renamed['value'] );
+		$this->assertNotNull( $this->fetch( 'plugin_wp_capabilities' ) );
+	}
+
 	/**
 	 * Default config for the scratch table.
 	 *

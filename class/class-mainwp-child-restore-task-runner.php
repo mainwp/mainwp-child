@@ -2024,7 +2024,34 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $source_prefix       = isset( $sub_state['db_replay']['source_prefix'] ) ? (string) $sub_state['db_replay']['source_prefix'] : '';
         $rename_option_names = array();
         if ( '' !== $source_prefix && $source_prefix !== $target_prefix ) {
-            $rename_option_names[ $target_prefix . 'options' ] = array( $source_prefix . 'user_roles' => $target_prefix . 'user_roles' );
+            foreach ( $this->loaded_stems( $sub_state ) as $stem ) {
+                if ( 'options' === $stem || preg_match( '/^(\d+)_options$/', (string) $stem ) ) {
+                    $blog_suffix                                   = substr( $stem, 0, -7 );
+                    $rename_option_names[ $target_prefix . $stem ] = array( $source_prefix . $blog_suffix . 'user_roles' => $target_prefix . $blog_suffix . 'user_roles' );
+                }
+            }
+        }
+
+        $exclude        = $this->guid_exclusions( $this->loaded_stems( $sub_state ), $target_prefix );
+        $rename_columns = array();
+        $blog_suffixes  = array( '' );
+        foreach ( $this->loaded_stems( $sub_state ) as $stem ) {
+            if ( preg_match( '/^(\d+)_/', (string) $stem, $matches ) ) {
+                $blog_suffixes[] = $matches[1] . '_';
+            }
+        }
+        foreach ( $this->loaded_stems( $sub_state ) as $stem ) {
+            if ( 'meta' === substr( $stem, -4 ) ) {
+                $exclude[ $target_prefix . $stem ] = array( 'meta_key' );
+            }
+            if ( '' !== $source_prefix && $source_prefix !== $target_prefix && ( 'usermeta' === $stem || preg_match( '/^\d+_usermeta$/', (string) $stem ) ) ) {
+                // Multisite stores every blog's user keys in the shared usermeta table.
+                foreach ( array_unique( $blog_suffixes ) as $blog_suffix ) {
+                    foreach ( array( 'capabilities', 'user_level', 'persisted_preferences' ) as $key ) {
+                        $rename_columns[ $target_prefix . $stem ]['meta_key'][ $source_prefix . $blog_suffix . $key ] = $target_prefix . $blog_suffix . $key;
+                    }
+                }
+            }
         }
 
         $cursor  = isset( $sub_state['url_rewrite'] ) ? $sub_state['url_rewrite'] : array();
@@ -2033,8 +2060,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             array(
                 'tables'                   => $tables,
                 'pairs'                    => $pairs,
-                'exclude'                  => $this->guid_exclusions( $this->loaded_stems( $sub_state ), $target_prefix ),
+                'exclude'                  => $exclude,
                 'rename_option_names'      => $rename_option_names,
+                'rename_columns'           => $rename_columns,
                 'preserve_options'         => array( $target_prefix . 'options' => self::IDENTITY_OPTIONS ),
                 // A prefix pair replaces its substring inside option_name too, and `wp_` sits inside
                 // every `mainwp_child_*` ledger name, so an exact-name list is not enough here. It
