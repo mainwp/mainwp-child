@@ -84,9 +84,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     );
 
     /**
-     * Dump ledgers survive independently; bound recent live additions to limit cursor growth.
+     * Leave inline cursor room for identity rows and restore progress; dump ledgers survive independently.
      */
-    const IDENTITY_LEDGER_CAPTURE_LIMIT = 500;
+    const IDENTITY_LEDGER_CAPTURE_LIMIT = 90;
 
     /**
      * Singleton (separate from the backup runner's).

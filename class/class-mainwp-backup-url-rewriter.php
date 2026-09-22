@@ -179,6 +179,10 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
             if ( in_array( $column, $exclude, true ) || in_array( $column, $pk_columns, true ) ) {
                 continue;
             }
+            // Option names are lookup keys even though option_id is the primary key.
+            if ( 'option_name' === $column && 'options' === substr( $table, -7 ) ) {
+                continue;
+            }
             $new = $this->replace_value( $value, $pairs );
             if ( $new !== $value ) {
                 $updates[ $column ] = $new;

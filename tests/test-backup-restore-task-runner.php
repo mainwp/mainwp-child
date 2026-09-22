@@ -1320,6 +1320,41 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_cross_prefix_rewrite_preserves_option_names_and_rewrites_values() {
+		global $wpdb;
+		$names = array(
+			'mainwp_child_pubkey',
+			'mainwp_child_settings',
+			'mainwp_child_request_id_' . hash( 'sha256', 'request' ),
+			'mainwp_child_blocked_request_id_' . hash( 'sha256', 'request' ),
+			'mainwp_child_advanced_request_id_' . hash( 'sha256', 'request' ),
+			'wp_user_roles',
+		);
+		foreach ( $names as $name ) {
+			$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => $name, 'option_value' => 'wp_value https://old.example/path', 'autoload' => 'no' ) ) );
+		}
+		$before = $wpdb->get_results( 'SELECT option_id, option_name FROM `rt_options` ORDER BY option_id', ARRAY_A );
+		$rewriter = new \MainWP\Child\MainWP_Backup_Url_Rewriter();
+		$outcome = $rewriter->rewrite_slice(
+			array(),
+			array(
+				'tables'  => array( 'rt_options' ),
+				'pairs'   => array(
+					array( 'from' => 'wp_', 'to' => 'rt_' ),
+					array( 'from' => 'https://old.example', 'to' => 'https://new.example' ),
+				),
+				'exclude' => array(),
+			),
+			microtime( true ) + 10
+		);
+		$this->assertTrue( $outcome['done'] );
+		$this->assertSame( 0, $outcome['failed_updates'] );
+		$this->assertSame( $before, $wpdb->get_results( 'SELECT option_id, option_name FROM `rt_options` ORDER BY option_id', ARRAY_A ) );
+		foreach ( $names as $name ) {
+			$this->assertSame( 'rt_value https://new.example/path', $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM `rt_options` WHERE option_name = %s', $name ) ), $name );
+		}
+	}
+
 	public function test_connection_identity_capture_is_not_replaced_on_reentry() {
 		global $wpdb;
 		$capture = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'capture_connection_identity' );
@@ -1773,7 +1808,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	public function test_identity_capture_caps_each_ledger_by_newest_option_id() {
 		global $wpdb;
 		$limit = MainWP_Child_Restore_Task_Runner::IDENTITY_LEDGER_CAPTURE_LIMIT;
-		$this->assertSame( 500, $limit );
+		$this->assertSame( 90, $limit );
 		$prefixes = array( 'mainwp_child_request_id_', 'mainwp_child_blocked_request_id_', 'mainwp_child_advanced_request_id_' );
 		foreach ( $prefixes as $prefix ) {
 			$values = array();
@@ -1796,6 +1831,48 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			$this->assertArrayHasKey( $prefix . hash( 'sha256', '1' ), $saved );
 			$this->assertArrayHasKey( $prefix . hash( 'sha256', (string) $limit ), $saved );
 		}
+	}
+
+	public function test_identity_capture_at_cap_checkpoints_inline() {
+		global $wpdb;
+		$limit = MainWP_Child_Restore_Task_Runner::IDENTITY_LEDGER_CAPTURE_LIMIT;
+		foreach ( MainWP_Child_Restore_Task_Runner::IDENTITY_PREFIXES as $prefix ) {
+			$values = array();
+			for ( $i = 0; $i < $limit; ++$i ) {
+				$values[] = $wpdb->prepare( '(%s, %s, %s)', $prefix . hash( 'sha256', (string) $i ), (string) ( 1790000000 - $i ), 'off' );
+			}
+			$this->assertSame( $limit, $wpdb->query( 'INSERT INTO `rt_options` (option_name, option_value, autoload) VALUES ' . implode( ',', $values ) ) );
+		}
+		$identity = array(
+			'mainwp_child_pubkey'                 => str_repeat( 'k', 800 ),
+			'mainwp_child_uniqueId'               => str_repeat( 'u', 32 ),
+			'mainwp_child_nonce'                  => str_repeat( 'n', 64 ),
+			'mainwp_child_connected_admin'        => 'administrator',
+			'mainwp_child_server'                 => 'https://dashboard.example/wp-admin/',
+			'mainwp_child_auth'                   => str_repeat( 'a', 128 ),
+			'mainwp_child_openssl_sign_algo'       => '7',
+			'mainwp_child_backup_task_db_version' => '1',
+		);
+		$this->assertSame( MainWP_Child_Restore_Task_Runner::IDENTITY_OPTIONS, array_keys( $identity ) );
+		foreach ( $identity as $name => $value ) {
+			$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => $name, 'option_value' => $value, 'autoload' => 'no' ) ) );
+		}
+		$this->runner->fake_engine->replay_yield_once = true;
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
+		$task = $this->runner->advance_one_slice( $this->spine->get_task( $task_id ), MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $task->phase );
+		$state = json_decode( $task->sub_state, true );
+		$this->assertIsArray( $state );
+		$this->assertArrayNotHasKey( '_sidecar', $state );
+		$this->assertCount( 3 * $limit + 8, $state['identity_preserve'] );
+		$this->assertTrue( $state['db_replay']['snapshot_done'] );
+		$this->assertNotEmpty( $state['fk_snapshot']['files'] );
+		$this->assertArrayHasKey( 'params', $state );
+		$this->assertTrue( $state['receiving']['adoption_done'] );
+		$capture_bytes = strlen( wp_json_encode( array( 'identity_preserve' => $state['identity_preserve'] ) ) );
+		$this->assertLessThanOrEqual( 2048, strlen( $task->sub_state ) - $capture_bytes, 'The remaining restore cursor must fit its 2 KiB allowance.' );
+		$this->assertLessThanOrEqual( MainWP_Child_Backup_Task::SUB_STATE_INLINE_MAX - 2048, strlen( $task->sub_state ), 'The full checkpoint must retain at least 2 KiB of inline headroom.' );
+		$this->assertCount( 0, (array) glob( $this->dir . '/task_substate-' . $task_id . '-v*.json' ) );
 	}
 
 	public function test_empty_identity_capture_keeps_dump_ledgers() {
