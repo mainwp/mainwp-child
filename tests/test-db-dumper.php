@@ -261,6 +261,85 @@ class DbDumperTest extends WP_UnitTestCase {
 		MainWP_Backup_Db_Dumper::instance()->dump_to_files( $this->scratch . '/dbBackup', 0 );
 	}
 
+	public static function backtick_identifier_dump_modes() {
+		return array(
+			'snapshot' => array( 1, true ),
+			'primary-key seek' => array( 2, true ),
+			'offset' => array( 2, false ),
+		);
+	}
+
+	/**
+	 * Schema names must stay identifiers in both the SELECT and the emitted SQL.
+	 *
+	 * @dataProvider backtick_identifier_dump_modes
+	 */
+	public function test_dump_backtick_identifiers_round_trip( $tier, $primary_key ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'mwp_dump_`fixture';
+		$quoted_table = '`' . str_replace( '`', '``', $table ) . '`';
+		$mysqli = null;
+		try {
+			$this->assertNotFalse( $wpdb->query( 'DROP TABLE IF EXISTS ' . $quoted_table ), $wpdb->last_error );
+			$this->assertNotFalse(
+				$wpdb->query( 'CREATE TABLE ' . $quoted_table . ' (`id``key` bigint NOT NULL, `val``ue` varchar(40), `geo``point` point NOT NULL' . ( $primary_key ? ', PRIMARY KEY (`id``key`)' : '' ) . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4' ),
+				$wpdb->last_error
+			);
+			$this->assertSame( 2, $wpdb->query( 'INSERT INTO ' . $quoted_table . " (`id``key`, `val``ue`, `geo``point`) VALUES (1, 'first', ST_GeomFromText('POINT(1 2)')), (2, 'second', ST_GeomFromText('POINT(3 4)'))" ), $wpdb->last_error );
+			$select = 'SELECT `id``key`, `val``ue`, ST_AsText(`geo``point`) AS point FROM ' . $quoted_table . ' ORDER BY `id``key`';
+			$original = $wpdb->get_results( $select, ARRAY_A );
+			$this->assertCount( 2, $original );
+			// Make rows visible to the snapshot connection and release metadata locks before replay.
+			$wpdb->query( 'COMMIT' );
+
+			$dumper = MainWP_Backup_Db_Dumper::instance();
+			$prefix = $this->scratch . '/quoted';
+			if ( 1 === $tier ) {
+				$result = $dumper->dump_to_files( $prefix );
+			} else {
+				$cursor = array();
+				for ( $round = 0; $round < 10; ++$round ) {
+					$result = $dumper->dump_tables_tier2_slice( array( $table ), $prefix, $cursor, 0 );
+					$cursor = $result['cursor'];
+					if ( 0 === $round ) {
+						$this->assertSame( $primary_key ? 'id`key' : null, $cursor['pk_col'] );
+					}
+					if ( $result['done'] ) {
+						break;
+					}
+				}
+				$this->assertTrue( $result['done'], 'Tier 2 must finish the quoted table.' );
+			}
+			$this->assertSame( $tier, $result['tier'] );
+			$file = $prefix . '-' . MainWP\Child\MainWP_Helper::sanitize_filename( $table ) . '.sql.php';
+			$this->assertContains( $file, $result['files'] );
+			$sql = file_get_contents( $file );
+			$this->assertStringContainsString( 'INSERT INTO ' . $quoted_table . ' (`id``key`, `val``ue`, `geo``point`) VALUES ', $sql );
+			$wpdb->query( 'COMMIT' );
+			$sql = preg_replace( '/^<\?php exit\(\); \?>/', '', $sql );
+			$sql = preg_replace( '/^\s*--.*$/m', '', $sql );
+
+			$mysqli = mysqli_init();
+			$host = $wpdb->parse_db_host( DB_HOST );
+			$mysqli->real_connect( $host[0], DB_USER, DB_PASSWORD, DB_NAME, null === $host[1] ? 0 : (int) $host[1], $host[2] );
+			$mysqli->set_charset( 'utf8mb4' );
+			$this->assertTrue( $mysqli->multi_query( $sql ), 'Restore failed: ' . $mysqli->error );
+			while ( $mysqli->more_results() && $mysqli->next_result() ) {
+				$res = $mysqli->store_result();
+				if ( $res ) {
+					$res->free();
+				}
+			}
+			$this->assertSame( '', $mysqli->error, 'Restore reported: ' . $mysqli->error );
+			$this->assertSame( $original, $wpdb->get_results( $select, ARRAY_A ) );
+		} finally {
+			if ( null !== $mysqli ) {
+				$mysqli->close();
+			}
+			$wpdb->query( 'DROP TABLE IF EXISTS ' . $quoted_table );
+		}
+	}
+
 	/**
 	 * The Tier-2 slice dump resumes from its cursor across calls and labels
 	 * the result as paginated (not point-in-time).

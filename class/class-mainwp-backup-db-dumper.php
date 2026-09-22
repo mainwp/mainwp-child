@@ -398,9 +398,9 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 $this->write_checked( $fh, "\n" . $this->build_banner( $meta ), $heartbeat );
             }
 
-            $this->write_checked( $fh, "\n\nDROP TABLE IF EXISTS `" . $table . '`;', $heartbeat );
+            $this->write_checked( $fh, "\n\nDROP TABLE IF EXISTS " . $this->quote_ident( $table ) . ';', $heartbeat );
 
-            $res = $mysqli->query( 'SHOW CREATE TABLE `' . $table . '`' );
+            $res = $mysqli->query( 'SHOW CREATE TABLE ' . $this->quote_ident( $table ) );
             if ( false === $res ) {
                 throw new \Exception( "SHOW CREATE TABLE failed for `$table`: " . $mysqli->error );
             }
@@ -414,22 +414,22 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 if ( $col['generated'] ) {
                     continue; // MySQL rejects any inserted value but DEFAULT.
                 }
-                $insert_cols[] = '`' . $col['name'] . '`';
+                $insert_cols[] = $this->quote_ident( $col['name'] );
                 if ( in_array( $col['type'], static::$geometry_types, true ) ) {
                     // A plain SELECT returns internal geometry bytes that cannot
                     // be converted to WKB after the fact - select as WKB.
-                    $select_list[] = 'ST_AsWKB(`' . $col['name'] . '`) AS `' . $col['name'] . '`';
+                    $select_list[] = 'ST_AsWKB(' . $this->quote_ident( $col['name'] ) . ') AS ' . $this->quote_ident( $col['name'] );
                 } else {
-                    $select_list[] = '`' . $col['name'] . '`';
+                    $select_list[] = $this->quote_ident( $col['name'] );
                 }
             }
 
-            $res = $mysqli->query( 'SELECT ' . implode( ', ', $select_list ) . ' FROM `' . $table . '`', MYSQLI_USE_RESULT );
+            $res = $mysqli->query( 'SELECT ' . implode( ', ', $select_list ) . ' FROM ' . $this->quote_ident( $table ), MYSQLI_USE_RESULT );
             if ( false === $res ) {
                 throw new \Exception( "Reading table `$table` failed: " . $mysqli->error );
             }
 
-            $insert_prefix = 'INSERT INTO `' . $table . '` (' . implode( ', ', $insert_cols ) . ') VALUES ';
+            $insert_prefix = 'INSERT INTO ' . $this->quote_ident( $table ) . ' (' . implode( ', ', $insert_cols ) . ') VALUES ';
             $batch         = '';
             $escaper       = function ( $value ) use ( $mysqli ) {
                 return $mysqli->real_escape_string( $value );
@@ -664,22 +664,22 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             $this->write_checked( $fh, "\n" . $this->build_banner( $meta ), $heartbeat );
             $cursor['first'] = false;
         }
-        $this->write_checked( $fh, "\n\nDROP TABLE IF EXISTS `" . $table . '`;', $heartbeat );
-        $create = $wpdb->get_row( 'SHOW CREATE TABLE `' . $table . '`', ARRAY_N ); // phpcs:ignore -- schema read.
+        $this->write_checked( $fh, "\n\nDROP TABLE IF EXISTS " . $this->quote_ident( $table ) . ';', $heartbeat );
+        $create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $this->quote_ident( $table ), ARRAY_N ); // phpcs:ignore -- schema read.
         $this->write_checked( $fh, "\n" . $create[1] . ";\n", $heartbeat );
         fclose( $fh );
 
         // Pagination strategy: single integer PK gets deterministic PK-seek;
         // anything else falls back to LIMIT/OFFSET.
         $pk_columns = array();
-        $keys       = $wpdb->get_results( 'SHOW KEYS FROM `' . $table . "` WHERE Key_name = 'PRIMARY'", ARRAY_A ); // phpcs:ignore -- schema read.
+        $keys       = $wpdb->get_results( 'SHOW KEYS FROM ' . $this->quote_ident( $table ) . " WHERE Key_name = 'PRIMARY'", ARRAY_A ); // phpcs:ignore -- schema read.
         foreach ( (array) $keys as $key_row ) {
             $pk_columns[ (int) $key_row['Seq_in_index'] ] = $key_row['Column_name'];
         }
         $cursor['pk_col'] = null;
         if ( 1 === count( $pk_columns ) ) {
             $pk_col   = reset( $pk_columns );
-            $col_info = $wpdb->get_row( $wpdb->prepare( 'SHOW COLUMNS FROM `' . $table . '` WHERE Field = %s', $pk_col ), ARRAY_A ); // phpcs:ignore -- schema read.
+            $col_info = $wpdb->get_row( $wpdb->prepare( 'SHOW COLUMNS FROM ' . $this->quote_ident( $table ) . ' WHERE Field = %s', $pk_col ), ARRAY_A ); // phpcs:ignore -- schema read.
             if ( $col_info && preg_match( '/int|bigint|mediumint|smallint|tinyint/i', $col_info['Type'] ) ) {
                 $cursor['pk_col'] = $pk_col;
             }
@@ -718,11 +718,11 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             if ( $col['generated'] ) {
                 continue;
             }
-            $insert_cols[] = '`' . $col['name'] . '`';
+            $insert_cols[] = $this->quote_ident( $col['name'] );
             if ( in_array( $col['type'], static::$geometry_types, true ) ) {
-                $select_list[] = 'ST_AsWKB(`' . $col['name'] . '`) AS `' . $col['name'] . '`';
+                $select_list[] = 'ST_AsWKB(' . $this->quote_ident( $col['name'] ) . ') AS ' . $this->quote_ident( $col['name'] );
             } else {
-                $select_list[] = '`' . $col['name'] . '`';
+                $select_list[] = $this->quote_ident( $col['name'] );
             }
         }
         $value_columns = array_values(
@@ -736,19 +736,19 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
 
         if ( null !== $cursor['pk_col'] ) {
             $sql = sprintf(
-                'SELECT %s FROM `%s` WHERE `%s` > %d ORDER BY `%s` ASC LIMIT %d',
+                'SELECT %s FROM %s WHERE %s > %d ORDER BY %s ASC LIMIT %d',
                 implode( ', ', $select_list ),
-                $table,
-                $cursor['pk_col'],
+                $this->quote_ident( $table ),
+                $this->quote_ident( $cursor['pk_col'] ),
                 (int) $cursor['last_id'],
-                $cursor['pk_col'],
+                $this->quote_ident( $cursor['pk_col'] ),
                 self::TIER2_CHUNK_ROWS
             );
         } else {
             $sql = sprintf(
-                'SELECT %s FROM `%s` LIMIT %d OFFSET %d',
+                'SELECT %s FROM %s LIMIT %d OFFSET %d',
                 implode( ', ', $select_list ),
-                $table,
+                $this->quote_ident( $table ),
                 self::TIER2_CHUNK_ROWS,
                 (int) $cursor['offset']
             );
@@ -786,7 +786,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             }
         }
 
-        $insert_prefix = 'INSERT INTO `' . $table . '` (' . implode( ', ', $insert_cols ) . ') VALUES ';
+        $insert_prefix = 'INSERT INTO ' . $this->quote_ident( $table ) . ' (' . implode( ', ', $insert_cols ) . ') VALUES ';
         $batch         = '';
         $row_count     = 0;
         foreach ( $rows as $row ) {
@@ -839,6 +839,17 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             'table_prefix' => $GLOBALS['wpdb']->prefix,
         );
         return '-- mainwp-backup-info: ' . wp_json_encode( $info ) . "\n-- mainwp-backup-meta: " . wp_json_encode( $meta );
+    }
+
+    /**
+     * Escape embedded backticks because schema names are not necessarily plain identifiers.
+     *
+     * @param string $name Schema identifier.
+     *
+     * @return string Quoted identifier.
+     */
+    private function quote_ident( $name ) {
+        return '`' . str_replace( '`', '``', (string) $name ) . '`';
     }
 
     /**

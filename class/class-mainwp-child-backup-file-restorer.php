@@ -21,15 +21,14 @@
  * The .mainwp-restore-*.tmp name is reserved for owner-tagged extraction
  * temps; backup walkers exclude both legacy and owner-tagged forms from
  * every archive so interrupted output cannot become backup data. Before
- * writing into a directory, the sweep reclaims only this task's own temps.
- * Foreign and legacy names are never swept, and archived members with
- * reserved names are restored as is. If a restore never resumes, its temp
- * remains until an operator removes it. A worker that dies inside
+ * writing into a directory, the sweep reclaims this task's own temps and
+ * foreign temps whose owners the runner confirms are no longer live.
+ * Without that lookup, foreign temps are kept. Legacy names are never swept,
+ * and archived members with reserved names are restored as is. A worker that dies inside
  * write_entry_stream() leaves at most one temp, bounded by the remaining
  * cumulative expanded-byte budget (up to 64 GiB), attributable by its owner
  * token, and never archived.
- * Terminal reclamation would require durable directory tracking or reopening
- * archives on a failure path.
+ * Reclamation waits until a later restore writes into the same directory.
  *
  * @package MainWP\Child
  */
@@ -70,6 +69,13 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     private $temp_owner;
 
     /**
+     * Owner liveness lookup; only an explicit false permits foreign-temp deletion.
+     *
+     * @var callable|null
+     */
+    private $is_temp_owner_live;
+
+    /**
      * Whether compressed preparation refused the extraction limits.
      *
      * @var bool
@@ -82,6 +88,15 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     const RATIO_MIN_COMPRESSED_BYTES = 65536;
     const TEMP_PREFIX                = '.mainwp-restore-';
     const TEMP_SUFFIX                = '.tmp';
+
+    /**
+     * Keep standalone callers' foreign temps unless the runner supplies task knowledge.
+     *
+     * @param callable|null $is_temp_owner_live Returns true for live, false for absent/terminal, null for unknown.
+     */
+    public function __construct( $is_temp_owner_live = null ) {
+        $this->is_temp_owner_live = $is_temp_owner_live;
+    }
 
     /**
      * Identify reserved legacy and owner-tagged basenames for backup exclusion.
@@ -957,7 +972,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     }
 
     /**
-     * Reclaim this task's regular temps, including a dead peer's open file.
+     * Reclaim regular temps owned by this task or by a confirmed inactive task.
      *
      * Age cannot distinguish abandoned temps from restored members, whose
      * mtimes are fresh. Ownership makes repeated sweeps across slices safe;
@@ -973,11 +988,16 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         }
         $this->swept_directories[ $directory ] = true;
         foreach ( (array) glob( $directory . '/' . self::TEMP_PREFIX . '*' . self::TEMP_SUFFIX ) as $temp ) {
-            if ( ! $this->is_owned_temp_name( basename( $temp ) ) ) {
-                continue;
-            }
             if ( is_link( $temp ) || ! is_file( $temp ) ) {
                 continue;
+            }
+            if ( ! $this->is_owned_temp_name( basename( $temp ) ) ) {
+                // Legacy names have no owner; unknown liveness must not delete a live peer's output.
+                if ( ! is_callable( $this->is_temp_owner_live ) ||
+                    ! preg_match( '/^' . preg_quote( self::TEMP_PREFIX, '/' ) . '([0-9a-f]+)-[0-9a-f]+' . preg_quote( self::TEMP_SUFFIX, '/' ) . '\z/', basename( $temp ), $matches ) ||
+                    false !== call_user_func( $this->is_temp_owner_live, $matches[1] ) ) {
+                    continue;
+                }
             }
             wp_delete_file( $temp );
         }

@@ -3512,7 +3512,33 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @return MainWP_Child_Backup_File_Restorer
      */
     protected function file_restorer() {
-        return new MainWP_Child_Backup_File_Restorer();
+        return new MainWP_Child_Backup_File_Restorer(
+            function ( $owner ) {
+                global $wpdb;
+                static $queried     = false;
+                static $live_owners = null;
+
+                // Cache per restorer, not per file; a failed read cannot establish abandonment.
+                if ( ! $queried ) {
+                    $queried  = true;
+                    $suppress = $wpdb->suppress_errors( true );
+                    try {
+                        $tasks = MainWP_Child_Backup_Task::instance()->get_active_tasks();
+                        if ( '' === $wpdb->last_error ) {
+                            $live_owners = array();
+                            foreach ( $tasks as $task ) {
+                                if ( MainWP_Child_Backup_Task::is_restore_type( $task->type ) ) {
+                                    $live_owners[ substr( hash( 'sha256', $task->task_id ), 0, 16 ) ] = true;
+                                }
+                            }
+                        }
+                    } finally {
+                        $wpdb->suppress_errors( $suppress );
+                    }
+                }
+                return null === $live_owners ? null : isset( $live_owners[ $owner ] );
+            }
+        );
     }
 
     /**

@@ -8,6 +8,8 @@
 use MainWP\Child\MainWP_Child_Backup_File_Restorer;
 use MainWP\Child\MainWP_Backup_Error;
 use MainWP\Child\MainWP_Child_Backup_Task_Runner;
+use MainWP\Child\MainWP_Child_Backup_Task;
+use MainWP\Child\MainWP_Child_Restore_Task_Runner;
 
 /** Filesystem fault injection for the extraction matrix, backed by real files. */
 class ExtractionMatrixStream {
@@ -752,6 +754,66 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			if ( is_resource( $handle ) ) {
 				fclose( $handle );
 			}
+		}
+	}
+
+	/** @dataProvider data_read_only_target_formats */
+	public function test_sweep_reclaims_inactive_foreign_owner_temps( $format ) {
+		$directory = $this->extract_to . '/dir';
+		mkdir( $directory );
+		$owners = array( 'current' => 'abc123', 'terminal' => 'def456', 'active' => 'fed123', 'unknown' => 'abc789' );
+		$temps = array();
+		foreach ( $owners as $state => $owner ) {
+			$temps[ $state ] = $directory . '/.mainwp-restore-' . $owner . '-0123456789abcdef.tmp';
+			file_put_contents( $temps[ $state ], $state );
+		}
+		$this->restorer = new MainWP_Child_Backup_File_Restorer(
+			function ( $owner ) use ( $owners ) {
+				if ( $owners['terminal'] === $owner ) {
+					return false;
+				}
+				return $owners['active'] === $owner ? true : null;
+			}
+		);
+		$part = 'zip' === $format
+			? $this->make_zip( 'sweep.zip', array( 'dir/file.txt' => 'restored' ) )
+			: $this->make_tar( 'sweep.tar', array( 'dir/file.txt' => 'restored' ) );
+		$result = $this->run_all( $this->config( array( $part ), array( 'temp_owner' => $owners['current'] ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertFileDoesNotExist( $temps['current'] );
+		$this->assertFileDoesNotExist( $temps['terminal'] );
+		$this->assertSame( 'active', file_get_contents( $temps['active'] ) );
+		$this->assertSame( 'unknown', file_get_contents( $temps['unknown'] ) );
+		$this->assertSame( 'restored', file_get_contents( $directory . '/file.txt' ) );
+	}
+
+	public function test_runner_temp_owner_liveness_uses_cached_active_tasks() {
+		global $wpdb;
+		$store = MainWP_Child_Backup_Task::instance();
+		$active = $store->create_task( 'restore_files' );
+		$completed = $store->create_task( 'restore' );
+		$this->assertIsString( $active );
+		$this->assertIsString( $completed );
+		try {
+			$this->assertSame( 1, $store->checkpoint( $completed, 0, array( 'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED ), false ) );
+			$factory = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'file_restorer' );
+			$factory->setAccessible( true );
+			$restorer = $factory->invoke( MainWP_Child_Restore_Task_Runner::instance() );
+			$property = new ReflectionProperty( MainWP_Child_Backup_File_Restorer::class, 'is_temp_owner_live' );
+			$property->setAccessible( true );
+			$lookup = $property->getValue( $restorer );
+			$this->assertIsCallable( $lookup );
+			$queries = $wpdb->num_queries;
+			$this->assertTrue( $lookup( substr( hash( 'sha256', $active ), 0, 16 ) ) );
+			$this->assertSame( $queries + 1, $wpdb->num_queries, 'Read the active task set once.' );
+			$this->assertFalse( $lookup( substr( hash( 'sha256', $completed ), 0, 16 ) ) );
+			$this->assertFalse( $lookup( substr( hash( 'sha256', 'missing-restore-task' ), 0, 16 ) ) );
+			$this->assertTrue( $lookup( substr( hash( 'sha256', $active ), 0, 16 ) ) );
+			$this->assertSame( $queries + 1, $wpdb->num_queries, 'Further owners reuse this restorer\'s cached set.' );
+		} finally {
+			$wpdb->delete( $store->get_table_name(), array( 'task_id' => $active ) );
+			$wpdb->delete( $store->get_table_name(), array( 'task_id' => $completed ) );
 		}
 	}
 
