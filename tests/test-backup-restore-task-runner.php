@@ -2770,6 +2770,51 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'wc_customer_lookup', $expected );
 	}
 
+	public function test_verify_remeasures_identity_after_new_request_ledger_row() {
+		global $wpdb;
+		$engine = $this->runner->fake_engine;
+		$engine->tables = array( 'options' => array( 'status' => 'ok', 'rows' => 1 ) );
+		$engine->verify_real_counts = true;
+		$this->runner->yield_before_url_rewrite = true;
+		$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'mainwp_child_pubkey', 'option_value' => 'live-key', 'autoload' => 'no' ) ) );
+
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$task = $this->spine->get_task( $task_id );
+		$initial = $this->spine->read_sub_state( $task, $this->dir );
+		$tmp_table = $engine->tmp_prefix( $initial['params']['restore_id'] ) . 'options';
+		$this->identity_fixture_tables[] = $tmp_table;
+		$this->assertNotFalse( $wpdb->query( 'CREATE TABLE `' . $tmp_table . '` LIKE `rt_options`' ) );
+		$this->assertSame( 1, $wpdb->insert( $tmp_table, array( 'option_name' => 'active_plugins', 'option_value' => 'a:0:{}', 'autoload' => 'yes' ) ) );
+		$engine->on_database_live = function () use ( $wpdb, $tmp_table ) {
+			$this->assertNotFalse( $wpdb->query( 'DELETE FROM `rt_options`' ) );
+			$this->assertSame( 1, $wpdb->query( 'INSERT INTO `rt_options` SELECT * FROM `' . $tmp_table . '`' ) );
+		};
+		for ( $slice = 0; $slice < 30 && MainWP_Child_Backup_Task::PHASE_REWRITING_URLS !== $task->phase && ! MainWP_Child_Backup_Task::is_terminal_phase( $task->phase ); ++$slice ) {
+			$task = $this->runner->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
+		}
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_REWRITING_URLS, $task->phase );
+		$this->assertContains( 'swap_tables:options', $engine->calls );
+		$this->assertNotContains( 'verify_row_counts', $engine->calls );
+		$state = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( 0, $state['identity_dump_count'] );
+		$this->assertSame( 1, $state['identity_preserve_delta'] );
+
+		// A later authenticated request adds a ledger row after the write-back delta is pinned.
+		$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'mainwp_child_request_id_' . hash( 'sha256', 'request-after-identity-write-back' ), 'option_value' => (string) time(), 'autoload' => 'off' ) ) );
+		$old_expected = (int) $state['db_replay']['cursor']['tables']['options']['rows'] + $state['identity_preserve_delta'];
+		$actual = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM `rt_options`' );
+		$this->assertSame( 2, $old_expected );
+		$this->assertSame( $old_expected + 1, $actual, 'The pinned delta would reject the new request ledger row.' );
+
+		$task = $this->drive( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( $actual, $engine->last_verify_expected['options'] );
+		$state = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertTrue( $state['verification']['row_counts_ok'] );
+		$this->assertSame( 2, $state['verification']['identity_verify_delta'] );
+		$this->assertSame( 1, $state['identity_preserve_delta'], 'Verification must retain the write-back evidence.' );
+	}
+
 	/**
 	 * A preserve restore on the in-place foreign-key path still reaches the
 	 * merge phase, which the FK route would otherwise skip.

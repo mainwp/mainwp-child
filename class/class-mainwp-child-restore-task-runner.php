@@ -2805,8 +2805,11 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
         }
 
-        if ( isset( $expected['options'], $sub_state['identity_preserve_delta'] ) ) {
-            $expected['options'] += (int) $sub_state['identity_preserve_delta'];
+        $identity_verify_delta = 0;
+        if ( isset( $expected['options'], $sub_state['identity_dump_count'] ) ) {
+            // The request ledger grows after identity write-back; verification runs in a later request.
+            $identity_verify_delta = self::identity_count( $target_prefix . 'options' ) - (int) $sub_state['identity_dump_count'];
+            $expected['options']  += $identity_verify_delta;
         }
 
         foreach ( $sub_state['url_rewrite_renamed_over'] ?? array() as $table => $count ) {
@@ -2878,6 +2881,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 
         $sub_state['verification'] = array(
             'row_counts_ok'              => true,
+            'identity_verify_delta'      => $identity_verify_delta,
             'sentinel_ok'                => true,
             'loopback_status'            => $this->loopback_status(),
             'sub_site_probes'            => $this->sub_site_probes(),
