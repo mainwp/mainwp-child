@@ -35,7 +35,7 @@ class MainWP_Child {
      *
      * @var string MainWP Child plugin version.
      */
-    public static $version = '7.0.0-nativebackups.1'; // NOSONAR - not IP. Throwaway test-channel version (kept above 6.x public so an update never reverts an on-branch tester); reset to the real line at release.
+    public static $version = '6.3-beta1'; // NOSONAR - not IP.
 
     /**
      * Private variable containing the latest MainWP Child update version.
