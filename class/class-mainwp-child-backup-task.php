@@ -352,13 +352,19 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         if ( '' !== $wpdb->last_error ) {
             return false;
         }
-        $identities = array();
+        $identities  = array();
+        $scratch_dir = null;
         foreach ( $rows as $row ) {
             $state = json_decode( (string) $row->sub_state, true );
             if ( null === $row->restore_id && ! empty( $state['_sidecar'] ) ) {
                 try {
-                    $dirs  = MainWP_Helper::get_mainwp_dir( 'backup', false );
-                    $state = $this->read_sub_state( $row, $dirs[0] );
+                    // Resolved on first use and reused: get_mainwp_dir() stats the
+                    // tree and can write its deny files on every call.
+                    if ( null === $scratch_dir ) {
+                        $dirs        = MainWP_Helper::get_mainwp_dir( 'backup', false );
+                        $scratch_dir = $dirs[0];
+                    }
+                    $state = $this->read_sub_state( $row, $scratch_dir );
                 } catch ( \Throwable $e ) {
                     // An unavailable cursor must not block schema upgrades or backups.
                     $state = null;
