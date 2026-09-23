@@ -62,6 +62,13 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     private $swept_directories = array();
 
     /**
+     * A real .htaccess in the current part takes precedence over its legacy alias.
+     *
+     * @var array<string,bool>
+     */
+    private $real_htaccess_entries = array();
+
+    /**
      * Stable task token, or a random token for this standalone restorer.
      *
      * @var string|null
@@ -220,7 +227,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             return $this->result( false, $cursor, 'Could not open archive: ' . basename( $part ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
 
-        $entry_count = (int) $zip->numFiles;
+        $this->real_htaccess_entries = array();
+        $entry_count                 = (int) $zip->numFiles;
         while ( $cursor['entry_index'] < $entry_count ) {
             if ( $did_work && microtime( true ) >= $deadline ) {
                 $zip->close();
@@ -314,6 +322,13 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             return $this->result( false, $cursor, $this->archive_open_error( $e, $part, $plain ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
 
+        $this->real_htaccess_entries = array();
+        foreach ( $entries as $entry ) {
+            if ( ! $entry['dir'] && '.htaccess' === basename( $entry['name'] ) ) {
+                $this->real_htaccess_entries[ $entry['name'] ] = true;
+            }
+        }
+
         $entry_count = count( $entries );
         while ( $cursor['entry_index'] < $entry_count ) {
             if ( $did_work && microtime( true ) >= $deadline ) {
@@ -321,6 +336,12 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             }
 
             $entry = $entries[ $cursor['entry_index'] ];
+            if ( static::should_skip_entry( $entry['name'] ) ) {
+                ++$cursor['entry_index'];
+                $did_work = true;
+                continue;
+            }
+            $entry['name'] = static::map_entry_name( $entry['name'], $this->real_htaccess_entries );
             try {
                 // Tar compression covers the container, not individual entries.
                 $this->check_entry_limits( $entry['size'], 0, $cursor, $entry['name'] );
@@ -765,6 +786,10 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 );
             }
 
+            if ( static::should_skip_entry( $relpath ) ) {
+                continue;
+            }
+
             $target = rtrim( $extract_to, '/' ) . '/' . $relpath;
             if ( ! is_file( $target ) ) {
                 continue;
@@ -792,6 +817,35 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     }
 
     /**
+     * Older archives used an alias; newer archives can contain both real files.
+     *
+     * @param string $name                  Archive entry name.
+     * @param array  $real_htaccess_entries Real .htaccess presence keyed by entry name.
+     * @return string Destination entry name.
+     */
+    private static function map_entry_name( $name, $real_htaccess_entries = array() ) {
+        $mapped = preg_replace( '#(^|/)mainwp-htaccess$#', '$1.htaccess', $name );
+        return empty( $real_htaccess_entries[ $mapped ] ) ? $mapped : $name;
+    }
+
+    /**
+     * Restoring the running plugin would invalidate the Dashboard's capability record.
+     *
+     * @param string $name Site-relative entry name.
+     * @return bool Whether the entry belongs to the active Child plugin.
+     */
+    private static function should_skip_entry( $name ) {
+        $name = wp_normalize_path( $name );
+        if ( 0 === strpos( $name, '/' ) || false !== strpos( $name, '..' ) ) {
+            return false;
+        }
+        $name       = implode( '/', array_diff( explode( '/', $name ), array( '', '.' ) ) );
+        $plugin_dir = rtrim( str_replace( wp_normalize_path( ABSPATH ), '', wp_normalize_path( MAINWP_CHILD_PLUGIN_DIR ) ), '/' );
+
+        return MainWP_Helper::in_excludes( array( $plugin_dir ), $name );
+    }
+
+    /**
      * Extract one archive entry to its validated target.
      *
      * @param \ZipArchive $zip        Open archive.
@@ -804,21 +858,29 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @throws MainWP_Exception When entry metadata cannot be read.
      */
     private function extract_entry( $zip, $name, $extract_to, &$cursor ) {
-        $stat = $zip->statIndex( $cursor['entry_index'] );
+        if ( static::should_skip_entry( $name ) ) {
+            return;
+        }
+        $mapped = static::map_entry_name( $name );
+        if ( $mapped !== $name && ! array_key_exists( $mapped, $this->real_htaccess_entries ) ) {
+            $this->real_htaccess_entries[ $mapped ] = false !== $zip->locateName( $mapped );
+        }
+        $entry_name = static::map_entry_name( $name, $this->real_htaccess_entries );
+        $stat       = $zip->statIndex( $cursor['entry_index'] );
         if ( false === $stat ) {
             throw new MainWP_Exception( 'Could not read archive entry metadata.', null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- static internal message.
         }
         $this->check_entry_limits( $stat['size'], $stat['comp_size'], $cursor, $name );
         if ( '/' === substr( $name, -1 ) ) {
             // Directory entry.
-            $target = static::validate_extract_path( rtrim( $name, '/' ), $extract_to );
+            $target = static::validate_extract_path( rtrim( $entry_name, '/' ), $extract_to );
             if ( ! is_dir( $target ) ) {
                 wp_mkdir_p( $target );
             }
             return;
         }
 
-        $target = static::validate_extract_path( $name, $extract_to );
+        $target = static::validate_extract_path( $entry_name, $extract_to );
 
         $stream = $zip->getStream( $name );
         if ( false === $stream ) {

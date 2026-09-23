@@ -809,20 +809,20 @@ class BackupFileWalkerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Root-level dotfiles are skipped (glob) and subdir dotfiles are kept
-	 * (scandir), independent of resume - locking the asymmetry the original
-	 * walk_tree/walk_dir split had.
+	 * The manifest must include the same root .htaccess as the producers.
 	 *
 	 * @return void
 	 */
-	public function test_root_dotfiles_skipped_subdir_dotfiles_kept() {
-		file_put_contents( $this->root . '/.htaccess', 'root' ); // phpcs:ignore -- test fixture.
-		file_put_contents( $this->root . '/wp-content/.htaccess', 'sub' ); // phpcs:ignore -- test fixture.
+	public function test_root_htaccess_and_subdir_dotfiles_kept_other_root_dotfiles_skipped() {
+		file_put_contents( $this->root . '/.htaccess', 'root' );
+		file_put_contents( $this->root . '/.other', 'unrelated root dotfile' );
+		file_put_contents( $this->root . '/wp-content/.htaccess', 'sub' );
 
 		$this->walker()->emit_sidecars( $this->backup_dir );
 
 		$relpaths = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
-		$this->assertNotContains( '.htaccess', $relpaths, 'Root-level dotfiles must be skipped, as glob did.' );
+		$this->assertContains( '.htaccess', $relpaths, 'Root .htaccess must agree with the archive.' );
+		$this->assertNotContains( '.other', $relpaths, 'Other root dotfiles remain outside the archive.' );
 		$this->assertContains( 'wp-content/.htaccess', $relpaths, 'Subdir dotfiles must be kept, as scandir did.' );
 	}
 

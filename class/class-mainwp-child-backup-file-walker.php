@@ -571,8 +571,8 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
     /**
      * List a directory's child node paths in a resume-stable order.
      *
-     * The root uses glob (skips leading-dot entries, as the original root walk
-     * did); other directories use scandir (keeps dotfiles, drops . and ..). A
+     * The root includes .htaccess to match the archives, but skips other
+     * dotfiles; other directories use scandir (keeps dotfiles, drops . and ..). A
      * vanished or unreadable directory yields an empty list, the same tolerance
      * the original recursive walk had. The list is sorted by raw byte order so
      * a frame's index resolves to the same child on resume regardless of the
@@ -588,6 +588,9 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
             $children = glob( $dir . '*' );
             if ( false === $children ) {
                 $children = array();
+            }
+            if ( file_exists( $dir . '.htaccess' ) ) {
+                $children[] = $dir . '.htaccess';
             }
         } else {
             $items = scandir( $dir, SCANDIR_SORT_NONE );

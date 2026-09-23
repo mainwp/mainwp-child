@@ -121,6 +121,23 @@ class BackupPreflightTest extends WP_UnitTestCase {
 	 * Dashboard can guard against ZIP archiving on large sites. ZIP restarts
 	 * from zero on each slice timeout; tar.gz appends and resumes.
 	 */
+	/**
+	 * The restore capability probe asks for capabilities only: the report keeps
+	 * every capability key and skips the wp-content walk behind the size estimate,
+	 * so the answer lands inside the Dashboard's probe clamp on a large site.
+	 */
+	public function test_check_backup_readiness_capabilities_only_skips_the_content_walk() {
+		delete_transient( MainWP_Backup::CONTENT_INVENTORY_TRANSIENT );
+
+		$report = MainWP_Backup::get()->check_backup_readiness( true );
+
+		$this->assertSame( 1, $report['restore_create_idempotency'] );
+		$this->assertSame( 1, $report['task_spine'] );
+		$this->assertArrayNotHasKey( 'estimated_bytes', $report );
+		$this->assertArrayNotHasKey( 'file_count', $report );
+		$this->assertFalse( get_transient( MainWP_Backup::CONTENT_INVENTORY_TRANSIENT ), 'capabilities_only must not walk wp-content' );
+	}
+
 	public function test_check_backup_readiness_reports_size_estimate() {
 		$report = MainWP_Backup::get()->check_backup_readiness();
 

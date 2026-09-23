@@ -143,7 +143,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         // child the watchdog cron may never fire to clear an interrupted task,
         // so without this the orphaned non-terminal row would block every future
         // backup. Reclaim only clears deadline-expired tasks, never a live one.
-        $spine->reclaim_expired_tasks();
+        $spine->reclaim_expired_tasks( $this->backup_dir() );
 
         if ( ! empty( $spine->get_active_tasks() ) ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
@@ -498,7 +498,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                         ),
                     ),
                 ),
-                false
+                false,
+                $backup_dir
             );
             if ( false !== $new_version ) {
                 $version = $new_version;
@@ -801,6 +802,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                     'file' => MainWP_Child_Backup_File_Walker::FILES_LIST,
                     'size' => (int) $sub_state['manifest']['size'],
                     'role' => 'manifest',
+                    'walk' => $this->manifest_walk_params( $params ),
                 ),
             );
         }
@@ -909,6 +911,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             'file' => $sub_state['manifest']['file'],
             'size' => (int) $sub_state['manifest']['size'],
             'role' => 'manifest',
+            'walk' => $this->manifest_walk_params( $params ),
         );
 
         $tombstones_path = $dir . MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST;
@@ -1250,7 +1253,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 'phase'     => $next,
                 'sub_state' => $serialized,
             ),
-            false
+            false,
+            $backup_dir
         );
         if ( false === $new_version ) {
             return $this->slice_result( $version, true, true );
@@ -1667,11 +1671,12 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @return MainWP_Child_Backup_File_Walker The walker.
      */
     protected function make_walker( $params, $backup_dir ) {
+        $walk   = $this->manifest_walk_params( $params );
         $walker = new MainWP_Child_Backup_File_Walker(
             null,
-            isset( $params['excludes'] ) && is_array( $params['excludes'] ) ? $params['excludes'] : array(),
-            ! empty( $params['excludezip'] ),
-            ! empty( $params['excludenonwp'] ),
+            $walk['excludes'],
+            $walk['excludezip'],
+            $walk['excludenonwp'],
             array( $backup_dir )
         );
 
@@ -1685,6 +1690,20 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         return $walker;
+    }
+
+    /**
+     * Keep recorded coverage identical to the walker's inputs.
+     *
+     * @param array $params Backup parameters.
+     * @return array Manifest coverage.
+     */
+    protected function manifest_walk_params( $params ) {
+        return array(
+            'excludes'     => isset( $params['excludes'] ) && is_array( $params['excludes'] ) ? array_values( array_filter( array_map( 'strval', $params['excludes'] ), 'strlen' ) ) : array(),
+            'excludenonwp' => empty( $params['excludenonwp'] ) ? 0 : 1,
+            'excludezip'   => empty( $params['excludezip'] ) ? 0 : 1,
+        );
     }
 
     /**

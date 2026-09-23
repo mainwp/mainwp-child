@@ -422,6 +422,9 @@ class Tar_Archiver {
 
         if ( $this->archive ) {
             $nodes = glob( ABSPATH . '*' );
+            if ( file_exists( ABSPATH . '.htaccess' ) ) {
+                $nodes[] = ABSPATH . '.htaccess';
+            }
             if ( ! $includeCoreFiles ) {
                 $this->include_core_files( $nodes );
             }
@@ -430,10 +433,6 @@ class Tar_Archiver {
 
             foreach ( $db_files as $db_file ) {
                 $this->add_file( $db_file, basename( WP_CONTENT_DIR ) . '/' . ( '.sql' === substr( $db_file, -4 ) ? 'dbBackup.sql' : basename( $db_file ) ) );
-            }
-
-            if ( file_exists( ABSPATH . '.htaccess' ) ) {
-                $this->add_file( ABSPATH . '.htaccess', 'mainwp-htaccess' );
             }
 
             foreach ( $nodes as $node ) {
@@ -623,10 +622,6 @@ class Tar_Archiver {
         $ancestors[] = $path;
 
         $this->add_empty_dir( $path, str_replace( ABSPATH, '', $path ) );
-
-        if ( file_exists( rtrim( $path, '/' ) . '/.htaccess' ) ) {
-            $this->add_file( rtrim( $path, '/' ) . '/.htaccess', rtrim( str_replace( ABSPATH, '', $path ), '/' ) . '/mainwp-htaccess', $bases );
-        }
 
         $iterator = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $path ), \RecursiveIteratorIterator::SELF_FIRST, \RecursiveIteratorIterator::CATCH_GET_CHILD );
 

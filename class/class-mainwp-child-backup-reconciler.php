@@ -1,0 +1,330 @@
+<?php
+/**
+ * Reconcile the live tree against the leaf snapshot's file list.
+ *
+ * @package MainWP\Child
+ */
+
+namespace MainWP\Child;
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
+/**
+ * Uses the incremental parser so backup and restore agree on manifest rows.
+ */
+class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Diff {
+
+    /**
+     * Invalid coverage must never become a broader deletion scope.
+     *
+     * @param mixed $raw Wire options.
+     * @return array Valid options, or an empty array.
+     */
+    public static function sanitize_options( $raw ) {
+        if ( ! is_array( $raw ) || ! isset( $raw['manifest'] ) || ! is_string( $raw['manifest'] ) || '' === $raw['manifest'] || MainWP_Helper::sanitize_filename( $raw['manifest'] ) !== $raw['manifest'] ) {
+            return array();
+        }
+        $clean = array( 'manifest' => $raw['manifest'] );
+        if ( ! isset( $raw['walk'] ) || ! is_array( $raw['walk'] ) ) {
+            return $clean;
+        }
+        $walk = $raw['walk'];
+        if ( ! isset( $walk['excludes'], $walk['excludenonwp'], $walk['excludezip'] ) || ! is_array( $walk['excludes'] ) ) {
+            return $clean;
+        }
+        foreach ( array( 'excludenonwp', 'excludezip' ) as $flag ) {
+            if ( ! in_array( $walk[ $flag ], array( 0, 1, '0', '1' ), true ) ) {
+                return $clean;
+            }
+        }
+        $excludes = array();
+        foreach ( $walk['excludes'] as $exclude ) {
+            if ( ! is_string( $exclude ) ) {
+                return $clean;
+            }
+            $sanitized = sanitize_text_field( rtrim( $exclude, '/' ) );
+            if ( rtrim( $exclude, '/' ) !== $sanitized ) {
+                return $clean;
+            }
+            // An empty user exclude list arrives as one empty entry; it excludes nothing and must not void the block.
+            if ( '' === $sanitized ) {
+                continue;
+            }
+            $excludes[] = $sanitized;
+        }
+        $clean['walk'] = array(
+            'excludes'     => $excludes,
+            'excludenonwp' => (int) $walk['excludenonwp'],
+            'excludezip'   => (int) $walk['excludezip'],
+        );
+        return $clean;
+    }
+
+    /**
+     * Validate before deleting, then merge two completed sorted lists.
+     *
+     * @param array $cursor Persisted progress.
+     * @param array $config Manifest, coverage, roots and checkpoint callback.
+     * @param int   $deadline Slice deadline.
+     * @throws \RuntimeException Caught locally and reported as an aborted outcome.
+     * @return array Cursor, outcome and completion flags.
+     */
+    public function reconcile_slice( $cursor, $config, $deadline ) {
+        $cursor   = array_merge(
+            array(
+                'offset'          => 0,
+                'previous'        => '',
+                'rows'            => 0,
+                'validated'       => false,
+                'walk_done'       => false,
+                'live_offset'     => 0,
+                'manifest_offset' => 0,
+                'last'            => '',
+                'removed'         => 0,
+                'examined'        => 0,
+                'failed'          => 0,
+            ),
+            $cursor
+        );
+        $manifest = fopen( $config['manifest'], 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- streaming local artifact.
+        if ( false === $manifest ) {
+            return $this->result(
+                $cursor,
+                array(
+                    'status' => 'skipped',
+                    'reason' => 'manifest_unverified',
+                )
+            );
+        }
+        $live = null;
+        try {
+            if ( ! $cursor['validated'] ) {
+                if ( 0 !== fseek( $manifest, $cursor['offset'] ) ) {
+                    throw new \RuntimeException( 'The manifest cursor could not be read.' );
+                }
+                while ( ! $this->budget_exhausted( $deadline ) ) {
+                    $row = $this->read_row( $manifest );
+                    if ( null === $row ) {
+                        $cursor['validated'] = true;
+                        break;
+                    }
+                    if ( '' !== $cursor['previous'] && strcmp( $cursor['previous'], $row[0] ) >= 0 ) {
+                        throw new \RuntimeException( 'The manifest is not strictly sorted.' );
+                    }
+                    $cursor['previous'] = $row[0];
+                    $cursor['offset']   = ftell( $manifest );
+                    ++$cursor['rows'];
+                }
+                if ( ! $cursor['validated'] ) {
+                    return $this->result( $cursor );
+                }
+                if ( 0 === $cursor['rows'] ) {
+                    return $this->result(
+                        $cursor,
+                        array(
+                            'status' => 'skipped',
+                            'reason' => 'empty_manifest',
+                        )
+                    );
+                }
+            }
+            if ( ! $cursor['walk_done'] ) {
+                $walk   = $config['walk'];
+                $walker = new MainWP_Child_Backup_File_Walker( $config['root'], $walk['excludes'], $walk['excludezip'], $walk['excludenonwp'], array( $config['backup_dir'] ) );
+                $walker->set_progress_callback( $config['progress_callback'] );
+                $out                   = $walker->emit_sidecars_slice( $config['scratch'], isset( $cursor['walk_cursor'] ) ? $cursor['walk_cursor'] : null, $deadline );
+                $cursor['walk_cursor'] = $out['cursor'];
+                $cursor['walk_done']   = ! empty( $out['done'] );
+                // Persist the sorted input before any deletion can change the live walk.
+                return $this->result( $cursor );
+            }
+
+            $live = fopen( $config['scratch'] . MainWP_Child_Backup_File_Walker::FILES_LIST . MainWP_Child_Backup_File_Walker::STAGED_SUFFIX, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- streaming local sidecar.
+            if ( false === $live || 0 !== fseek( $live, $cursor['live_offset'] ) || 0 !== fseek( $manifest, $cursor['manifest_offset'] ) ) {
+                throw new \RuntimeException( 'The reconciliation cursor could not be read.' );
+            }
+            $expected_offset = ftell( $manifest );
+            $expected        = $this->read_row( $manifest );
+            while ( ! $this->budget_exhausted( $deadline ) ) {
+                $row = $this->read_row( $live );
+                if ( null === $row ) {
+                    $outcome = array(
+                        'status'   => 'done',
+                        'removed'  => $cursor['removed'],
+                        'examined' => $cursor['examined'],
+                    );
+                    if ( $cursor['failed'] ) {
+                        $outcome['failed'] = $cursor['failed'];
+                    }
+                    return $this->result( $cursor, $outcome );
+                }
+                while ( null !== $expected && strcmp( $expected[0], $row[0] ) < 0 ) {
+                    if ( $this->budget_exhausted( $deadline ) ) {
+                        $cursor['manifest_offset'] = $expected_offset;
+                        return $this->result( $cursor );
+                    }
+                    $expected_offset = ftell( $manifest );
+                    $expected        = $this->read_row( $manifest );
+                }
+                if ( '' !== $cursor['last'] && strcmp( $cursor['last'], $row[0] ) >= 0 ) {
+                    throw new \RuntimeException( 'The live file list is not strictly sorted.' );
+                }
+                if ( null === $expected || $expected[0] !== $row[0] ) {
+                    $this->remove_candidate( $row[0], $config['root'], $cursor );
+                }
+                ++$cursor['examined'];
+                $cursor['last']            = $row[0];
+                $cursor['live_offset']     = ftell( $live );
+                $cursor['manifest_offset'] = $expected_offset;
+                if ( ! call_user_func( $config['checkpoint_cursor'], $cursor ) ) {
+                    $out            = $this->result( $cursor );
+                    $out['abandon'] = true;
+                    return $out;
+                }
+            }
+            return $this->result( $cursor );
+        } catch ( \Throwable $e ) {
+            return $this->result(
+                $cursor,
+                array(
+                    'status' => 'aborted',
+                    'reason' => 'unsafe_manifest_or_path',
+                )
+            );
+        } finally {
+            fclose( $manifest ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- streaming local artifact.
+            if ( is_resource( $live ) ) {
+                fclose( $live ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- streaming local sidecar.
+            }
+        }
+    }
+
+    /**
+     * A failed read cannot be interpreted as the end of a deletion authority.
+     *
+     * @param resource $handle Open list.
+     * @return array|null Parsed row, or EOF.
+     * @throws \RuntimeException On malformed or unsafe input.
+     */
+    private function read_row( $handle ) {
+        $line = fgets( $handle );
+        if ( false === $line ) {
+            if ( ! feof( $handle ) ) {
+                throw new \RuntimeException( 'Could not read a reconciliation list.' );
+            }
+            return null;
+        }
+        $row = $this->parse_list_line( rtrim( $line, "\r\n" ) );
+        if ( null === $row || ! $this->safe_relpath( $row[0] ) ) {
+            throw new \RuntimeException( 'The reconciliation list contains an unsafe entry.' );
+        }
+        return $row;
+    }
+
+    /**
+     * Reject alternate path spellings before filesystem access.
+     *
+     * @param string $path Site-relative path.
+     * @return bool Whether the path is safe.
+     */
+    private function safe_relpath( $path ) {
+        return '' !== $path && '/' !== $path[0] && false === strpos( $path, '..' ) && false === strpos( $path, '\\' ) && ! preg_match( '/^[a-z]:/i', $path ) && ! preg_match( '/[\x00-\x1f\x7f]/', $path );
+    }
+
+    /**
+     * Restore infrastructure must survive even an old or incomplete exclude list.
+     *
+     * @param string $path Site-relative path.
+     * @return bool Whether deletion is forbidden.
+     */
+    protected function exempt( $path ) {
+        $mainwp = MainWP_Helper::get_mainwp_dir();
+        $paths  = array(
+            'wp-config.php',
+            'wp-content/object-cache.php',
+            'wp-content/uploads/mainwp',
+            rtrim( str_replace( wp_normalize_path( ABSPATH ), '', wp_normalize_path( MAINWP_CHILD_PLUGIN_DIR ) ), '/' ),
+            rtrim( str_replace( wp_normalize_path( ABSPATH ), '', wp_normalize_path( $mainwp[0] ) ), '/' ),
+            str_replace( wp_normalize_path( ABSPATH ), '', wp_normalize_path( WP_CONTENT_DIR ) ) . '/object-cache.php',
+        );
+        if ( MainWP_Helper::in_excludes( $paths, $path ) || MainWP_Helper::is_dump_litter( $path ) ) {
+            return true;
+        }
+        foreach ( explode( '/', $path ) as $part ) {
+            if ( MainWP_Child_Backup_File_Restorer::is_reserved_temp_name( $part ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Recheck containment after enumeration because the live tree can change.
+     *
+     * @param string $path Site-relative candidate.
+     * @param string $root Site root.
+     * @param array  $cursor Running counts.
+     * @throws \RuntimeException On an unsafe deletion path.
+     */
+    private function remove_candidate( $path, $root, &$cursor ) {
+        if ( $this->exempt( $path ) ) {
+            return;
+        }
+        if ( ! $this->safe_relpath( $path ) ) {
+            throw new \RuntimeException( 'Unsafe reconciliation path.' );
+        }
+        $target = trailingslashit( $root ) . $path;
+        clearstatcache( true, $target );
+        if ( is_link( $target ) || ! is_file( $target ) ) {
+            return;
+        }
+        $real_root   = realpath( $root );
+        $real_parent = realpath( dirname( $target ) );
+        if ( false === $real_root || false === $real_parent || 0 !== strpos( $real_parent . '/', $real_root . '/' ) ) {
+            throw new \RuntimeException( 'Reconciliation path leaves the site root.' );
+        }
+        $parent        = dirname( $target );
+        $root_length   = strlen( rtrim( $root, '/' ) );
+        $parent_length = strlen( $parent );
+        while ( $parent_length > $root_length ) {
+            if ( is_link( $parent ) ) {
+                return;
+            }
+            $parent        = dirname( $parent );
+            $parent_length = strlen( $parent );
+        }
+        if ( unlink( $target ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- count failures instead of hiding them.
+            ++$cursor['removed'];
+        } else {
+            ++$cursor['failed'];
+        }
+    }
+
+    /**
+     * Match the task's slice deadline; overridable for deterministic slice tests.
+     *
+     * @param int $deadline Slice deadline.
+     * @return bool Whether to yield.
+     */
+    protected function budget_exhausted( $deadline ) {
+        return time() >= $deadline;
+    }
+
+    /**
+     * Keep progress separate from the public verification outcome.
+     *
+     * @param array      $cursor Resume cursor.
+     * @param array|null $outcome Terminal outcome.
+     * @return array Slice result.
+     */
+    private function result( $cursor, $outcome = null ) {
+        return array(
+            'cursor'  => $cursor,
+            'done'    => null !== $outcome,
+            'outcome' => $outcome,
+            'abandon' => false,
+        );
+    }
+}

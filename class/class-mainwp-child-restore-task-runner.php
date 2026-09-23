@@ -159,7 +159,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $spine  = MainWP_Child_Backup_Task::instance();
         $spine->install();
         // An idle site's watchdog may never clear a deadline-expired task.
-        $spine->reclaim_expired_tasks();
+        $spine->reclaim_expired_tasks( $this->backup_dir() );
 
         $owner = 'restore-create-' . strtolower( wp_generate_password( 12, false ) );
         $held  = MainWP_Child_Backup_Mutex::acquire( 'native', $owner, 60 );
@@ -626,7 +626,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                         'code'    => MainWP_Backup_Error::ERR_RESTORE_CANCELLED,
                     ),
                 ),
-            )
+            ),
+            true,
+            $backup_dir
         );
         if ( false === $new_version ) {
             // Something else wrote the row between the acquire and the
@@ -1480,6 +1482,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         foreach ( (array) $params['artifacts'] as $artifact ) {
             $base = $artifact['file'];
             $path = $scratch . $base;
+            if ( 'manifest' === $artifact['role'] ) {
+                $expected                                 = isset( $hashes[ $base ] ) ? $hashes[ $base ] : '';
+                $actual                                   = is_file( $path ) && ! is_link( $path ) ? hash_file( 'sha256', $path ) : false;
+                $sub_state['verified_manifests'][ $base ] = '' !== $expected && is_string( $actual ) && hash_equals( $expected, $actual ) ? $actual : '';
+                continue;
+            }
             if ( ! is_file( $path ) ) {
                 throw new MainWP_Exception( esc_html( 'Restore artifact missing from the staging area: ' . $base ), null, MainWP_Backup_Error::ERR_FILE_CORRUPT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
             }
@@ -1595,7 +1603,98 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         }
 
         $sub_state['file_restore'] = $cursor;
+        // Legacy file-runner callers hand in a bare cursor object with no task type; only a typed restore reconciles.
+        if ( isset( $task->type ) && in_array( $task->type, array( 'restore', 'restore_files' ), true ) ) {
+            return $this->run_reconcile( $task, $version, $sub_state, $deadline, $backup_dir );
+        }
         return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Reconciliation shares extraction's checkpoint and lease discipline.
+     *
+     * @param object $task Task row.
+     * @param int    $version Owned version.
+     * @param array  $sub_state Cursor.
+     * @param int    $deadline Slice deadline.
+     * @param string $backup_dir Backup root.
+     * @return array Slice result.
+     */
+    protected function run_reconcile( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        $params  = $sub_state['params'];
+        $options = isset( $params['reconcile'] ) ? MainWP_Child_Backup_Reconciler::sanitize_options( $params['reconcile'] ) : array();
+        $reason  = null;
+        if ( ! array_key_exists( 'reconcile', $params ) ) {
+            $reason = 'no_manifest';
+        } elseif ( empty( $options['manifest'] ) ) {
+            $reason = 'manifest_unverified';
+        } elseif ( ! isset( $options['walk'] ) ) {
+            $reason = 'no_walk_params';
+        }
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        if ( null === $reason ) {
+            $name     = $options['manifest'];
+            $verified = isset( $sub_state['verified_manifests'][ $name ] ) ? $sub_state['verified_manifests'][ $name ] : '';
+            $path     = $scratch . $name;
+            $actual   = is_file( $path ) && ! is_link( $path ) ? hash_file( 'sha256', $path ) : false;
+            if ( '' === $verified || ! is_string( $actual ) || ! hash_equals( $verified, $actual ) ) {
+                $reason = 'manifest_unverified';
+            }
+        }
+        if ( null !== $reason ) {
+            $sub_state['verification']['reconcile'] = array(
+                'status' => 'skipped',
+                'reason' => $reason,
+            );
+            return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+        }
+
+        $reconcile_dir = $scratch . 'reconcile/';
+        if ( ! is_dir( $reconcile_dir ) ) {
+            wp_mkdir_p( $reconcile_dir );
+        }
+        $outcome                = $this->reconciler()->reconcile_slice(
+            isset( $sub_state['reconcile'] ) ? $sub_state['reconcile'] : array(),
+            array(
+                'manifest'          => $path,
+                'walk'              => $options['walk'],
+                'root'              => $this->site_root(),
+                'backup_dir'        => $backup_dir,
+                'scratch'           => $reconcile_dir,
+                'progress_callback' => function () use ( $task ) {
+                    MainWP_Child_Backup_Task::instance()->touch_progress( $task->task_id );
+                },
+                'checkpoint_cursor' => function ( $cursor ) use ( $task, &$version, &$sub_state, $backup_dir ) {
+                    $sub_state['reconcile'] = $cursor;
+                    $checkpoint = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
+                    $version = $checkpoint['version'];
+                    return empty( $checkpoint['abandon'] );
+                },
+            ),
+            $deadline
+        );
+        $sub_state['reconcile'] = $outcome['cursor'];
+        if ( $outcome['abandon'] ) {
+            return $this->slice_result( $version, true, true );
+        }
+        if ( ! $outcome['done'] ) {
+            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+        }
+        $sub_state['verification']['reconcile'] = $outcome['outcome'];
+        if ( 'aborted' === $outcome['outcome']['status'] ) {
+            $this->terminal_cleanup( $task, $sub_state, $backup_dir );
+            return $this->fail_terminal( $task, $version, $sub_state, $backup_dir, MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_RECONCILE ), MainWP_Backup_Error::ERR_RESTORE_RECONCILE );
+        }
+        return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Allow deterministic interruption tests without changing the task deadline.
+     *
+     * @return MainWP_Child_Backup_Reconciler Reconciliation engine.
+     */
+    protected function reconciler() {
+        return new MainWP_Child_Backup_Reconciler();
     }
 
     /**
@@ -2888,6 +2987,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         // and removing the row earlier fails a correct restore by one row.
         MainWP_Child_Backup_Mutex::clear_after_restore( isset( $sub_state['restored_mutex'] ) ? $sub_state['restored_mutex'] : '' );
 
+        $reconcile                 = isset( $sub_state['verification']['reconcile'] ) ? $sub_state['verification']['reconcile'] : null;
         $sub_state['verification'] = array(
             'row_counts_ok'              => true,
             'identity_verify_delta'      => $identity_verify_delta,
@@ -2898,6 +2998,10 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             'url_rewrite_failed_updates' => isset( $sub_state['url_rewrite_failed_updates'] ) ? (int) $sub_state['url_rewrite_failed_updates'] : 0,
             'url_rewrite_error'          => isset( $sub_state['url_rewrite_error'] ) ? (string) $sub_state['url_rewrite_error'] : '',
         );
+
+        if ( null !== $reconcile ) {
+            $sub_state['verification']['reconcile'] = $reconcile;
+        }
 
         // A preserve restore keeps the live orders in place; surface how many
         // still reference a customer the merge could not bring back so the
@@ -3227,7 +3331,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             array(
                 'phase'     => $phase,
                 'sub_state' => $serialized,
-            )
+            ),
+            true,
+            $backup_dir
         );
         if ( false === $new_version ) {
             return $this->slice_result( $version, true, true );

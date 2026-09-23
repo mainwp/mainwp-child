@@ -391,6 +391,128 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @dataProvider data_read_only_target_formats
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_archive_skips_active_child_plugin_directory( $format ) {
+		$plugin = 'wp-content/plugins/renamed-child';
+		define( 'MainWP\\Child\\MAINWP_CHILD_PLUGIN_DIR', ABSPATH . $plugin . '/' );
+		mkdir( $this->extract_to . '/' . $plugin, 0777, true );
+		file_put_contents( $this->extract_to . '/' . $plugin . '/live.php', 'current child' );
+		$entries = array(
+			$plugin . '/live.php' => 'old child',
+			$plugin . '/new.php' => 'old extra file',
+			$plugin . '-extra/keep.php' => 'other plugin',
+		);
+		if ( 'zip' === $format ) {
+			$entries[ './' . $plugin . '//live.php' ] = 'old child via alternate spelling';
+		}
+		$part = 'zip' === $format
+			? $this->make_zip( 'child.zip', $entries )
+			: $this->make_tar( 'child.tar', $entries );
+		$result = $this->run_sliced( $this->config( array( $part ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( 'current child', file_get_contents( $this->extract_to . '/' . $plugin . '/live.php' ) );
+		$this->assertFileDoesNotExist( $this->extract_to . '/' . $plugin . '/new.php' );
+		$this->assertSame( 'other plugin', file_get_contents( $this->extract_to . '/' . $plugin . '-extra/keep.php' ) );
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_tombstones_preserve_active_child_plugin_directory() {
+		$plugin = 'wp-content/plugins/renamed-child';
+		define( 'MainWP\\Child\\MAINWP_CHILD_PLUGIN_DIR', ABSPATH . $plugin . '/' );
+		foreach ( array( $plugin, $plugin . '-extra' ) as $directory ) {
+			mkdir( $this->extract_to . '/' . $directory, 0777, true );
+			file_put_contents( $this->extract_to . '/' . $directory . '/live.php', 'current child' );
+		}
+		$tombstones = $this->dir . '/tombstones.list';
+		file_put_contents( $tombstones, $plugin . "/live.php\n./" . $plugin . "//live.php\n" . $plugin . "-extra/live.php\n" );
+		$result = $this->restorer->apply_tombstones( $tombstones, $this->extract_to );
+		$this->assertNull( $result['error'] );
+		$this->assertSame( 1, $result['deleted'] );
+		$this->assertSame( 'current child', file_get_contents( $this->extract_to . '/' . $plugin . '/live.php' ) );
+		$this->assertFileDoesNotExist( $this->extract_to . '/' . $plugin . '-extra/live.php' );
+	}
+
+	/** @dataProvider data_read_only_target_formats */
+	public function test_legacy_htaccess_aliases_restore_to_real_names( $format ) {
+		$entries = array(
+			'mainwp-htaccess' => 'root rules',
+			'wp-content/mainwp-htaccess' => 'directory rules',
+			'wp-content/deep/mainwp-htaccess' => 'nested rules',
+			'wp-content/mainwp-htaccess.txt' => 'ordinary file',
+		);
+		$part = 'zip' === $format
+			? $this->make_zip( 'aliases.zip', $entries )
+			: $this->make_tar( 'aliases.tar', $entries );
+		$result = $this->run_sliced( $this->config( array( $part ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		foreach ( array( '' => 'root rules', 'wp-content/' => 'directory rules', 'wp-content/deep/' => 'nested rules' ) as $directory => $content ) {
+			$this->assertSame( $content, file_get_contents( $this->extract_to . '/' . $directory . '.htaccess' ) );
+			$this->assertFileDoesNotExist( $this->extract_to . '/' . $directory . 'mainwp-htaccess' );
+		}
+		$this->assertSame( 'ordinary file', file_get_contents( $this->extract_to . '/wp-content/mainwp-htaccess.txt' ) );
+	}
+
+	/** @dataProvider data_read_only_target_formats */
+	public function test_real_htaccess_entries_take_precedence_over_aliases( $format ) {
+		$entries = array(
+			'.htaccess' => 'current root rules',
+			'mainwp-htaccess' => 'stale root rules',
+			'wp-content/.htaccess' => 'current directory rules',
+			'wp-content/mainwp-htaccess' => 'stale directory rules',
+			'wp-content/deep/.htaccess' => 'current nested rules',
+			'wp-content/deep/mainwp-htaccess' => 'stale nested rules',
+			'legacy/mainwp-htaccess' => 'legacy directory rules',
+		);
+		foreach ( array( 'real-first' => $entries, 'alias-first' => array_reverse( $entries, true ) ) as $order => $ordered_entries ) {
+			$destination = $this->extract_to . '/' . $order;
+			mkdir( $destination );
+			$part = 'zip' === $format
+				? $this->make_zip( $order . '.zip', $ordered_entries )
+				: $this->make_tar( $order . '.tar', $ordered_entries );
+			$result = $this->run_sliced( $this->config( array( $part ), array( 'extract_to' => $destination ) ) );
+			$this->assertNull( $result['error'], $order );
+			$this->assertTrue( $result['done'], $order );
+			foreach ( $entries as $name => $content ) {
+				$target = 'legacy/mainwp-htaccess' === $name ? 'legacy/.htaccess' : $name;
+				$this->assertFileExists( $destination . '/' . $target, $order );
+				$this->assertSame( $content, file_get_contents( $destination . '/' . $target ), $order . ': ' . $target );
+			}
+			$this->assertFileDoesNotExist( $destination . '/legacy/mainwp-htaccess' );
+		}
+	}
+
+	/** @dataProvider data_read_only_target_formats */
+	public function test_htaccess_presence_cache_is_scoped_to_archive_part( $format ) {
+		$parts = array();
+		foreach ( array( array( '.htaccess' => 'first part rules', 'mainwp-htaccess' => 'stale first part rules' ), array( 'mainwp-htaccess' => 'later part rules' ) ) as $index => $entries ) {
+			$parts[] = 'zip' === $format
+				? $this->make_zip( 'part-' . $index . '.zip', $entries )
+				: $this->make_tar( 'part-' . $index . '.tar', $entries );
+		}
+		$result = $this->run_all( $this->config( $parts ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( 'later part rules', file_get_contents( $this->extract_to . '/.htaccess' ) );
+		$this->assertSame( 'stale first part rules', file_get_contents( $this->extract_to . '/mainwp-htaccess' ) );
+	}
+
+	public function test_htaccess_alias_remapping_rejects_traversal() {
+		$entries = array( '../mainwp-htaccess' => 'unsafe rules' );
+		$part = $this->make_zip( 'traversal.zip', $entries );
+		$result = $this->run_all( $this->config( array( $part ) ) );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertFileDoesNotExist( $this->dir . '/.htaccess' );
+	}
+
+	/**
 	 * A hash mismatch fails before any entry is written.
 	 */
 	public function test_archive_sha256_verified_before_extraction() {

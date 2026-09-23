@@ -690,8 +690,10 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Backup::check_backup_readiness()
      */
     public function backup_preflight() {
+        // The restore capability probe runs on the path a user is waiting on and reads only the capability keys.
+        $capabilities_only = isset( $_POST['capabilities_only'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['capabilities_only'] ) ); // phpcs:ignore WordPress.Security.NonceVerification -- authenticated MainWP request.
         try {
-            $information = MainWP_Backup::get()->check_backup_readiness();
+            $information = MainWP_Backup::get()->check_backup_readiness( $capabilities_only );
         } catch ( MainWP_Exception $e ) {
             MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
             return;
@@ -1013,6 +1015,10 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             'preserve_orders'  => ! empty( $options['preserve_orders'] ),
             'woo_order_since'  => isset( $options['woo_order_since'] ) ? (int) $options['woo_order_since'] : 0,
         );
+
+        if ( array_key_exists( 'reconcile', $options ) ) {
+            $params['reconcile'] = MainWP_Child_Backup_Reconciler::sanitize_options( $options['reconcile'] );
+        }
 
         // A rejected pull manifest never fails the create: the task
         // proceeds without it and the Dashboard takes the staged

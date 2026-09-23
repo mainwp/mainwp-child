@@ -592,15 +592,39 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     /**
      * Checkpoint task state with a compare-and-swap on version.
      *
-     * @param string $task_id       Task id.
-     * @param int    $version       Version the caller last observed.
-     * @param array  $fields        Allowed: phase, sub_state (array), resume_count.
-     * @param bool   $release_mutex False while the terminal caller still has shared-file cleanup.
+     * @param string      $task_id       Task id.
+     * @param int         $version       Version the caller last observed.
+     * @param array       $fields        Allowed: phase, sub_state (array), resume_count.
+     * @param bool        $release_mutex False while the terminal caller still has shared-file cleanup.
+     * @param string|null $backup_dir    Cursor sidecar directory, null for the default.
      *
      * @return int|false The new version on success, false when the version was stale.
      */
-    public function checkpoint( $task_id, $version, $fields, $release_mutex = true ) {
+    public function checkpoint( $task_id, $version, $fields, $release_mutex = true, $backup_dir = null ) {
         global $wpdb;
+
+        if ( isset( $fields['phase'] ) && self::is_terminal_phase( $fields['phase'] ) ) {
+            $task = $this->get_task( $task_id );
+            if ( null !== $task && self::is_restore_type( $task->type ) ) {
+                if ( isset( $fields['sub_state'] ) ) {
+                    $task->sub_state = is_string( $fields['sub_state'] ) ? $fields['sub_state'] : wp_json_encode( $fields['sub_state'] );
+                }
+                if ( null === $backup_dir ) {
+                    $dirs       = MainWP_Helper::get_mainwp_dir( 'backup' );
+                    $backup_dir = $dirs[0];
+                }
+                $sub_state = $this->read_sub_state( $task, $backup_dir );
+                if ( null === $sub_state ) {
+                    return false;
+                }
+                if ( isset( $sub_state['identity_preserve'] ) ) {
+                    $sub_state['identity_preserved'] = true;
+                }
+                unset( $sub_state['params']['pull_manifest'], $sub_state['identity_preserve'] );
+                // Terminal rows outlive the credentials needed to resume; keep the outcome inline when sidecars are removed.
+                $fields['sub_state'] = $sub_state;
+            }
+        }
 
         $sets = array( 'last_progress_at = NOW()', 'version = version + 1' );
         $args = array();
@@ -1090,6 +1114,19 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
 
         $sub_state = $this->read_sub_state( $task, $backup_dir );
 
+        if ( self::is_restore_type( $task->type ) ) {
+            // Dashboard diagnostics retain responses, so only polling fields may leave the restore cursor.
+            $projected           = array_intersect_key( (array) $sub_state, array_flip( array( 'verification', 'progress', 'error' ) ) );
+            $projected['params'] = array();
+            if ( ! empty( $sub_state['params']['pull_manifest'] ) ) {
+                $projected['params']['pull_manifest'] = true;
+            }
+            if ( isset( $sub_state['identity_preserve'] ) || ! empty( $sub_state['identity_preserved'] ) ) {
+                $projected['identity_preserved'] = true;
+            }
+            $sub_state = $projected;
+        }
+
         $payload = array(
             'task_id'           => $task->task_id,
             'phase'             => $task->phase,
@@ -1381,13 +1418,42 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * task whose deadline has actually passed - a legitimately running backup,
      * still inside its window, is left untouched.
      *
+     * @param string|null $backup_dir Cursor sidecar directory, null for the default.
+     *
      * @return int Number of tasks driven terminal by this call.
      */
-    public function reclaim_expired_tasks() {
+    public function reclaim_expired_tasks( $backup_dir = null ) {
+        global $wpdb;
+
         $reclaimed = 0;
         foreach ( $this->get_active_tasks() as $task ) {
             if ( $this->enforce_wall_clock_deadline( $task->task_id ) ) {
                 ++$reclaimed;
+            }
+        }
+
+        // Older builds retained resume credentials after completion; preserve the rows for restore-id reuse.
+        $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- terminal restore cursor cleanup.
+            'SELECT * FROM ' . $this->get_table_name() . " WHERE type IN ('restore','restore_db','restore_files') AND phase IN ('completed','failed')" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper, no user input.
+        );
+        if ( null === $backup_dir ) {
+            $dirs       = MainWP_Helper::get_mainwp_dir( 'backup' );
+            $backup_dir = $dirs[0];
+        }
+        foreach ( (array) $rows as $task ) {
+            $sub_state = $this->read_sub_state( $task, $backup_dir );
+            if ( is_array( $sub_state ) && ( array_key_exists( 'identity_preserve', $sub_state )
+                || ( isset( $sub_state['params'] ) && is_array( $sub_state['params'] ) && array_key_exists( 'pull_manifest', $sub_state['params'] ) ) ) ) {
+                $this->checkpoint(
+                    $task->task_id,
+                    (int) $task->version,
+                    array(
+                        'phase'     => $task->phase,
+                        'sub_state' => $sub_state,
+                    ),
+                    true,
+                    $backup_dir
+                );
             }
         }
         return $reclaimed;

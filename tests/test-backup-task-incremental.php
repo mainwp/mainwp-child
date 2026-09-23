@@ -236,6 +236,29 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		$this->assertSame( 123, $roles['manifest']['size'] );
 	}
 
+
+	public function test_manifest_walk_metadata_matches_walker_inputs() {
+		$params = array( 'emit_manifest' => true, 'excludes' => array( 'wp-content/private', 'wp-content/plugins/mainwp-child' ), 'excludenonwp' => 1, 'excludezip' => 1 );
+		$walked = null;
+		$this->runner->stubs['walk_manifest_slice'] = function ( $actual ) use ( &$walked ) {
+			$walked = $actual;
+			return array( 'done' => true, 'file' => 'files.list', 'size' => 123, 'count' => 2 );
+		};
+		$task = $this->advance( $this->create_task( 'full', $params ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+		$roles = $this->artifacts_by_role( $payload );
+		$method = new ReflectionMethod( \MainWP\Child\MainWP_Child_Backup_Task_Runner::class, 'make_walker' );
+		$method->setAccessible( true );
+		$walker = $method->invoke( $this->runner, $walked, $this->backup_dir );
+		foreach ( array( 'excludes', 'excludenonwp', 'excludezip' ) as $key ) {
+			$property = new ReflectionProperty( $walker, $key );
+			$property->setAccessible( true );
+			$actual = $property->getValue( $walker );
+			$this->assertSame( 'excludes' === $key ? $actual : (int) $actual, $roles['manifest']['walk'][ $key ] );
+		}
+	}
+
 	/**
 	 * A plain full run never pays for the manifest walk and exposes no
 	 * artifacts list.
@@ -425,6 +448,7 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 
 		$roles = $this->artifacts_by_role( $payload );
 		$this->assertSame( 'files.list', $roles['manifest']['file'] );
+		$this->assertSame( array( 'excludes' => array(), 'excludenonwp' => 0, 'excludezip' => 0 ), $roles['manifest']['walk'] );
 		$this->assertSame( 'tombstones.list', $roles['tombstones']['file'] );
 		$this->assertSame( 'backup-artifact.tar', $roles['db']['file'], 'The fresh database dump ships with every incremental run.' );
 

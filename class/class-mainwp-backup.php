@@ -505,6 +505,7 @@ class MainWP_Backup {
         $uploadDir  = MainWP_Helper::get_mainwp_dir();
         $excludes[] = str_replace( ABSPATH, '', $uploadDir[0] );
         $excludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/object-cache.php';
+        $excludes[] = str_replace( ABSPATH, '', MAINWP_CHILD_PLUGIN_DIR );
 
         $newExcludes = array();
         foreach ( $excludes as $exclude ) {
@@ -1609,10 +1610,13 @@ class MainWP_Backup {
      * dead database connection). The report includes the backup directory
      * secret so the Dashboard can track the randomized directory.
      *
+     * @param bool $capabilities_only Skip the wp-content walk behind the size estimate; the
+     *                                restore capability probe needs only the capability keys
+     *                                and must answer inside the Dashboard's clamp.
      * @return array Readiness report sent to the Dashboard.
      * @throws MainWP_Exception When critical requirements are missing.
      */
-    public function check_backup_readiness() {
+    public function check_backup_readiness( $capabilities_only = false ) {
         $report = array(
             'disk_free'                  => false,
             'dir_writable'               => false,
@@ -1681,6 +1685,10 @@ class MainWP_Backup {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DB_CONNECTION_LOST ) ), null, MainWP_Backup_Error::ERR_DB_CONNECTION_LOST ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
         }
 
+        if ( $capabilities_only ) {
+            return $report;
+        }
+
         // The wp-content walk is cached so reporting the size estimate and
         // file count does not double the IO before the backup runs.
         $report['estimated_bytes'] = $this->estimate_backup_size( true );
@@ -1738,6 +1746,9 @@ class MainWP_Backup {
         }
         if ( true === $zipRes && \ZipArchive::ER_OK === $this->zip->status ) {
             $nodes = glob( ABSPATH . '*' );
+            if ( file_exists( ABSPATH . '.htaccess' ) ) {
+                $nodes[] = ABSPATH . '.htaccess';
+            }
             if ( ! $includeCoreFiles ) {
                 $this->include_core_files( $nodes );
             }
@@ -1746,10 +1757,6 @@ class MainWP_Backup {
             // Clone validation requires the fixed empty marker; table fragments retain their run id.
             foreach ( $db_files as $db_file ) {
                 $this->add_file_to_zipp( $db_file, basename( WP_CONTENT_DIR ) . '/' . ( '.sql' === substr( $db_file, -4 ) ? 'dbBackup.sql' : basename( $db_file ) ) );
-            }
-
-            if ( file_exists( ABSPATH . '.htaccess' ) ) {
-                $this->add_file_to_zipp( ABSPATH . '.htaccess', 'mainwp-htaccess' );
             }
 
             foreach ( $nodes as $node ) {
@@ -1972,6 +1979,9 @@ class MainWP_Backup {
                     }
 
                     $newnodes = glob( $node . DIRECTORY_SEPARATOR . '*' );
+                    if ( file_exists( $node . '/.htaccess' ) ) {
+                        $newnodes[] = $node . '/.htaccess';
+                    }
                     $this->copy_dir( $newnodes, $excludes, $backupfolder, $excludenonwp, array_merge( $ancestors, array( $node ) ) );
                     unset( $newnodes );
                 } elseif ( is_file( $node ) ) {
@@ -2022,6 +2032,9 @@ class MainWP_Backup {
 
             // Copy installation to backup folder.
             $nodes = glob( ABSPATH . '*' );
+            if ( file_exists( ABSPATH . '.htaccess' ) ) {
+                $nodes[] = ABSPATH . '.htaccess';
+            }
             if ( ! $includeCoreFiles ) {
                 $coreFiles = array(
                     'favicon.ico',
@@ -2157,10 +2170,6 @@ class MainWP_Backup {
             }
         } else {
             $this->zip->add_empty_dir( str_replace( ABSPATH, '', $path ) );
-        }
-
-        if ( file_exists( rtrim( $path, '/' ) . '/.htaccess' ) ) {
-            $this->add_file_to_zipp( rtrim( $path, '/' ) . '/.htaccess', rtrim( str_replace( ABSPATH, '', $path ), '/' ) . '/mainwp-htaccess' );
         }
 
         // Explicit recursion handles descent; a recursive iterator would revisit each subtree.
