@@ -354,7 +354,16 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         }
         $identities = array();
         foreach ( $rows as $row ) {
-            $state      = json_decode( (string) $row->sub_state, true );
+            $state = json_decode( (string) $row->sub_state, true );
+            if ( null === $row->restore_id && ! empty( $state['_sidecar'] ) ) {
+                try {
+                    $dirs  = MainWP_Helper::get_mainwp_dir( 'backup', false );
+                    $state = $this->read_sub_state( $row, $dirs[0] );
+                } catch ( \Throwable $e ) {
+                    // An unavailable cursor must not block schema upgrades or backups.
+                    $state = null;
+                }
+            }
             $restore_id = $row->restore_id ?? ( $state['params']['restore_id'] ?? null );
             if ( is_string( $restore_id ) && '' !== $restore_id && strlen( $restore_id ) <= 64 ) {
                 $identities[ $restore_id ][] = $row;
@@ -399,7 +408,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * @param string|null $task_id          Task id reserved by the engine mutex, or null to generate one.
      * @param bool        $require_idle     Refuse creation while any non-terminal task exists.
      *
-     * @return string|false|null Task id on success, false on query failure, or null when a guarded insert finds an occupied slot.
+     * @return string|false|null Task id on success, false on query failure, or null for an occupied slot or restore identity (see wpdb::last_error).
      * @throws MainWP_Exception When the unique active slot is already occupied.
      */
     public function create_task( $type = 'full', $sub_state = array(), $max_resumes = null, $deadline_seconds = null, $task_id = null, $require_idle = false ) {
@@ -439,6 +448,9 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             );
             if ( false === $result && false !== strpos( $wpdb->last_error, 'Duplicate entry' ) && false !== strpos( $wpdb->last_error, 'uniq_active_task' ) ) {
                 throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING );
+            }
+            if ( false === $result && false !== strpos( $wpdb->last_error, 'Duplicate entry' ) && false !== strpos( $wpdb->last_error, 'uniq_restore_id' ) ) {
+                return null;
             }
         } finally {
             $wpdb->suppress_errors( $suppress );

@@ -8,10 +8,12 @@
 use MainWP\Child\MainWP_Backup_Error;
 use MainWP\Child\MainWP_Child_Backup_Task;
 use MainWP\Child\MainWP_Exception;
+use MainWP\Child\MainWP_Helper;
 
 class BackupTaskInstallTest extends WP_UnitTestCase {
 
 	protected $spine;
+	protected $sidecar_files = array();
 
 	public function set_up() {
 		parent::set_up();
@@ -25,6 +27,11 @@ class BackupTaskInstallTest extends WP_UnitTestCase {
 
 	public function tear_down() {
 		global $wpdb;
+		foreach ( $this->sidecar_files as $file ) {
+			if ( is_file( $file ) ) {
+				unlink( $file );
+			}
+		}
 		parent::tear_down();
 		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
 		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
@@ -119,6 +126,62 @@ class BackupTaskInstallTest extends WP_UnitTestCase {
 		$this->assertSame( 4, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ) );
 		$this->spine->install();
 		$this->assertSame( 'unique', $this->spine->get_task_by_restore_id( 'b14unique' )->task_id );
+	}
+
+	protected function b14_seed_sidecar( $task_id, $restore_id, $missing = false ) {
+		global $wpdb;
+		$dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
+		$state = array( 'params' => array( 'restore_id' => $restore_id ), 'padding' => str_repeat( 'x', MainWP_Child_Backup_Task::SUB_STATE_INLINE_MAX + 1 ) );
+		$pointer = $this->spine->write_sub_state( $task_id, $state, $dirs[0], 0 );
+		$this->assertNotFalse( $pointer );
+		$decoded = json_decode( $pointer, true );
+		$this->assertTrue( $decoded['_sidecar'] );
+		$file = $dirs[0] . '/' . $decoded['file'];
+		$this->sidecar_files[] = $file;
+		if ( $missing ) {
+			$this->assertTrue( unlink( $file ) );
+		}
+		$this->assertSame( 1, $wpdb->insert( $this->spine->get_table_name(), array(
+			'task_id' => $task_id,
+			'phase' => 'completed',
+			'type' => 'restore_db',
+			'sub_state' => $pointer,
+		) ) );
+	}
+
+	/** @test */
+	public function b14_upgrade_110_backfills_sidecar_restore_id() {
+		$this->b14_create_110_schema();
+		$this->b14_seed_sidecar( 'b14-sidecar', 'b14sidecar' );
+		$this->spine->install();
+		$this->assertSame( 'b14sidecar', $this->spine->get_task( 'b14-sidecar' )->restore_id );
+		$this->b14_assert_restore_key();
+	}
+
+	/** @test */
+	public function b14_upgrade_110_missing_sidecar_keeps_null_and_stamps_version() {
+		$this->b14_create_110_schema();
+		$this->b14_seed_sidecar( 'b14-missing', 'b14missing', true );
+		$this->spine->install();
+		$this->assertNull( $this->spine->get_task( 'b14-missing' )->restore_id );
+		$this->b14_assert_restore_key();
+	}
+
+	/** @test */
+	public function b14_upgrade_110_sidecar_and_inline_duplicate_stay_null() {
+		global $wpdb;
+		$this->b14_create_110_schema();
+		$this->b14_seed_sidecar( 'b14-sidecar-duplicate', 'b14shared' );
+		$this->assertSame( 1, $wpdb->insert( $this->spine->get_table_name(), array(
+			'task_id' => 'b14-inline-duplicate',
+			'phase' => 'completed',
+			'type' => 'restore_db',
+			'sub_state' => wp_json_encode( array( 'params' => array( 'restore_id' => 'b14shared' ) ) ),
+		) ) );
+		$this->spine->install();
+		$this->assertNull( $this->spine->get_task( 'b14-sidecar-duplicate' )->restore_id );
+		$this->assertNull( $this->spine->get_task( 'b14-inline-duplicate' )->restore_id );
+		$this->b14_assert_restore_key();
 	}
 
 	/** @test */

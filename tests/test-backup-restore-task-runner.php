@@ -5094,6 +5094,72 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/** @test */
+	public function b14_restore_id_insert_duplicate_adopts_terminal_task() {
+		global $wpdb;
+		$table = $this->spine->get_table_name();
+		$params = array( 'restore_id' => 'b14race', 'artifacts' => array() );
+		$inserted = false;
+		$race = function ( $query ) use ( &$race, &$inserted, $table, $params, $wpdb ) {
+			if ( 0 === strpos( $query, "INSERT INTO {$table} " ) ) {
+				remove_filter( 'query', $race );
+				$this->assertNull( $this->spine->get_task_by_restore_id( $params['restore_id'] ) );
+				$this->assertSame( 1, $wpdb->insert( $table, array( 'task_id' => 'b14-race-winner', 'phase' => 'completed', 'type' => 'restore_db', 'restore_id' => $params['restore_id'] ) ) );
+				$inserted = true;
+			}
+			return $query;
+		};
+		add_filter( 'query', $race );
+		try {
+			$reused = false;
+			$this->assertSame( 'b14-race-winner', $this->runner->create_restore_task( 'db', $params, $reused ) );
+			$this->assertDirectoryDoesNotExist( $this->runner->scratch_dir( 'b14-race-winner', $this->dir ) );
+			$this->assertTrue( $inserted );
+			$this->assertTrue( $reused );
+			$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE restore_id = %s", $params['restore_id'] ) ) );
+			$this->assertEmpty( $this->runner->fake_engine->calls );
+			$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+		} finally {
+			remove_filter( 'query', $race );
+		}
+	}
+
+	/** @test */
+	public function b14_restore_id_insert_duplicate_without_row_throws_generic_error() {
+		global $wpdb;
+		$table = $this->spine->get_table_name();
+		$params = array( 'restore_id' => 'b14gone', 'artifacts' => array() );
+		$inserted = false;
+		$removed = false;
+		$race = function ( $query ) use ( &$race, &$inserted, &$removed, $table, $params, $wpdb ) {
+			if ( ! $inserted && 0 === strpos( $query, "INSERT INTO {$table} " ) ) {
+				$inserted = true;
+				$this->assertSame( 1, $wpdb->insert( $table, array( 'task_id' => 'b14-race-gone', 'phase' => 'completed', 'type' => 'restore_db', 'restore_id' => $params['restore_id'] ) ) );
+			} elseif ( $inserted && 0 === strpos( $query, "SELECT * FROM {$table} WHERE restore_id =" ) ) {
+				remove_filter( 'query', $race );
+				$this->assertSame( 1, $wpdb->delete( $table, array( 'task_id' => 'b14-race-gone' ) ) );
+				$removed = true;
+			}
+			return $query;
+		};
+		add_filter( 'query', $race );
+		$reused = false;
+		try {
+			$this->runner->create_restore_task( 'db', $params, $reused );
+			$this->fail( 'A duplicate without a recoverable row must fail.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( 'The restore task could not be created on this site.', $e->getMessage() );
+			$this->assertSame( '', $e->get_message_error_code() );
+			$this->assertTrue( $inserted );
+			$this->assertTrue( $removed );
+			$this->assertFalse( $reused );
+			$this->assertEmpty( $this->runner->fake_engine->calls );
+			$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+		} finally {
+			remove_filter( 'query', $race );
+		}
+	}
+
+	/** @test */
 	public function b14_different_restore_id_after_terminal_creates_new_task() {
 		$first = $this->make_task( 'db', array(), array( 'restore_id' => 'b14first' ) );
 		$this->assertSame( 1, $this->spine->checkpoint( $first, 0, array( 'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED ), false ) );

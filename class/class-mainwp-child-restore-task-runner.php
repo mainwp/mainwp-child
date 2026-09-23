@@ -154,6 +154,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @return string Task id.
      */
     public function create_restore_task( $sub_type, $params, &$reused = false ) {
+        global $wpdb;
         $reused = false;
         $spine  = MainWP_Child_Backup_Task::instance();
         $spine->install();
@@ -197,6 +198,14 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
             $task_id = $spine->create_task( $type, array( 'params' => $params ), self::RESTORE_MAX_RESUMES, $deadline, null, true );
             if ( null === $task_id ) {
+                if ( false !== strpos( $wpdb->last_error, 'Duplicate entry' ) && false !== strpos( $wpdb->last_error, 'uniq_restore_id' ) ) {
+                    $existing = $spine->get_task_by_restore_id( $params['restore_id'] );
+                    if ( null !== $existing ) {
+                        $reused = true;
+                        return $existing->task_id;
+                    }
+                    throw new MainWP_Exception( 'The restore task could not be created on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+                }
                 throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
             }
             if ( false === $task_id ) {
