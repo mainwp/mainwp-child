@@ -219,6 +219,54 @@ class BackupUrlRewriterTest extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_case_only_role_key_rename_keeps_source_row() {
+		global $wpdb;
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+		$this->assertNotFalse( $wpdb->query( 'DROP TABLE IF EXISTS `' . $this->table . '`' ) );
+		$this->assertNotFalse( $wpdb->query( 'CREATE TABLE `' . $this->table . '` (option_id BIGINT NOT NULL AUTO_INCREMENT, option_name VARCHAR(191) NOT NULL, option_value LONGTEXT, PRIMARY KEY (option_id), UNIQUE KEY (option_name))' ) );
+		$roles = serialize( array( 'administrator' => array( 'capabilities' => array( 'manage_options' => true ) ) ) );
+		$this->assertSame( 1, $wpdb->insert( $this->table, array( 'option_name' => 'RT_user_roles', 'option_value' => $roles ) ) );
+		$this->assertSame( 'RT_user_roles', $wpdb->get_var( "SELECT option_name FROM `{$this->table}` WHERE option_name = 'rt_user_roles'" ), 'The default collation must reproduce the source-row match.' );
+		$result = $this->run_all( $this->config( array(
+			'rename_option_names' => array( $this->table => array( 'RT_user_roles' => 'rt_user_roles' ) ),
+		) ) );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( 0, $result['failed_updates'] );
+		$this->assertSame( array( array( 'option_name' => 'rt_user_roles', 'option_value' => $roles ) ), $wpdb->get_results( 'SELECT option_name, option_value FROM `' . $this->table . '`', ARRAY_A ) );
+		$this->assertSame( 0, $result['renamed_over'][ $this->table ] ?? 0 );
+	}
+
+	public function test_role_key_collision_without_primary_key_fails_in_place() {
+		global $wpdb;
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+		$this->assertNotFalse( $wpdb->query( 'DROP TABLE IF EXISTS `' . $this->table . '`' ) );
+		$this->assertNotFalse( $wpdb->query( 'CREATE TABLE `' . $this->table . '` (option_name VARCHAR(191) NOT NULL, option_value LONGTEXT, UNIQUE KEY (option_name))' ) );
+		$rows = array(
+			array( 'option_name' => 'wp_user_roles', 'option_value' => 'restored roles' ),
+			array( 'option_name' => 'rt_user_roles', 'option_value' => 'stale roles' ),
+		);
+		foreach ( $rows as $row ) {
+			$this->assertSame( 1, $wpdb->insert( $this->table, $row ) );
+		}
+		$previous = $wpdb->suppress_errors( true );
+		$thrown = null;
+		try {
+			$this->run_all( $this->config( array(
+				'rename_option_names' => array( $this->table => array( 'wp_user_roles' => 'rt_user_roles' ) ),
+			) ) );
+		} catch ( MainWP_Exception $e ) {
+			$thrown = $e;
+		} finally {
+			$wpdb->suppress_errors( $previous );
+		}
+		$this->assertNotNull( $thrown );
+		$this->assertSame( 'Could not rename the restored role key.', $thrown->getMessage() );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $thrown->get_message_error_code() );
+		$this->assertSame( array_reverse( $rows ), $wpdb->get_results( 'SELECT option_name, option_value FROM `' . $this->table . '` ORDER BY option_name', ARRAY_A ) );
+	}
+
 	/**
 	 * A rename that cannot write its target must not have deleted that
 	 * target first: a site whose roles row is removed before the
@@ -441,27 +489,6 @@ class BackupUrlRewriterTest extends WP_UnitTestCase {
 		$data = unserialize( $this->fetch( 'meta' )['value'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- verification.
 		$this->assertSame( 'dst_users', $data['k'] );
 		$this->assertSame( 'https://new.example', $data['u'] );
-	}
-
-	public function test_table_pairs_override_only_the_named_table() {
-		global $wpdb;
-		$other = 'urwt_other';
-		$this->assertNotFalse( $wpdb->query( 'CREATE TABLE `' . $other . '` LIKE `' . $this->table . '`' ) );
-		try {
-			$this->insert( 'meta', 'src_value http://old.example' );
-			$this->assertSame( 1, $wpdb->insert( $other, array( 'name' => 'meta', 'value' => 'src_value http://old.example' ) ) );
-			$config = $this->config();
-			$config['tables'][] = $other;
-			$config['table_pairs'] = array( $this->table => $config['pairs'] );
-			$config['pairs'][] = array( 'from' => 'src_', 'to' => 'dst_' );
-			$result = $this->run_all( $config );
-			$this->assertTrue( $result['done'] );
-			$this->assertSame( 0, $result['failed_updates'] );
-			$this->assertSame( 'src_value https://new.example', $this->fetch( 'meta' )['value'] );
-			$this->assertSame( 'dst_value https://new.example', $wpdb->get_var( 'SELECT value FROM `' . $other . '`' ) );
-		} finally {
-			$wpdb->query( 'DROP TABLE IF EXISTS `' . $other . '`' );
-		}
 	}
 
 	/**

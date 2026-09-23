@@ -1431,10 +1431,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			array(
 				'tables'              => array( 'rt_options' ),
 				'pairs'               => array(
-					array( 'from' => 'wp_', 'to' => 'rt_' ),
 					array( 'from' => 'https://old.example', 'to' => 'https://new.example' ),
 				),
-				'table_pairs'         => array( 'rt_options' => array( array( 'from' => 'https://old.example', 'to' => 'https://new.example' ) ) ),
 				'exclude'             => array(),
 				'rename_option_names' => array( 'rt_options' => array( 'wp_user_roles' => 'rt_user_roles' ) ),
 			),
@@ -1461,6 +1459,38 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	 * @dataProvider role_prefix_cases
 	 */
 	public function test_restore_runner_renames_only_source_roles( $source_prefix, $expected, $stems = array( 'options' ) ) {
+		if ( 'RT_' === $source_prefix ) {
+			global $wpdb;
+			remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+			remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+			$this->assertNotFalse( $wpdb->query( 'DROP TABLE IF EXISTS `rt_options`' ) );
+			$this->assertNotFalse( $wpdb->query( 'CREATE TABLE `rt_options` (option_id BIGINT NOT NULL AUTO_INCREMENT, option_name VARCHAR(191) NOT NULL, option_value LONGTEXT, autoload VARCHAR(20) DEFAULT \'yes\', PRIMARY KEY (option_id), UNIQUE KEY (option_name))' ) );
+			$engine = $this->runner->fake_engine;
+			$engine->tables = array( 'options' => array( 'status' => 'ok', 'rows' => 1 ) );
+			$engine->verify_real_counts = true;
+			$roles = serialize( array( 'administrator' => array( 'capabilities' => array( 'manage_options' => true ) ) ) );
+			$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ), array( 'source_prefix' => $source_prefix ) );
+			$initial = $this->spine->read_sub_state( $this->spine->get_task( $task_id ), $this->dir );
+			$tmp_table = $engine->tmp_prefix( $initial['params']['restore_id'] ) . 'options';
+			$this->identity_fixture_tables[] = $tmp_table;
+			$this->assertNotFalse( $wpdb->query( 'DROP TABLE IF EXISTS `' . $tmp_table . '`' ) );
+			$this->assertNotFalse( $wpdb->query( 'CREATE TABLE `' . $tmp_table . '` LIKE `rt_options`' ) );
+			$this->assertSame( 1, $wpdb->insert( $tmp_table, array( 'option_name' => $source_prefix . 'user_roles', 'option_value' => $roles ) ) );
+			$engine->on_database_live = function () use ( $wpdb, $tmp_table ) {
+				$this->assertNotFalse( $wpdb->query( 'DELETE FROM `rt_options`' ) );
+				$this->assertSame( 1, $wpdb->query( 'INSERT INTO `rt_options` SELECT * FROM `' . $tmp_table . '`' ) );
+			};
+			$task = $this->drive( $task_id );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+			$this->assertSame( array( array( 'option_name' => 'rt_user_roles', 'option_value' => $roles ) ), $wpdb->get_results( "SELECT option_name, option_value FROM `rt_options` WHERE option_name = 'rt_user_roles'", ARRAY_A ) );
+			$state = $this->spine->read_sub_state( $task, $this->dir );
+			$this->assertSame( 0, $state['url_rewrite_renamed_over']['rt_options'] ?? 0 );
+			$this->assertSame( 0, $state['verification']['url_rewrite_renamed_over']['rt_options'] ?? 0 );
+			$this->assertSame( (int) $wpdb->get_var( 'SELECT COUNT(*) FROM `rt_options`' ), $engine->last_verify_expected['options'] );
+			$this->assertTrue( $state['verification']['row_counts_ok'] );
+			return;
+		}
+
 		$runner = new Recording_Rewriter_Restore_Task_Runner();
 		$runner->test_backup_dir = $this->dir;
 		$runner->test_site_root  = $this->dir;
@@ -1495,6 +1525,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	public static function role_prefix_cases() {
 		return array(
 			'cross prefix' => array( 'wp_', array( 'rt_options' => array( 'wp_user_roles' => 'rt_user_roles' ) ) ),
+			'case-only prefix' => array( 'RT_', array( 'rt_options' => array( 'RT_user_roles' => 'rt_user_roles' ) ) ),
 			'same prefix'  => array( 'rt_', array() ),
 			'multisite'    => array(
 				'wp_',
@@ -1505,6 +1536,50 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 				),
 				array( 'options', '2_options', '10_options', 'plugin_options', '2_posts' ),
 			),
+		);
+	}
+
+	/**
+	 * @dataProvider content_prefix_url_cases
+	 */
+	public function test_cross_prefix_rewrite_preserves_content_filenames_and_renames_keys( $change_url ) {
+		global $wpdb;
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+		foreach ( array( 'rt_items', 'rt_options', 'rt_usermeta' ) as $table ) {
+			$this->assertNotFalse( $wpdb->query( 'DROP TABLE IF EXISTS `' . $table . '`' ) );
+		}
+		$this->assertNotFalse( $wpdb->query( 'CREATE TABLE `rt_items` (id INT NOT NULL, post_content LONGTEXT, PRIMARY KEY (id))' ) );
+		$this->assertNotFalse( $wpdb->query( 'CREATE TABLE `rt_options` (option_id BIGINT NOT NULL AUTO_INCREMENT, option_name VARCHAR(191) NOT NULL, option_value LONGTEXT, autoload VARCHAR(20) DEFAULT \'yes\', PRIMARY KEY (option_id), UNIQUE KEY (option_name))' ) );
+		$this->assertNotFalse( $wpdb->query( 'CREATE TABLE `rt_usermeta` (umeta_id BIGINT NOT NULL AUTO_INCREMENT, user_id BIGINT, meta_key VARCHAR(255), meta_value LONGTEXT, PRIMARY KEY (umeta_id))' ) );
+		$old_url = $change_url ? 'https://old.example' : site_url();
+		$content = 'wp_config.php my_wp_logo.png ' . $old_url . '/page';
+		$roles = serialize( array( 'administrator' => array( 'capabilities' => array( 'manage_options' => true ) ) ) );
+		$this->assertSame( 1, $wpdb->insert( 'rt_items', array( 'id' => 1, 'post_content' => $content ) ) );
+		$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'wp_user_roles', 'option_value' => $roles ) ) );
+		$this->assertSame( 1, $wpdb->insert( 'rt_usermeta', array( 'user_id' => 1, 'meta_key' => 'wp_capabilities', 'meta_value' => serialize( array( 'administrator' => true ) ) ) ) );
+		$sub_state = array(
+			'params' => array( 'restore_id' => 'r1' ),
+			'db_replay' => array(
+				'source_prefix' => 'wp_',
+				'banner_info' => array( 'site_url' => $old_url, 'home_url' => $change_url ? $old_url : home_url() ),
+				'cursor' => array( 'tables' => array_fill_keys( array( 'items', 'options', 'usermeta' ), array( 'status' => 'ok', 'rows' => 1 ) ) ),
+			),
+			'receiving' => array(),
+		);
+		$method = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'run_rewriting_urls' );
+		$method->setAccessible( true );
+		$method->invoke( $this->runner, $this->spine->get_task( $this->make_task( 'db', array( $this->make_db_artifact() ), array( 'source_prefix' => 'wp_' ) ) ), 1, $sub_state, microtime( true ) + 10, $this->dir );
+		$this->assertSame( 'wp_config.php my_wp_logo.png ' . site_url() . '/page', $wpdb->get_var( 'SELECT post_content FROM `rt_items` WHERE id = 1' ) );
+		$this->assertSame( array( array( 'option_name' => 'rt_user_roles', 'option_value' => $roles ) ), $wpdb->get_results( 'SELECT option_name, option_value FROM `rt_options`', ARRAY_A ) );
+		$this->assertSame( array( 'rt_capabilities' ), $wpdb->get_col( 'SELECT meta_key FROM `rt_usermeta`' ) );
+		$this->assertSame( serialize( array( 'administrator' => true ) ), $wpdb->get_var( 'SELECT meta_value FROM `rt_usermeta`' ) );
+	}
+
+	public static function content_prefix_url_cases() {
+		return array(
+			'changed URL' => array( true ),
+			'same URL' => array( false ),
 		);
 	}
 

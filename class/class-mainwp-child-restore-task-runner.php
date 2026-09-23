@@ -2012,7 +2012,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 
     /**
      * URL rewrite phase: serialization-aware replacement of the dump's
-     * URLs (and table prefix, when it differs) in the live tables.
+     * URLs and explicit prefix-derived keys in the live tables.
      *
      * @param object $task       Task row.
      * @param int    $version    Owned version.
@@ -2023,13 +2023,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @return array Slice result.
      */
     protected function run_rewriting_urls( $task, $version, $sub_state, $deadline, $backup_dir ) {
-        $url_pairs   = $this->url_pairs( $sub_state );
+        $pairs       = $this->url_pairs( $sub_state );
         $prefix_pair = $this->prefix_pair( $sub_state );
-        $pairs       = $url_pairs;
-        if ( ! empty( $prefix_pair ) ) {
-            $pairs[] = $prefix_pair;
-        }
-        if ( empty( $pairs ) ) {
+        if ( empty( $pairs ) && empty( $prefix_pair ) ) {
             return $this->advance_or_merge_woo( $task, $version, $sub_state, $backup_dir );
         }
 
@@ -2051,12 +2047,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         }
 
         $exclude         = $this->guid_exclusions( $this->loaded_stems( $sub_state ), $target_prefix );
-        $table_pairs     = array();
         $prefix_anchored = array();
         foreach ( $this->loaded_stems( $sub_state ) as $stem ) {
-            if ( 'options' === substr( $stem, -7 ) || 'meta' === substr( $stem, -4 ) ) {
-                $table_pairs[ $target_prefix . $stem ] = $url_pairs;
-            }
             if ( 'meta' === substr( $stem, -4 ) ) {
                 $exclude[ $target_prefix . $stem ] = array( 'meta_key' );
             }
@@ -2073,7 +2065,6 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 'pairs'                    => $pairs,
                 'exclude'                  => $exclude,
                 'rename_option_names'      => $rename_option_names,
-                'table_pairs'              => $table_pairs,
                 'prefix_pair'              => $prefix_pair,
                 'prefix_anchored'          => $prefix_anchored,
                 'preserve_options'         => array( $target_prefix . 'options' => self::IDENTITY_OPTIONS ),

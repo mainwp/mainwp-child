@@ -2,7 +2,7 @@
 /**
  * MainWP Backup URL Rewriter - paginated serialization-aware replacement.
  *
- * Rewrites URL (and, on cross-prefix restores, table-prefix) strings in
+ * Rewrites URLs and explicit prefix-derived keys in
  * the swapped live tables, page by page, with a cursor the task runner
  * checkpoints so the rewrite resumes mid-table. Serialized values are
  * unserialized, replaced member by member, and re-serialized so string
@@ -67,7 +67,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
      *
      * @param array     $cursor   Resume cursor (empty array on first call).
      * @param array     $config   { tables: string[], pairs: array<int,array{from:string,to:string}>,
-     *                            table_pairs?: array<string,array>, prefix_pair?: array{from:string,to:string},
+     *                            prefix_pair?: array{from:string,to:string},
      *                            prefix_anchored?: array<string,string[]>,
      *                            exclude: array<string,string[]>, preserve_options?: array<string,string[]>,
      *                            preserve_option_prefixes?: array<string,string[]>, rename_option_names?: array<string,array<string,string>>,
@@ -111,7 +111,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
             if ( isset( $config['rename_option_names'][ $table ] ) && 'options' === substr( $table, -7 ) ) {
                 $rename_columns['option_name'] = $config['rename_option_names'][ $table ];
             }
-            $pairs           = $config['table_pairs'][ $table ] ?? $config['pairs'];
+            $pairs           = $config['pairs'];
             $prefix_anchored = $config['prefix_anchored'][ $table ] ?? array();
             $prefix_pair     = $config['prefix_pair'] ?? array();
             $consumed        = $this->rewrite_page( $table, $cursor['offset'], $pairs, $exclude, $preserve_options, $preserve_option_prefixes, $rename_columns, $prefix_anchored, $prefix_pair );
@@ -273,13 +273,22 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
         }
 
         $role_rename = isset( $updates['option_name'], $rename_columns['option_name'][ $row['option_name'] ] ) && 'options' === substr( $table, -7 );
-        if ( $role_rename ) {
+        // Collision replacement needs a primary key for deletion and paging.
+        if ( $role_rename && ! empty( $pk_columns ) ) {
             $target_where = array( 'option_name' => $updates['option_name'] );
             $target       = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . $this->quote_ident( $table ) . ' WHERE option_name = %s', $updates['option_name'] ), ARRAY_A ); // phpcs:ignore WordPress.DB -- exact restored role key.
             if ( '' !== $wpdb->last_error ) {
                 throw new MainWP_Exception( 'Could not read the role-key rename target.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- literal message, no interpolated value.
             }
-            if ( null !== $target ) {
+            // A case-insensitive collation can make a case-only rename match its source row.
+            $same_row = null !== $target;
+            foreach ( $where as $column => $value ) {
+                if ( ! isset( $target[ $column ] ) || $target[ $column ] !== $value ) {
+                    $same_row = false;
+                    break;
+                }
+            }
+            if ( null !== $target && ! $same_row ) {
                 // Publish usable roles before removing the source, so interruption leaves a retryable pair.
                 $replacement = array_diff_key( array_merge( $row, $updates ), array_flip( $pk_columns ) );
                 if ( false === $this->persist_update( $table, $replacement, $target_where ) ) {
