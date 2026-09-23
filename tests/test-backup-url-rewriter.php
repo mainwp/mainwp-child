@@ -72,7 +72,7 @@ class BackupUrlRewriterTest extends WP_UnitTestCase {
 	/**
 	 * Rewriter under test.
 	 *
-	 * @var Testable_Url_Rewriter
+	 * @var MainWP_Backup_Url_Rewriter
 	 */
 	protected $rewriter;
 
