@@ -72,6 +72,102 @@ class BackupTaskInstallTest extends WP_UnitTestCase {
 		$this->assertSame( MainWP_Child_Backup_Task::DB_VERSION, get_option( MainWP_Child_Backup_Task::DB_VERSION_OPTION ) );
 	}
 
+	protected function b14_create_110_schema() {
+		global $wpdb;
+		$this->create_old_schema();
+		$table = $this->spine->get_table_name();
+		$this->assertNotFalse( $wpdb->query( "ALTER TABLE {$table} ADD COLUMN active_slot tinyint unsigned DEFAULT NULL, ADD UNIQUE KEY uniq_active_task (active_slot)" ) );
+		update_option( MainWP_Child_Backup_Task::DB_VERSION_OPTION, '1.1.0' );
+	}
+
+	protected function b14_assert_restore_key() {
+		global $wpdb;
+		$table = $this->spine->get_table_name();
+		$column = $wpdb->get_row( "SHOW COLUMNS FROM {$table} LIKE 'restore_id'" );
+		$this->assertNotNull( $column );
+		$this->assertSame( 'varchar(64)', $column->Type );
+		$this->assertSame( 'YES', $column->Null );
+		$this->assertNull( $column->Default );
+		$index = $wpdb->get_results( "SHOW INDEX FROM {$table} WHERE Key_name = 'uniq_restore_id'" );
+		$this->assertCount( 1, $index );
+		$this->assertSame( 'restore_id', $index[0]->Column_name );
+		$this->assertSame( 0, (int) $index[0]->Non_unique );
+		$this->assertNull( $index[0]->Sub_part );
+		$this->assertSame( '1.2.0', get_option( MainWP_Child_Backup_Task::DB_VERSION_OPTION ) );
+		$this->assert_active_key();
+	}
+
+	/** @test */
+	public function b14_upgrade_110_backfills_only_unambiguous_restore_ids() {
+		global $wpdb;
+		$this->b14_create_110_schema();
+		$table = $this->spine->get_table_name();
+		foreach ( array( 'unique' => 'b14unique', 'duplicate1' => 'b14shared', 'duplicate2' => 'b14shared', 'backup' => null ) as $task_id => $restore_id ) {
+			$this->assertSame( 1, $wpdb->insert( $table, array(
+				'task_id' => $task_id,
+				'phase' => 'completed',
+				'type' => null === $restore_id ? 'full' : 'restore_db',
+				'sub_state' => wp_json_encode( array( 'params' => array( 'restore_id' => $restore_id ) ) ),
+			) ) );
+		}
+		$this->spine->install();
+		$this->b14_assert_restore_key();
+		$this->assertSame( 'b14unique', $this->spine->get_task( 'unique' )->restore_id );
+		foreach ( array( 'duplicate1', 'duplicate2', 'backup' ) as $task_id ) {
+			$this->assertNull( $this->spine->get_task( $task_id )->restore_id );
+		}
+		$this->assertSame( 4, (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ) );
+		$this->spine->install();
+		$this->assertSame( 'unique', $this->spine->get_task_by_restore_id( 'b14unique' )->task_id );
+	}
+
+	/** @test */
+	public function b14_repair_readds_column_and_key_after_dbdelta_alters_do_not_take() {
+		global $wpdb;
+		$this->b14_create_110_schema();
+		$table = $this->spine->get_table_name();
+		$blocked = array( 'column' => false, 'key' => false );
+		$block = static function ( $query ) use ( $table, &$blocked ) {
+			if ( 0 === strpos( $query, "ALTER TABLE {$table} ADD" ) ) {
+				foreach ( array( 'column' => 'ADD COLUMN restore_id', 'key' => 'ADD UNIQUE KEY' ) as $kind => $needle ) {
+					if ( ! $blocked[ $kind ] && false !== strpos( $query, $needle ) && false !== strpos( $query, 'restore_id' ) ) {
+						$blocked[ $kind ] = true;
+						return 'SELECT 1';
+					}
+				}
+			}
+			return $query;
+		};
+		add_filter( 'query', $block );
+		try {
+			$this->spine->install();
+		} finally {
+			remove_filter( 'query', $block );
+		}
+		$this->assertSame( array( 'column' => true, 'key' => true ), $blocked );
+		$this->b14_assert_restore_key();
+	}
+
+	/** @test */
+	public function b14_failed_restore_key_alter_keeps_upgrade_pending() {
+		global $wpdb;
+		$this->b14_create_110_schema();
+		$table = $this->spine->get_table_name();
+		$block = static function ( $query ) use ( $table ) {
+			return 0 === strpos( $query, "ALTER TABLE {$table} ADD UNIQUE KEY" ) && false !== strpos( $query, 'uniq_restore_id' ) ? 'SELECT 1' : $query;
+		};
+		add_filter( 'query', $block );
+		try {
+			$this->spine->install();
+			$this->assertSame( '1.1.0', get_option( MainWP_Child_Backup_Task::DB_VERSION_OPTION ) );
+			$this->assertFalse( $this->spine->create_task( 'restore_db', array( 'params' => array( 'restore_id' => 'b14blocked' ) ) ) );
+		} finally {
+			remove_filter( 'query', $block );
+		}
+		$this->spine->install();
+		$this->b14_assert_restore_key();
+	}
+
 	public function test_fresh_install_enforces_one_active_task() {
 		$this->spine->install();
 		$this->assert_active_key();

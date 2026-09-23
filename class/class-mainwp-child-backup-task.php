@@ -105,7 +105,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     /**
      * Database schema version for the task table.
      */
-    const DB_VERSION = '1.1.0';
+    const DB_VERSION = '1.2.0';
 
     /**
      * Option name holding the installed schema version.
@@ -221,6 +221,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             task_id varchar(64) NOT NULL,
             phase varchar(20) NOT NULL DEFAULT 'queued',
             active_slot tinyint unsigned DEFAULT NULL,
+            restore_id varchar(64) DEFAULT NULL,
             type varchar(20) NOT NULL DEFAULT 'full',
             sub_state longtext,
             started_at datetime DEFAULT NULL,
@@ -233,6 +234,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             version bigint(20) unsigned NOT NULL DEFAULT 0,
             PRIMARY KEY  (task_id),
             UNIQUE KEY uniq_active_task (active_slot),
+            UNIQUE KEY uniq_restore_id (restore_id),
             KEY phase (phase)
         ) {$charset_collate};";
 
@@ -240,7 +242,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         $suppress = $wpdb->suppress_errors( true );
         try {
             dbDelta( $sql );
-            if ( $this->repair_active_task_key() ) {
+            if ( $this->repair_restore_id_key() && $this->repair_active_task_key() ) {
                 MainWP_Helper::update_option( self::DB_VERSION_OPTION, self::DB_VERSION );
             }
         } finally {
@@ -325,6 +327,62 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     }
 
     /**
+     * A failed ALTER must not leave restore retries able to create another task.
+     *
+     * @return bool Whether restore identities are backfilled and uniquely indexed.
+     */
+    protected function repair_restore_id_key() {
+        global $wpdb;
+        $table = $this->get_table_name();
+
+        // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- trusted spine table and prepared values.
+        $column = $wpdb->get_var( "SHOW COLUMNS FROM {$table} LIKE 'restore_id'" );
+        if ( '' !== $wpdb->last_error ) {
+            return false;
+        }
+        if ( empty( $column ) ) {
+            $wpdb->query( "ALTER TABLE {$table} ADD COLUMN restore_id varchar(64) DEFAULT NULL" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.SchemaChange -- repairs an incomplete upgrade.
+            $column = $wpdb->get_var( "SHOW COLUMNS FROM {$table} LIKE 'restore_id'" );
+            if ( empty( $column ) || '' !== $wpdb->last_error ) {
+                return false;
+            }
+        }
+
+        $rows = $wpdb->get_results( "SELECT task_id, restore_id, sub_state FROM {$table}" );
+        if ( '' !== $wpdb->last_error ) {
+            return false;
+        }
+        $identities = array();
+        foreach ( $rows as $row ) {
+            $state      = json_decode( (string) $row->sub_state, true );
+            $restore_id = $row->restore_id ?? ( $state['params']['restore_id'] ?? null );
+            if ( is_string( $restore_id ) && '' !== $restore_id && strlen( $restore_id ) <= 64 ) {
+                $identities[ $restore_id ][] = $row;
+            }
+        }
+        foreach ( $identities as $restore_id => $matches ) {
+            // Choosing among duplicate legacy IDs could acknowledge the wrong restore.
+            if ( 1 !== count( $matches ) || null !== $matches[0]->restore_id ) {
+                continue;
+            }
+            if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET restore_id = %s WHERE task_id = %s AND restore_id IS NULL", $restore_id, $matches[0]->task_id ) ) ) {
+                return false;
+            }
+        }
+
+        $index = $wpdb->get_results( "SHOW INDEX FROM {$table} WHERE Key_name = 'uniq_restore_id'" );
+        if ( '' !== $wpdb->last_error ) {
+            return false;
+        }
+        if ( empty( $index ) ) {
+            $wpdb->query( "ALTER TABLE {$table} ADD UNIQUE KEY uniq_restore_id (restore_id)" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.SchemaChange -- replay identity must remain unique after completion.
+            $index = $wpdb->get_results( "SHOW INDEX FROM {$table} WHERE Key_name = 'uniq_restore_id'" );
+        }
+        // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        return '' === $wpdb->last_error && 1 === count( (array) $index ) && 0 === (int) $index[0]->Non_unique && 'restore_id' === $index[0]->Column_name && empty( $index[0]->Sub_part );
+    }
+
+    /**
      * Create a new backup task in the queued phase.
      *
      * The wall-clock deadline (max_resumes x slice budget, generously
@@ -357,12 +415,12 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         $deadline    = null === $deadline_seconds ? self::WALL_CLOCK_WINDOW_SECONDS : (int) $deadline_seconds;
 
         $sql = 'INSERT INTO ' . $this->get_table_name() .
-            ' (task_id, phase, type, sub_state, started_at, last_progress_at, max_wall_clock_at, resume_count, max_resumes, version, active_slot)';
+            ' (task_id, phase, type, sub_state, started_at, last_progress_at, max_wall_clock_at, resume_count, max_resumes, version, active_slot, restore_id)';
         if ( $require_idle ) {
-            $sql .= ' SELECT %s, %s, %s, %s, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL %d SECOND), 0, %d, 0, 1
+            $sql .= ' SELECT %s, %s, %s, %s, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL %d SECOND), 0, %d, 0, 1, NULLIF(%s, \'\')
                 FROM DUAL WHERE NOT EXISTS ( SELECT 1 FROM ' . $this->get_table_name() . " WHERE phase NOT IN ('completed','failed') LIMIT 1 )";
         } else {
-            $sql .= ' VALUES (%s, %s, %s, %s, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL %d SECOND), 0, %d, 0, 1)';
+            $sql .= ' VALUES (%s, %s, %s, %s, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL %d SECOND), 0, %d, 0, 1, NULLIF(%s, \'\'))';
         }
 
         $suppress = $wpdb->suppress_errors( true );
@@ -375,7 +433,8 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                     $type,
                     wp_json_encode( $sub_state ),
                     $deadline,
-                    $max_resumes
+                    $max_resumes,
+                    $sub_state['params']['restore_id'] ?? ''
                 )
             );
             if ( false === $result && false !== strpos( $wpdb->last_error, 'Duplicate entry' ) && false !== strpos( $wpdb->last_error, 'uniq_active_task' ) ) {
@@ -409,6 +468,22 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             $wpdb->prepare(
                 'SELECT * FROM ' . $this->get_table_name() . ' WHERE task_id = %s', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
                 $task_id
+            )
+        );
+    }
+
+    /**
+     * Restore identity survives terminal phases so a lost response cannot replay it.
+     *
+     * @param string $restore_id Restore id.
+     * @return object|null Task row or null.
+     */
+    public function get_task_by_restore_id( $restore_id ) {
+        global $wpdb;
+        return $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- retries need the current task phase.
+            $wpdb->prepare(
+                'SELECT * FROM ' . $this->get_table_name() . ' WHERE restore_id = %s', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- trusted table name.
+                $restore_id
             )
         );
     }

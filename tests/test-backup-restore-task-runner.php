@@ -1035,7 +1035,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	protected function make_task( $sub_type, $artifacts, $over = array() ) {
 		$params = array_merge(
 			array(
-				'restore_id'       => 'rrun01',
+				// Unique per task: the spine now keys a replayed create on restore_id.
+				'restore_id'       => 'rrun' . substr( md5( uniqid( '', true ) ), 0, 8 ),
 				'source_prefix'    => 'src_',
 				'artifacts'        => $artifacts,
 				'has_foreign_keys' => null,
@@ -3505,7 +3506,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			'The foreign-key path must widen the wall-clock budget.'
 		);
 
-		$nf_id      = $this->make_task( 'db', array( $this->make_db_artifact( false ) ) );
+		$nf_id      = $this->make_task( 'db', array( $this->make_db_artifact( false ) ), array( 'restore_id' => 'rrun02' ) );
 		$nf_created = $this->spine->get_task( $nf_id )->max_wall_clock_at;
 		$nf_task    = $this->drive( $nf_id );
 
@@ -4214,7 +4215,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	 * active.
 	 */
 	public function test_active_restore_blocks_second_task() {
-		$this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$this->make_task( 'db', array( $this->make_db_artifact() ), array( 'restore_id' => 'second01' ) );
 
 		$this->expectException( \MainWP\Child\MainWP_Exception::class );
 		$this->make_task( 'db', array( $this->make_db_artifact() ) );
@@ -5066,6 +5067,42 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			)
 		);
 		return $task_id;
+	}
+
+	/** @test */
+	public function b14_repeated_restore_id_reuses_active_and_terminal_task() {
+		global $wpdb;
+		foreach ( array( MainWP_Child_Backup_Task::PHASE_COMPLETED, MainWP_Child_Backup_Task::PHASE_FAILED ) as $phase ) {
+			$params = array( 'restore_id' => 'completed' === $phase ? 'b14done' : 'b14fail', 'artifacts' => array() );
+			$reused = null;
+			$task_id = $this->runner->create_restore_task( 'db', $params, $reused );
+			$this->assertFalse( $reused );
+			$original = $this->spine->get_task( $task_id );
+			$calls = $this->runner->fake_engine->calls;
+			$this->assertSame( $task_id, $this->runner->create_restore_task( 'db', $params, $reused ) );
+			$this->assertTrue( $reused );
+			$this->assertEquals( $original, $this->spine->get_task( $task_id ) );
+			$this->assertSame( $calls, $this->runner->fake_engine->calls );
+			$this->assertSame( 1, $this->spine->checkpoint( $task_id, 0, array( 'phase' => $phase ), false ) );
+			$terminal = $this->spine->get_task( $task_id );
+			$this->assertSame( $task_id, $this->runner->create_restore_task( 'db', $params, $reused ) );
+			$this->assertTrue( $reused );
+			$this->assertEquals( $terminal, $this->spine->get_task( $task_id ) );
+			$this->assertSame( $calls, $this->runner->fake_engine->calls );
+			$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $this->spine->get_table_name() . ' WHERE restore_id = %s', $params['restore_id'] ) ) );
+		}
+	}
+
+	/** @test */
+	public function b14_different_restore_id_after_terminal_creates_new_task() {
+		$first = $this->make_task( 'db', array(), array( 'restore_id' => 'b14first' ) );
+		$this->assertSame( 1, $this->spine->checkpoint( $first, 0, array( 'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED ), false ) );
+		$second = $this->make_task( 'db', array(), array( 'restore_id' => 'b14second' ) );
+		$this->assertNotSame( $first, $second );
+		$this->assertSame( 'b14second', $this->spine->get_task( $second )->restore_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $this->spine->get_task( $second )->phase );
+		$this->assertSame( $first, $this->make_task( 'db', array(), array( 'restore_id' => 'b14first' ) ) );
+		$this->assertSame( $second, $this->spine->get_active_tasks()[0]->task_id );
 	}
 
 	public function test_create_restore_task_refuses_task_inserted_after_precheck() {

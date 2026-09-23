@@ -1028,7 +1028,8 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         try {
-            $task_id = MainWP_Child_Restore_Task_Runner::instance()->create_restore_task( $sub_type, $params );
+            $reused  = false;
+            $task_id = MainWP_Child_Restore_Task_Runner::instance()->create_restore_task( $sub_type, $params, $reused );
         } catch ( MainWP_Exception $e ) {
             MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
             return;
@@ -1045,6 +1046,12 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             'phase'           => MainWP_Child_Backup_Task::PHASE_QUEUED,
             'disk_free_bytes' => $disk_free,
         );
+        if ( $reused ) {
+            $spine              = MainWP_Child_Backup_Task::instance();
+            $response           = array_merge( $response, $spine->status_payload( $spine->get_task( $task_id ) ) );
+            $response['reused'] = true;
+            $pull_rejected      = '' !== $pull_raw && empty( $response['sub_state']['params']['pull_manifest'] );
+        }
         if ( $pull_rejected ) {
             $response['pull_manifest_rejected'] = true;
         }

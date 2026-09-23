@@ -146,14 +146,16 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @param array  $params   Restore params persisted into the cursor:
      *                         { restore_id, source_prefix, artifacts,
      *                         has_foreign_keys }.
+     * @param bool   $reused   Whether the restore was already created.
      *
      * @throws MainWP_Exception On multisite, an already-active task, or a
      *                          failed insert.
      *
      * @return string Task id.
      */
-    public function create_restore_task( $sub_type, $params ) {
-        $spine = MainWP_Child_Backup_Task::instance();
+    public function create_restore_task( $sub_type, $params, &$reused = false ) {
+        $reused = false;
+        $spine  = MainWP_Child_Backup_Task::instance();
         $spine->install();
         // An idle site's watchdog may never clear a deadline-expired task.
         $spine->reclaim_expired_tasks();
@@ -168,6 +170,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) . $engine ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message and holder.
         }
         try {
+            if ( ! empty( $params['restore_id'] ) ) {
+                $existing = $spine->get_task_by_restore_id( $params['restore_id'] );
+                if ( null !== $existing ) {
+                    $reused = true;
+                    return $existing->task_id;
+                }
+            }
             if ( ! empty( $spine->get_active_tasks() ) ) {
                 throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
             }
