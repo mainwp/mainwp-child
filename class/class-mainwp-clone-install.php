@@ -526,9 +526,9 @@ class MainWP_Clone_Install {
         }
 
         $htaccess = ABSPATH . '.htaccess';
-        $original = file_exists( $htaccess ) ? file_get_contents( $htaccess ) : null;
+        $original = file_exists( $htaccess ) ? file_get_contents( $htaccess ) : null; //phpcs:ignore WordPress.WP.AlternativeFunctions
         if ( false === $original ) {
-            throw new \Exception( 'Could not read the destination .htaccess before clone extraction.' );
+            throw new \Exception( esc_html__( 'Could not read the destination .htaccess before clone extraction.', 'mainwp-child' ) );
         }
 
         try {
@@ -549,12 +549,17 @@ class MainWP_Clone_Install {
                 return $this->extract_zip_pcl_backup();
             }
         } finally {
-            if ( null !== $original ) {
-                if ( false === file_put_contents( $htaccess, $original ) ) {
-                    throw new \Exception( 'Could not restore the destination .htaccess after clone extraction.' );
+            try {
+                if ( null !== $original ) {
+                    $current = file_exists( $htaccess ) ? file_get_contents( $htaccess ) : null; //phpcs:ignore WordPress.WP.AlternativeFunctions
+                    if ( $current !== $original && false === file_put_contents( $htaccess, $original ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions
+                        error_log( 'Could not restore the destination .htaccess after clone extraction.' ); //phpcs:ignore -- NOSONAR - for dev.
+                    }
+                } elseif ( file_exists( $htaccess ) && ! unlink( $htaccess ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions
+                    error_log( 'Could not remove the cloned root .htaccess.' ); //phpcs:ignore -- NOSONAR - for dev.
                 }
-            } elseif ( file_exists( $htaccess ) && ! unlink( $htaccess ) ) {
-                throw new \Exception( 'Could not remove the cloned root .htaccess.' );
+            } catch ( \Throwable $error ) {
+                error_log( 'Could not preserve the destination .htaccess after clone extraction.' ); //phpcs:ignore -- NOSONAR - for dev.
             }
         }
     }

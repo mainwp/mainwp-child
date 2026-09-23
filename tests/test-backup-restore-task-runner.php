@@ -1413,6 +1413,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$scratch = $this->dir . '/reconcile/';
 		mkdir( $scratch );
 		$checkpoints = array();
+		$last_checkpoint = null;
 		$config = array(
 			'manifest' => $this->dir . '/s1-files.list',
 			'walk' => $this->reconcile_options()['reconcile']['walk'],
@@ -1420,8 +1421,9 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			'backup_dir' => $this->dir . '/backups',
 			'scratch' => $scratch,
 			'progress_callback' => static function () {},
-			'checkpoint_cursor' => static function ( $cursor ) use ( &$checkpoints ) {
+			'checkpoint_cursor' => static function ( $cursor ) use ( &$checkpoints, &$last_checkpoint ) {
 				$checkpoints[] = $cursor['examined'];
+				$last_checkpoint = $cursor;
 				return true;
 			},
 		);
@@ -1440,7 +1442,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertGreaterThan( 500, $out['cursor']['examined'] );
 		$this->assertLessThan( 1200, $out['cursor']['examined'] );
 		$this->assertSame( array( 500 ), $checkpoints );
-		$out = $engine->reconcile_slice( $out['cursor'], $config, time() + 60 );
+		$out = $engine->reconcile_slice( $last_checkpoint, $config, time() + 60 );
 		$this->assertTrue( $out['done'] );
 		$this->assertSame( array( 'status' => 'done', 'removed' => 0, 'examined' => 1200 ), $out['outcome'] );
 		$this->assertSame( array( 500, 1000 ), $checkpoints );
@@ -1449,6 +1451,53 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertTrue( $out['abandon'] );
 		$this->assertFalse( $out['done'] );
 		$this->assertSame( 500, $out['cursor']['examined'] );
+	}
+
+	public function test_reconcile_batches_deletion_checkpoints_and_resumes() {
+		$paths = array();
+		for ( $i = 0; $i < 250; ++$i ) {
+			$paths[] = sprintf( 'extra-%04d.txt', $i );
+		}
+		foreach ( $paths as $path ) {
+			file_put_contents( $this->site . '/' . $path, 'extra' );
+		}
+		$this->make_manifest_artifact( array( 'kept.txt' ) );
+		$scratch = $this->dir . '/reconcile/';
+		mkdir( $scratch );
+		$checkpoints = array();
+		$config = array(
+			'manifest' => $this->dir . '/s1-files.list',
+			'walk' => $this->reconcile_options()['reconcile']['walk'],
+			'root' => $this->site,
+			'backup_dir' => $this->dir . '/backups',
+			'scratch' => $scratch,
+			'progress_callback' => static function () {},
+			'checkpoint_cursor' => static function ( $cursor ) use ( &$checkpoints ) {
+				$checkpoints[] = $cursor;
+				return true;
+			},
+		);
+		$engine = new MainWP_Child_Backup_Reconciler();
+		$walk = $engine->reconcile_slice( array(), $config, time() + 60 );
+		$this->assertTrue( $walk['cursor']['walk_done'] );
+		$out = $engine->reconcile_slice( $walk['cursor'], $config, time() + 60 );
+		$this->assertSame( array( 'status' => 'done', 'removed' => 250, 'examined' => 250 ), $out['outcome'] );
+		$this->assertLessThanOrEqual( 3, count( $checkpoints ) );
+		$this->assertSame( array( 100, 200 ), array_column( $checkpoints, 'removed' ) );
+		foreach ( $paths as $path ) {
+			$this->assertFileDoesNotExist( $this->site . '/' . $path );
+		}
+
+		// Resume with only the last checkpoint durable and its remaining files still live.
+		foreach ( array_slice( $paths, 200 ) as $path ) {
+			file_put_contents( $this->site . '/' . $path, 'extra' );
+		}
+		$resumed = new MainWP_Child_Backup_Reconciler();
+		$out = $resumed->reconcile_slice( end( $checkpoints ), $config, time() + 60 );
+		$this->assertSame( array( 'status' => 'done', 'removed' => 250, 'examined' => 250 ), $out['outcome'] );
+		foreach ( $paths as $path ) {
+			$this->assertFileDoesNotExist( $this->site . '/' . $path );
+		}
 	}
 
 	public function test_reconcile_dot_names_and_malformed_manifest() {

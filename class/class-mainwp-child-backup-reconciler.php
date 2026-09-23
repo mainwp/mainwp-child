@@ -165,8 +165,9 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
             if ( false === $live || 0 !== fseek( $live, $cursor['live_offset'] ) || 0 !== fseek( $manifest, $cursor['manifest_offset'] ) ) {
                 throw new \RuntimeException( 'The reconciliation cursor could not be read.' );
             }
-            $expected_offset = ftell( $manifest );
-            $expected        = $this->read_row( $manifest );
+            $expected_offset    = ftell( $manifest );
+            $expected           = $this->read_row( $manifest );
+            $checkpoint_changes = $cursor['removed'] + $cursor['failed'];
             while ( ! $this->budget_exhausted( $deadline ) ) {
                 $row = $this->read_row( $live );
                 if ( null === $row ) {
@@ -194,8 +195,6 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
                 if ( '' !== $cursor['last'] && strcmp( $cursor['last'], $row[0] ) >= 0 ) {
                     throw new \RuntimeException( 'The live file list is not strictly sorted.' );
                 }
-                $removed = $cursor['removed'];
-                $failed  = $cursor['failed'];
                 if ( ! $this->safe_relpath( $row[0] ) ) {
                     ++$cursor['skipped_unsafe'];
                 } elseif ( null === $expected || $expected[0] !== $row[0] ) {
@@ -205,11 +204,15 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
                 $cursor['last']            = $row[0];
                 $cursor['live_offset']     = ftell( $live );
                 $cursor['manifest_offset'] = $expected_offset;
-                $checkpoint                = $removed !== $cursor['removed'] || $failed !== $cursor['failed'] || 0 === $cursor['examined'] % 500;
-                if ( $checkpoint && ! call_user_func( $config['checkpoint_cursor'], $cursor ) ) {
-                    $out            = $this->result( $cursor );
-                    $out['abandon'] = true;
-                    return $out;
+                $changes                   = $cursor['removed'] + $cursor['failed'];
+                $checkpoint                = $changes - $checkpoint_changes >= 100 || 0 === $cursor['examined'] % 500;
+                if ( $checkpoint ) {
+                    if ( ! call_user_func( $config['checkpoint_cursor'], $cursor ) ) {
+                        $out            = $this->result( $cursor );
+                        $out['abandon'] = true;
+                        return $out;
+                    }
+                    $checkpoint_changes = $changes;
                 }
             }
             return $this->result( $cursor );
