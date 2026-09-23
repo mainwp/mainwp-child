@@ -119,9 +119,10 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 
 * Added: Native Backups (beta): a resumable backup engine that archives files and the database in slices, so backups complete on hosts with short request limits.
 * Added: Incremental backups that record only the files changed since the last run, with chains that restore as complete points in time.
-* Added: Resumable restores with an atomic database switch, a pre-restore safety backup, and rollback on failure.
+* Added: Resumable restores with an atomic database switch where the table schema allows it, an optional pre-restore safety backup, and rollback from that safety backup.
+* Added: Restores remove files added to the site after the backup was taken, when the backup was made by this version or later.
 * Added: Restores preserve the site's connection to the Dashboard.
-* Added: Direct backup download from S3 compatible and Google Cloud Storage destinations during a restore, when the Dashboard hands over signed links.
+* Added: Direct backup download from S3-compatible and Google Cloud Storage destinations during a restore, when the Dashboard hands over signed links.
 * Added: WooCommerce order preservation during restore.
 * Added: Multisite network backup and restore.
 * Added: Backup and restore capability reporting so the Dashboard can refuse an operation this version does not support instead of failing it midway.

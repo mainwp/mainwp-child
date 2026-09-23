@@ -85,6 +85,7 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
                 'removed'         => 0,
                 'examined'        => 0,
                 'failed'          => 0,
+                'skipped_unsafe'  => 0,
             ),
             $cursor
         );
@@ -158,6 +159,9 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
                     if ( $cursor['failed'] ) {
                         $outcome['failed'] = $cursor['failed'];
                     }
+                    if ( $cursor['skipped_unsafe'] ) {
+                        $outcome['skipped_unsafe'] = $cursor['skipped_unsafe'];
+                    }
                     return $this->result( $cursor, $outcome );
                 }
                 while ( null !== $expected && strcmp( $expected[0], $row[0] ) < 0 ) {
@@ -171,14 +175,19 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
                 if ( '' !== $cursor['last'] && strcmp( $cursor['last'], $row[0] ) >= 0 ) {
                     throw new \RuntimeException( 'The live file list is not strictly sorted.' );
                 }
-                if ( null === $expected || $expected[0] !== $row[0] ) {
+                $removed = $cursor['removed'];
+                $failed  = $cursor['failed'];
+                if ( ! $this->safe_relpath( $row[0] ) ) {
+                    ++$cursor['skipped_unsafe'];
+                } elseif ( null === $expected || $expected[0] !== $row[0] ) {
                     $this->remove_candidate( $row[0], $config['root'], $cursor );
                 }
                 ++$cursor['examined'];
                 $cursor['last']            = $row[0];
                 $cursor['live_offset']     = ftell( $live );
                 $cursor['manifest_offset'] = $expected_offset;
-                if ( ! call_user_func( $config['checkpoint_cursor'], $cursor ) ) {
+                $checkpoint                = $removed !== $cursor['removed'] || $failed !== $cursor['failed'] || 0 === $cursor['examined'] % 500;
+                if ( $checkpoint && ! call_user_func( $config['checkpoint_cursor'], $cursor ) ) {
                     $out            = $this->result( $cursor );
                     $out['abandon'] = true;
                     return $out;
@@ -206,7 +215,7 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
      *
      * @param resource $handle Open list.
      * @return array|null Parsed row, or EOF.
-     * @throws \RuntimeException On malformed or unsafe input.
+     * @throws \RuntimeException On malformed input.
      */
     private function read_row( $handle ) {
         $line = fgets( $handle );
@@ -217,8 +226,8 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
             return null;
         }
         $row = $this->parse_list_line( rtrim( $line, "\r\n" ) );
-        if ( null === $row || ! $this->safe_relpath( $row[0] ) ) {
-            throw new \RuntimeException( 'The reconciliation list contains an unsafe entry.' );
+        if ( null === $row ) {
+            throw new \RuntimeException( 'The reconciliation list contains a malformed entry.' );
         }
         return $row;
     }

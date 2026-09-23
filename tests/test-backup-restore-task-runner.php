@@ -1237,9 +1237,9 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertFileExists( $this->site . '/wp-content/mu-plugins/persist.php' );
 	}
 
-	public function test_reconcile_hostile_manifest_aborts_before_deletion() {
+	public function test_reconcile_malformed_manifest_aborts_before_deletion() {
 		$this->prepare_reconcile_fixture();
-		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( '../x', 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options() ) );
+		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( "invalid\trow", 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options() ) );
 		$sub = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_RECONCILE, $sub['error']['code'] );
@@ -1282,6 +1282,78 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
 		$this->assertSame( 2, $sub['verification']['reconcile']['removed'] );
 		$this->assertSame( 'done', $sub['verification']['reconcile']['status'] );
+	}
+
+	public function test_reconcile_batches_checkpoints_and_resumes_examined_total() {
+		$paths = array();
+		for ( $i = 0; $i < 1200; ++$i ) {
+			$path = sprintf( 'file-%04d.txt', $i );
+			$paths[] = $path;
+			file_put_contents( $this->site . '/' . $path, 'keep' );
+		}
+		$this->make_manifest_artifact( $paths );
+		$scratch = $this->dir . '/reconcile/';
+		mkdir( $scratch );
+		$checkpoints = array();
+		$config = array(
+			'manifest' => $this->dir . '/s1-files.list',
+			'walk' => $this->reconcile_options()['reconcile']['walk'],
+			'root' => $this->site,
+			'backup_dir' => $this->dir . '/backups',
+			'scratch' => $scratch,
+			'progress_callback' => static function () {},
+			'checkpoint_cursor' => static function ( $cursor ) use ( &$checkpoints ) {
+				$checkpoints[] = $cursor['examined'];
+				return true;
+			},
+		);
+		$engine = new \MainWP\Child\MainWP_Child_Backup_Reconciler();
+		$out = $engine->reconcile_slice( array(), $config, time() + 60 );
+		$this->assertTrue( $out['cursor']['walk_done'] );
+		$limited = new class extends \MainWP\Child\MainWP_Child_Backup_Reconciler {
+			public $checks = 0;
+			protected function budget_exhausted( $deadline ) {
+				return ++$this->checks > 1500;
+			}
+		};
+		$out = $limited->reconcile_slice( $out['cursor'], $config, time() + 60 );
+		$this->assertFalse( $out['done'] );
+		$this->assertFalse( $out['abandon'] );
+		$this->assertGreaterThan( 500, $out['cursor']['examined'] );
+		$this->assertLessThan( 1200, $out['cursor']['examined'] );
+		$this->assertSame( array( 500 ), $checkpoints );
+		$out = $engine->reconcile_slice( $out['cursor'], $config, time() + 60 );
+		$this->assertTrue( $out['done'] );
+		$this->assertSame( array( 'status' => 'done', 'removed' => 0, 'examined' => 1200 ), $out['outcome'] );
+		$this->assertSame( array( 500, 1000 ), $checkpoints );
+		$config['checkpoint_cursor'] = static function () { return false; };
+		$out = $engine->reconcile_slice( array( 'validated' => true, 'walk_done' => true ), $config, time() + 60 );
+		$this->assertTrue( $out['abandon'] );
+		$this->assertFalse( $out['done'] );
+		$this->assertSame( 500, $out['cursor']['examined'] );
+	}
+
+	public function test_reconcile_preserves_unsafe_paths_and_aborts_malformed_manifest() {
+		$this->prepare_reconcile_fixture();
+		$path = 'wp-content/mu-plugins/jquery.min..js';
+		$manifest_path = 'wp-content/mu-plugins/report..final.pdf';
+		file_put_contents( $this->site . '/' . $path, 'keep unsafe name' );
+		file_put_contents( $this->site . '/' . $manifest_path, 'keep manifest file' );
+		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( $manifest_path, 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options() ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( array( 'status' => 'done', 'removed' => 1, 'examined' => 4, 'skipped_unsafe' => 2 ), $sub['verification']['reconcile'] );
+		$this->assertSame( 'keep unsafe name', file_get_contents( $this->site . '/' . $path ) );
+		$this->assertSame( 'keep manifest file', file_get_contents( $this->site . '/' . $manifest_path ) );
+		$this->assertFileDoesNotExist( $this->site . '/wp-content/mu-plugins/persist.php' );
+		file_put_contents( $this->dir . '/s1-files.list', "unparseable manifest line\n" );
+		$engine = new \MainWP\Child\MainWP_Child_Backup_Reconciler();
+		$out = $engine->reconcile_slice( array(), array( 'manifest' => $this->dir . '/s1-files.list' ), time() + 60 );
+		$this->assertTrue( $out['done'] );
+		$this->assertSame( 'aborted', $out['outcome']['status'] );
+		$this->assertSame( 0, $out['cursor']['examined'] );
+		$this->assertSame( 'keep unsafe name', file_get_contents( $this->site . '/' . $path ) );
+		$this->assertSame( 'keep manifest file', file_get_contents( $this->site . '/' . $manifest_path ) );
 	}
 
 	public function test_reconcile_missing_manifest_skips() {
