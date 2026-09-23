@@ -1101,6 +1101,44 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		return array( 'reconcile' => array( 'manifest' => 's1-files.list', 'walk' => array( 'excludes' => $excludes, 'excludenonwp' => 0, 'excludezip' => 0 ) ) );
 	}
 
+	public static function data_reconcile_safe_relpaths() {
+		return array(
+			'embedded dots' => array( 'a..b.php', true ),
+			'live mu-plugin' => array( 'wp-content/mu-plugins/persist..php', true ),
+			'directory dots' => array( 'dir..x/file.php', true ),
+			'three leading dots' => array( '...hidden', true ),
+			'segment starts with dots' => array( 'x/..y', true ),
+			'segment ends with dots' => array( 'x/y..', true ),
+			'htaccess' => array( '.htaccess', true ),
+			'spaces' => array( 'wp-content/uploads/2026/09/a b.jpg', true ),
+			'single dot segment' => array( 'x/./y', true ),
+			'empty segment' => array( 'x//y', true ),
+			'empty' => array( '', false ),
+			'parent only' => array( '..', false ),
+			'leading parent' => array( '../x', false ),
+			'trailing parent' => array( 'x/..', false ),
+			'embedded parent' => array( 'x/../y', false ),
+			'parent after empty segment' => array( 'x//../y', false ),
+			'absolute' => array( '/abs', false ),
+			'drive relative' => array( 'C:x', false ),
+			'drive absolute' => array( 'c:/x', false ),
+			'backslash' => array( 'x\y', false ),
+			'NUL' => array( "x\0y", false ),
+			'newline' => array( "x\ny", false ),
+			'DEL' => array( "x\x7fy", false ),
+			'tab' => array( "x\ty", false ),
+			'carriage return' => array( "x\ry", false ),
+		);
+	}
+
+	/** @dataProvider data_reconcile_safe_relpaths */
+	public function test_reconcile_safe_relpath_matrix( $path, $expected ) {
+		$engine = new \MainWP\Child\MainWP_Child_Backup_Reconciler();
+		$method = new ReflectionMethod( $engine, 'safe_relpath' );
+		$method->setAccessible( true );
+		$this->assertSame( $expected, $method->invoke( $engine, $path ) );
+	}
+
 	public function test_reconcile_removes_post_snapshot_file_and_keeps_manifest_file() {
 		$this->prepare_reconcile_fixture();
 		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options() ) );
@@ -1120,6 +1158,86 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( 1, $sub['verification']['reconcile']['removed'] );
 		$this->assertSame( 'done', $sub['verification']['reconcile']['status'] );
 		$this->assertFileDoesNotExist( $this->site . '/wp-content/mu-plugins/persist.php' );
+	}
+
+	public static function data_reconcile_upload_exemptions() {
+		return array(
+			'files default uploads' => array( 'files', 'wp-content/uploads', true ),
+			'files custom uploads' => array( 'files', 'media', true ),
+			'files external uploads' => array( 'files', null, false ),
+			'full uploads' => array( 'full', 'wp-content/uploads', false ),
+		);
+	}
+
+	/** @dataProvider data_reconcile_upload_exemptions */
+	public function test_reconcile_upload_exemption_depends_on_task_type_and_basedir( $type, $relative, $keep ) {
+		$this->prepare_reconcile_fixture();
+		$upload_dir = $this->site . '/' . ( null === $relative ? 'wp-content/uploads' : $relative );
+		wp_mkdir_p( $upload_dir );
+		file_put_contents( $upload_dir . '/post-backup.jpg', 'current upload' );
+		wp_mkdir_p( $upload_dir . '-extra' );
+		file_put_contents( $upload_dir . '-extra/post-backup.jpg', 'outside uploads' );
+		$external = $this->site . '-external';
+		if ( null === $relative ) {
+			// MainWP_Helper::get_mainwp_dir() creates mainwp/ under the basedir and exits when it cannot.
+			wp_mkdir_p( $external . '/uploads' );
+		}
+		$filter = function ( $uploads ) use ( $relative, $upload_dir, $external ) {
+			$uploads['basedir'] = null === $relative ? $external . '/uploads' : $upload_dir;
+			return $uploads;
+		};
+		add_filter( 'upload_dir', $filter );
+		try {
+			$artifacts = array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) );
+			if ( 'full' === $type ) {
+				$artifacts[] = $this->make_db_artifact();
+			}
+			$task = $this->drive( $this->make_task( $type, $artifacts, $this->reconcile_options() ) );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+			$this->assertSame( $keep, file_exists( $upload_dir . '/post-backup.jpg' ) );
+			$this->assertFileDoesNotExist( $upload_dir . '-extra/post-backup.jpg' );
+			$this->assertFileDoesNotExist( $this->site . '/wp-content/mu-plugins/persist.php' );
+		} finally {
+			remove_filter( 'upload_dir', $filter );
+			if ( is_dir( $external ) ) {
+				$this->rrmdir( $external );
+			}
+		}
+	}
+
+	public function test_reconcile_failed_unlink_is_counted_without_response_warning() {
+		$directory = $this->site . '/locked';
+		mkdir( $directory );
+		$target = $directory . '/live.php';
+		file_put_contents( $target, 'keep on failure' );
+		chmod( $directory, 0555 );
+		try {
+			clearstatcache( true, $directory );
+			if ( is_writable( $directory ) ) {
+				$this->markTestSkipped( 'The test user can delete from a read-only directory.' );
+			}
+			$engine = new \MainWP\Child\MainWP_Child_Backup_Reconciler();
+			$method = new ReflectionMethod( $engine, 'remove_candidate' );
+			$method->setAccessible( true );
+			$cursor = array( 'removed' => 0, 'failed' => 0 );
+			$warnings = array();
+			set_error_handler( static function ( $severity, $message ) use ( &$warnings ) {
+				if ( error_reporting() & $severity ) {
+					$warnings[] = $message;
+				}
+				return true;
+			} );
+			try {
+				$method->invokeArgs( $engine, array( 'locked/live.php', $this->site, &$cursor ) );
+			} finally {
+				restore_error_handler();
+			}
+			$this->assertSame( array(), $warnings );
+			$this->assertSame( array( 'removed' => 0, 'failed' => 1 ), $cursor );
+			$this->assertFileExists( $target );
+		} finally {
+			chmod( $directory, 0755 );
+		}
 	}
 
 	public function test_reconcile_changed_manifest_skips_without_deletion() {
@@ -1333,26 +1451,27 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( 500, $out['cursor']['examined'] );
 	}
 
-	public function test_reconcile_preserves_unsafe_paths_and_aborts_malformed_manifest() {
+	public function test_reconcile_dot_names_and_malformed_manifest() {
 		$this->prepare_reconcile_fixture();
-		$path = 'wp-content/mu-plugins/jquery.min..js';
-		$manifest_path = 'wp-content/mu-plugins/report..final.pdf';
-		file_put_contents( $this->site . '/' . $path, 'keep unsafe name' );
+		$path = 'wp-content/mu-plugins/persist..php';
+		$manifest_path = 'wp-content/mu-plugins/jquery.min..js';
+		file_put_contents( $this->site . '/' . $path, 'live-only file' );
 		file_put_contents( $this->site . '/' . $manifest_path, 'keep manifest file' );
 		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( $manifest_path, 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options() ) );
 		$sub = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
-		$this->assertSame( array( 'status' => 'done', 'removed' => 1, 'examined' => 4, 'skipped_unsafe' => 2 ), $sub['verification']['reconcile'] );
-		$this->assertSame( 'keep unsafe name', file_get_contents( $this->site . '/' . $path ) );
+		$this->assertSame( array( 'status' => 'done', 'removed' => 2, 'examined' => 4 ), $sub['verification']['reconcile'] );
+		$this->assertFileDoesNotExist( $this->site . '/' . $path );
 		$this->assertSame( 'keep manifest file', file_get_contents( $this->site . '/' . $manifest_path ) );
 		$this->assertFileDoesNotExist( $this->site . '/wp-content/mu-plugins/persist.php' );
+		file_put_contents( $this->site . '/' . $path, 'keep after malformed manifest' );
 		file_put_contents( $this->dir . '/s1-files.list', "unparseable manifest line\n" );
 		$engine = new \MainWP\Child\MainWP_Child_Backup_Reconciler();
 		$out = $engine->reconcile_slice( array(), array( 'manifest' => $this->dir . '/s1-files.list' ), time() + 60 );
 		$this->assertTrue( $out['done'] );
 		$this->assertSame( 'aborted', $out['outcome']['status'] );
 		$this->assertSame( 0, $out['cursor']['examined'] );
-		$this->assertSame( 'keep unsafe name', file_get_contents( $this->site . '/' . $path ) );
+		$this->assertSame( 'keep after malformed manifest', file_get_contents( $this->site . '/' . $path ) );
 		$this->assertSame( 'keep manifest file', file_get_contents( $this->site . '/' . $manifest_path ) );
 	}
 

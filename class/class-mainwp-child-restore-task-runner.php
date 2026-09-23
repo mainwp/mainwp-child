@@ -1656,6 +1656,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $outcome                = $this->reconciler()->reconcile_slice(
             isset( $sub_state['reconcile'] ) ? $sub_state['reconcile'] : array(),
             array(
+                'task_type'         => $task->type,
                 'manifest'          => $path,
                 'walk'              => $options['walk'],
                 'root'              => $this->site_root(),

@@ -342,6 +342,11 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 continue;
             }
             $entry['name'] = static::map_entry_name( $entry['name'], $this->real_htaccess_entries );
+            if ( null === $entry['name'] ) {
+                ++$cursor['entry_index'];
+                $did_work = true;
+                continue;
+            }
             try {
                 // Tar compression covers the container, not individual entries.
                 $this->check_entry_limits( $entry['size'], 0, $cursor, $entry['name'] );
@@ -817,15 +822,15 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     }
 
     /**
-     * Older archives used an alias; newer archives can contain both real files.
+     * Map legacy aliases, skipping them when the real .htaccess is present.
      *
      * @param string $name                  Archive entry name.
      * @param array  $real_htaccess_entries Real .htaccess presence keyed by entry name.
-     * @return string Destination entry name.
+     * @return string|null Destination entry name, or null for a redundant alias.
      */
     private static function map_entry_name( $name, $real_htaccess_entries = array() ) {
         $mapped = preg_replace( '#(^|/)mainwp-htaccess$#', '$1.htaccess', $name );
-        return empty( $real_htaccess_entries[ $mapped ] ) ? $mapped : $name;
+        return $mapped !== $name && ! empty( $real_htaccess_entries[ $mapped ] ) ? null : $mapped;
     }
 
     /**
@@ -866,7 +871,10 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             $this->real_htaccess_entries[ $mapped ] = false !== $zip->locateName( $mapped );
         }
         $entry_name = static::map_entry_name( $name, $this->real_htaccess_entries );
-        $stat       = $zip->statIndex( $cursor['entry_index'] );
+        if ( null === $entry_name ) {
+            return;
+        }
+        $stat = $zip->statIndex( $cursor['entry_index'] );
         if ( false === $stat ) {
             throw new MainWP_Exception( 'Could not read archive entry metadata.', null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- static internal message.
         }

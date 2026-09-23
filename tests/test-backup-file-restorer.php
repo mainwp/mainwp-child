@@ -481,6 +481,10 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			$this->assertNull( $result['error'], $order );
 			$this->assertTrue( $result['done'], $order );
 			foreach ( $entries as $name => $content ) {
+				if ( 'mainwp-htaccess' === basename( $name ) && 'legacy/mainwp-htaccess' !== $name ) {
+					$this->assertFileDoesNotExist( $destination . '/' . $name, $order );
+					continue;
+				}
 				$target = 'legacy/mainwp-htaccess' === $name ? 'legacy/.htaccess' : $name;
 				$this->assertFileExists( $destination . '/' . $target, $order );
 				$this->assertSame( $content, file_get_contents( $destination . '/' . $target ), $order . ': ' . $target );
@@ -501,7 +505,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertNull( $result['error'] );
 		$this->assertTrue( $result['done'] );
 		$this->assertSame( 'later part rules', file_get_contents( $this->extract_to . '/.htaccess' ) );
-		$this->assertSame( 'stale first part rules', file_get_contents( $this->extract_to . '/mainwp-htaccess' ) );
+		$this->assertFileDoesNotExist( $this->extract_to . '/mainwp-htaccess' );
 	}
 
 	public function test_htaccess_alias_remapping_rejects_traversal() {

@@ -603,6 +603,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     public function checkpoint( $task_id, $version, $fields, $release_mutex = true, $backup_dir = null ) {
         global $wpdb;
 
+        $terminal_restore = false;
         if ( isset( $fields['phase'] ) && self::is_terminal_phase( $fields['phase'] ) ) {
             $task = $this->get_task( $task_id );
             if ( null !== $task && self::is_restore_type( $task->type ) ) {
@@ -623,6 +624,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                 unset( $sub_state['params']['pull_manifest'], $sub_state['identity_preserve'] );
                 // Terminal rows outlive the credentials needed to resume; keep the outcome inline when sidecars are removed.
                 $fields['sub_state'] = $sub_state;
+                $terminal_restore    = true;
             }
         }
 
@@ -654,6 +656,10 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                 $args
             )
         );
+
+        if ( 1 === $result && $terminal_restore ) {
+            $this->delete_sidecar( $task_id, $backup_dir );
+        }
 
         if ( 1 === $result && $release_mutex && isset( $fields['phase'] ) && self::is_terminal_phase( $fields['phase'] ) ) {
             $task = $this->get_task( $task_id );
@@ -1442,7 +1448,8 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         }
         foreach ( (array) $rows as $task ) {
             $sub_state = $this->read_sub_state( $task, $backup_dir );
-            if ( is_array( $sub_state ) && ( array_key_exists( 'identity_preserve', $sub_state )
+            $stored    = json_decode( $task->sub_state, true );
+            if ( is_array( $sub_state ) && ( ! empty( $stored['_sidecar'] ) || array_key_exists( 'identity_preserve', $sub_state )
                 || ( isset( $sub_state['params'] ) && is_array( $sub_state['params'] ) && array_key_exists( 'pull_manifest', $sub_state['params'] ) ) ) ) {
                 $this->checkpoint(
                     $task->task_id,
@@ -1454,6 +1461,9 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                     true,
                     $backup_dir
                 );
+            } elseif ( is_array( $sub_state ) ) {
+                // Already-scrubbed inline rows may still have older secret-bearing sidecars.
+                $this->delete_sidecar( $task->task_id, $backup_dir );
             }
         }
         return $reclaimed;

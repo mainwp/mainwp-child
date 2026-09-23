@@ -129,7 +129,7 @@ class BackupRestoreTaskSpineTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Completion must retain the outcome after the runner deletes its sidecars.
+	 * Terminal checkpointing must delete sidecars and retain the outcome inline.
 	 */
 	public function test_restore_terminal_checkpoint_scrubs_sidecar_cursor() {
 		$cursor            = $this->secret_restore_cursor();
@@ -142,8 +142,11 @@ class BackupRestoreTaskSpineTest extends WP_UnitTestCase {
 			$serialized = $this->spine->write_sub_state( $task_id, $cursor, $backup_dir, (int) $task->version );
 			$this->assertNotFalse( $serialized );
 			$this->assertTrue( json_decode( $serialized, true )['_sidecar'] );
+			$this->assertNotFalse( $this->spine->write_sub_state( $task_id, $cursor, $backup_dir, (int) $task->version + 1 ) );
+			$this->assertFalse( $this->spine->checkpoint( $task_id, (int) $task->version + 100, array( 'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED, 'sub_state' => $serialized ), true, $backup_dir ) );
+			$this->assertCount( 2, glob( $backup_dir . '/task_substate-' . $task_id . '-v*.json' ) );
 			$this->assertNotFalse( $this->spine->checkpoint( $task_id, (int) $task->version, array( 'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED, 'sub_state' => $serialized ), true, $backup_dir ) );
-			$this->spine->delete_sidecar( $task_id, $backup_dir );
+			$this->assertSame( array(), glob( $backup_dir . '/task_substate-' . $task_id . '-v*.json' ) );
 			$stored = $this->spine->read_sub_state( $this->spine->get_task( $task_id ), $backup_dir );
 			$this->assertArrayNotHasKey( 'pull_manifest', $stored['params'] );
 			$this->assertArrayNotHasKey( 'identity_preserve', $stored );
@@ -173,12 +176,17 @@ class BackupRestoreTaskSpineTest extends WP_UnitTestCase {
 			$this->assertSame( 0, $this->spine->reclaim_expired_tasks( $backup_dir . '/missing' ) );
 			$this->assertEquals( $before, $this->spine->get_task( $task_id ) );
 			$this->assertSame( 0, $this->spine->reclaim_expired_tasks( $backup_dir ) );
+			$this->assertSame( array(), glob( $backup_dir . '/task_substate-' . $task_id . '-v*.json' ) );
 			$stored = json_decode( $this->spine->get_task( $task_id )->sub_state, true );
 			$this->assertArrayNotHasKey( 'pull_manifest', $stored['params'] );
 			$this->assertArrayNotHasKey( 'identity_preserve', $stored );
 			$this->assertSame( $cursor['verification'], $stored['verification'] );
 			$this->assertSame( $cursor['error'], $stored['error'] );
 			$this->assertSame( $task_id, $this->spine->get_task_by_restore_id( 'restore123' )->task_id );
+			$this->assertNotFalse( $this->spine->write_sub_state( $task_id, $cursor, $backup_dir, 99 ) );
+			$this->assertCount( 1, glob( $backup_dir . '/task_substate-' . $task_id . '-v*.json' ) );
+			$this->assertSame( 0, $this->spine->reclaim_expired_tasks( $backup_dir ) );
+			$this->assertSame( array(), glob( $backup_dir . '/task_substate-' . $task_id . '-v*.json' ) );
 		} finally {
 			$this->spine->delete_sidecar( $task_id, $backup_dir );
 			rmdir( $backup_dir );

@@ -17,6 +17,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Diff {
 
     /**
+     * Uploads kept because a files-only restore retains the live database.
+     *
+     * @var string|null
+     */
+    private $uploads_relpath = null;
+
+    /**
      * Invalid coverage must never become a broader deletion scope.
      *
      * @param mixed $raw Wire options.
@@ -72,6 +79,18 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
      * @return array Cursor, outcome and completion flags.
      */
     public function reconcile_slice( $cursor, $config, $deadline ) {
+        $this->uploads_relpath = null;
+        if ( isset( $config['task_type'] ) && 'restore_files' === $config['task_type'] ) {
+            $uploads = wp_upload_dir( null, false );
+            $root    = trailingslashit( wp_normalize_path( $config['root'] ) );
+            $basedir = wp_normalize_path( $uploads['basedir'] );
+            if ( 0 === strpos( $basedir, $root ) ) {
+                $relative = rtrim( substr( $basedir, strlen( $root ) ), '/' );
+                if ( $this->safe_relpath( $relative ) ) {
+                    $this->uploads_relpath = $relative;
+                }
+            }
+        }
         $cursor   = array_merge(
             array(
                 'offset'          => 0,
@@ -239,7 +258,13 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
      * @return bool Whether the path is safe.
      */
     private function safe_relpath( $path ) {
-        return '' !== $path && '/' !== $path[0] && false === strpos( $path, '..' ) && false === strpos( $path, '\\' ) && ! preg_match( '/^[a-z]:/i', $path ) && ! preg_match( '/[\x00-\x1f\x7f]/', $path );
+        if ( '' === $path || '/' === $path[0] || false !== strpos( $path, '\\' ) ) {
+            return false;
+        }
+        if ( preg_match( '/^[a-z]:/i', $path ) || preg_match( '/[\x00-\x1f\x7f]/', $path ) ) {
+            return false;
+        }
+        return ! in_array( '..', explode( '/', $path ), true );
     }
 
     /**
@@ -249,6 +274,9 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
      * @return bool Whether deletion is forbidden.
      */
     protected function exempt( $path ) {
+        if ( null !== $this->uploads_relpath && ( $path === $this->uploads_relpath || 0 === strpos( $path, $this->uploads_relpath . '/' ) ) ) {
+            return true;
+        }
         $mainwp = MainWP_Helper::get_mainwp_dir();
         $paths  = array(
             'wp-config.php',
@@ -304,7 +332,7 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
             $parent        = dirname( $parent );
             $parent_length = strlen( $parent );
         }
-        if ( unlink( $target ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- count failures instead of hiding them.
+        if ( @unlink( $target ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.unlink_unlink -- count failures without corrupting the response with warnings.
             ++$cursor['removed'];
         } else {
             ++$cursor['failed'];
