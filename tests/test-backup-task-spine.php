@@ -971,6 +971,7 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 	public function test_preflight_advertises_task_machine() {
 		$report = \MainWP\Child\MainWP_Backup::get()->check_backup_readiness();
 		$this->assertSame( 1, $report['task_spine'] );
+		$this->assertSame( 1, $report['restore_create_idempotency'] );
 	}
 
 	/**

@@ -76,6 +76,7 @@ class BackupPreflightTest extends WP_UnitTestCase {
 		$report = MainWP_Backup::get()->check_backup_readiness();
 
 		$this->assertSame( 1, $report['task_spine'] );
+		$this->assertSame( 1, $report['restore_create_idempotency'] );
 		$this->assertSame( 1, $report['download_token'] );
 		$this->assertSame( 1, $report['incremental'] );
 	}
