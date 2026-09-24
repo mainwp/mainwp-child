@@ -507,6 +507,59 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * A resumed cursor rereads the same spill, and terminal cleanup retains its identity.
+	 *
+	 * @dataProvider spilled_parent_cleanup_cases
+	 */
+	public function test_spilled_parent_survives_resume_and_cleanup( $terminal ) {
+		$this->arrange_incremental_fixtures();
+		$bytes = $this->parent_manifest_content();
+		$path = $this->backup_dir . '/pushed-parent.list';
+		file_put_contents( $path, $bytes );
+		file_put_contents( $this->backup_dir . '/files.list', "unrelated.php\t1\t1\n" );
+		$task_id = $this->create_task( 'incremental', array( 'parent_manifest_file' => basename( $path ) ) );
+		$spine = MainWP_Child_Backup_Task::instance();
+		$persisted = $spine->read_sub_state( $spine->get_task( $task_id ), $this->backup_dir );
+		$resolve = new \ReflectionMethod( $this->runner, 'resolve_parent_manifest' );
+		$resolve->setAccessible( true );
+		for ( $i = 0; $i < 2; ++$i ) {
+			$cursor = $persisted;
+			$resolved = $resolve->invokeArgs( $this->runner, array( &$cursor, $this->backup_dir ) );
+			$this->assertSame( $path, $resolved );
+			$this->assertSame( $bytes, file_get_contents( $resolved ) );
+			$this->assertSame( basename( $path ), $cursor['params']['parent_manifest_file'] );
+		}
+		if ( 'cancel' === $terminal ) {
+			$this->runner->cancel_backup_task( $task_id );
+			$task = $spine->get_task( $task_id );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		} elseif ( 'failure' === $terminal ) {
+			$this->runner->stubs['run_incremental_diff'] = static function () {
+				throw new MainWP_Exception( 'Injected diff failure' );
+			};
+			$task = $this->advance( $task_id );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+			$this->assertFileDoesNotExist( $path );
+		} else {
+			$task = $this->advance( $task_id );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES, $task->phase );
+			$task = $this->advance( $task_id );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		}
+		$terminal_state = $spine->read_sub_state( $task, $this->backup_dir );
+		if ( 'failure' !== $terminal ) {
+			$this->assertSame( basename( $path ), $terminal_state['params']['parent_manifest_file'] );
+		}
+		$this->assertSame( 'pruned', $spine->prune_task( $task_id, $this->backup_dir ) );
+		$this->assertFileDoesNotExist( $path );
+	}
+
+	/** @return array Terminal spill cleanup paths. */
+	public static function spilled_parent_cleanup_cases() {
+		return array( 'completion' => array( 'completion' ), 'failure' => array( 'failure' ), 'cancel' => array( 'cancel' ) );
+	}
+
 	/** Completion writes the proof before promotion, with its actual task identity. */
 	public function test_completion_stamps_staged_manifest_before_promotion() {
 		$this->arrange_incremental_fixtures();

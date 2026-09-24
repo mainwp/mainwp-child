@@ -1107,9 +1107,9 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
 
         if ( '' !== $file ) {
             $src = $dir . basename( $file );
-            if ( is_file( $src ) && @rename( $src, $parent ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions.rename_rename -- scratch file under the task mutex.
-                unset( $sub_state['params']['parent_manifest_file'] );
-                return $parent;
+            // A killed slice resumes from the persisted cursor naming this spill.
+            if ( is_file( $src ) ) {
+                return $src;
             }
         } elseif ( '' !== $b64 ) {
             $decoded = base64_decode( $b64, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- explicit wire encoding.

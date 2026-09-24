@@ -534,10 +534,10 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * resolve_parent_manifest consumes the spilled file: it becomes
-	 * parent-files.list and the scratch file is removed.
+	 * Resolving a spilled parent preserves its path, bytes, and cursor reference
+	 * so a resumed slice can read the same file.
 	 */
-	public function test_resolve_parent_manifest_consumes_spilled_file() {
+	public function test_resolve_parent_manifest_retains_spilled_file() {
 		$runner     = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
 		$backup_dir = rtrim( \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' )[0], '/' );
 		$name       = 'parent-manifest-testspill.list';
@@ -548,10 +548,10 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 		$method->setAccessible( true );
 		$parent = $method->invokeArgs( $runner, array( &$sub_state, $backup_dir ) );
 
-		$this->assertSame( $backup_dir . '/parent-files.list', $parent );
+		$this->assertSame( $backup_dir . '/' . $name, $parent );
 		$this->assertSame( "a.php\t1\t1\n", file_get_contents( $parent ) );
-		$this->assertFileDoesNotExist( $backup_dir . '/' . $name, 'The spilled file is consumed.' );
-		$this->assertArrayNotHasKey( 'parent_manifest_file', $sub_state['params'] );
+		$this->assertFileExists( $backup_dir . '/' . $name, 'The spilled file must remain available for retry.' );
+		$this->assertSame( $name, $sub_state['params']['parent_manifest_file'] );
 
 		unlink( $parent );
 	}
