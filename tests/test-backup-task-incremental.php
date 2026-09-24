@@ -422,6 +422,119 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		return $roles;
 	}
 
+	/**
+	 * The stamp binds the writer to bytes, including interrupted promotions.
+	 *
+	 * @dataProvider writer_identity_events
+	 */
+	public function test_manifest_writer_identity_matrix( $events, $expected_writer, $allowed ) {
+		$this->arrange_incremental_fixtures();
+		$stamp = new ReflectionMethod( \MainWP\Child\MainWP_Child_Backup_Task_Runner::class, 'stamp_manifest_writer' );
+		$stamp->setAccessible( true );
+		foreach ( $events as $event ) {
+			list( $operation, $writer ) = explode( ':', $event );
+			if ( 'stage' === $operation ) {
+				file_put_contents( $this->backup_dir . '/files.list.staged', $this->parent_manifest_content() . $writer . ".php\t1\t1\n" );
+				file_put_contents( $this->backup_dir . '/paths.cache.staged', '' );
+			} elseif ( 'stamp' === $operation ) {
+				$this->assertTrue( $stamp->invoke( $this->runner, $this->backup_dir, $writer ) );
+			} elseif ( 'promote' === $operation ) {
+				// Exercise the real rename rather than the runner fixture's promotion stub.
+				rename( $this->backup_dir . '/files.list.staged', $this->backup_dir . '/files.list' );
+			} elseif ( 'corrupt' === $operation ) {
+				file_put_contents( $this->backup_dir . '/files.list', 'torn bytes' );
+			} elseif ( 'torn' === $operation ) {
+				file_put_contents( $this->backup_dir . '/files.list.writer.json', '{' );
+			} elseif ( 'failedstamp' === $operation ) {
+				unlink( $this->backup_dir . '/files.list.writer.json' );
+				mkdir( $this->backup_dir . '/files.list.writer.json' );
+				$this->assertFalse( $stamp->invoke( $this->runner, $this->backup_dir, $writer ) );
+			}
+		}
+		$task_id = $this->create_task( 'incremental', array( 'parent_child_task_id' => $expected_writer ) );
+		$task = $this->advance( $task_id );
+		$this->assertSame( $allowed ? MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES : MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		if ( ! $allowed ) {
+			$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+			$this->assertSame( MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING, $payload['error_code'] );
+		}
+	}
+
+	/** @return array Interleavings at the shared manifest. */
+	public static function writer_identity_events() {
+		$i = array( 'stage:I', 'stamp:I', 'promote:I' );
+		$f = array( 'stage:F', 'stamp:F', 'promote:F' );
+		return array(
+			'matching bytes and writer' => array( $i, 'I', true ),
+			'I completes F completes I records F record fails' => array( array_merge( $i, $f ), 'I', false ),
+			'F delayed until after I records' => array( array_merge( $i, $f ), 'I', false ),
+			'I delayed until after F records' => array( array_merge( $f, $i ), 'F', false ),
+			'new stamp before failed promotion old writer' => array( array_merge( $i, array( 'stage:F', 'stamp:F' ) ), 'I', false ),
+			'new stamp before failed promotion new writer' => array( array_merge( $i, array( 'stage:F', 'stamp:F' ) ), 'F', false ),
+			'promotion without new stamp' => array( array_merge( $i, array( 'stage:F', 'promote:F' ) ), 'I', false ),
+			'corrupt list' => array( array_merge( $i, array( 'corrupt:I' ) ), 'I', false ),
+			'torn stamp' => array( array_merge( $i, array( 'torn:I' ) ), 'I', false ),
+			'stamp publication fails' => array( array_merge( $i, array( 'stage:F', 'failedstamp:F', 'promote:F' ) ), 'F', false ),
+			'unstamped list' => array( array( 'stage:I', 'promote:I' ), 'I', false ),
+			'legacy caller has no proof' => array( $i, '', false ),
+		);
+	}
+
+	/**
+	 * An explicit unusable push must not read the unrelated local list.
+	 *
+	 * @dataProvider unusable_parent_pushes
+	 */
+	public function test_explicit_parent_failure_never_uses_local_list( $params, $block_write ) {
+		$this->arrange_incremental_fixtures();
+		file_put_contents( $this->backup_dir . '/files.list', $this->parent_manifest_content() );
+		if ( $block_write ) {
+			mkdir( $this->backup_dir . '/parent-files.list' );
+		}
+		$task_id = $this->create_task( 'incremental', $params );
+		$task = $this->advance( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+		$this->assertSame( MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING, $payload['error_code'] );
+	}
+
+	/** @return array Invalid explicit inputs. */
+	public static function unusable_parent_pushes() {
+		return array(
+			'bad base64' => array( array( 'parent_manifest_b64' => '!!!' ), false ),
+			'missing spilled file' => array( array( 'parent_manifest_file' => 'gone.list' ), false ),
+			'write refused' => array( array( 'parent_manifest_b64' => base64_encode( "a.php\t1\t1\n" ) ), true ),
+		);
+	}
+
+	/** Completion writes the proof before promotion, with its actual task identity. */
+	public function test_completion_stamps_staged_manifest_before_promotion() {
+		$this->arrange_incremental_fixtures();
+		$task_id = $this->create_task( 'full', array( 'emit_manifest' => true ) );
+		$this->runner->stubs['promote_manifest_sidecars'] = function () use ( $task_id ) {
+			$stamp = json_decode( file_get_contents( $this->backup_dir . '/files.list.writer.json' ), true );
+			$this->assertSame( $task_id, $stamp['task_id'] );
+			$this->assertSame( hash_file( 'sha256', $this->backup_dir . '/files.list.staged' ), $stamp['sha256'] );
+			return true;
+		};
+		$task = $this->advance( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+		$roles = $this->artifacts_by_role( $payload );
+		$this->assertSame( hash_file( 'sha256', $this->backup_dir . '/files.list.staged' ), $roles['manifest']['sha256'] );
+	}
+
+	/** Invalid inline bytes must also fail at the create-time spill. */
+	public function test_invalid_push_fails_before_task_creation() {
+		try {
+			$this->runner->create_task_for_params( 'incremental', array( 'parent_manifest_b64' => '!!!' ) );
+			$this->fail( 'Invalid push was accepted.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING, $e->get_message_error_code() );
+			$this->assertSame( array(), MainWP_Child_Backup_Task::instance()->get_active_tasks() );
+		}
+	}
+
 	// ---- incremental run tests --------------------------------------------
 
 	/**
@@ -432,9 +545,9 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 	 */
 	public function test_incremental_run_packs_only_changes() {
 		$this->arrange_incremental_fixtures();
-		file_put_contents( $this->backup_dir . '/files.list', $this->parent_manifest_content() ); // phpcs:ignore -- test fixture: previous snapshot manifest.
+		file_put_contents( $this->backup_dir . '/files.list', $this->parent_manifest_content() );
 
-		$task_id = $this->create_task( 'incremental' );
+		$task_id = $this->create_task( 'incremental', array( 'parent_manifest_b64' => base64_encode( $this->parent_manifest_content() ) ) );
 
 		$task = $this->advance( $task_id );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES, $task->phase, 'The diff step yields so packing starts with a fresh budget.' );
@@ -518,9 +631,9 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 	 */
 	public function test_pack_resumes_after_budget_bail() {
 		$this->arrange_incremental_fixtures();
-		file_put_contents( $this->backup_dir . '/files.list', $this->parent_manifest_content() ); // phpcs:ignore -- test fixture.
+		file_put_contents( $this->backup_dir . '/files.list', $this->parent_manifest_content() );
 
-		$task_id = $this->create_task( 'incremental' );
+		$task_id = $this->create_task( 'incremental', array( 'parent_manifest_b64' => base64_encode( $this->parent_manifest_content() ) ) );
 		$task    = $this->advance( $task_id ); // Diff step.
 
 		$checks = 0;
@@ -557,9 +670,9 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 	 */
 	public function test_torn_part_rebuilt_on_resume() {
 		$this->arrange_incremental_fixtures();
-		file_put_contents( $this->backup_dir . '/files.list', $this->parent_manifest_content() ); // phpcs:ignore -- test fixture.
+		file_put_contents( $this->backup_dir . '/files.list', $this->parent_manifest_content() );
 
-		$task_id = $this->create_task( 'incremental' );
+		$task_id = $this->create_task( 'incremental', array( 'parent_manifest_b64' => base64_encode( $this->parent_manifest_content() ) ) );
 		$task    = $this->advance( $task_id ); // Diff step.
 
 		$checks = 0;

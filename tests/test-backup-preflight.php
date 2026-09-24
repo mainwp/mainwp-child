@@ -76,6 +76,7 @@ class BackupPreflightTest extends WP_UnitTestCase {
 		$report = MainWP_Backup::get()->check_backup_readiness();
 
 		$this->assertSame( 1, $report['task_spine'] );
+		$this->assertSame( 1, $report['manifest_writer_identity'] );
 		$this->assertSame( 1, $report['restore_create_idempotency'] );
 		$this->assertSame( 1, $report['download_token'] );
 		$this->assertSame( 1, $report['incremental'] );
@@ -133,9 +134,30 @@ class BackupPreflightTest extends WP_UnitTestCase {
 
 		$this->assertSame( 1, $report['restore_create_idempotency'] );
 		$this->assertSame( 1, $report['task_spine'] );
+		$this->assertSame( 1, $report['manifest_writer_identity'] );
 		$this->assertArrayNotHasKey( 'estimated_bytes', $report );
 		$this->assertArrayNotHasKey( 'file_count', $report );
 		$this->assertFalse( get_transient( MainWP_Backup::CONTENT_INVENTORY_TRANSIENT ), 'capabilities_only must not walk wp-content' );
+	}
+
+	public function test_capabilities_only_survives_unwritable_backup_directory() {
+		$dirs = MainWP_Helper::get_mainwp_dir( 'backup', false );
+		$mode = fileperms( $dirs[0] ) & 0777;
+		chmod( $dirs[0], 0500 );
+		clearstatcache();
+		try {
+			$this->assertFalse( is_writable( $dirs[0] ), 'Fixture must actually refuse writes.' );
+			$report = MainWP_Backup::get()->check_backup_readiness( true );
+			$this->assertSame( 1, $report['restore_create_idempotency'] );
+			$this->assertSame( 1, $report['restore_files'] );
+			$this->assertFalse( $report['dir_writable'] );
+			$this->assertFalse( $report['db_connected'] );
+			$this->expectException( \MainWP\Child\MainWP_Exception::class );
+			MainWP_Backup::get()->check_backup_readiness();
+		} finally {
+			chmod( $dirs[0], $mode );
+			clearstatcache();
+		}
 	}
 
 	public function test_check_backup_readiness_reports_size_estimate() {

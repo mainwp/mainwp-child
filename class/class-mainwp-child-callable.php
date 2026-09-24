@@ -772,10 +772,12 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
                 return;
             }
             if ( '' !== $raw_manifest && false === base64_decode( $raw_manifest, true ) ) { // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- strict-mode validation of the pushed manifest's wire encoding, not code.
-                $raw_manifest = ''; // Not valid base64 - treat as absent; the child-local sidecar or the force-full fallback handles it.
+                MainWP_Helper::instance()->error( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING ) ), MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING );
+                return;
             }
-            $params['parent_manifest_b64'] = $raw_manifest;
-            $params['parent_snapshot_id']  = isset( $_POST['parent_snapshot_id'] ) ? sanitize_text_field( wp_unslash( $_POST['parent_snapshot_id'] ) ) : '';
+            $params['parent_child_task_id'] = isset( $_POST['parent_child_task_id'] ) ? sanitize_text_field( wp_unslash( $_POST['parent_child_task_id'] ) ) : '';
+            $params['parent_manifest_b64']  = $raw_manifest;
+            $params['parent_snapshot_id']   = isset( $_POST['parent_snapshot_id'] ) ? sanitize_text_field( wp_unslash( $_POST['parent_snapshot_id'] ) ) : '';
 
             // A manifest too large for one request arrives beforehand via
             // backup_manifest_chunk; the create request references the

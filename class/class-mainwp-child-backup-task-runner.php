@@ -362,6 +362,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @param array $params Backup params (may carry parent_manifest_b64).
      *
      * @return array Params with the manifest spilled to a file reference.
+     * @throws MainWP_Exception When explicit manifest bytes cannot be decoded.
      */
     protected function spill_parent_manifest( $params ) {
         if ( empty( $params['parent_manifest_b64'] ) ) {
@@ -370,15 +371,12 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
 
         $decoded = base64_decode( (string) $params['parent_manifest_b64'], true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- wire transport encoding for the pushed manifest, not code.
         if ( false === $decoded || '' === $decoded ) {
-            // Unusable bytes: drop them so resolve_parent_manifest falls back
-            // to the local sidecar or forces a full backup.
-            unset( $params['parent_manifest_b64'] );
-            return $params;
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING ) ), null, MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
         }
 
         $name = 'parent-manifest-' . strtolower( wp_generate_password( 12, false ) ) . '.list';
         $path = rtrim( $this->backup_dir(), '/' ) . '/' . $name;
-        if ( false !== file_put_contents( $path, $decoded ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- scratch-dir write, mirrors resolve_parent_manifest().
+        if ( strlen( $decoded ) === @file_put_contents( $path, $decoded ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- scratch-dir write, mirrors resolve_parent_manifest().
             $params['parent_manifest_file'] = $name;
             unset( $params['parent_manifest_b64'] );
         }
@@ -799,10 +797,11 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                     'role' => 'full',
                 ),
                 array(
-                    'file' => MainWP_Child_Backup_File_Walker::FILES_LIST,
-                    'size' => (int) $sub_state['manifest']['size'],
-                    'role' => 'manifest',
-                    'walk' => $this->manifest_walk_params( $params ),
+                    'file'   => MainWP_Child_Backup_File_Walker::FILES_LIST,
+                    'size'   => (int) $sub_state['manifest']['size'],
+                    'role'   => 'manifest',
+                    'sha256' => $sub_state['manifest']['sha256'] ?? '',
+                    'walk'   => $this->manifest_walk_params( $params ),
                 ),
             );
         }
@@ -908,10 +907,11 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
 
         $artifacts   = array();
         $artifacts[] = array(
-            'file' => $sub_state['manifest']['file'],
-            'size' => (int) $sub_state['manifest']['size'],
-            'role' => 'manifest',
-            'walk' => $this->manifest_walk_params( $params ),
+            'file'   => $sub_state['manifest']['file'],
+            'size'   => (int) $sub_state['manifest']['size'],
+            'role'   => 'manifest',
+            'sha256' => $sub_state['manifest']['sha256'] ?? '',
+            'walk'   => $this->manifest_walk_params( $params ),
         );
 
         $tombstones_path = $dir . MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST;
@@ -1099,41 +1099,39 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @return string Parent manifest path.
      */
     protected function resolve_parent_manifest( &$sub_state, $backup_dir ) {
-        $dir = rtrim( $backup_dir, '/' ) . '/';
+        $dir    = rtrim( $backup_dir, '/' ) . '/';
+        $params = $sub_state['params'];
+        $file   = isset( $params['parent_manifest_file'] ) ? (string) $params['parent_manifest_file'] : '';
+        $b64    = isset( $params['parent_manifest_b64'] ) ? (string) $params['parent_manifest_b64'] : '';
+        $parent = $dir . 'parent-files.list';
 
-        // Preferred: the manifest was spilled to a scratch file at create time
-        // (see spill_parent_manifest) so it never bloated the task row. Move it
-        // into place; basename() guards against any caller-supplied path.
-        $file = isset( $sub_state['params']['parent_manifest_file'] ) ? (string) $sub_state['params']['parent_manifest_file'] : '';
         if ( '' !== $file ) {
-            unset( $sub_state['params']['parent_manifest_file'] );
             $src = $dir . basename( $file );
-            if ( is_file( $src ) ) {
-                $parent = $dir . 'parent-files.list';
-                if ( rename( $src, $parent ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- same-dir move of the spilled manifest into place.
-                    return $parent;
+            if ( is_file( $src ) && @rename( $src, $parent ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions.rename_rename -- scratch file under the task mutex.
+                unset( $sub_state['params']['parent_manifest_file'] );
+                return $parent;
+            }
+        } elseif ( '' !== $b64 ) {
+            $decoded = base64_decode( $b64, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- explicit wire encoding.
+            if ( false !== $decoded && '' !== $decoded && strlen( $decoded ) === @file_put_contents( $parent, $decoded ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- scratch file under the task mutex.
+                unset( $sub_state['params']['parent_manifest_b64'] );
+                return $parent;
+            }
+        } else {
+            // Recheck after the walk: a long slice may have outlived its lease.
+            $expected = isset( $params['parent_child_task_id'] ) ? (string) $params['parent_child_task_id'] : '';
+            $local    = $dir . MainWP_Child_Backup_File_Walker::FILES_LIST;
+            $stamp    = is_file( $local . '.writer.json' ) ? json_decode( (string) @file_get_contents( $local . '.writer.json' ), true ) : null; // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- local ownership proof.
+            if ( '' !== $expected && ! empty( $this->current_task_id ) && MainWP_Child_Backup_Mutex::refresh( $this->current_task_id, MainWP_Child_Backup_Mutex::NATIVE_TTL ) && is_array( $stamp ) && ( $stamp['task_id'] ?? null ) === $expected && is_string( $stamp['sha256'] ?? null ) && is_file( $local ) ) {
+                $hash = @hash_file( 'sha256', $local ); // phpcs:ignore WordPress.PHP.NoSilencedErrors -- failure refuses ownership.
+                if ( is_string( $hash ) && hash_equals( $stamp['sha256'], $hash ) ) {
+                    return $local;
                 }
             }
         }
 
-        $b64 = isset( $sub_state['params']['parent_manifest_b64'] ) ? $sub_state['params']['parent_manifest_b64'] : '';
-        if ( '' !== $b64 ) {
-            unset( $sub_state['params']['parent_manifest_b64'] );
-            $decoded = base64_decode( $b64, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- wire transport encoding for the pushed manifest, not code.
-            if ( false !== $decoded && '' !== $decoded ) {
-                $parent = $dir . 'parent-files.list';
-                if ( false !== file_put_contents( $parent, $decoded ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- scratch-dir write.
-                    return $parent;
-                }
-            }
-        }
-
-        $local = $dir . MainWP_Child_Backup_File_Walker::FILES_LIST;
-        if ( file_exists( $local ) ) {
-            return $local;
-        }
-
-        throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING ) ), null, MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        // Explicit push failures must never reach the shared-list fallback.
+        throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING ) ), null, MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
     }
 
     /**
@@ -1267,6 +1265,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                     // promote them as the snapshot the next incremental diffs
                     // against. A failed run never reaches this, so the previous
                     // snapshot's manifest stays usable.
+                    $this->stamp_manifest_writer( $backup_dir, $task->task_id );
                     $this->promote_manifest_sidecars( $backup_dir );
                 }
                 // The sliced walk keeps its run files until the task ends so a
@@ -1731,7 +1730,9 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @return array Manifest record with file/size/total_files/total_bytes.
      */
     protected function manifest_from_walk( $walk ) {
+        $staged = rtrim( $this->backup_dir(), '/' ) . '/' . MainWP_Child_Backup_File_Walker::FILES_LIST . MainWP_Child_Backup_File_Walker::STAGED_SUFFIX;
         return array(
+            'sha256'      => is_file( $staged ) ? hash_file( 'sha256', $staged ) : '',
             'file'        => MainWP_Child_Backup_File_Walker::FILES_LIST,
             'size'        => isset( $walk['size'] ) ? (int) $walk['size'] : 0,
             'total_files' => isset( $walk['count'] ) ? (int) $walk['count'] : 0,
@@ -1800,6 +1801,38 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         $this->cleanup_walk_runs( $backup_dir );
+    }
+
+    /**
+     * Bind the writer to staged bytes before either sidecar is promoted.
+     *
+     * A crash between renames leaves a hash mismatch, unless both lists have
+     * identical bytes. A failed stamp write leaves the previous proof, which
+     * cannot validate different promoted bytes.
+     *
+     * @param string $backup_dir Scratch directory.
+     * @param string $task_id Writer identity.
+     * @return bool Whether the proof was written.
+     */
+    protected function stamp_manifest_writer( $backup_dir, $task_id ) {
+        $local  = rtrim( $backup_dir, '/' ) . '/' . MainWP_Child_Backup_File_Walker::FILES_LIST;
+        $staged = $local . MainWP_Child_Backup_File_Walker::STAGED_SUFFIX;
+        $hash   = is_file( $staged ) ? @hash_file( 'sha256', $staged ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors -- failure refuses ownership.
+        if ( ! is_string( $hash ) ) {
+            return false;
+        }
+        $bytes = wp_json_encode(
+            array(
+                'task_id' => (string) $task_id,
+                'sha256'  => $hash,
+            )
+        );
+        $temp  = $local . '.writer-' . wp_generate_password( 12, false ) . '.tmp';
+        $saved = false !== $bytes && strlen( $bytes ) === @file_put_contents( $temp, $bytes ) && @rename( $temp, $local . '.writer.json' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- atomic same-directory proof publication.
+        if ( is_file( $temp ) ) {
+            @unlink( $temp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions.unlink_unlink -- failed proof temporary file.
+        }
+        return $saved;
     }
 
     /**

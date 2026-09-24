@@ -1610,9 +1610,8 @@ class MainWP_Backup {
      * dead database connection). The report includes the backup directory
      * secret so the Dashboard can track the randomized directory.
      *
-     * @param bool $capabilities_only Skip the wp-content walk behind the size estimate; the
-     *                                restore capability probe needs only the capability keys
-     *                                and must answer inside the Dashboard's clamp.
+     * @param bool $capabilities_only Return capabilities without directory, disk, database,
+     *                                or content-inventory readiness checks.
      * @return array Readiness report sent to the Dashboard.
      * @throws MainWP_Exception When critical requirements are missing.
      */
@@ -1632,6 +1631,7 @@ class MainWP_Backup {
             'download_token'             => 1,
             'incremental'                => 1,
             'manifest_chunk'             => 1,
+            'manifest_writer_identity'   => 1,
             // Task-store schema 1.2.0 pins each restore_id to its first task,
             // so a replayed create returns that task instead of a duplicate.
             // The Dashboard refuses native restore unless this is advertised.
@@ -1649,6 +1649,10 @@ class MainWP_Backup {
             'is_multisite'               => is_multisite() ? 1 : 0,
             'restore_multisite'          => is_multisite() ? 1 : 0,
         );
+
+        if ( $capabilities_only ) {
+            return $report;
+        }
 
         // 1. Backup directory writable (randomized directory, created on demand).
         $dirs       = MainWP_Helper::get_mainwp_dir( 'backup', false );
@@ -1683,10 +1687,6 @@ class MainWP_Backup {
         }
         if ( ! $report['db_connected'] ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DB_CONNECTION_LOST ) ), null, MainWP_Backup_Error::ERR_DB_CONNECTION_LOST ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
-        }
-
-        if ( $capabilities_only ) {
-            return $report;
         }
 
         // The wp-content walk is cached so reporting the size estimate and
