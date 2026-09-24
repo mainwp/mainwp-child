@@ -508,12 +508,15 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A resumed cursor rereads the same spill, and terminal cleanup retains its identity.
+	 * A spill survives resume and diff checkpoints, then terminal cleanup removes it.
 	 *
 	 * @dataProvider spilled_parent_cleanup_cases
 	 */
 	public function test_spilled_parent_survives_resume_and_cleanup( $terminal ) {
 		$this->arrange_incremental_fixtures();
+		$this->runner->stubs['promote_manifest_sidecars'] = static function ( $backup_dir ) {
+			return \MainWP\Child\MainWP_Child_Backup_File_Walker::promote_sidecars( $backup_dir );
+		};
 		$bytes = $this->parent_manifest_content();
 		$path = $this->backup_dir . '/pushed-parent.list';
 		file_put_contents( $path, $bytes );
@@ -527,6 +530,7 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 			$cursor = $persisted;
 			$resolved = $resolve->invokeArgs( $this->runner, array( &$cursor, $this->backup_dir ) );
 			$this->assertSame( $path, $resolved );
+			$this->assertFileExists( $path );
 			$this->assertSame( $bytes, file_get_contents( $resolved ) );
 			$this->assertSame( basename( $path ), $cursor['params']['parent_manifest_file'] );
 		}
@@ -534,21 +538,36 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 			$this->runner->cancel_backup_task( $task_id );
 			$task = $spine->get_task( $task_id );
 			$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
-		} elseif ( 'failure' === $terminal ) {
-			$this->runner->stubs['run_incremental_diff'] = static function () {
-				throw new MainWP_Exception( 'Injected diff failure' );
+			$this->assertFileExists( $path );
+		} elseif ( 'failure' === $terminal || 'failure_before_manifest' === $terminal ) {
+			$seam = 'failure' === $terminal ? 'run_incremental_diff' : 'walk_manifest_slice';
+			$this->runner->stubs[ $seam ] = static function () {
+				throw new MainWP_Exception( 'Injected incremental failure' );
 			};
 			$task = $this->advance( $task_id );
 			$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
 			$this->assertFileDoesNotExist( $path );
+			$this->assertSame( "unrelated.php\t1\t1\n", file_get_contents( $this->backup_dir . '/files.list' ) );
 		} else {
 			$task = $this->advance( $task_id );
 			$this->assertSame( MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES, $task->phase );
+			$checkpoint = $spine->read_sub_state( $task, $this->backup_dir );
+			$this->assertTrue( $checkpoint['diff_done'] );
+			$this->assertFileExists( $path );
+			$this->assertSame( $bytes, file_get_contents( $path ) );
+			$manifest = file_get_contents( $this->backup_dir . '/files.list.staged' );
+			$paths = file_get_contents( $this->backup_dir . '/paths.cache.staged' );
 			$task = $this->advance( $task_id );
 			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+			$this->assertFileDoesNotExist( $path );
+			$this->assertSame( $manifest, file_get_contents( $this->backup_dir . '/files.list' ) );
+			$this->assertSame( $paths, file_get_contents( $this->backup_dir . '/paths.cache' ) );
+			$roles = $this->artifacts_by_role( $spine->status_payload( $task, $this->backup_dir ) );
+			$this->assertSame( 'files.list', $roles['manifest']['file'] );
+			$this->assertSame( hash( 'sha256', $manifest ), $roles['manifest']['sha256'] );
 		}
 		$terminal_state = $spine->read_sub_state( $task, $this->backup_dir );
-		if ( 'failure' !== $terminal ) {
+		if ( 'completion' === $terminal || 'cancel' === $terminal ) {
 			$this->assertSame( basename( $path ), $terminal_state['params']['parent_manifest_file'] );
 		}
 		$this->assertSame( 'pruned', $spine->prune_task( $task_id, $this->backup_dir ) );
@@ -557,7 +576,7 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 
 	/** @return array Terminal spill cleanup paths. */
 	public static function spilled_parent_cleanup_cases() {
-		return array( 'completion' => array( 'completion' ), 'failure' => array( 'failure' ), 'cancel' => array( 'cancel' ) );
+		return array( 'completion' => array( 'completion' ), 'failure' => array( 'failure' ), 'failure before manifest' => array( 'failure_before_manifest' ), 'cancel' => array( 'cancel' ) );
 	}
 
 	/** Completion writes the proof before promotion, with its actual task identity. */

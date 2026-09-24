@@ -1271,6 +1271,16 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 // The sliced walk keeps its run files until the task ends so a
                 // resumed merge can always re-read them; sweep them now.
                 $this->cleanup_walk_runs( $backup_dir );
+                // Only resolve_parent_manifest() reads the spilled parent list, and it
+                // never runs after a terminal phase; without this every push-mode run
+                // left its own copy behind until prune.
+                $parent_manifest_file = $sub_state['params']['parent_manifest_file'] ?? null;
+                if ( is_string( $parent_manifest_file ) && '' !== $parent_manifest_file ) {
+                    $parent_manifest_path = rtrim( $backup_dir, '/' ) . '/' . basename( $parent_manifest_file );
+                    if ( file_exists( $parent_manifest_path ) ) {
+                        wp_delete_file( $parent_manifest_path );
+                    }
+                }
                 $spine->delete_sidecar( $task->task_id, $backup_dir );
             } finally {
                 if ( ! MainWP_Child_Backup_Task::is_restore_type( $task->type ) ) {
