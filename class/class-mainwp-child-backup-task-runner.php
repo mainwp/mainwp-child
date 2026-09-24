@@ -376,12 +376,27 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
 
         $name = 'parent-manifest-' . strtolower( wp_generate_password( 12, false ) ) . '.list';
         $path = rtrim( $this->backup_dir(), '/' ) . '/' . $name;
-        if ( strlen( $decoded ) === @file_put_contents( $path, $decoded ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- scratch-dir write, mirrors resolve_parent_manifest().
+        if ( strlen( $decoded ) === $this->write_parent_manifest( $path, $decoded ) ) {
             $params['parent_manifest_file'] = $name;
             unset( $params['parent_manifest_b64'] );
+        } else {
+            // No cursor references a failed spill, so prune cannot reclaim it.
+            wp_delete_file( $path );
         }
         // If the write failed, the inline b64 stays and the old path is used.
         return $params;
+    }
+
+    /**
+     * Isolate the spill write so short writes can be tested without exhausting disk space.
+     *
+     * @param string $path    Scratch file path.
+     * @param string $decoded Manifest bytes.
+     *
+     * @return int|false Bytes written, or false on failure.
+     */
+    protected function write_parent_manifest( $path, $decoded ) {
+        return @file_put_contents( $path, $decoded ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- scratch-dir write, mirrors resolve_parent_manifest().
     }
 
     /**
@@ -1114,6 +1129,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         } elseif ( '' !== $b64 ) {
             $decoded = base64_decode( $b64, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- explicit wire encoding.
             if ( false !== $decoded && '' !== $decoded && strlen( $decoded ) === @file_put_contents( $parent, $decoded ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- scratch file under the task mutex.
+                // A checkpoint must retain the explicit parent after dropping its inline bytes.
+                $sub_state['params']['parent_manifest_file'] = basename( $parent );
                 unset( $sub_state['params']['parent_manifest_b64'] );
                 return $parent;
             }

@@ -48,7 +48,14 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		$artifact = $this->backup_dir . '/backup-artifact.tar';
 		file_put_contents( $artifact, str_repeat( 'a', 2048 ) ); // phpcs:ignore -- test fixture.
 
-		$this->runner                  = new Testable_Task_Runner();
+		$this->runner = new class() extends Testable_Task_Runner {
+			protected function write_parent_manifest( $path, $decoded ) {
+				if ( isset( $this->stubs['write_parent_manifest'] ) ) {
+					return $this->stub( 'write_parent_manifest', array( $path, $decoded ) );
+				}
+				return parent::write_parent_manifest( $path, $decoded );
+			}
+		};
 		$this->runner->test_backup_dir = $this->backup_dir;
 		$this->runner->stubs           = array(
 			'tier1_available'          => true,
@@ -508,24 +515,46 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A spill survives resume and diff checkpoints, then terminal cleanup removes it.
+	 * Explicit parents must survive checkpoints without becoming shared-list lookups.
 	 *
 	 * @dataProvider spilled_parent_cleanup_cases
 	 */
-	public function test_spilled_parent_survives_resume_and_cleanup( $terminal ) {
+	public function test_spilled_parent_survives_resume_and_cleanup( $terminal, $source = 'spill' ) {
 		$this->arrange_incremental_fixtures();
 		$this->runner->stubs['promote_manifest_sidecars'] = static function ( $backup_dir ) {
 			return \MainWP\Child\MainWP_Child_Backup_File_Walker::promote_sidecars( $backup_dir );
 		};
 		$bytes = $this->parent_manifest_content();
 		$path = $this->backup_dir . '/pushed-parent.list';
-		file_put_contents( $path, $bytes );
-		file_put_contents( $this->backup_dir . '/files.list', "unrelated.php\t1\t1\n" );
-		$task_id = $this->create_task( 'incremental', array( 'parent_manifest_file' => basename( $path ) ) );
-		$spine = MainWP_Child_Backup_Task::instance();
-		$persisted = $spine->read_sub_state( $spine->get_task( $task_id ), $this->backup_dir );
+		$params = array();
+		if ( 'inline' === $source ) {
+			$this->runner->stubs['write_parent_manifest'] = static function ( $path, $decoded ) {
+				return file_put_contents( $path, substr( $decoded, 0, -1 ) );
+			};
+			$spill = new \ReflectionMethod( $this->runner, 'spill_parent_manifest' );
+			$spill->setAccessible( true );
+			$params = $spill->invoke( $this->runner, array( 'parent_manifest_b64' => base64_encode( $bytes ) ) );
+			$this->assertArrayHasKey( 'parent_manifest_b64', $params );
+			$this->assertArrayNotHasKey( 'parent_manifest_file', $params );
+			$path = $this->backup_dir . '/parent-files.list';
+		} elseif ( 'spill' === $source ) {
+			file_put_contents( $path, $bytes );
+			$params['parent_manifest_file'] = basename( $path );
+		}
+		$persisted = array( 'params' => $params );
 		$resolve = new \ReflectionMethod( $this->runner, 'resolve_parent_manifest' );
 		$resolve->setAccessible( true );
+		if ( 'missing' === $source ) {
+			$this->assertSame( array(), glob( $this->backup_dir . '/*.list' ) );
+			try {
+				$resolve->invokeArgs( $this->runner, array( &$persisted, $this->backup_dir ) );
+				$this->fail( 'A missing parent was accepted.' );
+			} catch ( MainWP_Exception $e ) {
+				$this->assertSame( MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING, $e->get_message_error_code() );
+			}
+			return;
+		}
+		file_put_contents( $this->backup_dir . '/files.list', "unrelated.php\t1\t1\n" );
 		for ( $i = 0; $i < 2; ++$i ) {
 			$cursor = $persisted;
 			$resolved = $resolve->invokeArgs( $this->runner, array( &$cursor, $this->backup_dir ) );
@@ -533,7 +562,11 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 			$this->assertFileExists( $path );
 			$this->assertSame( $bytes, file_get_contents( $resolved ) );
 			$this->assertSame( basename( $path ), $cursor['params']['parent_manifest_file'] );
+			$this->assertArrayNotHasKey( 'parent_manifest_b64', $cursor['params'] );
+			$persisted = $cursor;
 		}
+		$task_id = $this->create_task( 'incremental', $persisted['params'] );
+		$spine = MainWP_Child_Backup_Task::instance();
 		if ( 'cancel' === $terminal ) {
 			$this->runner->cancel_backup_task( $task_id );
 			$task = $spine->get_task( $task_id );
@@ -576,7 +609,41 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 
 	/** @return array Terminal spill cleanup paths. */
 	public static function spilled_parent_cleanup_cases() {
-		return array( 'completion' => array( 'completion' ), 'failure' => array( 'failure' ), 'failure before manifest' => array( 'failure_before_manifest' ), 'cancel' => array( 'cancel' ) );
+		return array(
+			'completion' => array( 'completion' ),
+			'failure' => array( 'failure' ),
+			'failure before manifest' => array( 'failure_before_manifest' ),
+			'cancel' => array( 'cancel' ),
+			'inline fallback after a failed spill, killed and resumed' => array( 'completion', 'inline' ),
+			'inline fallback failure' => array( 'failure', 'inline' ),
+			'inline fallback failure before manifest' => array( 'failure_before_manifest', 'inline' ),
+			'inline fallback cancel' => array( 'cancel', 'inline' ),
+			'no params, expected id, or file' => array( null, 'missing' ),
+		);
+	}
+
+	/** A short spill must not orphan bytes or prevent the inline retry. */
+	public function test_short_parent_manifest_spill_removes_partial_file_and_keeps_inline_fallback() {
+		$this->arrange_incremental_fixtures();
+		$bytes = $this->parent_manifest_content();
+		$this->runner->stubs['write_parent_manifest'] = function ( $path, $decoded ) {
+			$written = file_put_contents( $path, substr( $decoded, 0, -1 ) );
+			$this->assertSame( strlen( $decoded ) - 1, $written );
+			$this->assertFileExists( $path );
+			return $written;
+		};
+		$spill = new \ReflectionMethod( $this->runner, 'spill_parent_manifest' );
+		$spill->setAccessible( true );
+		$params = array( 'parent_manifest_b64' => base64_encode( $bytes ) );
+		$cursor = array( 'params' => $spill->invoke( $this->runner, $params ) );
+		$this->assertSame( array(), glob( $this->backup_dir . '/parent-manifest-*.list' ) );
+		$this->assertArrayNotHasKey( 'parent_manifest_file', $cursor['params'] );
+		$this->assertSame( $params, $cursor['params'] );
+		$resolve = new \ReflectionMethod( $this->runner, 'resolve_parent_manifest' );
+		$resolve->setAccessible( true );
+		$resolved = $resolve->invokeArgs( $this->runner, array( &$cursor, $this->backup_dir ) );
+		$this->assertSame( $this->backup_dir . '/parent-files.list', $resolved );
+		$this->assertSame( $bytes, file_get_contents( $resolved ) );
 	}
 
 	/** Completion writes the proof before promotion, with its actual task identity. */
@@ -686,10 +753,12 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		$task = $this->advance( $task_id );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
-		$this->assertFileExists( $this->backup_dir . '/parent-files.list' );
+		// The pushed parent is a per-run copy: the terminal phase removes it like a spilled one.
+		$this->assertFileDoesNotExist( $this->backup_dir . '/parent-files.list' );
 
 		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
 		$this->assertArrayNotHasKey( 'parent_manifest_b64', $payload['sub_state']['params'] );
+		$this->assertSame( 'parent-files.list', $payload['sub_state']['params']['parent_manifest_file'] );
 		$this->assertSame(
 			array( 'added.php', 'changed.php', 'wp-content/plugins/hello/hello.php' ),
 			$this->packed_entries( $payload )
