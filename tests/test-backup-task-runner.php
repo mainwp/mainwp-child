@@ -1840,4 +1840,43 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
 	}
 
+	/** A successor claims shared scratch files after cancellation checkpoints. */
+	public function test_cancel_preserves_successor_scratch_and_deletes_sidecar() {
+		global $wpdb;
+		$spine = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->runner->create_task_for_params( 'db', array() );
+		$serialized = $spine->write_sub_state( $task_id, array( 'pad' => str_repeat( 'x', 100000 ) ), $this->backup_dir, 0 );
+		$sidecar = $this->backup_dir . '/' . json_decode( $serialized, true )['file'];
+		$this->assertFileExists( $sidecar );
+		$this->assertNotFalse( $spine->checkpoint( $task_id, 0, array( 'sub_state' => $serialized ) ) );
+		MainWP_Child_Backup_Mutex::release( $task_id );
+		$scratch = $this->backup_dir . '/files.list.staged';
+		$claimed = null;
+		$filter = null;
+		$filter = function ( $query ) use ( &$filter, &$claimed, $wpdb, $spine, $task_id, $scratch ) {
+			if ( 0 === strpos( $query, 'UPDATE ' . $spine->get_table_name() ) && false !== strpos( $query, "phase = 'failed'" ) && false !== strpos( $query, $task_id ) ) {
+				remove_filter( 'query', $filter );
+				// Execute the checkpoint first, then let the successor win before cleanup.
+				$this->assertSame( 1, $wpdb->query( $query ) );
+				$claimed = MainWP_Child_Backup_Mutex::acquire( 'native', 'successor-task', 60 );
+				file_put_contents( $scratch, 'successor scratch' );
+				return 'SELECT 1';
+			}
+			return $query;
+		};
+		add_filter( 'query', $filter );
+		try {
+			$result = $this->runner->cancel_backup_task( $task_id );
+		} finally {
+			remove_filter( 'query', $filter );
+		}
+		$this->assertTrue( $claimed );
+		$this->assertSame( 'ok', $result['result'] );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $spine->get_task( $task_id )->phase );
+		$this->assertFileDoesNotExist( $sidecar );
+		$this->assertFileExists( $scratch, 'Cancellation must preserve the successor scratch file.' );
+		$this->assertSame( 'successor scratch', file_get_contents( $scratch ) );
+		$this->assertSame( 'successor-task', MainWP_Child_Backup_Mutex::holder()['owner'] );
+	}
+
 }

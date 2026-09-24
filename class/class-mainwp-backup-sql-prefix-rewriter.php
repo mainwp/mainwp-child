@@ -14,7 +14,7 @@
  * outside the source-prefixed set are dropped, as is anything that could
  * reach beyond the restore's own tables: USE, CREATE/DROP DATABASE,
  * GRANT, triggers, routines, views, and any statement kind the dump
- * format does not produce. Session SET statements (bare or in a
+ * format does not produce. Allowlisted session SET forms (bare or in a
  * conditional comment) pass through unchanged.
  *
  * @package MainWP\Child
@@ -73,7 +73,7 @@ class MainWP_Backup_Sql_Prefix_Rewriter { // phpcs:ignore Generic.Classes.Openin
 
         // Conditional-comment statements: allow session SET only.
         if ( 0 === strpos( $head, '/*!' ) ) {
-            if ( preg_match( '/^\/\*!\d*\s+SET\s/i', $head ) && $this->is_session_set( $head ) ) {
+            if ( $this->is_session_set( $head ) ) {
                 return $statement;
             }
             return null;
@@ -107,7 +107,11 @@ class MainWP_Backup_Sql_Prefix_Rewriter { // phpcs:ignore Generic.Classes.Openin
      * @return bool Whether SET stays within the restore session.
      */
     private function is_session_set( $head ) {
-        return ! preg_match( '/\b(GLOBAL|PERSIST|PERSIST_ONLY|PASSWORD|ROLE)\b/i', $head );
+        if ( preg_match( '/\b(GLOBAL|PERSIST|PERSIST_ONLY|PASSWORD|ROLE)\b/i', $head ) ) {
+            return false;
+        }
+
+        return 1 === preg_match( '/^(?:\/\*!\d*\s+)?SET\s+(?:(?:NAMES|CHARACTER\s+SET|CHARSET|SESSION|LOCAL)\b|@|[A-Za-z_][A-Za-z0-9_]*\s*(?::=|=))/i', $head );
     }
 
     /**

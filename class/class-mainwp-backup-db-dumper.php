@@ -740,6 +740,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             $sql = sprintf(
                 'SELECT %s FROM %s%s ORDER BY %s ASC LIMIT %d',
                 implode( ', ', $select_list ),
+                // nosec: identifier from SHOW FULL TABLES or the task's table list, backtick-quoted by quote_ident(); MySQL cannot bind identifiers.
                 $this->quote_ident( $table ),
                 null === $cursor['last_id'] ? '' : ' WHERE ' . $this->quote_ident( $cursor['pk_col'] ) . ' > ' . (int) $cursor['last_id'],
                 $this->quote_ident( $cursor['pk_col'] ),
@@ -749,6 +750,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             $sql = sprintf(
                 'SELECT %s FROM %s ORDER BY %s LIMIT %d OFFSET %d',
                 implode( ', ', $select_list ),
+                // nosec: identifier from SHOW FULL TABLES or the task's table list, backtick-quoted by quote_ident(); MySQL cannot bind identifiers.
                 $this->quote_ident( $table ),
                 implode( ', ', array_map( array( $this, 'quote_ident' ), $cursor['order_cols'] ) ),
                 self::TIER2_CHUNK_ROWS,

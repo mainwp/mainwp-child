@@ -196,23 +196,6 @@ class BackupSqlPrefixRewriterTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Session SET statements pass through unchanged.
-	 */
-	public function test_set_statement_passes_through() {
-		$sql = "SET NAMES utf8mb4";
-		$this->assertSame( $sql, $this->rewriter->rewrite( $sql ) );
-	}
-
-	/**
-	 * Conditional-comment SET statements from mysqldump-style dumps pass
-	 * through unchanged.
-	 */
-	public function test_conditional_comment_set_passes_through() {
-		$sql = '/*!40101 SET @saved_cs_client = @@character_set_client */';
-		$this->assertSame( $sql, $this->rewriter->rewrite( $sql ) );
-	}
-
-	/**
 	 * An unknown statement kind is dropped, not executed.
 	 */
 	public function test_unknown_statement_returns_null() {
@@ -246,9 +229,56 @@ class BackupSqlPrefixRewriterTest extends WP_UnitTestCase {
 		$this->assertNull( $this->rewriter->rewrite( 'CREATE TABLE `wpx_posts` (id INT)' ) );
 	}
 
-	/** Bare and conditional SET statements cannot change non-session state. */
-	public function test_set_rejects_non_session_scope() {
-		$unsafe = array(
+	/** @dataProvider session_set_statements */
+	public function test_set_leading_form_matrix( $sql, $allowed ) {
+		$this->assertSame( $allowed ? $sql : null, $this->rewriter->rewrite( $sql ), $sql );
+	}
+
+	/** Dump headers and session assignments pass; statement wrappers and server changes do not. */
+	public static function session_set_statements() {
+		$allowed = array(
+			'SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT',
+			'SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS',
+			'SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION',
+			'SET NAMES utf8mb4',
+			'SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci',
+			"SET TIME_ZONE='+00:00'",
+			'SET @OLD_TIME_ZONE=@@TIME_ZONE',
+			'SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0',
+			'SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0',
+			"SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO'",
+			'SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0',
+			'SET @saved_cs_client = @@character_set_client',
+			'SET character_set_client = utf8mb4',
+			'SET character_set_client = @saved_cs_client',
+			'SET @@SESSION.SQL_LOG_BIN= 0',
+			'SET FOREIGN_KEY_CHECKS=0',
+			'SET SESSION sql_mode = ""',
+			'SET @@session.foreign_key_checks = 0',
+			'SET @OLD_SQL_MODE=@@SQL_MODE',
+			'SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ',
+			'SET CHARACTER SET utf8mb4',
+			'SET CHARSET utf8mb4',
+			'SET LOCAL sql_mode = ""',
+			'SET @@local.sql_mode = ""',
+			'SET @saved := 1',
+			'SET sql_mode := ""',
+			'SET TIME_ZONE=@OLD_TIME_ZONE',
+			'SET SQL_MODE=@OLD_SQL_MODE',
+			'SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS',
+			'SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS',
+			'SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT',
+			'SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS',
+			'SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION',
+			'SET SQL_NOTES=@OLD_SQL_NOTES',
+		);
+		$rejected = array(
+			'SET STATEMENT max_statement_time=0 FOR DROP TABLE wp_users',
+			"SET STATEMENT sql_mode='' FOR INSERT INTO wp_users VALUES (1)",
+			'set statement x=1 for delete from wp_users',
+			"SET\tSTATEMENT x=1 FOR DROP TABLE wp_users",
+			'SET RESOURCE GROUP rg FOR 1',
+			'SET TRANSACTION ISOLATION LEVEL READ COMMITTED',
 			'SET GLOBAL general_log = 1',
 			'SeT PeRsIsT max_connections = 100',
 			'SET PERSIST_ONLY max_connections = 100',
@@ -259,16 +289,20 @@ class BackupSqlPrefixRewriterTest extends WP_UnitTestCase {
 			'SET @@GLOBAL.general_log = 1',
 			'SET @@`global`.general_log = 1',
 			'SET @old = 1, GLOBAL general_log = 1',
+			'SET @@persist.max_connections = 100',
+			'SET @@persist_only.max_connections = 100',
 		);
-		foreach ( $unsafe as $sql ) {
-			$this->assertNull( $this->rewriter->rewrite( $sql ), $sql );
-			$this->assertNull( $this->rewriter->rewrite( '/*!50003 ' . $sql . ' */' ), $sql );
+		$rows = array();
+		foreach ( array( array( $allowed, true ), array( $rejected, false ) ) as $group ) {
+			foreach ( $group[0] as $sql ) {
+				$rows[ $sql ] = array( $sql, $group[1] );
+				foreach ( array( '40101', '40103', '40014', '50003', '50503' ) as $version ) {
+					$conditional = '/*!' . $version . ' ' . $sql . ' */';
+					$rows[ $conditional ] = array( $conditional, $group[1] );
+				}
+			}
 		}
-		foreach ( array( 'SET SESSION sql_mode = ""', 'SET @@session.foreign_key_checks = 0', 'SET @OLD_SQL_MODE=@@SQL_MODE', 'SET NAMES utf8mb4', 'SET FOREIGN_KEY_CHECKS=0' ) as $sql ) {
-			$this->assertSame( $sql, $this->rewriter->rewrite( $sql ) );
-			$conditional = '/*!40101 ' . $sql . ' */';
-			$this->assertSame( $conditional, $this->rewriter->rewrite( $conditional ) );
-		}
+		return $rows;
 	}
 
 }

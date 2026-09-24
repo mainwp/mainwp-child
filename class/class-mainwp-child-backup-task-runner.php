@@ -274,7 +274,6 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             }
         }
 
-        $holder      = MainWP_Child_Backup_Mutex::holder();
         $new_version = $spine->checkpoint(
             $task_id,
             $version,
@@ -305,16 +304,17 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         try {
-            // A null holder means the runner is gone (released or TTL expired), so its
-            // partial files are safe to remove; only another owner's mutex keeps them.
+            // Claim the scratch files after the terminal checkpoint so a new owner
+            // cannot start writing them while cancellation removes them.
+            $holder = MainWP_Child_Backup_Mutex::acquire( 'native', $task_id, 60 );
             // The references carried into $cancelled_state stay on disk for
             // retention's prune_task(); only the mid-flight leftovers go now.
-            if ( '' !== $backup_dir && ( null === $holder || $holder['owner'] === $task_id ) ) {
+            if ( '' !== $backup_dir && ( true === $holder || ( is_array( $holder ) && $holder['owner'] === $task_id ) ) ) {
                 $leftovers = is_array( $existing_state ) ? $existing_state : array();
                 unset( $leftovers['artifact'], $leftovers['artifacts'], $leftovers['params']['parent_manifest_file'] );
                 $this->cleanup_failed_task_artifacts( $task_id, $leftovers, $backup_dir );
-                $spine->delete_sidecar( $task_id, $backup_dir );
             }
+            $spine->delete_sidecar( $task_id, $backup_dir );
         } finally {
             MainWP_Child_Backup_Mutex::release( $task_id );
         }
