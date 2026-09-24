@@ -271,12 +271,7 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 			}
 			$lines = file( $file->getPathname() );
 			foreach ( $lines as $number => $line ) {
-				if ( false === strpos( $line, 'unserialize(' ) ) {
-					continue;
-				}
-				if ( false !== strpos( $line, 'maybe_unserialize' )
-					|| false !== strpos( $line, 'is_serialized' )
-					|| false !== strpos( $line, 'allowed_classes' ) ) {
+				if ( ! $this->has_bare_unserialize( $line ) ) {
 					continue;
 				}
 				$offenders[] = $file->getFilename() . ':' . ( $number + 1 ) . ' -> ' . trim( $line );
@@ -456,4 +451,30 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 
 		$this->assertSame( $allowed, $actual, 'unreviewed maybe_unserialize() in child class surface — harden it like insert_postmeta() (dashboard-fed) or add the file to the reviewed allowlist with a rationale' );
 	}
+	/** Remove approved calls, then inspect what remains on the same line. */
+	private function has_bare_unserialize( $line ) {
+		if ( preg_match( '/^\s*(?:\*|\/\/)/', $line ) ) {
+			return false;
+		}
+		$stripped = preg_replace( '/\b(?:maybe_unserialize|is_serialized(?:_string)?)\s*\(/', '(', $line );
+		$stripped = preg_replace_callback(
+			'/(?<![\w$>:])unserialize\s*(\((?:[^()]++|(?1))*\))/',
+			function ( $match ) {
+				return preg_match( '/[\'"]allowed_classes[\'"]\s*=>\s*false\b/', $match[1] ) ? '' : $match[0];
+			},
+			$stripped
+		);
+		return (bool) preg_match( '/(?<![\w$>:])unserialize\s*\(/', $stripped );
+	}
+
+	/** An allowed wrapper or restricted call cannot hide a neighboring bare call. */
+	public function test_bare_unserialize_guard_checks_shared_lines() {
+		$this->assertTrue( $this->has_bare_unserialize( 'if ( is_serialized( $v ) ) { $v = unserialize( $v ); }' ) );
+		$this->assertTrue( $this->has_bare_unserialize( '$a = maybe_unserialize( $v ); $b = unserialize( $v );' ) );
+		$this->assertTrue( $this->has_bare_unserialize( '$a = unserialize( $v, array( "allowed_classes" => false ) ); $b = unserialize( $v );' ) );
+		$this->assertTrue( $this->has_bare_unserialize( '$a = unserialize( $v ); // allowed_classes' ) );
+		$this->assertFalse( $this->has_bare_unserialize( '$a = maybe_unserialize( $v );' ) );
+		$this->assertFalse( $this->has_bare_unserialize( '$a = unserialize( trim( $v ), array( "allowed_classes" => false ) );' ) );
+	}
+
 }

@@ -1074,7 +1074,7 @@ class MainWP_Custom_Post_Type {
                 }
 
                 if ( is_string( $meta_value ) && is_serialized( $meta_value ) ) {
-                    $meta_value = @unserialize( $meta_value, array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions, WordPress.PHP.NoSilencedErrors -- restricted unserialize of a dashboard-fed meta_value (no classes instantiated); the @ matches WordPress core's maybe-unserialize wrapper so a malformed-but-is_serialized payload cannot leak a warning into the response.
+                    $meta_value = @unserialize( trim( $meta_value ), array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions, WordPress.PHP.NoSilencedErrors -- restricted unserialize of a dashboard-fed meta_value (no classes instantiated); the @ matches WordPress core's maybe-unserialize wrapper so a malformed-but-is_serialized payload cannot leak a warning into the response.
                     if ( $this->value_contains_object( $meta_value ) ) {
                         continue; // A forged dashboard smuggled a PHP object; never persist a payload WordPress would later re-instantiate on get_post_meta().
                     }

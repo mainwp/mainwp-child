@@ -193,7 +193,7 @@ class BackupSprint12RegressionsTest extends WP_UnitTestCase {
 			}
 			public function close_zip_archive() {
 				$this->zip = null;
-				throw new \ValueError( 'Invalid or uninitialized Zip object' );
+				throw new \Error( 'Invalid or uninitialized Zip object' );
 			}
 		};
 		$scratch = sys_get_temp_dir() . '/mwp-throwable-discard-' . wp_generate_uuid4();
@@ -214,7 +214,7 @@ class BackupSprint12RegressionsTest extends WP_UnitTestCase {
 		unlink( $scratch . '/only.sql.php' );
 		rmdir( $scratch );
 
-		$this->assertInstanceOf( \ValueError::class, $caught, 'The Error must reach the caller unchanged.' );
+		$this->assertInstanceOf( \Error::class, $caught, 'The Error must reach the caller unchanged.' );
 		$this->assertFileDoesNotExist( $archive, 'An Error on the close path must discard the partial archive.' );
 	}
 }

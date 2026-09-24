@@ -297,6 +297,43 @@ class BackupDownloadTokenTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A wrong basename is rejected without consuming the token, so a
+	 * follow-up request with the correct name still succeeds.
+	 */
+	public function test_validate_and_consume_wrong_basename_keeps_token() {
+		$this->create_artifact( 'backup-wrong-name.zip' );
+		$instance = MainWP_Child_Backup_Download_Token::instance();
+		$issued   = $instance->issue( 'backup-wrong-name.zip' );
+
+		$result = $instance->validate_and_consume( $issued['token'], 'backup-other-name.zip' );
+
+		$this->assertFalse( $result['ok'] );
+
+		$retry = $instance->validate_and_consume( $issued['token'], 'backup-wrong-name.zip' );
+
+		$this->assertTrue( $retry['ok'] );
+		$this->assertArrayHasKey( 'full_path', $retry );
+	}
+
+	/**
+	 * A changed file is rejected without consuming the token, leaving it
+	 * available for the Dashboard to retry once the file matches again.
+	 */
+	public function test_validate_and_consume_changed_file_keeps_token() {
+		$path     = $this->create_artifact( 'backup-changed.zip', 'original' );
+		$instance = MainWP_Child_Backup_Download_Token::instance();
+		$issued   = $instance->issue( 'backup-changed.zip' );
+		file_put_contents( $path, 'original-plus-more', FILE_APPEND );
+		clearstatcache();
+
+		$result = $instance->validate_and_consume( $issued['token'], 'backup-changed.zip' );
+
+		$this->assertFalse( $result['ok'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_DL_FILE_CHANGED, $result['code'] );
+		$this->assertIsArray( get_transient( 'mainwp_backup_download_' . $issued['token'] ) );
+	}
+
+	/**
 	 * The backup_download_token action is registered in the callable router
 	 * so the Dashboard can request a download authorization.
 	 */

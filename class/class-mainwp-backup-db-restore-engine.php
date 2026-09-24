@@ -275,6 +275,9 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
                 $table_label = null !== $stem ? $stem : 'unknown';
                 return 'Replay failed on table ' . $table_label . ': ' . $affected;
             }
+            if ( null !== $stem && preg_match( '/^\s*DROP\s+TABLE\s+IF\s+EXISTS\b/i', $part ) ) {
+                $cursor['tables'][ $stem ]['rows'] = 0;
+            }
             if ( $is_insert && null !== $stem ) {
                 $cursor['tables'][ $stem ]['rows'] += (int) $affected;
             }

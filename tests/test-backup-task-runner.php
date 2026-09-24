@@ -1817,4 +1817,27 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $fragment );
 	}
 
+
+	/** Cancellation removes the artifacts named by the pre-checkpoint cursor. */
+	public function test_cancel_cleans_partial_artifacts() {
+		$spine = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->runner->create_task_for_params( 'db', array() );
+		$token = preg_replace( '/[^A-Za-z0-9]/', '', $task_id );
+		$dump = $this->backup_dir . '/dbBackup-cancel.sql';
+		$part = $this->backup_dir . '/plugins.' . $token . '.part001.zip';
+		$staged = $this->backup_dir . '/files.list.staged';
+		$chain = $this->backup_dir . '/files.list';
+		foreach ( array( $dump, $part, $staged, $chain ) as $path ) {
+			file_put_contents( $path, 'preserve or remove' );
+		}
+		$spine->checkpoint( $task_id, 0, array( 'sub_state' => array( 'db_files' => array( $dump ) ) ) );
+		$result = $this->runner->cancel_backup_task( $task_id );
+		$this->assertSame( 'ok', $result['result'] );
+		$this->assertFileDoesNotExist( $dump );
+		$this->assertFileDoesNotExist( $part );
+		$this->assertFileDoesNotExist( $staged );
+		$this->assertFileExists( $chain );
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+	}
+
 }

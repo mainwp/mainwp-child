@@ -486,7 +486,12 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
     public function reclaim_expired_backup_tasks() {
         try {
             if ( MainWP_Child_Backup_Task::DB_VERSION === get_option( MainWP_Child_Backup_Task::DB_VERSION_OPTION ) ) {
-                MainWP_Child_Backup_Task::instance()->reclaim_expired_tasks();
+                $dirs = MainWP_Helper::get_mainwp_dir( 'backup', false );
+                if ( ! is_array( $dirs ) || empty( $dirs[0] ) || ! is_dir( $dirs[0] ) ) {
+                    MainWP_Helper::log_debug( 'backup orphan reclaim on sync skipped: backup directory unavailable.' );
+                    return;
+                }
+                MainWP_Child_Backup_Task::instance()->reclaim_expired_tasks( $dirs[0] );
             }
         } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - a backup-table hiccup must never fail the whole sync.
             MainWP_Helper::log_debug( 'backup orphan reclaim on sync skipped: ' . $e->getMessage() );

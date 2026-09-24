@@ -545,4 +545,93 @@ class DbDumperTest extends WP_UnitTestCase {
 		}
 	}
 
+
+	/** Percent bytes, including serialized lengths, survive raw SQL replay. */
+	public function test_tier2_percent_values_round_trip() {
+		global $wpdb;
+		$values = array( "100% O'Reilly\\path", serialize( array( 'url' => 'a%20b', 'width' => '50%' ) ) );
+		$wpdb->query( "DROP TABLE `{$this->fixture_table}`" );
+		$wpdb->query( "CREATE TABLE `{$this->fixture_table}` (id INT PRIMARY KEY, value TEXT)" );
+		foreach ( $values as $id => $value ) {
+			$wpdb->insert( $this->fixture_table, array( 'id' => $id + 1, 'value' => $value ) );
+		}
+		$result = MainWP_Backup_Db_Dumper::instance()->dump_tables_tier2_slice( array( $this->fixture_table ), $this->scratch . '/percent', array(), 45 );
+		$this->assertTrue( $result['done'] );
+		$this->replay_tier2_fixture( $result['files'][0] );
+		$this->assertSame( $values, $wpdb->get_col( "SELECT value FROM `{$this->fixture_table}` ORDER BY id" ) );
+	}
+
+	/** The initial seek includes negative and zero primary keys. */
+	public function test_tier2_signed_primary_keys_round_trip() {
+		global $wpdb;
+		$wpdb->query( "DROP TABLE `{$this->fixture_table}`" );
+		$wpdb->query( "CREATE TABLE `{$this->fixture_table}` (id INT PRIMARY KEY)" );
+		$wpdb->query( "INSERT INTO `{$this->fixture_table}` VALUES (-2),(-1),(0),(1)" );
+		$dumper = MainWP_Backup_Db_Dumper::instance();
+		$result = $dumper->dump_tables_tier2_slice( array( $this->fixture_table ), $this->scratch . '/signed', array(), 0 );
+		$this->assertNull( $result['cursor']['last_id'], 'The first chunk must have no lower bound.' );
+		$result = $dumper->dump_tables_tier2_slice( array( $this->fixture_table ), $this->scratch . '/signed', $result['cursor'], 45 );
+		$this->assertTrue( $result['done'] );
+		$this->assertNull( $result['cursor']['last_id'], 'Completing a table must reset the sentinel.' );
+		$this->replay_tier2_fixture( $result['files'][0] );
+		$this->assertSame( array( '-2', '-1', '0', '1' ), $wpdb->get_col( "SELECT id FROM `{$this->fixture_table}` ORDER BY id" ) );
+	}
+
+	/** OFFSET pagination orders composite keys or all columns across chunks. */
+	public function test_tier2_offset_order_is_deterministic() {
+		global $wpdb;
+		foreach ( array( true, false ) as $primary ) {
+			$wpdb->query( "DROP TABLE `{$this->fixture_table}`" );
+			$wpdb->query( "CREATE TABLE `{$this->fixture_table}` (`z` INT, `a``key` INT" . ( $primary ? ', PRIMARY KEY (`a``key`, `z`)' : '' ) . ')' );
+			$values = array();
+			for ( $id = 10001; $id >= 0; --$id ) {
+				$values[] = '(' . $id . ', ' . ( 10001 - $id ) . ')';
+			}
+			$this->assertSame( 10002, $wpdb->query( "INSERT INTO `{$this->fixture_table}` VALUES " . implode( ',', $values ) ) );
+			$queries = array();
+			$capture = function ( $sql ) use ( &$queries ) {
+				if ( 0 === strpos( $sql, 'SELECT `z`, `a``key` FROM' ) ) {
+					$queries[] = $sql;
+				}
+				return $sql;
+			};
+			add_filter( 'query', $capture );
+			try {
+				$result = MainWP_Backup_Db_Dumper::instance()->dump_tables_tier2_slice( array( $this->fixture_table ), $this->scratch . '/order-' . (int) $primary, array(), 45 );
+			} finally {
+				remove_filter( 'query', $capture );
+			}
+			$this->assertTrue( $result['done'] );
+			$this->assertCount( 2, $queries );
+			$order = $primary ? '`a``key`, `z`' : '`z`, `a``key`';
+			$this->assertStringContainsString( 'ORDER BY ' . $order . ' LIMIT 10000 OFFSET 0', $queries[0] );
+			$this->assertStringContainsString( 'ORDER BY ' . $order . ' LIMIT 10000 OFFSET 10000', $queries[1] );
+			$this->replay_tier2_fixture( $result['files'][0] );
+			$this->assertSame( '10002', $wpdb->get_var( "SELECT COUNT(DISTINCT z) FROM `{$this->fixture_table}`" ) );
+		}
+	}
+
+	/** Replay without wpdb removing placeholder tokens on our behalf. */
+	private function replay_tier2_fixture( $file ) {
+		global $wpdb;
+		$wpdb->query( 'COMMIT' );
+		$host = $wpdb->parse_db_host( DB_HOST );
+		$conn = mysqli_init();
+		$conn->real_connect( $host[0], DB_USER, DB_PASSWORD, DB_NAME, null === $host[1] ? 0 : (int) $host[1], $host[2] );
+		$conn->set_charset( 'utf8mb4' );
+		try {
+			$sql = str_replace( '<?php exit(); ?>', '', file_get_contents( $file ) );
+			$this->assertTrue( $conn->multi_query( $sql ), $conn->error );
+			while ( $conn->more_results() && $conn->next_result() ) {
+				$result = $conn->store_result();
+				if ( $result ) {
+					$result->free();
+				}
+			}
+			$this->assertSame( '', $conn->error );
+		} finally {
+			$conn->close();
+		}
+	}
+
 }

@@ -73,14 +73,18 @@ class MainWP_Backup_Sql_Prefix_Rewriter { // phpcs:ignore Generic.Classes.Openin
 
         // Conditional-comment statements: allow session SET only.
         if ( 0 === strpos( $head, '/*!' ) ) {
-            if ( preg_match( '/^\/\*!\d*\s+SET\s/i', $head ) ) {
+            if ( preg_match( '/^\/\*!\d*\s+SET\s/i', $head ) && $this->is_session_set( $head ) ) {
                 return $statement;
             }
             return null;
         }
 
+        if ( preg_match( '/^SET\b/i', $head ) ) {
+            return $this->is_session_set( $head ) ? $statement : null;
+        }
+
         // Statements with no table position that are safe to replay.
-        if ( preg_match( '/^(SET|BEGIN|COMMIT|START\s+TRANSACTION|UNLOCK\s+TABLES)\b/i', $head ) ) {
+        if ( preg_match( '/^(BEGIN|COMMIT|START\s+TRANSACTION|UNLOCK\s+TABLES)\b/i', $head ) ) {
             return $statement;
         }
 
@@ -94,6 +98,16 @@ class MainWP_Backup_Sql_Prefix_Rewriter { // phpcs:ignore Generic.Classes.Openin
         }
 
         return $this->rewrite_single_table( $statement, $offset + $keyword );
+    }
+
+    /**
+     * Reject SET forms that change server, credential, or role state.
+     *
+     * @param string $head Statement from its first meaningful byte.
+     * @return bool Whether SET stays within the restore session.
+     */
+    private function is_session_set( $head ) {
+        return ! preg_match( '/\b(GLOBAL|PERSIST|PERSIST_ONLY|PASSWORD|ROLE)\b/i', $head );
     }
 
     /**

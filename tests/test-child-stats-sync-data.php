@@ -87,4 +87,30 @@ class ChildStatsSyncDataTest extends WP_UnitTestCase {
 		$this->assertSame( array(), MainWP_Child_Stats::get_instance()->get_data_list_to_sync() );
 		$this->assertSame( '[]', get_option( 'mainwp_child_settings_sync_data' ) );
 	}
+
+	/** An unavailable backup directory must not terminate the sync request. */
+	public function test_reclaim_directory_failure_is_nonfatal() {
+		$spine = \MainWP\Child\MainWP_Child_Backup_Task::instance();
+		$spine->install();
+		$blocked = tempnam( sys_get_temp_dir(), 'mwp-blocked-' );
+		$modes = array();
+		$filter = function ( $dirs, $subdir, $die_on_error ) use ( &$modes, $blocked ) {
+			$modes[] = $die_on_error;
+			if ( $die_on_error ) {
+				// Keep the old implementation from killing PHPUnit before the assertion.
+				throw new \RuntimeException( 'Unsafe directory resolution would terminate sync.' );
+			}
+			$dirs['basedir'] = $blocked;
+			return $dirs;
+		};
+		add_filter( 'mainwp_child_get_wp_upload_dir', $filter, 10, 3 );
+		try {
+			MainWP_Child_Stats::get_instance()->reclaim_expired_backup_tasks();
+			$this->assertSame( array( false ), $modes, 'Reclaim must resolve the directory without die_on_error.' );
+		} finally {
+			remove_filter( 'mainwp_child_get_wp_upload_dir', $filter, 10 );
+			unlink( $blocked );
+		}
+	}
+
 }

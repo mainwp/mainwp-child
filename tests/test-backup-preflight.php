@@ -141,6 +141,10 @@ class BackupPreflightTest extends WP_UnitTestCase {
 	}
 
 	public function test_capabilities_only_survives_unwritable_backup_directory() {
+		if ( function_exists( 'posix_geteuid' ) && 0 === posix_geteuid() ) {
+			$this->markTestSkipped( 'Root ignores directory permissions, so the write check would succeed.' );
+		}
+
 		$dirs = MainWP_Helper::get_mainwp_dir( 'backup', false );
 		$mode = fileperms( $dirs[0] ) & 0777;
 		chmod( $dirs[0], 0500 );

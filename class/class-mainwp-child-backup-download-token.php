@@ -110,15 +110,17 @@ class MainWP_Child_Backup_Download_Token { // phpcs:ignore Generic.Classes.Openi
     /**
      * Validate a download token and consume it.
      *
-     * Deleting the transient is the consumption gate and happens before any
-     * binding checks: only the caller whose delete actually removed the row
-     * may continue, so two concurrent requests with the same token cannot
-     * both pass. This is exactly-once only with DB-backed transients (the
-     * underlying SQL DELETE is atomic and delete_transient() returns false
-     * when the row is already gone). Under a persistent object cache, some
-     * Redis/Memcached backends return true when deleting a missing key, so
-     * treat the gate as best-effort there - the download is still
-     * authenticated, file-bound, and time-limited.
+     * Deleting the transient is the consumption gate and happens after the
+     * binding checks pass: a request rejected for a wrong name or a missing
+     * or changed file must leave the token valid so the Dashboard can retry
+     * with a corrected request. Only the caller whose delete actually
+     * removes the row may continue, so two concurrent requests with the
+     * same token still cannot both pass. This is exactly-once only with
+     * DB-backed transients (the underlying SQL DELETE is atomic and
+     * delete_transient() returns false when the row is already gone). Under
+     * a persistent object cache, some Redis/Memcached backends return true
+     * when deleting a missing key, so treat the gate as best-effort there -
+     * the download is still authenticated, file-bound, and time-limited.
      *
      * @param mixed  $token              Token from the download request.
      * @param string $requested_basename File name the request asked for.
@@ -136,14 +138,6 @@ class MainWP_Child_Backup_Download_Token { // phpcs:ignore Generic.Classes.Openi
 
         $data = get_transient( self::TRANSIENT_PREFIX . $token );
         if ( false === $data || ! is_array( $data ) ) {
-            return array(
-                'ok'   => false,
-                'code' => MainWP_Backup_Error::ERR_DL_TOKEN_INVALID,
-            );
-        }
-
-        if ( ! delete_transient( self::TRANSIENT_PREFIX . $token ) ) {
-            // Already consumed by a concurrent request.
             return array(
                 'ok'   => false,
                 'code' => MainWP_Backup_Error::ERR_DL_TOKEN_INVALID,
@@ -169,6 +163,17 @@ class MainWP_Child_Backup_Download_Token { // phpcs:ignore Generic.Classes.Openi
             return array(
                 'ok'   => false,
                 'code' => MainWP_Backup_Error::ERR_DL_FILE_CHANGED,
+            );
+        }
+
+        // Only consume the token once the request is fully validated; a refused
+        // download (wrong name, missing or changed file) leaves it valid for a
+        // retry. The delete's return value still arbitrates concurrent consumers.
+        if ( ! delete_transient( self::TRANSIENT_PREFIX . $token ) ) {
+            // Already consumed by a concurrent request.
+            return array(
+                'ok'   => false,
+                'code' => MainWP_Backup_Error::ERR_DL_TOKEN_INVALID,
             );
         }
 

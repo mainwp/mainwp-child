@@ -245,4 +245,30 @@ class BackupSqlPrefixRewriterTest extends WP_UnitTestCase {
 	public function test_prefix_match_is_exact() {
 		$this->assertNull( $this->rewriter->rewrite( 'CREATE TABLE `wpx_posts` (id INT)' ) );
 	}
+
+	/** Bare and conditional SET statements cannot change non-session state. */
+	public function test_set_rejects_non_session_scope() {
+		$unsafe = array(
+			'SET GLOBAL general_log = 1',
+			'SeT PeRsIsT max_connections = 100',
+			'SET PERSIST_ONLY max_connections = 100',
+			"SET PASSWORD = 'changed'",
+			"SET ROLE 'admin'",
+			"SET DEFAULT ROLE 'admin' TO 'user'",
+			'SET @@global.general_log = 1',
+			'SET @@GLOBAL.general_log = 1',
+			'SET @@`global`.general_log = 1',
+			'SET @old = 1, GLOBAL general_log = 1',
+		);
+		foreach ( $unsafe as $sql ) {
+			$this->assertNull( $this->rewriter->rewrite( $sql ), $sql );
+			$this->assertNull( $this->rewriter->rewrite( '/*!50003 ' . $sql . ' */' ), $sql );
+		}
+		foreach ( array( 'SET SESSION sql_mode = ""', 'SET @@session.foreign_key_checks = 0', 'SET @OLD_SQL_MODE=@@SQL_MODE', 'SET NAMES utf8mb4', 'SET FOREIGN_KEY_CHECKS=0' ) as $sql ) {
+			$this->assertSame( $sql, $this->rewriter->rewrite( $sql ) );
+			$conditional = '/*!40101 ' . $sql . ' */';
+			$this->assertSame( $conditional, $this->rewriter->rewrite( $conditional ) );
+		}
+	}
+
 }

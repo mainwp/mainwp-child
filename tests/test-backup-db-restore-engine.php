@@ -1404,4 +1404,42 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 		$this->assertContains( 'tmp_collateral', $tables, 'a blank id must not collapse the prefix to tmp_ and drop an unrelated table' );
 		$this->assertContains( 'keepme_live', $tables, 'a live table is never matched' );
 	}
+
+	/** Replaying a partially imported file resets only its own row count. */
+	public function test_unclean_resume_row_counts_match_replayed_file() {
+		$engine = new class() extends Testable_Restore_Engine {
+			public $actual_rows = 0;
+			protected function run_statement( $conn, $sql ) {
+				if ( 0 === strpos( $sql, 'DROP TABLE IF EXISTS' ) ) {
+					$this->actual_rows = 0;
+				} elseif ( 0 === strpos( $sql, 'INSERT INTO' ) ) {
+					++$this->actual_rows;
+				}
+				return parent::run_statement( $conn, $sql );
+			}
+			protected function query_rows( $conn, $sql ) {
+				if ( 0 === strpos( $sql, 'SELECT COUNT(*)' ) ) {
+					return array( array( 'c' => $this->actual_rows ) );
+				}
+				return parent::query_rows( $conn, $sql );
+			}
+		};
+		$sql = "DROP TABLE IF EXISTS `wp_a`;\nCREATE TABLE `wp_a` (id INT);\n";
+		for ( $id = 0; $id < 50; ++$id ) {
+			$sql .= "INSERT INTO `wp_a` VALUES ($id);\n";
+		}
+		$config = $this->config( array( $this->write_dump( 'replayed.sql.php', $sql ) ) );
+		$result = $engine->replay_slice( array(), $config, 0 );
+		while ( empty( $result['cursor']['tables']['a']['rows'] ) ) {
+			$this->assertFalse( $result['done'] );
+			$result = $engine->replay_slice( $result['cursor'], $config, 0 );
+		}
+		$this->assertFalse( $result['done'] );
+		$result = $engine->replay_slice( $result['cursor'], $config, $this->no_deadline(), true );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( 50, $result['cursor']['tables']['a']['rows'] );
+		$verified = $engine->verify_row_counts( array( 'a' => $result['cursor']['tables']['a']['rows'] ), 'tmpabc123_' );
+		$this->assertTrue( $verified['ok'] );
+	}
+
 }

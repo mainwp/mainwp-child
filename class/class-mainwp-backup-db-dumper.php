@@ -525,7 +525,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 'index'   => 0,
                 'started' => false,
                 'pk_col'  => null,
-                'last_id' => 0,
+                'last_id' => null,
                 'offset'  => 0,
                 'files'   => array(),
                 'first'   => true,
@@ -584,7 +584,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 ++$cursor['index'];
                 $cursor['started'] = false;
                 $cursor['pk_col']  = null;
-                $cursor['last_id'] = 0;
+                $cursor['last_id'] = null;
                 $cursor['offset']  = 0;
                 if ( null !== $heartbeat ) {
                     call_user_func( $heartbeat );
@@ -626,7 +626,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 'index'   => 0,
                 'started' => false,
                 'pk_col'  => null,
-                'last_id' => 0,
+                'last_id' => null,
                 'offset'  => 0,
                 'files'   => array(),
                 'first'   => true,
@@ -676,7 +676,9 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         foreach ( (array) $keys as $key_row ) {
             $pk_columns[ (int) $key_row['Seq_in_index'] ] = $key_row['Column_name'];
         }
-        $cursor['pk_col'] = null;
+        ksort( $pk_columns );
+        $cursor['order_cols'] = ! empty( $pk_columns ) ? array_values( $pk_columns ) : $wpdb->get_col( 'SHOW COLUMNS FROM ' . $this->quote_ident( $table ), 0 );
+        $cursor['pk_col']     = null;
         if ( 1 === count( $pk_columns ) ) {
             $pk_col   = reset( $pk_columns );
             $col_info = $wpdb->get_row( $wpdb->prepare( 'SHOW COLUMNS FROM ' . $this->quote_ident( $table ) . ' WHERE Field = %s', $pk_col ), ARRAY_A ); // phpcs:ignore -- schema read.
@@ -684,7 +686,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 $cursor['pk_col'] = $pk_col;
             }
         }
-        $cursor['last_id'] = 0;
+        $cursor['last_id'] = null;
         $cursor['offset']  = 0;
         $cursor['started'] = true;
         //phpcs:enable WordPress.DB, WordPress.WP.AlternativeFunctions
@@ -736,19 +738,19 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
 
         if ( null !== $cursor['pk_col'] ) {
             $sql = sprintf(
-                'SELECT %s FROM %s WHERE %s > %d ORDER BY %s ASC LIMIT %d',
+                'SELECT %s FROM %s%s ORDER BY %s ASC LIMIT %d',
                 implode( ', ', $select_list ),
                 $this->quote_ident( $table ),
-                $this->quote_ident( $cursor['pk_col'] ),
-                (int) $cursor['last_id'],
+                null === $cursor['last_id'] ? '' : ' WHERE ' . $this->quote_ident( $cursor['pk_col'] ) . ' > ' . (int) $cursor['last_id'],
                 $this->quote_ident( $cursor['pk_col'] ),
                 self::TIER2_CHUNK_ROWS
             );
         } else {
             $sql = sprintf(
-                'SELECT %s FROM %s LIMIT %d OFFSET %d',
+                'SELECT %s FROM %s ORDER BY %s LIMIT %d OFFSET %d',
                 implode( ', ', $select_list ),
                 $this->quote_ident( $table ),
+                implode( ', ', array_map( array( $this, 'quote_ident' ), $cursor['order_cols'] ) ),
                 self::TIER2_CHUNK_ROWS,
                 (int) $cursor['offset']
             );
@@ -772,8 +774,12 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_PERMISSIONS ) ), null, MainWP_Backup_Error::ERR_PERMISSIONS ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
         }
 
-        $escaper = function ( $value ) {
-            return esc_sql( $value );
+        $escaper = function ( $value ) use ( $wpdb ) {
+            if ( $wpdb->dbh instanceof \mysqli ) {
+                return $wpdb->dbh->real_escape_string( $value );
+            }
+            // File output never passes through wpdb::query() to remove its percent token.
+            return str_replace( $wpdb->placeholder_escape(), '%', esc_sql( $value ) );
         };
 
         $pk_index = null;
