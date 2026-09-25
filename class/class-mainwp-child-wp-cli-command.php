@@ -101,7 +101,8 @@ class MainWP_Child_WP_CLI_Command extends \WP_CLI_Command { // phpcs:ignore Gene
      * until retention prunes it. For a total-loss recovery where the local copy
      * is gone, pull the encrypted offsite copy (the snapshot's manifest, its
      * HMAC, and its sealed file or chunks) into a directory and pass that with
-     * --bundle and the recovery --passphrase to decrypt and restore it here.
+     * --bundle and set MAINWP_BACKUP_PASSPHRASE in the environment to decrypt it.
+     * The environment value is used verbatim when --passphrase is absent.
      *
      * There is no automatic pre-restore backup on this path. A database
      * restore overwrites the live database, so it requires --yes.
@@ -126,7 +127,8 @@ class MainWP_Child_WP_CLI_Command extends \WP_CLI_Command { // phpcs:ignore Gene
      * ---
      *
      * [--passphrase=<passphrase>]
-     *  : Recovery passphrase for an encrypted offsite bundle. Requires --bundle.
+     *  : Legacy recovery input; exposes the secret in process arguments and shell history.
+     *  : Prefer MAINWP_BACKUP_PASSPHRASE in the environment. Requires --bundle.
      *
      * [--bundle=<dir>]
      *  : Directory holding the pulled offsite bundle (manifest.json,
@@ -139,8 +141,11 @@ class MainWP_Child_WP_CLI_Command extends \WP_CLI_Command { // phpcs:ignore Gene
      *
      *     wp mainwp-child backup restore backup-1718900000.zip --type=full --yes
      *
+     *     IFS= read -r -s MAINWP_BACKUP_PASSPHRASE
+     *     export MAINWP_BACKUP_PASSPHRASE
      *     wp mainwp-child backup restore backup-1718900000.zip --type=db --yes \
-     *       --bundle=/home/recover/4/37 --passphrase='correct horse battery staple'
+     *       --bundle=/home/recover/4/37
+     *     unset MAINWP_BACKUP_PASSPHRASE
      *
      * @param array $args       Positional arguments.
      * @param array $assoc_args Associative arguments.
@@ -148,20 +153,23 @@ class MainWP_Child_WP_CLI_Command extends \WP_CLI_Command { // phpcs:ignore Gene
     public function backup( $args, $assoc_args ) {
         $command = isset( $args[0] ) ? $args[0] : '';
         if ( 'restore' !== $command ) {
-            \WP_CLI::error( 'Unknown subcommand. Usage: wp mainwp-child backup restore <archive> [--type=full|db|files] [--bundle=<dir> --passphrase=<p>] [--yes]' );
+            \WP_CLI::error( 'Unknown subcommand. Usage: wp mainwp-child backup restore <archive> [--type=full|db|files] [--bundle=<dir>] [--yes]' );
             return;
         }
 
         $archive = isset( $args[1] ) ? $args[1] : '';
         if ( '' === $archive ) {
-            \WP_CLI::error( 'Provide the archive file name. Usage: wp mainwp-child backup restore <archive> [--type=full|db|files] [--bundle=<dir> --passphrase=<p>] [--yes]' );
+            \WP_CLI::error( 'Provide the archive file name. Usage: wp mainwp-child backup restore <archive> [--type=full|db|files] [--bundle=<dir>] [--yes]' );
             return;
         }
 
         $type       = isset( $assoc_args['type'] ) ? $assoc_args['type'] : 'full';
         $confirmed  = isset( $assoc_args['yes'] );
-        $passphrase = isset( $assoc_args['passphrase'] ) ? (string) $assoc_args['passphrase'] : '';
-        $bundle     = isset( $assoc_args['bundle'] ) ? (string) $assoc_args['bundle'] : '';
+        $passphrase = isset( $assoc_args['passphrase'] ) ? (string) $assoc_args['passphrase'] : (string) getenv( 'MAINWP_BACKUP_PASSPHRASE' );
+        if ( isset( $assoc_args['passphrase'] ) ) {
+            \WP_CLI::warning( '--passphrase exposes the secret in process arguments and shell history. Prefer MAINWP_BACKUP_PASSPHRASE in the environment.' );
+        }
+        $bundle = isset( $assoc_args['bundle'] ) ? (string) $assoc_args['bundle'] : '';
 
         // The restore engine reads files through WP_Filesystem, which CLI does
         // not initialise on its own.

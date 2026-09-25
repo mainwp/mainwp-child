@@ -644,6 +644,10 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$id = new ReflectionProperty( MainWP_Child_Backup_Task_Runner::class, 'current_task_id' );
 		$id->setAccessible( true );
 		$id->setValue( $runner, $task_id );
+		$this->assertTrue( $spine->acquire_lease( $task_id, 'restore-test', 0 ) );
+		$owner = new ReflectionProperty( MainWP_Child_Backup_Task_Runner::class, 'current_lease_owner' );
+		$owner->setAccessible( true );
+		$owner->setValue( $runner, 'restore-test' );
 		$method = new ReflectionMethod( MainWP_Child_Backup_Task_Runner::class, 'dump_heartbeat' );
 		$method->setAccessible( true );
 		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'restore-foreign', 300 ) );
@@ -655,6 +659,45 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$heartbeat = $method->invoke( $runner );
 		$heartbeat();
 		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+	}
+
+	public function test_heartbeat_renews_invocation_without_version_change_and_abandons_takeover() {
+		global $wpdb;
+		$spine = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->create_task( 'db' );
+		$successor = null;
+		$this->runner->stubs['dump_tier1'] = function () use ( $wpdb, $spine, $task_id, &$successor ) {
+			$method = new ReflectionMethod( MainWP_Child_Backup_Task_Runner::class, 'dump_heartbeat' );
+			$method->setAccessible( true );
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET lease_expires_at = DATE_ADD(NOW(), INTERVAL 5 SECOND) WHERE task_id = %s', $task_id ) );
+			$before = $spine->get_task( $task_id );
+			$heartbeat = $method->invoke( $this->runner );
+			$heartbeat();
+			$after = $spine->get_task( $task_id );
+			$this->assertSame( $before->version, $after->version );
+			$this->assertSame( $before->lease_owner, $after->lease_owner );
+			$this->assertGreaterThan( $before->lease_expires_at, $after->lease_expires_at );
+			$this->assertTrue( $spine->renew_lease( $task_id, $before->lease_owner ), 'Same-second renewal must succeed.' );
+			$this->assertFalse( $spine->acquire_lease( $task_id, 'competing-runner', (int) $after->version ) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $task_id ) );
+			$this->assertFalse( $spine->renew_lease( $task_id, $before->lease_owner ), 'Expired leases must not be revived.' );
+			$this->assertTrue( $spine->acquire_lease( $task_id, 'successor', (int) $after->version ) );
+			$successor = $spine->get_task( $task_id );
+			$this->assertFalse( $spine->renew_lease( $task_id, $before->lease_owner ) );
+			file_put_contents( $this->backup_dir . '/files.list.staged', 'successor bytes' );
+			$heartbeat = $method->invoke( $this->runner );
+			$heartbeat();
+			$this->fail( 'A stolen lease must interrupt engine work.' );
+		};
+		$task = $this->advance( $task_id );
+		$this->assertNotNull( $successor );
+		$this->assertSame( $successor->version, $task->version );
+		$this->assertSame( $successor->sub_state, $task->sub_state );
+		$this->assertSame( 'successor', $task->lease_owner );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_DUMPING_DB, $task->phase );
+		$this->assertSame( 'successor bytes', file_get_contents( $this->backup_dir . '/files.list.staged' ) );
+		$this->assertSame( $task_id, MainWP_Child_Backup_Mutex::holder()['owner'] );
+		$this->assertNotContains( 'archive_db_artifact', $this->runner->seam_names() );
 	}
 
 	public function test_dump_callbacks_refresh_progress_throttle_and_fail_after_takeover() {
@@ -805,6 +848,30 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		foreach ( $others as $file ) {
 			$this->assertSame( 'existing dump', file_get_contents( $file ) );
 		}
+	}
+
+	public function test_interrupted_tier1_attempt_is_checkpointed_and_resumes_in_tier2() {
+		$spine = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->create_task( 'db' );
+		$interrupted = null;
+		$this->runner->stubs['dump_tier1'] = function () use ( $spine, $task_id, &$interrupted ) {
+			$interrupted = $spine->read_sub_state( $spine->get_task( $task_id ), $this->backup_dir );
+			$this->assertSame( 1, $interrupted['db_tier'] );
+			$this->assertSame( 1, $interrupted['tier1_started'] );
+			$this->assertEmpty( $interrupted['db_files'] ?? array() );
+			throw new MainWP_Backup_Budget_Exception( 'interrupt', null, '' );
+		};
+		$task = $this->advance( $task_id );
+		$this->assertNotNull( $interrupted );
+		// Restore the durable state a hard kill would leave, before the exception handler ran.
+		$this->assertNotFalse( $spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => $interrupted ) ) );
+		$this->runner->calls = array();
+		$this->runner->stubs['dump_tier2'] = array( 'done' => true, 'files' => array( 'table.sql.php' ) );
+		$task = $this->advance( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertContains( 'dump_tier2', $this->runner->seam_names() );
+		$this->assertNotContains( 'dump_tier1', $this->runner->seam_names() );
+		$this->assertSame( 1, $spine->read_sub_state( $task, $this->backup_dir )['tier1_attempted'] );
 	}
 
 	/**

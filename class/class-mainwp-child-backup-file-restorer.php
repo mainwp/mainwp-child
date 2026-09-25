@@ -1227,6 +1227,17 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         $real_target = realpath( dirname( $target_path ) );
 
         if ( false === $real_target ) {
+            // Creating parents through an outward symlink would modify files outside the restore root.
+            $ancestor = dirname( $target_path );
+            while ( ! file_exists( $ancestor ) && ! is_link( $ancestor ) && dirname( $ancestor ) !== $ancestor ) {
+                $ancestor = dirname( $ancestor );
+            }
+            $real_ancestor = realpath( $ancestor );
+            if ( false === $real_ancestor || strpos( $real_ancestor . '/', $real_extract . '/' ) !== 0 ) {
+                throw new \Exception(
+                    sprintf( 'Archive entry resolves outside extraction directory: %s. Extraction aborted.', esc_html( $entry_name ) )
+                );
+            }
             wp_mkdir_p( dirname( $target_path ) );
             $real_target = realpath( dirname( $target_path ) );
         }

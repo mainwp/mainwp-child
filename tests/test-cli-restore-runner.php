@@ -405,4 +405,71 @@ class CLIRestoreRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $result['error_code'] );
 		$this->assertIsBool( $result['maintenance_left'] );
 	}
+
+	public function test_command_reads_environment_passphrase_and_warns_for_argv() {
+		$script = <<<'PHP'
+namespace {
+	define( 'ABSPATH', '/' );
+	define( 'WP_CLI', true );
+	class WP_CLI_Command {}
+	class WP_CLI {
+		public static $warnings = array();
+		public static function warning( $message ) { self::$warnings[] = $message; }
+		public static function log( $message ) {}
+		public static function success( $message ) {}
+	}
+	function WP_Filesystem() {}
+}
+namespace MainWP\Child {
+	class MainWP_Child_Restore_Task_Runner { public static function instance() { return new self(); } }
+	class MainWP_Child_Backup_Task { public static function instance() { return new self(); } }
+	class MainWP_Child_CLI_Restore_Runner {
+		public static $passphrases = array();
+		public function __construct( $runner, $spine ) {}
+		public function run( $archive, $type, $confirmed, $progress, $passphrase, $bundle ) {
+			self::$passphrases[] = $passphrase;
+			return array( 'ok' => true );
+		}
+	}
+}
+namespace {
+	require COMMAND_FILE;
+	putenv( "MAINWP_BACKUP_PASSPHRASE=  secret\twith spaces  " );
+	$command = new \MainWP\Child\MainWP_Child_WP_CLI_Command();
+	$command->backup( array( 'restore', 'backup.zip' ), array( 'type' => 'files', 'bundle' => '/bundle' ) );
+	$environment_warnings = WP_CLI::$warnings;
+	$command->backup( array( 'restore', 'backup.zip' ), array( 'type' => 'files', 'bundle' => '/bundle', 'passphrase' => ' argv secret ' ) );
+	echo json_encode( array( \MainWP\Child\MainWP_Child_CLI_Restore_Runner::$passphrases, $environment_warnings, WP_CLI::$warnings ) );
+}
+PHP;
+		$script = str_replace( 'COMMAND_FILE', var_export( dirname( __DIR__ ) . '/class/class-mainwp-child-wp-cli-command.php', true ), $script );
+		$output = array();
+		$status = null;
+		exec( escapeshellarg( PHP_BINARY ) . ' -r ' . escapeshellarg( $script ), $output, $status );
+		$this->assertSame( 0, $status );
+		$result = json_decode( implode( "\n", $output ), true );
+		$this->assertIsArray( $result );
+		$this->assertSame( array( "  secret\twith spaces  ", ' argv secret ' ), $result[0] );
+		$this->assertSame( array(), $result[1] );
+		$this->assertCount( 1, $result[2] );
+		$this->assertStringContainsString( '--passphrase exposes', $result[2][0] );
+		$this->assertStringNotContainsString( 'argv secret', $result[2][0] );
+	}
+
+	public function test_idle_timeout_reports_task_still_active_with_id() {
+		$this->write_zip_fixture( 'idle.zip' );
+		$engine = new Fake_CLI_Restore_Engine();
+		$task = $this->row( 'restoring_files', 2 );
+		$result = $this->make_runner( $engine, $task )->run( 'idle.zip', 'full', true );
+		$this->assertFalse( $result['ok'] );
+		$this->assertSame( 'restoring_files', $result['phase'] );
+		$this->assertSame( 'cli-task-1', $result['task_id'] );
+		$this->assertStringContainsString( 'cli-task-1 is still active', $result['error'] );
+		$this->assertStringNotContainsString( 'failed', $result['error'] );
+		$this->assertStringNotContainsString( 'another process', $result['error'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $result['error_code'] );
+		$this->assertSame( 'restoring_files', $task->phase );
+		$this->assertSame( 2, $task->version );
+	}
+
 }

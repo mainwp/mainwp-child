@@ -49,8 +49,7 @@ class MainWP_Child_CLI_Restore_Runner {
     protected $spine;
 
     /**
-     * Seconds the drive loop tolerates no version progress (a lease held by
-     * another process) before giving up. Injectable so tests need no wait.
+     * Seconds the drive loop tolerates no version progress before giving up. Injectable so tests need no wait.
      *
      * @var int
      */
@@ -114,7 +113,7 @@ class MainWP_Child_CLI_Restore_Runner {
         // below adopt and restore it. A wrong passphrase fails closed here.
         if ( '' !== (string) $passphrase ) {
             if ( '' === (string) $bundle ) {
-                return $this->fail( 'Provide --bundle=<dir> with --passphrase so the encrypted archive and its manifest can be found.', MainWP_Backup_Error::ERR_RESTORE_DECRYPT );
+                return $this->fail( 'Provide --bundle=<dir> with the recovery passphrase so the encrypted archive and its manifest can be found.', MainWP_Backup_Error::ERR_RESTORE_DECRYPT );
             }
             try {
                 $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
@@ -123,7 +122,7 @@ class MainWP_Child_CLI_Restore_Runner {
                 return $this->fail( $e->getMessage(), $e->get_message_error_code() );
             }
         } elseif ( '' !== (string) $bundle && 'encrypted' === $this->detect_encryption( $archive, $bundle ) ) {
-            return $this->fail( 'This archive is encrypted. Re-run with --passphrase=<p> and --bundle=<dir> to decrypt and restore it.', MainWP_Backup_Error::ERR_RESTORE_ENCRYPTED );
+            return $this->fail( 'This archive is encrypted. Set MAINWP_BACKUP_PASSPHRASE in the environment and re-run with --bundle=<dir> to decrypt and restore it.', MainWP_Backup_Error::ERR_RESTORE_ENCRYPTED );
         }
 
         $path = MainWP_Helper::locate_backup_file( $archive );
@@ -132,7 +131,7 @@ class MainWP_Child_CLI_Restore_Runner {
         }
 
         if ( ! $this->archive_is_readable( $path, $archive ) ) {
-            return $this->fail( 'The archive is not a readable backup. It may be corrupt, or an encrypted offsite copy. For an encrypted copy, re-run with --passphrase and --bundle.' );
+            return $this->fail( 'The archive is not a readable backup. It may be corrupt, or an encrypted offsite copy. For an encrypted copy, set MAINWP_BACKUP_PASSPHRASE in the environment and re-run with --bundle.' );
         }
 
         $params = array(
@@ -167,6 +166,17 @@ class MainWP_Child_CLI_Restore_Runner {
                 'error'            => '',
                 'error_code'       => '',
                 'maintenance_left' => false,
+            );
+        }
+
+        if ( ! MainWP_Child_Backup_Task::is_terminal_phase( $task->phase ) ) {
+            return array(
+                'ok'               => false,
+                'phase'            => $task->phase,
+                'task_id'          => $task_id,
+                'error'            => 'Restore task ' . $task_id . ' is still active. The CLI stopped waiting after no progress; check this task before retrying.',
+                'error_code'       => MainWP_Backup_Error::ERR_ALREADY_RUNNING,
+                'maintenance_left' => $this->maintenance_active(),
             );
         }
 
@@ -210,8 +220,8 @@ class MainWP_Child_CLI_Restore_Runner {
      * Drive a task to a terminal phase by repeated slices. Progress is keyed
      * on the task version, not the phase: a long single phase yields across
      * slices with the phase unchanged, so version is the true work signal. No
-     * version movement for idle_giveup_seconds means another process holds the
-     * lease, and the loop gives up rather than spinning forever.
+     * version movement for idle_giveup_seconds makes the loop stop waiting;
+     * the task may still be active.
      *
      * @param object        $task     Starting task row.
      * @param callable|null $progress Optional callback given each task row.

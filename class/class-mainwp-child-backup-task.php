@@ -537,6 +537,42 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     }
 
     /**
+     * Renew only the invocation that still owns a live lease, preserving its CAS version.
+     *
+     * @param string $task_id     Task id.
+     * @param string $owner       Invocation token.
+     * @param int    $ttl_seconds Lease TTL in seconds.
+     * @return bool Whether the lease remains owned by this invocation.
+     */
+    public function renew_lease( $task_id, $owner, $ttl_seconds = 180 ) {
+        global $wpdb;
+        if ( '' === $owner || $ttl_seconds <= 0 ) {
+            return false;
+        }
+        $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- ownership must be checked atomically.
+            $wpdb->prepare(
+                'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- trusted table name.
+                " SET lease_expires_at = DATE_ADD(NOW(), INTERVAL %d SECOND)
+                 WHERE task_id = %s AND lease_owner = %s AND lease_expires_at >= NOW() AND phase NOT IN ('completed','failed')",
+                $ttl_seconds,
+                $task_id,
+                $owner
+            )
+        );
+        if ( 0 !== $result ) {
+            return 1 === $result;
+        }
+        // A heartbeat in the acquisition second can leave the expiry unchanged.
+        return '1' === $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- distinguish an unchanged lease from ownership loss.
+            $wpdb->prepare(
+                'SELECT 1 FROM ' . $this->get_table_name() . " WHERE task_id = %s AND lease_owner = %s AND lease_expires_at >= NOW() AND phase NOT IN ('completed','failed')", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- trusted table name.
+                $task_id,
+                $owner
+            )
+        );
+    }
+
+    /**
      * Transfer a live lease for an old runner during a partial upgrade only.
      *
      * No current caller uses this method. Keep it for requests that loaded
@@ -1335,6 +1371,10 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                 }
                 if ( is_file( $file ) && filemtime( $file ) < $cutoff ) {
                     wp_delete_file( $file );
+                    clearstatcache( true, $file );
+                    if ( ! file_exists( $file ) && preg_match( '/^manifest-staged-([a-z0-9]{16})\.list\z/', $base, $token ) ) {
+                        delete_option( MainWP_Child_Backup_Manifest_Chunk_Receiver::OPTION_PREFIX . $token[1] );
+                    }
                 }
             }
         }

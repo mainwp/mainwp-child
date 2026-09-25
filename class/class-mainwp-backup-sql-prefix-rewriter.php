@@ -165,6 +165,11 @@ class MainWP_Backup_Sql_Prefix_Rewriter { // phpcs:ignore Generic.Classes.Openin
         // here (RENAME is handled separately; the rest carry commas only
         // inside column lists or VALUES, which must not trip this guard).
         $rest = substr( $statement, $token['end'] );
+        // These ALTER clauses can reach a second table whose name is never rewritten.
+        if ( preg_match( '/^ALTER\b/i', substr( $statement, $this->skip_leading_trivia( $statement ) ) ) && preg_match( '/\b(RENAME|EXCHANGE)\b/i', $rest ) ) {
+            return null;
+        }
+
         if ( preg_match( '/^(LOCK|DROP)/i', ltrim( substr( $statement, $this->skip_leading_trivia( $statement ) ) ) ) && preg_match( '/,\s*[`A-Za-z0-9_$]/', $rest ) ) {
             return null;
         }

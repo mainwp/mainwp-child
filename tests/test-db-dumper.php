@@ -517,7 +517,7 @@ class DbDumperTest extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_streamed_writes_heartbeat_every_five_megabytes_and_propagate_loss() {
+	public function test_streamed_writes_heartbeat_before_writes_and_propagate_loss() {
 		$dumper = new MainWP_Backup_Db_Dumper();
 		$write = new ReflectionMethod( $dumper, 'write_checked' );
 		$write->setAccessible( true );
@@ -528,17 +528,18 @@ class DbDumperTest extends WP_UnitTestCase {
 			for ( $i = 0; $i < 4; ++$i ) {
 				$write->invoke( $dumper, $fh, str_repeat( 'a', 1024 * 1024 ), $heartbeat );
 			}
-			$this->assertSame( 0, $calls );
+			$this->assertSame( 4, $calls );
 			$write->invoke( $dumper, $fh, str_repeat( 'a', 1024 * 1024 ), $heartbeat );
-			$this->assertSame( 1, $calls );
+			$this->assertSame( 6, $calls );
 			$write->invoke( $dumper, $fh, str_repeat( 'a', 10 * 1024 * 1024 ), $heartbeat );
-			$this->assertSame( 3, $calls );
+			$this->assertSame( 9, $calls );
 			$failure = new \MainWP\Child\MainWP_Exception( 'Ownership lost', null, \MainWP\Child\MainWP_Backup_Error::ERR_ALREADY_RUNNING );
 			try {
 				$write->invoke( $dumper, $fh, str_repeat( 'a', 5 * 1024 * 1024 ), function () use ( $failure ) { throw $failure; } );
 				$this->fail( 'The writer must stop when its heartbeat fails.' );
 			} catch ( \MainWP\Child\MainWP_Exception $e ) {
 				$this->assertSame( $failure, $e );
+				$this->assertSame( 15 * 1024 * 1024, fstat( $fh )['size'], 'Ownership loss must stop before another write.' );
 			}
 		} finally {
 			fclose( $fh );
@@ -631,6 +632,76 @@ class DbDumperTest extends WP_UnitTestCase {
 			$this->assertSame( '', $conn->error );
 		} finally {
 			$conn->close();
+		}
+	}
+
+	public function test_tier2_invalid_schema_removes_incomplete_output() {
+		global $wpdb;
+		foreach ( array( 'SELECT 1 WHERE 1 = 0', "SELECT 'table', ''", "SELECT 'table', 'not a schema'", 'SELECT missing_schema_column' ) as $replacement ) {
+			$filter = function ( $sql ) use ( $replacement ) {
+				return 'SHOW CREATE TABLE `' . $this->fixture_table . '`' === $sql ? $replacement : $sql;
+			};
+			$errors = $wpdb->suppress_errors( true );
+			add_filter( 'query', $filter );
+			try {
+				MainWP_Backup_Db_Dumper::instance()->dump_tables_tier2_slice( array( $this->fixture_table ), $this->scratch . '/schema', array(), 0 );
+				$this->fail( 'An invalid schema must abort the header.' );
+			} catch ( \MainWP\Child\MainWP_Exception $e ) {
+				$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_DB_QUERY_FAILED, $e->get_message_error_code() );
+			} finally {
+				remove_filter( 'query', $filter );
+				$wpdb->suppress_errors( $errors );
+			}
+			$this->assertFileDoesNotExist( $this->scratch . '/schema-' . $this->fixture_table . '.sql.php.tmp' );
+			$this->assertFileDoesNotExist( $this->scratch . '/schema-' . $this->fixture_table . '.sql.php' );
+		}
+	}
+
+	public function test_tier2_header_write_failure_closes_handle_and_removes_output() {
+		$dumper = new class() extends MainWP_Backup_Db_Dumper {
+			public $handle;
+			protected function write_checked( $fh, $data, $heartbeat = null ) {
+				$this->handle = $fh;
+				parent::write_checked( $fh, $data, $heartbeat );
+				throw new \MainWP\Child\MainWP_Exception( 'disk full', null, \MainWP\Child\MainWP_Backup_Error::ERR_DISK_FULL );
+			}
+		};
+		try {
+			$dumper->dump_tables_tier2_slice( array( $this->fixture_table ), $this->scratch . '/header', array(), 0 );
+			$this->fail( 'A header write failure must abort.' );
+		} catch ( \MainWP\Child\MainWP_Exception $e ) {
+			$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_DISK_FULL, $e->get_message_error_code() );
+		}
+		$this->assertFalse( is_resource( $dumper->handle ) );
+		$this->assertFileDoesNotExist( $this->scratch . '/header-' . $this->fixture_table . '.sql.php.tmp' );
+	}
+
+	public function test_lease_loss_preserves_successor_dump_fragment() {
+		foreach ( array( 1, 2 ) as $tier ) {
+			$prefix = $this->scratch . '/lost-lease-' . $tier;
+			$fragment = null;
+			$heartbeat = function () use ( $prefix, &$fragment ) {
+				$files = glob( $prefix . '-*.sql.php.tmp' );
+				if ( ! empty( $files ) ) {
+					$fragment = $files[0];
+					file_put_contents( $fragment, 'successor dump' );
+					throw new MainWP_Backup_Budget_Exception( 'lease lost', null, \MainWP\Child\MainWP_Backup_Error::ERR_ALREADY_RUNNING );
+				}
+			};
+			$dumper = new MainWP_Backup_Db_Dumper();
+			try {
+				if ( 1 === $tier ) {
+					$dumper->dump_to_files( $prefix, null, $heartbeat );
+				} else {
+					$dumper->dump_tier2_slice( $prefix, null, 45, $heartbeat );
+				}
+				$this->fail( 'Lease loss must interrupt tier ' . $tier );
+			} catch ( MainWP_Backup_Budget_Exception $e ) {
+				$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
+			}
+			$this->assertNotNull( $fragment );
+			$this->assertFileExists( $fragment );
+			$this->assertSame( 'successor dump', file_get_contents( $fragment ) );
 		}
 	}
 

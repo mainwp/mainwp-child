@@ -154,4 +154,23 @@ class BackupFileRestorerValidatePathTest extends WP_UnitTestCase {
 		$path = MainWP_Child_Backup_File_Restorer::validate_extract_path( 'a/b/c/d.txt', $this->extract_to );
 		$this->assertSame( $this->extract_to . '/a/b/c/d.txt', $path );
 	}
+
+	public function test_outward_symlink_does_not_create_missing_parents() {
+		$this->assertTrue( symlink( $this->sibling, $this->extract_to . '/link' ) );
+		try {
+			MainWP_Child_Backup_File_Restorer::validate_extract_path( 'link/a/b/file.txt', $this->extract_to );
+			$this->fail( 'An outward symlink must be rejected before creating parents.' );
+		} catch ( \Exception $e ) {
+			$this->assertStringContainsString( 'outside extraction directory', $e->getMessage() );
+		}
+		$this->assertDirectoryDoesNotExist( $this->sibling . '/a' );
+	}
+
+	public function test_inward_symlink_allows_missing_parents() {
+		mkdir( $this->extract_to . '/inside' );
+		$this->assertTrue( symlink( $this->extract_to . '/inside', $this->extract_to . '/link' ) );
+		$this->assertSame( $this->extract_to . '/link/a/b/file.txt', MainWP_Child_Backup_File_Restorer::validate_extract_path( 'link/a/b/file.txt', $this->extract_to ) );
+		$this->assertDirectoryExists( $this->extract_to . '/inside/a/b' );
+	}
+
 }

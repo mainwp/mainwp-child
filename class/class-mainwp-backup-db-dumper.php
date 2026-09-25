@@ -320,6 +320,9 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         } catch ( \Exception $e ) {
             // Clean up partials so a resume restarts from a clean slate.
             @$mysqli->close(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- best-effort cleanup on a failed connection.
+            if ( $e instanceof MainWP_Exception && MainWP_Backup_Error::ERR_ALREADY_RUNNING === $e->get_message_error_code() ) {
+                throw $e;
+            }
             foreach ( $files as $file ) {
                 if ( file_exists( $file ) ) {
                     unlink( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- partial dump cleanup.
@@ -386,6 +389,9 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             throw new \Exception( "Could not read the column map for table `$table`." ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal control flow; wrapped, escaped and scrubbed by dump_to_files before leaving the child.
         }
 
+        if ( null !== $heartbeat ) {
+            call_user_func( $heartbeat );
+        }
         $tmp = $final . '.tmp';
         $fh  = fopen( $tmp, 'w' );
         if ( false === $fh ) {
@@ -444,6 +450,9 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             );
 
             while ( $row = $res->fetch_row() ) {
+                if ( null !== $heartbeat ) {
+                    call_user_func( $heartbeat );
+                }
                 $values = array();
                 foreach ( $row as $index => $value ) {
                     $values[] = $this->format_value( $value, $value_columns[ $index ], $escaper );
@@ -471,6 +480,9 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             fclose( $fh );
         } catch ( \Exception $e ) {
             fclose( $fh );
+            if ( $e instanceof MainWP_Exception && MainWP_Backup_Error::ERR_ALREADY_RUNNING === $e->get_message_error_code() ) {
+                throw $e;
+            }
             if ( file_exists( $tmp ) ) {
                 unlink( $tmp );
             }
@@ -545,6 +557,9 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 );
             }
 
+            if ( null !== $heartbeat ) {
+                call_user_func( $heartbeat );
+            }
             $table = $cursor['tables'][ $cursor['index'] ];
             $final = $filepath_prefix . '-' . MainWP_Helper::sanitize_filename( $table ) . '.sql.php';
             $tmp   = $final . '.tmp';
@@ -561,6 +576,9 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             try {
                 $finished_rows = $this->tier2_dump_chunk( $table, $tmp, $cursor, $heartbeat );
             } catch ( \Exception $e ) {
+                if ( $e instanceof MainWP_Exception && MainWP_Backup_Error::ERR_ALREADY_RUNNING === $e->get_message_error_code() ) {
+                    throw $e;
+                }
                 // The task does not resume past this throw, so the finished tables of
                 // this run and the open fragment would otherwise sit in the backup
                 // directory holding database contents until stale-file handling.
@@ -576,6 +594,9 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             }
             $worked = true;
 
+            if ( null !== $heartbeat ) {
+                call_user_func( $heartbeat );
+            }
             if ( $finished_rows ) {
                 if ( ! rename( $tmp, $final ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- atomic finalize of the per-table dump.
                     throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) ), null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
@@ -644,7 +665,8 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
      * @param array         $cursor    Cursor (modified in place).
      * @param callable|null $heartbeat Optional liveness callback.
      *
-     * @throws MainWP_Exception On write failure.
+     * @throws MainWP_Exception On schema or write failure.
+     * @throws \Throwable After closing failed header output.
      */
     protected function tier2_start_table( $table, $tmp, &$cursor, $heartbeat = null ) {
         global $wpdb;
@@ -653,21 +675,32 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         if ( false === $fh ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_PERMISSIONS ) ), null, MainWP_Backup_Error::ERR_PERMISSIONS ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
         }
-        $this->write_checked( $fh, '<?php exit(); ?>', $heartbeat );
-        if ( ! empty( $cursor['first'] ) ) {
-            $meta = array(
-                'has_foreign_keys'  => null, // Unknown without the snapshot inventory; restore uses the grep probe.
-                'consistency'       => 'paginated',
-                'non_innodb_tables' => array(),
-                'tier'              => 2,
-            );
-            $this->write_checked( $fh, "\n" . $this->build_banner( $meta ), $heartbeat );
-            $cursor['first'] = false;
+        try {
+            $create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $this->quote_ident( $table ), ARRAY_N );
+            if ( '' !== $wpdb->last_error || ! is_array( $create ) || ! isset( $create[1] ) || ! is_string( $create[1] ) || ! preg_match( '/^\s*CREATE\s+TABLE\b/i', $create[1] ) ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DB_QUERY_FAILED ) ), null, MainWP_Backup_Error::ERR_DB_QUERY_FAILED );
+            }
+            $this->write_checked( $fh, '<?php exit(); ?>', $heartbeat );
+            if ( ! empty( $cursor['first'] ) ) {
+                $meta = array(
+                    'has_foreign_keys'  => null, // Unknown without the snapshot inventory; restore uses the grep probe.
+                    'consistency'       => 'paginated',
+                    'non_innodb_tables' => array(),
+                    'tier'              => 2,
+                );
+                $this->write_checked( $fh, "\n" . $this->build_banner( $meta ), $heartbeat );
+            }
+            $this->write_checked( $fh, "\n\nDROP TABLE IF EXISTS " . $this->quote_ident( $table ) . ';', $heartbeat );
+            $this->write_checked( $fh, "\n" . $create[1] . ";\n", $heartbeat );
+        } catch ( \Throwable $e ) {
+            fclose( $fh );
+            if ( ! ( $e instanceof MainWP_Exception ) || MainWP_Backup_Error::ERR_ALREADY_RUNNING !== $e->get_message_error_code() ) {
+                wp_delete_file( $tmp );
+            }
+            throw $e;
         }
-        $this->write_checked( $fh, "\n\nDROP TABLE IF EXISTS " . $this->quote_ident( $table ) . ';', $heartbeat );
-        $create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $this->quote_ident( $table ), ARRAY_N ); // phpcs:ignore -- schema read.
-        $this->write_checked( $fh, "\n" . $create[1] . ";\n", $heartbeat );
         fclose( $fh );
+        $cursor['first'] = false;
 
         // Pagination strategy: single integer PK gets deterministic PK-seek;
         // anything else falls back to LIMIT/OFFSET.
@@ -955,6 +988,9 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
      * @throws MainWP_Exception When the write fails or is short.
      */
     protected function write_checked( $fh, $data, $heartbeat = null ) {
+        if ( null !== $heartbeat ) {
+            call_user_func( $heartbeat );
+        }
         $written = fwrite( $fh, $data ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- streaming dump writes.
         if ( false === $written || $written < strlen( $data ) ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) ), null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.

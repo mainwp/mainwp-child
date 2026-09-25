@@ -132,6 +132,22 @@ class BackupSqlPrefixRewriterTest extends WP_UnitTestCase {
 		$this->assertSame( 'ALTER TABLE `tmp1234_posts` ADD INDEX `idx` (`id`)', $out );
 	}
 
+	/** @dataProvider second_table_alter_statements */
+	public function test_alter_naming_second_table_is_rejected( $sql ) {
+		$this->assertNull( $this->rewriter->rewrite( $sql ), $sql );
+	}
+
+	public static function second_table_alter_statements() {
+		return array(
+			array( 'ALTER TABLE `wp_a` RENAME TO `wp_users`' ),
+			array( 'ALTER TABLE wp_a RENAME AS wp_users' ),
+			array( 'alter table wp_a rename wp_users' ),
+			array( 'ALTER TABLE `wp_a` EXCHANGE PARTITION p WITH TABLE `wp_users`' ),
+			array( "-- dump header\nALTER TABLE wp_a ADD COLUMN x INT, RENAME /* separator */ TO wp_users" ),
+			array( 'ALTER TABLE wp_a /*!50100 EXCHANGE PARTITION p WITH TABLE wp_users */' ),
+		);
+	}
+
 	/**
 	 * LOCK TABLES is rewritten.
 	 */

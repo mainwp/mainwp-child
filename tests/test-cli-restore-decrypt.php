@@ -24,6 +24,24 @@ use MainWP\Child\MainWP_Helper;
 // runner tests; load them so this file also runs in isolation.
 require_once __DIR__ . '/test-cli-restore-runner.php';
 
+class Decrypt_Limited_Write_Stream {
+	public $context;
+	private $remaining;
+	public function stream_open( $path, $mode, $options, &$opened_path ) {
+		$this->remaining = (int) substr( $path, strlen( 'mwpdecryptwrite://' ) );
+		return true;
+	}
+	public function stream_write( $data ) {
+		if ( $this->remaining < 0 ) {
+			return false;
+		}
+		$written = min( $this->remaining, strlen( $data ) );
+		$this->remaining -= $written;
+		return $written;
+	}
+	public function stream_stat() { return array(); }
+}
+
 /**
  * Tests for MainWP_Child_Backup_Decryptor and the runner's encrypted path.
  */
@@ -522,7 +540,7 @@ class CLIRestoreDecryptTest extends WP_UnitTestCase {
 
 		$this->assertFalse( $result['ok'] );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_ENCRYPTED, $result['error_code'] );
-		$this->assertStringContainsString( '--passphrase', $result['error'] );
+		$this->assertStringContainsString( 'MAINWP_BACKUP_PASSPHRASE', $result['error'] );
 		$this->assertFalse( $engine->created );
 	}
 
@@ -628,4 +646,40 @@ class CLIRestoreDecryptTest extends WP_UnitTestCase {
 			'sub_state' => wp_json_encode( array() ),
 		);
 	}
+
+	public function test_plaintext_write_failures_remove_temporary_file_in_both_modes() {
+		$this->assertTrue( stream_wrapper_register( 'mwpdecryptwrite', Decrypt_Limited_Write_Stream::class ) );
+		try {
+			foreach ( array( 'whole', 'chunked' ) as $mode ) {
+				foreach ( array( -1, 3 ) as $capacity ) {
+					$b = $this->build_bundle( array( 'mode' => $mode ) );
+					$manifest = json_decode( file_get_contents( $b['dir'] . '/manifest.json' ), true );
+					unset( $manifest['artifacts'][0]['sha256'] );
+					$raw = wp_json_encode( $manifest );
+					file_put_contents( $b['dir'] . '/manifest.json', $raw );
+					file_put_contents( $b['dir'] . '/manifest.json.hmac', hash_hmac( 'sha256', $raw, $b['kek'] ) );
+					$dest = $this->dest_dir();
+					$decryptor = new class( $capacity ) extends MainWP_Child_Backup_Decryptor {
+						private $capacity;
+						public function __construct( $capacity ) { $this->capacity = $capacity; }
+						protected function open_write( $path ) {
+							file_put_contents( $path, 'partial output' );
+							return fopen( 'mwpdecryptwrite://' . $this->capacity, 'wb' );
+						}
+					};
+					try {
+						$decryptor->decrypt_to_plaintext( $b['dir'], $b['file'], 'correct horse battery staple', $dest );
+						$this->fail( 'Incomplete plaintext must not be promoted: ' . $mode . '/' . $capacity );
+					} catch ( MainWP_Exception $e ) {
+						$this->assertSame( MainWP_Backup_Error::ERR_DISK_FULL, $e->get_message_error_code() );
+					}
+					$this->assertFileDoesNotExist( $dest . '/' . $b['file'] );
+					$this->assertFileDoesNotExist( $dest . '/' . $b['file'] . '.decrypting' );
+				}
+			}
+		} finally {
+			stream_wrapper_unregister( 'mwpdecryptwrite' );
+		}
+	}
+
 }

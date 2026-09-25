@@ -67,6 +67,20 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     protected $current_task_id = '';
 
     /**
+     * Invocation token used to fence progress callbacks.
+     *
+     * @var string
+     */
+    protected $current_lease_owner = '';
+
+    /**
+     * Prevent failure cleanup from touching a successor's files.
+     *
+     * @var bool
+     */
+    protected $lease_lost = false;
+
+    /**
      * Get the singleton instance.
      *
      * @return MainWP_Child_Backup_Task_Runner
@@ -449,12 +463,15 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             ++$version; // The acquire incremented it.
         }
 
-        $this->current_task_id = $task_id;
-        $backup_dir            = '';
-        $mutex_held            = false;
-        $is_backup             = ! MainWP_Child_Backup_Task::is_restore_type( $task->type );
-        $deadline              = time() + $this->slice_budget();
-        $abandoned             = false;
+        $this->current_lease_owner = $lease_owner;
+        $this->lease_lost          = false;
+        $this->current_task_id     = $task_id;
+
+        $backup_dir = '';
+        $mutex_held = false;
+        $is_backup  = ! MainWP_Child_Backup_Task::is_restore_type( $task->type );
+        $deadline   = time() + $this->slice_budget();
+        $abandoned  = false;
 
         try {
             if ( $is_backup ) {
@@ -488,6 +505,11 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 }
             }
         } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - any engine failure must reach a terminal phase.
+            if ( $this->lease_lost ) {
+                $this->current_task_id     = '';
+                $this->current_lease_owner = '';
+                return $spine->get_task( $task_id );
+            }
             $code = ( $e instanceof MainWP_Exception ) ? $e->get_message_error_code() : '';
             if ( $is_backup ) {
                 // A mid-slice takeover makes the entry-time flag unsafe for shared scratch cleanup.
@@ -543,7 +565,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             $spine->release_lease( $task_id, $lease_owner, $version );
         }
 
-        $this->current_task_id = '';
+        $this->current_task_id     = '';
+        $this->current_lease_owner = '';
 
         return $spine->get_task( $task_id );
     }
@@ -608,6 +631,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @param string $backup_dir Scratch directory.
      *
      * @throws MainWP_Exception When the dump artifact cannot be created.
+     * @throws MainWP_Backup_Budget_Exception When lease loss interrupts the dump.
      *
      * @return array Slice result.
      */
@@ -646,15 +670,30 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
         $prefix = $sub_state['db_prefix'];
 
+        if ( empty( $sub_state['db_files'] ) && ! empty( $sub_state['tier1_started'] ) && 1 === (int) ( $sub_state['db_tier'] ?? 0 ) ) {
+            // An interrupted snapshot cannot resume its original database transaction.
+            $sub_state['db_tier']         = 2;
+            $sub_state['tier1_attempted'] = 1;
+        }
         if ( empty( $sub_state['db_tier'] ) ) {
             $sub_state['db_tier'] = $this->tier1_available() ? 1 : 2;
         }
 
         if ( empty( $sub_state['db_files'] ) ) {
             if ( 1 === (int) $sub_state['db_tier'] ) {
+                $sub_state['tier1_started'] = 1;
+                $result                     = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
+                if ( $result['abandon'] ) {
+                    return $result;
+                }
+                $version   = $result['version'];
+                $remaining = $deadline - time();
                 try {
                     $files = $this->dump_tier1( $prefix, $remaining );
                 } catch ( MainWP_Backup_Budget_Exception $e ) {
+                    if ( $this->lease_lost ) {
+                        throw $e;
+                    }
                     // One wasted request at most: never retry a snapshot dump
                     // that already proved it cannot fit the budget.
                     unset( $e );
@@ -721,6 +760,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      *
      * @throws \Throwable When a MainWP_Exception from the manifest walk already carries an error code.
      * @throws MainWP_Exception When the manifest needed to seed the chain cannot be built.
+     * @throws MainWP_Backup_Budget_Exception When lease loss interrupts the archive.
      *
      * @return array Slice result.
      */
@@ -765,6 +805,9 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                     'files' === $task->type
                 );
             } catch ( MainWP_Backup_Budget_Exception $e ) {
+                if ( $this->lease_lost ) {
+                    throw $e;
+                }
                 unset( $e );
                 // Partial progress is in the archive itself - just yield.
                 return $this->slice_result( $version, true );
@@ -1024,8 +1067,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             ++$line_no;
         }
 
-        $done = true;
+        $heartbeat = $this->dump_heartbeat();
+        $done      = true;
         while ( true ) {
+            $heartbeat();
             if ( $this->pack_budget_exhausted( $deadline ) ) {
                 if ( null !== $writer && $writer->is_open() ) {
                     // Close the part so the checkpointed entry count has a
@@ -1528,20 +1573,26 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
-     * Keep a single large table from outliving the mutex or stall window.
+     * Keep engine work from outliving its lease, mutex, or stall window.
      *
      * @return callable Liveness callback for one dump invocation.
      */
     protected function dump_heartbeat() {
         $task_id = $this->current_task_id;
+        $owner   = $this->current_lease_owner;
         $spine   = MainWP_Child_Backup_Task::instance();
         $task    = $spine->get_task( $task_id );
         $restore = null !== $task && MainWP_Child_Backup_Task::is_restore_type( $task->type );
         $last    = 0;
 
-        return function () use ( $task_id, $spine, $restore, &$last ) {
+        return function () use ( $task_id, $owner, $spine, $restore, &$last ) {
             if ( time() - $last < 40 ) {
                 return;
+            }
+            if ( ! $spine->renew_lease( $task_id, $owner, self::LEASE_TTL_SECONDS ) ) {
+                $this->lease_lost = true;
+                // Budget exceptions preserve the archive that a successor may already be resuming.
+                throw new MainWP_Backup_Budget_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message and constant code.
             }
             if ( ! $restore && ! MainWP_Child_Backup_Mutex::refresh( $task_id, MainWP_Child_Backup_Mutex::NATIVE_TTL ) ) {
                 throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
@@ -1659,12 +1710,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
         $backup->set_slice_deadline( $deadline );
 
-        $task_id = $this->current_task_id;
-        $backup->set_progress_callback(
-            function () use ( $task_id ) {
-                MainWP_Child_Backup_Task::instance()->touch_progress( $task_id );
-            }
-        );
+        $backup->set_progress_callback( $this->dump_heartbeat() );
 
         try {
             // Passing the full file name with append=true makes the engine
@@ -1718,11 +1764,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
 
         $task_id = $this->current_task_id;
         if ( '' !== $task_id ) {
-            $walker->set_progress_callback(
-                function () use ( $task_id ) {
-                    MainWP_Child_Backup_Task::instance()->touch_progress( $task_id );
-                }
-            );
+            $walker->set_progress_callback( $this->dump_heartbeat() );
         }
 
         return $walker;

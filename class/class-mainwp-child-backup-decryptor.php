@@ -305,7 +305,9 @@ class MainWP_Child_Backup_Decryptor { // phpcs:ignore Generic.Classes.OpeningBra
             throw new MainWP_Exception( 'The sealed archive file is missing from the bundle: ' . esc_html( $key ), null, MainWP_Backup_Error::ERR_ARTIFACT_CORRUPT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal CLI message; key escaped inline.
         }
         $plain = MainWP_Child_Backup_Archive_Cipher::open( $blob, $dek, 'snapshot:' . (int) $snapshot_id . ':whole:' . $archive );
-        fwrite( $out, $plain ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- raw archive write.
+        if ( strlen( $plain ) !== fwrite( $out, $plain ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- raw archive write.
+            throw new MainWP_Exception( 'Could not write the decrypted archive. Check free space in the backup directory.', null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal CLI message.
+        }
     }
 
     /**
@@ -357,7 +359,9 @@ class MainWP_Child_Backup_Decryptor { // phpcs:ignore Generic.Classes.OpeningBra
                     throw new MainWP_Exception( 'A decrypted chunk did not match its content hash.', null, MainWP_Backup_Error::ERR_CHUNK_HASH ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal CLI message.
                 }
             }
-            fwrite( $out, $piece ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- raw archive write.
+            if ( strlen( $piece ) !== fwrite( $out, $piece ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- raw archive write.
+                throw new MainWP_Exception( 'Could not write the decrypted archive. Check free space in the backup directory.', null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal CLI message.
+            }
         }
     }
 

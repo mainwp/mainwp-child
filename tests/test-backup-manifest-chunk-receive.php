@@ -374,4 +374,29 @@ class BackupManifestChunkReceiveTest extends WP_UnitTestCase {
 		global $wpdb;
 		return $wpdb->get_results( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE 'mainwp_manifest_staging_%'" ); // phpcs:ignore WordPress.DB -- test helper.
 	}
+
+	public function test_stale_sweep_deletes_only_removed_manifest_sessions() {
+		$spine = \MainWP\Child\MainWP_Child_Backup_Task::instance();
+		$spine->install();
+		$old = $this->send( '', 'old', 0, hash( 'sha256', 'old' ) );
+		$fresh = $this->send( '', 'fresh', 0, hash( 'sha256', 'fresh' ) );
+		$old_path = $this->dir . '/manifest-staged-' . $old['mtoken'] . '.list';
+		touch( $old_path, time() - 14400 );
+		$invalid = 'not-a-valid-token';
+		$invalid_path = $this->dir . '/manifest-staged-' . $invalid . '.list';
+		file_put_contents( $invalid_path, 'unrelated' );
+		touch( $invalid_path, time() - 14400 );
+		$prefix = MainWP_Child_Backup_Manifest_Chunk_Receiver::OPTION_PREFIX;
+		update_option( $prefix . $invalid, 'keep invalid' );
+		update_option( $prefix . '0123456789abcdef', 'keep without file' );
+		$holder = \MainWP\Child\MainWP_Child_Backup_Mutex::holder();
+		$spine->sweep_stale_markers( $this->dir, 10800, $holder['owner'] ?? null );
+		$this->assertFileDoesNotExist( $old_path );
+		$this->assertFalse( get_option( $prefix . $old['mtoken'] ) );
+		$this->assertFileExists( $this->dir . '/manifest-staged-' . $fresh['mtoken'] . '.list' );
+		$this->assertIsArray( get_option( $prefix . $fresh['mtoken'] ) );
+		$this->assertSame( 'keep invalid', get_option( $prefix . $invalid ) );
+		$this->assertSame( 'keep without file', get_option( $prefix . '0123456789abcdef' ) );
+	}
+
 }
