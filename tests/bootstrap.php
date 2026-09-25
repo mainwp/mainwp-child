@@ -5,14 +5,6 @@
  * @package Mainwp_Child
  */
 
-// Load Composer autoloader (PHPUnit polyfills + test classes).
-$_composer_autoload = dirname( __DIR__ ) . '/vendor/autoload.php';
-if ( ! file_exists( $_composer_autoload ) ) {
-	echo 'Could not find vendor/autoload.php, have you run composer install?' . PHP_EOL;
-	exit( 1 );
-}
-require_once $_composer_autoload;
-
 $_tests_dir = getenv( 'WP_TESTS_DIR' );
 
 if ( ! $_tests_dir ) {

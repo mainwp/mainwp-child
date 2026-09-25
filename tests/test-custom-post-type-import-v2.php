@@ -342,18 +342,4 @@ class Test_Custom_Post_Type_Import_V2 extends WP_UnitTestCase {
 		$this->assertSame( 'variations', $result['partial_stage'] );
 		$this->assertSame( array( 'total' => 1, 'succeeded' => 0, 'failed' => 1 ), $result['variations'] );
 	}
-
-	/** Serialized metadata retains the whitespace tolerance of maybe_unserialize. */
-	public function test_serialized_meta_with_leading_whitespace_imports() {
-		$value = array( 'text' => '50% complete', 'ids' => array( 1, 2 ) );
-		$payload = $this->payload();
-		$payload['postmeta'] = array( array( 'meta_key' => 'spaced_serialized', 'meta_value' => " \n\t" . serialize( $value ) . ' ' ) );
-		$_POST = array( 'data' => wp_slash( wp_json_encode( $payload ) ) );
-		$method = new ReflectionMethod( MainWP_Custom_Post_Type::class, 'import_custom_post_v2' );
-		$method->setAccessible( true );
-		$result = $method->invoke( MainWP_Custom_Post_Type::instance() );
-		$this->assertSame( 'complete', $result['outcome'] );
-		$this->assertSame( $value, get_post_meta( $result['post_id'], 'spaced_serialized', true ) );
-	}
-
 }

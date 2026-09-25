@@ -378,11 +378,7 @@ class MainWP_Clone {
             $file = ! empty( $_POST['file'] ) ? MainWP_Helper::sanitize_filename( wp_unslash( $_POST['file'] ) ) : false;
         }
 
-        try {
-            $res = MainWP_Backup::get()->create_clone_backup( $newExcludes, $file, $includeCoreFiles, $method );
-        } catch ( MainWP_Exception $e ) {
-            MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
-        }
+        $res = MainWP_Backup::get()->create_full_backup( $newExcludes, $file, true, $includeCoreFiles, 0, false, false, false, false, $method );
         if ( ! $res ) {
             $information['backup'] = false;
         } else {
@@ -577,7 +573,7 @@ class MainWP_Clone {
                 throw new \Exception( esc_html__( 'No download link given', 'mainwp-child' ) );
             }
 
-            $file = isset( $_POST['file'] ) ? MainWP_Helper::sanitize_filename( wp_unslash( $_POST['file'] ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized by MainWP_Helper::sanitize_filename().
+            $file = isset( $_POST['file'] ) ? MainWP_Helper::sanitize_filename( wp_unslash( $_POST['file'] ) ) : '';
             if ( isset( $_POST['siteId'] ) ) {
                 $siteId = isset( $_POST['siteId'] ) ? intval( wp_unslash( $_POST['siteId'] ) ) : false;
 
@@ -723,9 +719,9 @@ class MainWP_Clone {
             // phpcs:disable WordPress.Security.NonceVerification
             $file = false;
             if ( isset( $_POST['f'] ) ) {
-                $file = ! empty( $_POST['f'] ) ? MainWP_Helper::sanitize_filename( wp_unslash( $_POST['f'] ) ) : false; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized by MainWP_Helper::sanitize_filename().
+                $file = ! empty( $_POST['f'] ) ? MainWP_Helper::sanitize_filename( wp_unslash( $_POST['f'] ) ) : false;
             } elseif ( isset( $_POST['file'] ) ) {
-                $file = ! empty( $_POST['file'] ) ? MainWP_Helper::sanitize_filename( wp_unslash( $_POST['file'] ) ) : false; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized by MainWP_Helper::sanitize_filename().
+                $file = ! empty( $_POST['file'] ) ? MainWP_Helper::sanitize_filename( wp_unslash( $_POST['file'] ) ) : false;
             }
             // phpcs:enable WordPress.Security.NonceVerification
             $testFull     = false;

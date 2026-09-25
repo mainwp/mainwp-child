@@ -107,10 +107,9 @@ class MainWP_Custom_Post_Type {
             }
 
             if ( isset( $data['sync_cpt_limit'] ) ) {
-                $current_limit = (int) get_option( 'mainwp_child_recent_custom_cpt_ids_limit', 20 );
-                $new_cpt_limit = (int) $data['sync_cpt_limit'];
-                if ( 0 < $new_cpt_limit && $current_limit !== $new_cpt_limit ) {
-                    update_option( 'mainwp_child_recent_custom_cpt_ids_limit', $new_cpt_limit );
+                $current_limit = get_option( 'mainwp_child_recent_custom_cpt_ids_limit', 20 );
+                if ( (int) ( $data['sync_cpt_limit'] ) !== (int) $current_limit && ! empty( $data['sync_cpt_limit'] ) ) {
+                    update_option( 'mainwp_child_recent_custom_cpt_ids_limit', $data['sync_cpt_limit'] );
                 }
             }
         }
@@ -1073,55 +1072,13 @@ class MainWP_Custom_Post_Type {
                     }
                 }
 
-                if ( is_string( $meta_value ) && is_serialized( $meta_value ) ) {
-                    // nosec: allowed_classes => false instantiates no objects, and value_contains_object() drops any payload that still carries one.
-                    $meta_value = @unserialize( trim( $meta_value ), array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions, WordPress.PHP.NoSilencedErrors -- restricted unserialize of a dashboard-fed meta_value (no classes instantiated); the @ matches WordPress core's maybe-unserialize wrapper so a malformed-but-is_serialized payload cannot leak a warning into the response.
-                    if ( $this->value_contains_object( $meta_value ) ) {
-                        continue; // A forged dashboard smuggled a PHP object; never persist a payload WordPress would later re-instantiate on get_post_meta().
-                    }
-                }
+                $meta_value = maybe_unserialize( $meta_value ); // NOSONARR .
                 if ( add_post_meta( $post_id, $key['meta_key'], $meta_value ) === false ) {
                     return array( 'error' => esc_html__( 'Error when adding post meta', 'mainwp-child' ) . ' `' . esc_html( $key['meta_key'] ) . '`' );
                 }
             }
         }
         return true;
-    }
-
-    /**
-     * Method value_contains_object()
-     *
-     * Report whether a value is, or contains anywhere within it, a PHP object.
-     * After a restricted unserialize() ( allowed_classes => false ) any object
-     * in a dashboard-fed payload arrives as a __PHP_Incomplete_Class, both at
-     * the top level and nested inside arrays. Such a payload must not be stored,
-     * because add_post_meta() re-serializes it back to the original class string
-     * and WordPress core re-instantiates it on the next get_post_meta() read.
-     *
-     * @param mixed $value Value to inspect.
-     * @param int   $depth Current nesting depth.
-     *
-     * @return bool True if the value is an object, contains a nested object, or nests too deep to trust.
-     */
-    private function value_contains_object( $value, $depth = 0 ) {
-        if ( is_object( $value ) ) {
-            return true;
-        }
-        // Serialized R: back-references survive the restricted decode, so a
-        // dashboard-fed payload can hand back an array that contains itself.
-        // Anything deeper than real post meta ever nests is treated like an
-        // object: refused, never walked forever.
-        if ( $depth > 32 ) {
-            return true;
-        }
-        if ( is_array( $value ) ) {
-            foreach ( $value as $item ) {
-                if ( $this->value_contains_object( $item, $depth + 1 ) ) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     /**
