@@ -447,12 +447,6 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             );
         }
 
-        $saved_premium_updates = get_option( 'mainwp_child_premium_updates_result' );
-        if ( ! empty( $saved_premium_updates ) && is_array( $saved_premium_updates ) ) {
-            $information['premium_updates_results'] = $saved_premium_updates;
-            delete_option( 'mainwp_child_premium_updates_result' );
-        }
-
         if ( $exit_done ) {
             $information['support_advanced_sign'] = 1;
             MainWP_Helper::write( $information );
