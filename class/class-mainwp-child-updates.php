@@ -175,25 +175,6 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
             $this->update_premiums_to_do( $information, $premiumUpgrader, $mwp_premium_updates_to_do, $mwp_premium_updates_to_do_slugs );
         }
 
-        if ( ! empty( $_POST['perform_premium_action'] ) && 'premium_update' === $_POST['perform_premium_action'] && in_array( $_POST['type'], array( 'plugin', 'theme' ), true ) ) {
-            $saved_info = get_option( 'mainwp_child_premium_updates_result' );
-            if ( ! is_array( $saved_info ) ) {
-                $saved_info = array();
-            }
-            $type = sanitize_text_field( wp_unslash( $_POST['type'] ) );
-            if ( ! isset( $saved_info[ $type ] ) ) {
-                $saved_info[ $type ] = array();
-            }
-
-            if ( ! empty( $information['other_data'] ) ) {
-                $other_data                               = $information['other_data'];
-                $other_data['duration']                   = MainWP_Helper::get_runtime();
-                $other_data['created']                    = time();
-                $saved_info[ $type ][ microtime( true ) ] = array( 'other_data' => $other_data );
-                update_option( 'mainwp_child_premium_updates_result', $saved_info );
-            }
-        }
-
         /**
          * WP-Rocket auto cache purge.
          *
@@ -206,6 +187,10 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ! $plugin_update ) {
             // Save Status results.
             $information['sync'] = MainWP_Child_Stats::get_instance()->get_site_stats( array(), false ); // causing sync plugins updates info are not correct.
+        } else {
+            $information['sync_partial'] = array(
+                'plugins' => MainWP_Child_Stats::get_instance()->get_all_plugins_int( false, '', '', false, false, array( 'site_stats' => false ) ),
+            );
         }
 
         // ** Send data to MainWP Dashboard. **//
@@ -1200,7 +1185,7 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                 if ( ! empty( $type ) ) {
                     $_POST['type']                   = $type;
                     $_POST['list']                   = $list;
-                    $_POST['send_exit']              = false;
+                    $_POST['send_exit']              = true;
                     $_POST['perform_premium_action'] = 'premium_update';
 
                     MainWP_Helper::start_runtime();

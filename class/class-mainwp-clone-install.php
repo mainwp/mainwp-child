@@ -525,21 +525,42 @@ class MainWP_Clone_Install {
             return false;
         }
 
-        if ( null !== $this->archiver ) {
-            if ( ! $this->archiver->is_open() ) {
-                $this->archiver->read( $this->file );
+        $htaccess = ABSPATH . '.htaccess';
+        $original = file_exists( $htaccess ) ? file_get_contents( $htaccess ) : null; //phpcs:ignore WordPress.WP.AlternativeFunctions
+        if ( false === $original ) {
+            throw new \Exception( esc_html__( 'Could not read the destination .htaccess before clone extraction.', 'mainwp-child' ) );
+        }
+
+        try {
+            if ( null !== $this->archiver ) {
+                if ( ! $this->archiver->is_open() ) {
+                    $this->archiver->read( $this->file );
+                }
+                return $this->archiver->extract_to( ABSPATH );
+            } elseif ( ( filesize( $this->file ) >= 50000000 ) && $this->check_wp_zip() ) { // NOSONAR.
+                return $this->extract_wp_zip_backup();
+            } elseif ( $this->check_zip_console() ) {
+                return $this->extract_zip_console_backup();
+            } elseif ( $this->check_zip_support() ) {
+                return $this->extract_zip_backup();
+            } elseif ( ( filesize( $this->file ) < 50000000 ) && $this->check_wp_zip() ) { // NOSONAR.
+                return $this->extract_wp_zip_backup();
+            } else {
+                return $this->extract_zip_pcl_backup();
             }
-            return $this->archiver->extract_to( ABSPATH );
-        } elseif ( ( filesize( $this->file ) >= 50000000 ) && $this->check_wp_zip() ) { // NOSONAR.
-            return $this->extract_wp_zip_backup();
-        } elseif ( $this->check_zip_console() ) {
-            return $this->extract_zip_console_backup();
-        } elseif ( $this->check_zip_support() ) {
-            return $this->extract_zip_backup();
-        } elseif ( ( filesize( $this->file ) < 50000000 ) && $this->check_wp_zip() ) { // NOSONAR.
-            return $this->extract_wp_zip_backup();
-        } else {
-            return $this->extract_zip_pcl_backup();
+        } finally {
+            try {
+                if ( null !== $original ) {
+                    $current = file_exists( $htaccess ) ? file_get_contents( $htaccess ) : null; //phpcs:ignore WordPress.WP.AlternativeFunctions
+                    if ( $current !== $original && false === file_put_contents( $htaccess, $original ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions
+                        error_log( 'Could not restore the destination .htaccess after clone extraction.' ); //phpcs:ignore -- NOSONAR - for dev.
+                    }
+                } elseif ( file_exists( $htaccess ) && ! unlink( $htaccess ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions
+                    error_log( 'Could not remove the cloned root .htaccess.' ); //phpcs:ignore -- NOSONAR - for dev.
+                }
+            } catch ( \Throwable $error ) {
+                error_log( 'Could not preserve the destination .htaccess after clone extraction.' ); //phpcs:ignore -- NOSONAR - for dev.
+            }
         }
     }
 
@@ -789,6 +810,38 @@ class MainWP_Clone_Install {
     }
 
     /**
+     * Report whether a value is, or contains anywhere within it, a PHP object.
+     *
+     * After a restricted unserialize() ( allowed_classes => false ) any object
+     * in the clone-source payload arrives as an __PHP_Incomplete_Class, both at
+     * the top level and nested inside arrays. Such a value must never be
+     * re-serialized: serialize() re-emits the original class string, which a
+     * later option or meta read would rehydrate into a live object.
+     *
+     * @param mixed $value Value to inspect.
+     * @param int   $depth Current nesting depth.
+     *
+     * @return bool True if the value is an object, contains a nested object, or nests too deep to trust.
+     */
+    private function value_contains_object( $value, $depth = 0 ) {
+        if ( is_object( $value ) ) {
+            return true;
+        }
+        // Serialized back-references can produce cyclic arrays even with allowed_classes disabled.
+        if ( $depth > 32 ) {
+            return true;
+        }
+        if ( is_array( $value ) ) {
+            foreach ( $value as $item ) {
+                if ( $this->value_contains_object( $item, $depth + 1 ) ) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
      * Take a serialised array and un-serialize it replacing elements as needed and
      * un-serializing any subordinate arrays and performing the replace on those too.
      *
@@ -803,9 +856,24 @@ class MainWP_Clone_Install {
 
         // some unseriliased data cannot be re-serialised eg. SimpleXMLElements.
         try {
-            $unserialized = ( is_string( $data ) && is_serialized( $data ) ) ? unserialize( $data ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+            // is_serialized() checks the shape of a payload, not its internal
+            // lengths, so a truncated value gets this far and then warns. Core
+            // silences its own decode helper for the same reason: the warning
+            // would print into the clone response body and corrupt it, and the
+            // catch ( \Exception ) below does not catch a warning.
+            $unserialized = ( is_string( $data ) && is_serialized( $data ) ) ? @unserialize( $data, array( 'allowed_classes' => false ) ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.PHP.NoSilencedErrors.Discouraged -- restricted unserialize of clone-source row data, no classes instantiated.
             if ( is_string( $data ) && is_serialized( $data ) && ! is_serialized_string( $data ) && false !== $unserialized ) {
-                $data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
+                if ( $this->value_contains_object( $unserialized ) ) {
+                    // A clone-source cell carrying a serialized PHP object (at any
+                    // depth) arrives here as an __PHP_Incomplete_Class under
+                    // allowed_classes => false. Re-serializing it would re-emit the
+                    // forged class name for a later get_option()/get_post_meta() to
+                    // rehydrate into a gadget, so drop the whole value rather than
+                    // round-trip it.
+                    $data = '';
+                } else {
+                    $data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
+                }
             } elseif ( is_array( $data ) ) {
                 $_tmp = array();
                 foreach ( $data as $key => $value ) {
@@ -826,7 +894,7 @@ class MainWP_Clone_Install {
                 $data = $_tmp;
                 unset( $_tmp );
             } elseif ( is_serialized_string( $data ) && is_serialized( $data ) ) {
-                $data = unserialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+                $data = @unserialize( $data, array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.PHP.NoSilencedErrors.Discouraged -- restricted unserialize of a plain serialized string; a malformed payload must not warn into the clone response.
                 if ( false !== $data ) {
                     $data = str_replace( $from, $to, $data );
                     $data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions

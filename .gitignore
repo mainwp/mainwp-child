@@ -1,10 +1,17 @@
 .idea/
+.vscode/
+
+# Composer
+/vendor/
 composer.lock
+
+# PHPUnit
 .phpunit.result.cache
 
 # Local-only AI / plan files (Dennis approved 2026-09-21 — cloud VMs lack global excludes)
 AGENTS.md
 CLAUDE*.md
 .cursor/
-.mwpdev/
 review-lessons*
+# Dev tools / scratch
+.mwpdev/
