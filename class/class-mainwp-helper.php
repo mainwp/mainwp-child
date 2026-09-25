@@ -124,6 +124,11 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      * @param mixed  $code Contains the error code.
      */
     public function error( $error, $code = null ) {
+        if ( is_string( $error ) ) {
+            // Keep absolute paths, SQL fragments and table names out of Dashboard-facing
+            // error responses; full context belongs in server-side logs only.
+            $error = MainWP_Backup_Error::sanitize_message( $error );
+        }
         $information['error'] = $error;
         if ( null !== $code ) {
             $information['error_code'] = $code;
@@ -136,8 +141,9 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * Get the MainWP directory.
      *
-     * @param string $newdir Contains directory name.
+     * @param string $subdir Contains directory name.
      * @param bool   $die_on_error If true, process will die on error, if false, process will continue.
+     * @param bool   $direct_access If true, allow direct access to the directory.
      *
      * @return array Return directory and directory URL.
      * @throws MainWP_Exception Error Message.
@@ -177,7 +183,11 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         $url = $upload_dir['baseurl'] . '/mainwp/';
 
         if ( 'backup' === $subdir ) {
-            $newdir = $dir . 'backup' . DIRECTORY_SEPARATOR;
+            // The directory name carries a per-site secret so backup
+            // artifacts are not enumerable at a predictable path - .htaccess
+            // protection below is Apache-only and treated as defense-in-depth.
+            $dir_hash = static::get_backup_dir_hash();
+            $newdir   = $dir . 'backup-' . $dir_hash . DIRECTORY_SEPARATOR;
             static::check_dir( $newdir, $die_on_error );
             if ( ! $wp_filesystem->exists( $newdir . 'index.php' ) ) {
                 touch( $newdir . 'index.php' );
@@ -189,7 +199,7 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
                 fwrite( $file, 'deny from all' );
                 fclose( $file );
             }
-            $url .= 'backup/';
+            $url .= 'backup-' . $dir_hash . '/';
         } else {
             $newdir = ! empty( $subdir ) ? $dir . $subdir . DIRECTORY_SEPARATOR : $dir;
             $url   .= $subdir . '/';
@@ -209,6 +219,63 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         return array( $newdir, $url );
     }
 
+
+    /**
+     * Method get_backup_dir_hash()
+     *
+     * Get (or generate once) the per-site backup directory secret.
+     *
+     * SECURITY: the hash IS the directory secret - the only protection on
+     * servers that ignore .htaccess (Nginx, LiteSpeed proxy, IIS). Never echo
+     * it into HTML source, a public REST response, or any output a
+     * non-administrator can see; it may only leave the site inside an
+     * authenticated MainWP Dashboard response (backup_preflight).
+     *
+     * @return string 16-character alphanumeric secret.
+     */
+    public static function get_backup_dir_hash() {
+        $dir_hash = get_option( 'mainwp_backup_dir_hash' );
+        if ( empty( $dir_hash ) ) {
+            // add_option() so a concurrent first backup cannot overwrite the
+            // winner's value; autoload disabled to keep the secret out of the
+            // alloptions preload.
+            add_option( 'mainwp_backup_dir_hash', wp_generate_password( 16, false ), '', 'no' );
+            $dir_hash = get_option( 'mainwp_backup_dir_hash' );
+        }
+        return $dir_hash;
+    }
+
+    /**
+     * Method locate_backup_file()
+     *
+     * Find an existing backup file: the randomized directory first, then the
+     * legacy uploads/mainwp/backup/ directory. The legacy directory is never
+     * renamed (an in-flight backup may be writing to it), so pre-upgrade
+     * files stay downloadable through this fallback.
+     *
+     * @param string $filename Backup file name (no path).
+     *
+     * @return string|false Full path of the file, or false when not found or invalid.
+     */
+    public static function locate_backup_file( $filename ) {
+        if ( ! is_string( $filename ) || '' === $filename || false !== strpos( $filename, '..' ) || false !== strpos( $filename, '/' ) || false !== strpos( $filename, '\\' ) ) {
+            return false;
+        }
+
+        $dirs     = static::get_mainwp_dir( 'backup' );
+        $new_path = $dirs[0] . $filename;
+        if ( file_exists( $new_path ) ) {
+            return $new_path;
+        }
+
+        $upload_dir  = wp_upload_dir();
+        $legacy_path = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'mainwp' . DIRECTORY_SEPARATOR . 'backup' . DIRECTORY_SEPARATOR . $filename;
+        if ( file_exists( $legacy_path ) ) {
+            return $legacy_path;
+        }
+
+        return false;
+    }
 
     /**
      * Method fs_is_connected()
@@ -884,6 +951,53 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
         return false;
+    }
+
+    /**
+     * Method is_dump_litter()
+     *
+     * Whether a site-relative path is a database-dump byproduct at the
+     * site root or directly under wp-content - the exact set the restore
+     * litter sweep deletes. Litter must never be archived: a stale dump
+     * riding inside a backup can win extraction on a later restore and
+     * silently roll the site back.
+     *
+     * @param string $value Site-relative path.
+     *
+     * @return bool true|false If dump litter, return true, if not, return false.
+     */
+    public static function is_dump_litter( $value ) {
+        $value = ltrim( (string) $value, '/' );
+        if ( '' === $value ) {
+            return false;
+        }
+
+        $dir = dirname( $value );
+        if ( '.' !== $dir && 'wp-content' !== $dir ) {
+            return false;
+        }
+
+        $base = basename( $value );
+        if ( 0 !== strpos( $base, 'dbBackup' ) ) {
+            return false;
+        }
+
+        return static::ends_with( $base, '.sql' ) || static::ends_with( $base, '.sql.php' );
+    }
+
+    /**
+     * Method excluded_from_backup()
+     *
+     * Whether a backup traversal must skip a site-relative path: either
+     * the exclude list covers it or it is dump litter.
+     *
+     * @param array  $excludes Array containing the list of excludes.
+     * @param string $value Site-relative path to check.
+     *
+     * @return bool true|false If excluded, return true, if not, return false.
+     */
+    public static function excluded_from_backup( $excludes, $value ) {
+        return static::in_excludes( $excludes, $value ) || static::is_dump_litter( $value );
     }
 
     /**
