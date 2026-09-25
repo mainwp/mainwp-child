@@ -95,6 +95,8 @@ class MainWP_Child_Backup_Manifest_Chunk_Receiver { // phpcs:ignore Generic.Clas
             return $this->chunk_error( MainWP_Backup_Error::ERR_CHUNK_HASH );
         }
 
+        $started_session = false;
+
         if ( '' === $mtoken ) {
             if ( 0 !== $offset ) {
                 return $this->chunk_error( MainWP_Backup_Error::ERR_MANIFEST_CHUNK_WRONG_PHASE );
@@ -107,6 +109,7 @@ class MainWP_Child_Backup_Manifest_Chunk_Receiver { // phpcs:ignore Generic.Clas
                 'ready'        => false,
             );
             update_option( self::OPTION_PREFIX . $mtoken, $session, false );
+            $started_session = true;
         } else {
             $session = $this->session( $mtoken );
             if ( null === $session ) {
@@ -137,6 +140,11 @@ class MainWP_Child_Backup_Manifest_Chunk_Receiver { // phpcs:ignore Generic.Clas
 
         $write_error = MainWP_Child_Chunk_Append_Helper::append_chunk( $path, $raw, $offset );
         if ( null !== $write_error ) {
+            if ( $started_session ) {
+                // Why: sweep_stale_markers() only clears an option after it removes a matching
+                // file, so a session that never got its first byte written would outlive its sweep.
+                $this->discard_session( $mtoken, $path );
+            }
             return $this->chunk_error( $write_error );
         }
         if ( '' !== $raw ) {

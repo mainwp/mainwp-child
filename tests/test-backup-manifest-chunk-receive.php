@@ -366,6 +366,33 @@ class BackupManifestChunkReceiveTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * When the first chunk creates the session but its append fails, the
+	 * session option must not outlive the failed write: sweep_stale_markers()
+	 * only clears options after it removes a matching file, so a fileless
+	 * session would never be swept.
+	 */
+	public function test_first_chunk_append_failure_discards_session() {
+		$receiver                  = new Manifest_Chunk_Test_Receiver();
+		$receiver->test_backup_dir = $this->dir . '/no-such-subdir';
+
+		// The failing fopen() warns; the harness would turn that into an error before the receiver can answer.
+		set_error_handler(
+			static function () {
+				return true;
+			},
+			E_WARNING
+		);
+		try {
+			$ack = $receiver->receive_chunk( '', 0, 'abc', hash( 'sha256', 'abc' ), hash( 'sha256', 'abc' ), false );
+		} finally {
+			restore_error_handler();
+		}
+
+		$this->assertArrayHasKey( 'error_code', $ack );
+		$this->assertSame( array(), $this->staging_options() );
+	}
+
+	/**
 	 * Read all staging options left behind.
 	 *
 	 * @return array Option rows.
