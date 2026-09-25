@@ -95,15 +95,6 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
      */
     private static $client_ip = '';
 
-    /**
-     * Current WP version.
-     *
-     * @var string
-     *
-     * @since 6.2.1
-     */
-    private static $current_wp_version = '';
-
 
     /**
      * Method get_class_name()
@@ -157,11 +148,6 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
             'deleted_plugin',
             '_core_updated_successfully',
         );
-        if ( \function_exists( 'wp_get_wp_version' ) ) {
-            self::$current_wp_version = wp_get_wp_version();
-        } else {
-            self::$current_wp_version = \get_bloginfo( 'version' );
-        }
     }
 
     /**
@@ -722,7 +708,7 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
         // Get WordPress version via the shared helper method for consistency.
         // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Using static access for centralized version retrieval
-        $old_version  = self::$current_wp_version;
+        $old_version  = MainWP_Child_Server_Information_Base::get_wordpress_version();
         $new_version  = $info->item->version;
         $auto_updated = true;
 
@@ -753,8 +739,8 @@ class MainWP_Child_Actions { //phpcs:ignore -- NOSONAR - multi method.
 
         // Get WordPress version using the centralized method.
         // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Using static access for centralized version retrieval
-        $new_version = $new_ver;
-        $old_version = self::$current_wp_version;
+        $new_version = MainWP_Child_Server_Information_Base::get_wordpress_version();
+        $old_version = $new_version; // Current version is now the old version after update.
 
         $auto_updated = empty( $pagenow ) || 'update-core.php' !== $pagenow;
 
