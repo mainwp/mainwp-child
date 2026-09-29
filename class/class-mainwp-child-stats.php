@@ -254,6 +254,10 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         // First check for new premium updates.
         $this->check_premium_updates( $information, $premiumPlugins, $premiumThemes );
 
+        if ( ! isset( $information['premium_updates'] ) ) {
+            $information['premium_updates'] = array();
+        }
+
         remove_filter( 'default_option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
         remove_filter( 'option_active_plugins', array( &$this, 'default_option_active_plugins' ) );
 
