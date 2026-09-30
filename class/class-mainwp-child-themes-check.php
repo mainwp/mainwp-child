@@ -65,6 +65,13 @@ class MainWP_Child_Themes_Check {
     private $tran_name_themes_to_batch = 'mainwp_child_tran_name_themes_to_batch';
 
     /**
+     * Transient: Themes whose WordPress.org request returned no last_updated.
+     *
+     * @var string
+     */
+    private $tran_name_themes_no_date = 'mainwp_child_tran_name_themes_no_date';
+
+    /**
      * Transient: Theme last daily run.
      *
      * @var string
@@ -130,6 +137,7 @@ class MainWP_Child_Themes_Check {
         delete_option( $this->option_name_last_daily_run );
         if ( $del ) {
             delete_transient( $this->tran_name_theme_timestamps );
+            delete_transient( $this->tran_name_themes_no_date );
         }
     }
 
@@ -252,6 +260,59 @@ class MainWP_Child_Themes_Check {
             set_transient( $this->tran_name_theme_timestamps, $themes_outdate, 2 * DAY_IN_SECONDS );
         }
 
+        if ( 1 === (int) get_option( 'mainwp_child_abandoned_check_by_local_date', 0 ) ) {
+            $themes_outdate = $this->fill_undated_from_file_mtime( $themes_outdate, $themes );
+        }
+
+        return $themes_outdate;
+    }
+
+    /**
+     * Fill abandoned rows for themes WordPress.org could not date, using style.css mtime.
+     *
+     * @param array $themes_outdate WordPress.org abandoned rows keyed by stylesheet.
+     * @param array $themes         Installed themes from wp_get_themes().
+     *
+     * @return array Abandoned rows, with undated items filled from file mtime.
+     */
+    private function fill_undated_from_file_mtime( $themes_outdate, $themes ) {
+        $no_date = get_transient( $this->tran_name_themes_no_date );
+        if ( ! is_array( $no_date ) || empty( $no_date ) ) {
+            return $themes_outdate;
+        }
+
+        $tolerance_in_days = (int) get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
+        $now               = time();
+
+        foreach ( $no_date as $slug => $flag ) {
+            if ( ! isset( $themes[ $slug ] ) || isset( $themes_outdate[ $slug ] ) ) {
+                continue;
+            }
+
+            $theme = $themes[ $slug ];
+            $file  = $theme->get_stylesheet_directory() . '/style.css';
+            if ( ! is_file( $file ) || ! is_readable( $file ) ) {
+                continue;
+            }
+
+            $mtime = filemtime( $file );
+            if ( false === $mtime ) {
+                continue;
+            }
+
+            if ( floor( ( $now - $mtime ) / DAY_IN_SECONDS ) < $tolerance_in_days ) {
+                continue;
+            }
+
+            $themes_outdate[ $slug ] = array(
+                'Name'          => $theme->get( 'Name' ),
+                'Version'       => $theme->display( 'Version', true, false ),
+                'last_updated'  => $mtime,
+                'file_modified' => $mtime,
+                'detection'     => 'file_mtime',
+            );
+        }
+
         return $themes_outdate;
     }
 
@@ -326,41 +387,52 @@ class MainWP_Child_Themes_Check {
         $themes_to_scan    = array_splice( $all_themes, 0, apply_filters( 'mainwp_child_theme_health_check_max_themes_to_batch', 10 ) );
         $tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 
+        $no_date = get_transient( $this->tran_name_themes_no_date );
+        if ( ! is_array( $no_date ) ) {
+            $no_date = array();
+        }
+
         foreach ( $themes_to_scan as $slug => $v ) {
             if ( in_array( $slug, $avoid_themes ) ) {
                 continue;
             }
 
-            $body = $this->try_get_response_body( $slug, false );
+            $body = $this->try_get_response_body( $slug );
 
+            // We couldn't reach WordPress.org, skip this theme.
             if ( false === $body ) {
                 continue;
             }
 
             // Deserialize the response.
-            $obj = maybe_unserialize( $body ); // phpcs:ignore -- to compatible with third party, it's safe.
+            $obj = '' === $body ? false : maybe_unserialize( $body ); // phpcs:ignore -- to compatible with third party, it's safe.
 
-            $now = new \DateTime();
-
-            // Sanity check that deserialization worked and that our property exists.
-            if ( false !== $obj && is_object( $obj ) && property_exists( $obj, 'last_updated' ) ) {
-                $last_updated            = strtotime( $obj->last_updated );
-                $theme_last_updated_date = new \DateTime( '@' . $last_updated );
-
-                $diff_in_days = $now->diff( $theme_last_updated_date )->format( '%a' );
-
-                if ( $diff_in_days < $tolerance_in_days ) {
-                    continue;
-                }
-
-                $v['last_updated'] = $last_updated;
-
-                $responses[ $slug ] = $v;
+            // WordPress.org answered but could not date this theme (premium or unpublished).
+            if ( ! is_object( $obj ) || ! property_exists( $obj, 'last_updated' ) ) {
+                $no_date[ $slug ] = 1;
+                continue;
             }
+
+            unset( $no_date[ $slug ] );
+
+            $now                     = new \DateTime();
+            $last_updated            = strtotime( $obj->last_updated );
+            $theme_last_updated_date = new \DateTime( '@' . $last_updated );
+
+            $diff_in_days = $now->diff( $theme_last_updated_date )->format( '%a' );
+
+            if ( $diff_in_days < $tolerance_in_days ) {
+                continue;
+            }
+
+            $v['last_updated'] = $last_updated;
+
+            $responses[ $slug ] = $v;
         }
 
         // Store the master response for usage in the plugin table.
         set_transient( $this->tran_name_theme_timestamps, $responses, 2 * DAY_IN_SECONDS );
+        set_transient( $this->tran_name_themes_no_date, $no_date, 2 * DAY_IN_SECONDS );
 
         if ( empty( $all_themes ) ) {
             delete_transient( $this->tran_name_themes_to_batch );
@@ -376,9 +448,10 @@ class MainWP_Child_Themes_Check {
      * Try to get response body.
      *
      * @param string $theme Theme slug.
-     * @return string|bool Return response $body or FALSE on failure.
+     * @return string|bool Return response $body. Empty string when WordPress.org answered without theme data (not found, empty or N;). FALSE when no request got an answer.
      */
     private function try_get_response_body( $theme ) {
+        $answered = false;
 
         // Get the WordPress current version to be polite in the API call.
         include_once ABSPATH . WPINC . '/version.php'; // NOSONAR - WP compatible.
@@ -409,31 +482,58 @@ class MainWP_Child_Themes_Check {
 
         $raw_response = wp_remote_post( $url, $http_args );
 
-        if ( ! is_wp_error( $raw_response ) && 200 === (int) wp_remote_retrieve_response_code( $raw_response ) ) {
-            // Get the actual body.
-            $body = wp_remote_retrieve_body( $raw_response );
-
-            // Make sure that it isn't empty and also not an empty serialized object.
-            if ( '' !== $body && 'N;' !== $body ) {
-                return $body;
-            }
+        $body = $this->read_response_body( $raw_response, $answered );
+        if ( false !== $body ) {
+            return $body;
         }
 
         // The above valid.
         // If we previously tried an SSL version try without SSL.
-        // Code below same as above block.
         if ( $ssl ) {
             $raw_response = wp_remote_post( $http_url, $http_args );
-
-            if ( ! is_wp_error( $raw_response ) && 200 === (int) wp_remote_retrieve_response_code( $raw_response ) ) {
-                $body = wp_remote_retrieve_body( $raw_response );
-                if ( '' !== $body && 'N;' !== $body ) {
-                    return $body;
-                }
+            $body         = $this->read_response_body( $raw_response, $answered );
+            if ( false !== $body ) {
+                return $body;
             }
         }
 
         // Everything above failed, bail!
+        return $answered ? '' : false;
+    }
+
+    /**
+     * Read a theme info response body.
+     *
+     * A 404 or an empty 200 means WordPress.org has no data for the slug, which differs from a failed request.
+     *
+     * @param array|\WP_Error $raw_response Response from wp_remote_post().
+     * @param bool            $answered     Set to true when WordPress.org answered without theme data.
+     *
+     * @return string|false The body, or false when there is no usable body.
+     */
+    private function read_response_body( $raw_response, &$answered ) {
+        if ( is_wp_error( $raw_response ) ) {
+            return false;
+        }
+
+        $code = (int) wp_remote_retrieve_response_code( $raw_response );
+        if ( 404 === $code ) {
+            $answered = true;
+            return false;
+        }
+
+        if ( 200 !== $code ) {
+            return false;
+        }
+
+        $body = wp_remote_retrieve_body( $raw_response );
+
+        // Make sure that it isn't empty and also not an empty serialized object.
+        if ( '' !== $body && 'N;' !== $body ) {
+            return $body;
+        }
+
+        $answered = true;
         return false;
     }
 }
