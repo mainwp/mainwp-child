@@ -761,6 +761,14 @@ class MainWP_Pages {
             printf( esc_html__( 'Add an extra layer of security for connecting this site to your %s Dashboard.', 'mainwp-child' ), esc_html( stripslashes( $branding_title ) ) );
             ?>
             </p>
+            <p><?php esc_html_e( 'The Unique Security ID is generated automatically when you enable this option and save settings. Saving settings again keeps the same ID.', 'mainwp-child' ); ?></p>
+            <p><?php esc_html_e( 'To generate a new Unique Security ID, turn this option off and save settings, then turn it back on and save again. If Password Authentication is disabled, enable it first so Unique Security ID can be turned off. If this site is already connected, update the Unique Security ID on your Dashboard after you generate a new one.', 'mainwp-child' ); ?></p>
+            <p>
+            <?php
+            // translators: %s: Branding title (e.g., "MainWP").
+            printf( esc_html__( 'Depending on what is enabled here, your %s Dashboard may connect with an administrator password only, this Unique Security ID only, or both.', 'mainwp-child' ), esc_html( stripslashes( $branding_title ) ) );
+            ?>
+            </p>
 
             <table class="form-table">
                 <tbody>
@@ -788,7 +796,15 @@ class MainWP_Pages {
                     <tbody>
                         <tr>
                             <th scope="row" style="width:300px"><?php esc_html_e( 'Your unique security ID is:', 'mainwp-child' ); ?></th>
-                            <td><?php echo '<code>' . esc_html( get_option( 'mainwp_child_uniqueId' ) ) . '</code>'; ?></td>
+                            <td>
+                                <?php echo '<code>' . esc_html( get_option( 'mainwp_child_uniqueId' ) ) . '</code>'; ?>
+                                <p class="description">
+                                <?php
+                                // translators: %s: Branding title (e.g., "MainWP").
+                                printf( esc_html__( 'Copy this value into your %s Dashboard when connecting or reconnecting this site. Saving settings does not generate a new ID.', 'mainwp-child' ), esc_html( stripslashes( $branding_title ) ) );
+                                ?>
+                                </p>
+                            </td>
                         <tr>
                     </tbody>
                 </table>

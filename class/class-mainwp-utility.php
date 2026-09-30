@@ -736,11 +736,6 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function simulate_admin_visit( $target_path, $get_args, $perform ) { // phpcs:ignore -- NOSONAR - complex.
 
-        // Authorization check.
-        if ( ! current_user_can( 'manage_options' ) ) {
-            return array( 'error' => __( 'Unauthorized access', 'mainwp-child' ) );
-        }
-
         if ( empty( $target_path ) || ! is_string( $target_path ) || strlen( $target_path ) < 2 ) {
             return array( 'error' => __( 'Missing or invalid url', 'mainwp-child' ) );
         }
@@ -783,8 +778,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         );
 
         if ( 'premium_update' === $perform ) {
-            $request_args ['blocking'] = false;
-            $request_args ['timeout']  = 5;
+            $request_args['timeout'] = 600;
         }
 
         // Build Final Target URL.
@@ -803,41 +797,29 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             );
         }
 
-        if ( 'premium_update' === $perform ) {
-
-            $dispatch_success = ! is_wp_error( $response );
-
-            $upgrades_started = array();
-
-            if ( ! empty( $get_args['list'] ) ) {
-                foreach ( explode( ',', $get_args['list'] ) as $slug ) {
-                    $slug = trim( $slug );
-                    if ( '' !== $slug ) {
-                        $upgrades_started[ $slug ] = $dispatch_success;
-                    }
-                }
-            }
-
+        if ( 'premium_update' === $perform && is_wp_error( $response ) ) {
             return array(
-                'status'           => $dispatch_success ? 'started' : 'failed',
-                'upgrades_started' => $upgrades_started,
-                'message'          => $dispatch_success
-                    ? esc_html__( 'Premium action requested. Please wait a moment and sync the data again later.', 'mainwp-child' )
-                    : esc_html__( 'Premium action request failed. Please try again later.', 'mainwp-child' ),
-                'message_code'     => $dispatch_success ? 'PREMIUM_ACTION_REQUESTED' : 'PREMIUM_ACTION_FAILED',
+                'status'         => 'failed',
+                'error'          => esc_html__( 'Premium update request failed. Please try again later.', 'mainwp-child' ),
+                'error_code'     => 'PREMIUM_ACTION_FAILED',
+                'rep_error'      => $response->get_error_message(),
+                'rep_error_code' => $response->get_error_code(),
+            );
+        }
+
+        $body = wp_remote_retrieve_body( $response );
+
+        if ( preg_match( '/<mainwp>.*?<\/mainwp>/s', $body, $matches ) ) {
+            return array(
+                'success'          => 1,
+                'updates_response' => $matches[0],
             );
         }
 
         $http_code = wp_remote_retrieve_response_code( $response );
-
-        if ( 200 === (int) $http_code ) {
-            return array(
-                'success' => 1,
-            );
-        }
-
         return array(
             'http_code' => $http_code,
+            'error'     => esc_html__( 'Premium update request failed. Please try again later.', 'mainwp-child' ),
         );
     }
 
