@@ -115,6 +115,12 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 
 == Changelog ==
 
+= 6.2.1 - 9-30-2026 =
+
+* Fixed: Resolved an issue where installed premium updates remained listed after synchronizing the child site with the MainWP Dashboard.
+* Updated: Premium update requests now return results immediately for more timely status reporting.
+* Updated: Expanded the Unique Security ID guidance to cover automatic generation, regeneration, connection methods, and updates in the MainWP Dashboard
+
 = 6.2 - 9-9-2026 =
 
 * Added: Version 2 capabilities and operations across backups, staging, security, vulnerability scanning, SEO, branding, maintenance, WooCommerce, caching, and other integrations.
