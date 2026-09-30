@@ -791,6 +791,9 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         $premiumThemes             = array();
 
         if ( is_array( $informationPremiumUpdates ) ) {
+            // A valid array result represents a completed premium update check.
+            // Initialize the list here so an empty result explicitly clears stale offers.
+            $information['premium_updates']  = array();
             $premiumUpdates                  = array();
             $informationPremiumUpdatesLength = count( $informationPremiumUpdates );
             for ( $i = 0; $i < $informationPremiumUpdatesLength; $i++ ) {
@@ -809,10 +812,6 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
 
                 unset( $informationPremiumUpdates[ $i ]['old_version'] );
                 unset( $informationPremiumUpdates[ $i ]['new_version'] );
-
-                if ( ! isset( $information['premium_updates'] ) ) {
-                    $information['premium_updates'] = array();
-                }
 
                 $information['premium_updates'][ $slug ]           = $informationPremiumUpdates[ $i ];
                 $information['premium_updates'][ $slug ]['update'] = (object) array(
