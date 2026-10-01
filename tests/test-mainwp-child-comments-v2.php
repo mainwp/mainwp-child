@@ -53,6 +53,36 @@ class Test_MainWP_Child_Comments_V2 extends WP_UnitTestCase {
 		$this->assertNull( $missing['comment'] );
 	}
 
+	/** Dashboard column limits also apply to exact comment reads. */
+	public function test_get_comment_accepts_dashboard_column_limits() {
+		$content = str_repeat( 'c', 12000 );
+		$author  = str_repeat( 'a', 255 );
+		$title   = str_repeat( 't', 65535 );
+		wp_update_post( array( 'ID' => $this->post_id, 'post_title' => $title ) );
+		$comment_id = $this->create_comment( '0', $content );
+		wp_update_comment( array( 'comment_ID' => $comment_id, 'comment_author' => $author ) );
+		$request = array( 'operation' => 'get_comment', 'comment_id' => $comment_id );
+
+		$result = $this->comments->comments_v2( 'get_comment', $request );
+		$this->assertTrue( $result['found'] );
+		$this->assertSame( $content, $result['comment']['comment_content'] );
+		$this->assertSame( $author, $result['comment']['comment_author'] );
+		$this->assertSame( $title, $result['comment']['post_title'] );
+
+		$maximum = str_repeat( 'c', 65535 );
+		wp_update_comment( array( 'comment_ID' => $comment_id, 'comment_content' => $maximum ) );
+		$this->assertSame( $maximum, $this->comments->comments_v2( 'get_comment', $request )['comment']['comment_content'] );
+
+		// The text column cannot store an oversized fixture, so exercise the read bound through the cache.
+		$oversized                  = clone get_comment( $comment_id );
+		$oversized->comment_content = str_repeat( 'c', 65536 );
+		wp_cache_set( $comment_id, $oversized, 'comment' );
+		$this->assertSame(
+			array( 'contract_version' => 2, 'operation' => 'get_comment', 'error_code' => 'invalid_request', 'error_message' => 'The Comments v2 request is invalid.' ),
+			$this->comments->comments_v2( 'get_comment', $request )
+		);
+	}
+
 	/** Closed malformed inputs are rejected before state changes. */
 	public function test_malformed_duplicate_and_transition_inputs_do_not_mutate() {
 		$comment_id = $this->create_comment( '0' );
