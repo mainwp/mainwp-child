@@ -65,6 +65,13 @@ class MainWP_Child_Plugins_Check {
     private $tran_name_plugins_to_batch = 'mainwp_child_tran_name_plugins_to_batch';
 
     /**
+     * Transient: Plugins whose WordPress.org request returned no last_updated.
+     *
+     * @var string
+     */
+    private $tran_name_plugins_no_date = 'mainwp_child_tran_name_plugins_no_date';
+
+    /**
      * Transient: Plugin last daily run.
      *
      * @var string
@@ -130,6 +137,7 @@ class MainWP_Child_Plugins_Check {
         delete_option( $this->option_name_last_daily_run );
         if ( $del ) {
             delete_transient( $this->tran_name_plugin_timestamps );
+            delete_transient( $this->tran_name_plugins_no_date );
         }
     }
 
@@ -253,6 +261,59 @@ class MainWP_Child_Plugins_Check {
             set_transient( $this->tran_name_plugin_timestamps, $plugins_outdate, 2 * DAY_IN_SECONDS );
         }
 
+        if ( 1 === (int) get_option( 'mainwp_child_abandoned_check_by_local_date', 0 ) ) {
+            $plugins_outdate = $this->fill_undated_from_file_mtime( $plugins_outdate, $plugins );
+        }
+
+        return $plugins_outdate;
+    }
+
+    /**
+     * Fill abandoned rows for plugins WordPress.org could not date, using the main file's mtime.
+     *
+     * @param array $plugins_outdate WordPress.org abandoned rows keyed by plugin file.
+     * @param array $plugins         Installed plugins from get_plugins().
+     *
+     * @return array Abandoned rows, with undated items filled from file mtime.
+     */
+    private function fill_undated_from_file_mtime( $plugins_outdate, $plugins ) {
+        $no_date = get_transient( $this->tran_name_plugins_no_date );
+        if ( ! is_array( $no_date ) || empty( $no_date ) ) {
+            return $plugins_outdate;
+        }
+
+        $tolerance_in_days = (int) get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
+        $now               = time();
+
+        foreach ( $no_date as $slug => $flag ) {
+            if ( ! isset( $plugins[ $slug ] ) || isset( $plugins_outdate[ $slug ] ) ) {
+                continue;
+            }
+
+            $file = WP_PLUGIN_DIR . '/' . $slug;
+            if ( ! is_file( $file ) || ! is_readable( $file ) ) {
+                continue;
+            }
+
+            $mtime = filemtime( $file );
+            if ( false === $mtime ) {
+                continue;
+            }
+
+            if ( floor( ( $now - $mtime ) / DAY_IN_SECONDS ) < $tolerance_in_days ) {
+                continue;
+            }
+
+            $plugins_outdate[ $slug ] = array(
+                'Name'          => $plugins[ $slug ]['Name'],
+                'PluginURI'     => $plugins[ $slug ]['PluginURI'],
+                'Version'       => $plugins[ $slug ]['Version'],
+                'last_updated'  => $mtime,
+                'file_modified' => $mtime,
+                'detection'     => 'file_mtime',
+            );
+        }
+
         return $plugins_outdate;
     }
 
@@ -305,6 +366,12 @@ class MainWP_Child_Plugins_Check {
                 MainWP_Child_Themes_Check::instance()->cleanup_deactivation();
             }
         }
+        if ( isset( $_POST['abandonedCheckByLocalDate'] ) ) {
+            $local_date_check = ! empty( $_POST['abandonedCheckByLocalDate'] ) ? 1 : 0;
+            if ( (int) get_option( 'mainwp_child_abandoned_check_by_local_date', 0 ) !== $local_date_check ) {
+                MainWP_Helper::update_option( 'mainwp_child_abandoned_check_by_local_date', $local_date_check );
+            }
+        }
         // phpcs:enable
     }
 
@@ -353,6 +420,11 @@ class MainWP_Child_Plugins_Check {
         $plugins_to_scan   = array_splice( $all_plugins, 0, apply_filters( 'mainwp_child_plugin_health_check_max_plugins_to_batch', 10 ) );
         $tolerance_in_days = get_option( 'mainwp_child_plugintheme_days_outdate', 365 );
 
+        $no_date = get_transient( $this->tran_name_plugins_no_date );
+        if ( ! is_array( $no_date ) ) {
+            $no_date = array();
+        }
+
         // Loop through each known plugin.
         foreach ( $plugins_to_scan as $slug => $v ) {
             if ( in_array( $slug, $avoid_plugins ) ) {
@@ -361,36 +433,42 @@ class MainWP_Child_Plugins_Check {
             // Try to get the raw information for this plugin.
             $body = $this->try_get_response_body( $slug, false );
 
-            // We couldn't get any information, skip this plugin.
+            // We couldn't reach WordPress.org, skip this plugin.
             if ( false === $body ) {
                 continue;
             }
 
             // Deserialize the response.
-            $obj = maybe_unserialize( $body );
+            $obj = '' === $body ? false : maybe_unserialize( $body );
 
-            $now = new \DateTime();
-
-            // Sanity check that deserialization worked and that our property exists.
-            if ( false !== $obj && is_object( $obj ) && property_exists( $obj, 'last_updated' ) ) {
-                if ( version_compare( $v['Version'], $obj->version, '>' ) ) {
-                    continue;
-                }
-                $last_updated             = strtotime( $obj->last_updated );
-                $plugin_last_updated_date = new \DateTime( '@' . $last_updated );
-
-                $diff_in_days = $now->diff( $plugin_last_updated_date )->format( '%a' );
-
-                if ( $diff_in_days < $tolerance_in_days ) {
-                    continue;
-                }
-                $v['last_updated']  = $last_updated;
-                $responses[ $slug ] = $v;
+            // WordPress.org answered but could not date this plugin (premium or unpublished).
+            if ( ! is_object( $obj ) || ! property_exists( $obj, 'last_updated' ) ) {
+                $no_date[ $slug ] = 1;
+                continue;
             }
+
+            unset( $no_date[ $slug ] );
+
+            if ( version_compare( $v['Version'], $obj->version, '>' ) ) {
+                continue;
+            }
+
+            $now                      = new \DateTime();
+            $last_updated             = strtotime( $obj->last_updated );
+            $plugin_last_updated_date = new \DateTime( '@' . $last_updated );
+
+            $diff_in_days = $now->diff( $plugin_last_updated_date )->format( '%a' );
+
+            if ( $diff_in_days < $tolerance_in_days ) {
+                continue;
+            }
+            $v['last_updated']  = $last_updated;
+            $responses[ $slug ] = $v;
         }
 
         // Store the master response for usage in the plugin table.
         set_transient( $this->tran_name_plugin_timestamps, $responses, 2 * DAY_IN_SECONDS );
+        set_transient( $this->tran_name_plugins_no_date, $no_date, 2 * DAY_IN_SECONDS );
 
         if ( empty( $all_plugins ) ) {
             delete_transient( $this->tran_name_plugins_to_batch );
@@ -406,9 +484,10 @@ class MainWP_Child_Plugins_Check {
      * @param string $plugin Plugin slug.
      * @param bool   $second_pass Second pass check.
      *
-     * @return bool|string true|false The body of the response. Empty string if no body or incorrect parameter given.
+     * @return bool|string The body of the response. Empty string when WordPress.org answered without plugin data (not found, empty or N;). False when no request got an answer.
      */
     private function try_get_response_body( $plugin, $second_pass ) { //phpcs:ignore -- NOSONAR - complex.
+        $answered = false;
 
         // Get the WordPress current version to be polite in the API call.
         // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Using static access for centralized version retrieval
@@ -437,34 +516,25 @@ class MainWP_Child_Plugins_Check {
         // Try to get the response (usually the SSL version).
         $raw_response = wp_remote_get( $url . $plugin_dir, $options );
 
-        // If we don't have an error and we received a valid response code.
-        if ( ! is_wp_error( $raw_response ) && 200 === (int) wp_remote_retrieve_response_code( $raw_response ) ) {
-            // Get the actual body.
-            $body = wp_remote_retrieve_body( $raw_response );
-
-            // Make sure that it isn't empty and also not an empty serialized object.
-            if ( '' !== $body && 'N;' !== $body ) {
-                return $body;
-            }
+        $body = $this->read_response_body( $raw_response, $answered );
+        if ( false !== $body ) {
+            return $body;
         }
 
         // The above valid!
         // If we previously tried an SSL version try without SSL.
-        // Code below same as above block.
         if ( $ssl ) {
             $raw_response = wp_remote_get( $http_url . $plugin, $options );
-            if ( ! is_wp_error( $raw_response ) && 200 === (int) wp_remote_retrieve_response_code( $raw_response ) ) {
-                $body = wp_remote_retrieve_body( $raw_response );
-                if ( '' !== $body && 'N;' !== $body ) {
-                    return $body;
-                }
+            $body         = $this->read_response_body( $raw_response, $answered );
+            if ( false !== $body ) {
+                return $body;
             }
         }
 
         // The above failed!
         // If we're on a second pass already then there's nothing left to do but bail.
         if ( true === $second_pass ) {
-            return false;
+            return $answered ? '' : false;
         }
 
         // We're still on the first pass, try to get just the name of the directory of the plugin.
@@ -473,10 +543,49 @@ class MainWP_Child_Plugins_Check {
         // Sanity check that we have two parts, a directory and a file name.
         if ( 2 === count( $parts ) ) {
             // Try this entire function using just the directory name.
-            return $this->try_get_response_body( $parts[0], true );
+            $body = $this->try_get_response_body( $parts[0], true );
+            if ( false !== $body ) {
+                return $body;
+            }
         }
 
         // Everything above failed, bail!
+        return $answered ? '' : false;
+    }
+
+    /**
+     * Read a plugin info response body.
+     *
+     * A 404 or an empty 200 means WordPress.org has no data for the slug, which differs from a failed request.
+     *
+     * @param array|\WP_Error $raw_response Response from wp_remote_get().
+     * @param bool            $answered     Set to true when WordPress.org answered without plugin data.
+     *
+     * @return string|false The body, or false when there is no usable body.
+     */
+    private function read_response_body( $raw_response, &$answered ) {
+        if ( is_wp_error( $raw_response ) ) {
+            return false;
+        }
+
+        $code = (int) wp_remote_retrieve_response_code( $raw_response );
+        if ( 404 === $code ) {
+            $answered = true;
+            return false;
+        }
+
+        if ( 200 !== $code ) {
+            return false;
+        }
+
+        $body = wp_remote_retrieve_body( $raw_response );
+
+        // Make sure that it isn't empty and also not an empty serialized object.
+        if ( '' !== $body && 'N;' !== $body ) {
+            return $body;
+        }
+
+        $answered = true;
         return false;
     }
 }
