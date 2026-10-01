@@ -198,22 +198,21 @@ class MainWP_Child_Comments {
             );
         }
 
-        $before = $this->canonical_comment_status( wp_get_comment_status( $comment ) );
-        // An unknown status includes a live v2 claim; acting on it would overwrite or delete a comment another request owns.
-        if ( false === $before ) {
-            return array(
-                'error'      => 'The comment is not in a status this action applies to.',
-                'error_code' => 'status_conflict',
-            );
-        }
-        $refused = array(
-            'approve'   => 'approved',
-            'unapprove' => 'pending',
-            'spam'      => 'spam',
-            'trash'     => 'trash',
+        // wp_get_comment_status() reports post-trashed (a comment on a trashed post) as false, the same
+        // as a live v2 claim; the first is a status every legacy action handled, the second must not be touched.
+        $before = 'post-trashed' === (string) $comment->comment_approved ? 'post-trashed' : $this->canonical_comment_status( wp_get_comment_status( $comment ) );
+        // A no-op is refused, and unspam and restore only apply to spam and trash: on any other comment
+        // WordPress demotes it to pending. Any status outside this table, a v2 claim included, is refused.
+        $allowed_from = array(
+            'approve'   => array( 'pending', 'spam', 'trash', 'post-trashed' ),
+            'unapprove' => array( 'approved', 'spam', 'trash', 'post-trashed' ),
+            'spam'      => array( 'approved', 'pending', 'trash', 'post-trashed' ),
+            'unspam'    => array( 'spam' ),
+            'trash'     => array( 'approved', 'pending', 'spam', 'post-trashed' ),
+            'restore'   => array( 'trash' ),
+            'delete'    => array( 'approved', 'pending', 'spam', 'trash', 'post-trashed' ),
         );
-        // Untrash and unspam can demote an unrelated comment to pending when no prior status is stored.
-        if ( ( isset( $refused[ $action ] ) && $refused[ $action ] === $before ) || ( 'unspam' === $action && 'spam' !== $before ) || ( 'restore' === $action && 'trash' !== $before ) ) {
+        if ( ! in_array( $before, $allowed_from[ $action ], true ) ) {
             return array(
                 'error'      => 'The comment is not in a status this action applies to.',
                 'error_code' => 'status_conflict',
@@ -237,7 +236,7 @@ class MainWP_Child_Comments {
                 add_action( 'trashed_comment', array( MainWP_Child_Links_Checker::get_class_name(), 'hook_trashed_comment' ), 10, 1 );
             }
             $changed = $this->apply_v2_moderation( $action, $comment );
-            if ( ( 'trash' === $action || 'trash' === $prior ) && ! EMPTY_TRASH_DAYS ) {
+            if ( 'trash' === $action && ! EMPTY_TRASH_DAYS ) {
                 // With EMPTY_TRASH_DAYS at 0, wp_trash_comment() deletes the comment permanently.
                 clean_comment_cache( $comment_id );
                 $applied = true === $changed && ! get_comment( $comment_id );

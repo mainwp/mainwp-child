@@ -53,13 +53,13 @@ class Test_MainWP_Child_Comments_Legacy extends WP_UnitTestCase {
 	/** @return array */
 	public static function status_provider() {
 		$transitions = array(
-			'approve'   => array( '0' => '1', '1' => false, 'spam' => '1', 'trash' => '1' ),
-			'unapprove' => array( '0' => false, '1' => '0', 'spam' => '0', 'trash' => '0' ),
-			'spam'      => array( '0' => 'spam', '1' => 'spam', 'spam' => false, 'trash' => 'spam' ),
-			'unspam'    => array( '0' => false, '1' => false, 'spam' => '0', 'trash' => false ),
-			'trash'     => array( '0' => 'trash', '1' => 'trash', 'spam' => 'trash', 'trash' => false ),
-			'restore'   => array( '0' => false, '1' => false, 'spam' => false, 'trash' => '0' ),
-			'delete'    => array( '0' => null, '1' => null, 'spam' => null, 'trash' => null ),
+			'approve'   => array( '0' => '1', '1' => false, 'spam' => '1', 'trash' => '1', 'post-trashed' => '1', 'mainwp-claim' => false ),
+			'unapprove' => array( '0' => false, '1' => '0', 'spam' => '0', 'trash' => '0', 'post-trashed' => '0', 'mainwp-claim' => false ),
+			'spam'      => array( '0' => 'spam', '1' => 'spam', 'spam' => false, 'trash' => 'spam', 'post-trashed' => 'spam', 'mainwp-claim' => false ),
+			'unspam'    => array( '0' => false, '1' => false, 'spam' => '0', 'trash' => false, 'post-trashed' => false, 'mainwp-claim' => false ),
+			'trash'     => array( '0' => 'trash', '1' => 'trash', 'spam' => 'trash', 'trash' => false, 'post-trashed' => 'trash', 'mainwp-claim' => false ),
+			'restore'   => array( '0' => false, '1' => false, 'spam' => false, 'trash' => '0', 'post-trashed' => false, 'mainwp-claim' => false ),
+			'delete'    => array( '0' => null, '1' => null, 'spam' => null, 'trash' => null, 'post-trashed' => null, 'mainwp-claim' => false ),
 		);
 		$cases = array();
 		foreach ( $transitions as $action => $statuses ) {
@@ -270,25 +270,6 @@ PHP;
 		$this->assert_stored_state( $bulk, 'trash' );
 	}
 
-	/** @dataProvider action_provider */
-	public function test_unknown_status_such_as_a_live_v2_claim_is_refused( $action ) {
-		global $wpdb;
-		$single = $this->create_comment( '1' );
-		$bulk   = $this->create_comment( '1' );
-		foreach ( array( $single, $bulk ) as $comment_id ) {
-			$wpdb->update( $wpdb->comments, array( 'comment_approved' => 'mainwp-claim' ), array( 'comment_ID' => $comment_id ) );
-			update_comment_meta( $comment_id, '_mainwp_v2_claim', '1|' . time() );
-			clean_comment_cache( $comment_id );
-		}
-		$original_single = $this->stored_comment( $single );
-		$original_bulk   = $this->stored_comment( $bulk );
-
-		$this->assertSame( $this->conflict_reply(), $this->comments->comment_action_result( $action, $single ) );
-		$this->assertSame( array( 'success' => 0, 'failed' => array( $bulk ) ), $this->comments->comment_bulk_action_result( $action, (string) $bulk ) );
-		$this->assertSame( $original_single, $this->stored_comment( $single ) );
-		$this->assertSame( $original_bulk, $this->stored_comment( $bulk ) );
-	}
-
 	/** @return array */
 	public static function action_provider() {
 		return array(
@@ -302,9 +283,9 @@ PHP;
 		);
 	}
 
-	/** @return int */
+	/** A mainwp-claim fixture is a live v2 claim: inside the grace period, so it is not recovered. */
 	private function create_comment( $approved ) {
-		return self::factory()->comment->create(
+		$comment_id = self::factory()->comment->create(
 			array(
 				'comment_post_ID'  => $this->post_id,
 				'comment_approved' => $approved,
@@ -312,6 +293,10 @@ PHP;
 				'comment_content'  => 'Fixture comment',
 			)
 		);
+		if ( 'mainwp-claim' === $approved ) {
+			update_comment_meta( $comment_id, '_mainwp_v2_claim', '1|' . time() );
+		}
+		return $comment_id;
 	}
 
 	/** A fixed ID exposes WordPress coercing 12abc into comment 12. */
