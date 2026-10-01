@@ -94,9 +94,9 @@ class MainWP_Child_Comments {
      */
     public function comment_action() {
         $action = MainWP_System::instance()->validate_params( 'action' );
-        // phpcs:disable WordPress.Security.NonceVerification
-        $commentId = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
-        // phpcs:enable
+        // sanitize_text_field() strips tags and octets, so "3<b>41" would reach comment 341; canonical_positive_integer() is the whitelist.
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Authenticated MainWP Child callable; the id is validated as a canonical positive integer.
+        $commentId   = isset( $_POST['id'] ) && is_string( $_POST['id'] ) ? trim( wp_unslash( $_POST['id'] ) ) : '';
         $information = $this->comment_action_result( $action, $commentId );
         MainWP_Helper::write( $information );
     }
@@ -117,9 +117,9 @@ class MainWP_Child_Comments {
         }
 
         $action = MainWP_System::instance()->validate_params( 'action' );
-        // phpcs:disable WordPress.Security.NonceVerification
-        $commentIds = isset( $_POST['ids'] ) ? sanitize_text_field( wp_unslash( $_POST['ids'] ) ) : '';
-        // phpcs:enable
+        // Each token is validated as a canonical positive integer; sanitizing first could join a malformed token into another id.
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Authenticated MainWP Child callable.
+        $commentIds  = isset( $_POST['ids'] ) && is_string( $_POST['ids'] ) ? wp_unslash( $_POST['ids'] ) : '';
         $information = $this->comment_bulk_action_result( $action, $commentIds );
         MainWP_Helper::write( $information );
     }
@@ -198,7 +198,14 @@ class MainWP_Child_Comments {
             );
         }
 
-        $before  = $this->canonical_comment_status( wp_get_comment_status( $comment ) );
+        $before = $this->canonical_comment_status( wp_get_comment_status( $comment ) );
+        // An unknown status includes a live v2 claim; acting on it would overwrite or delete a comment another request owns.
+        if ( false === $before ) {
+            return array(
+                'error'      => 'The comment is not in a status this action applies to.',
+                'error_code' => 'status_conflict',
+            );
+        }
         $refused = array(
             'approve'   => 'approved',
             'unapprove' => 'pending',
@@ -213,6 +220,14 @@ class MainWP_Child_Comments {
             );
         }
 
+        // Unspam and restore put back the status stored when the comment left it, which can be trash
+        // (a trashed comment marked as spam), so that status is an outcome too.
+        $prior = false;
+        if ( 'unspam' === $action || 'restore' === $action ) {
+            $prior = (string) get_comment_meta( $comment_id, '_wp_trash_meta_status', true );
+            $prior = $this->canonical_comment_status( empty( $prior ) ? '0' : $prior );
+        }
+
         if ( 'delete' === $action ) {
             $changed = wp_delete_comment( $comment, true );
             clean_comment_cache( $comment_id );
@@ -222,8 +237,14 @@ class MainWP_Child_Comments {
                 add_action( 'trashed_comment', array( MainWP_Child_Links_Checker::get_class_name(), 'hook_trashed_comment' ), 10, 1 );
             }
             $changed = $this->apply_v2_moderation( $action, $comment );
-            $after   = $this->current_v2_status( $comment_id );
-            $applied = true === $changed && $this->moderation_post_state_matches( $action, $after );
+            if ( ( 'trash' === $action || 'trash' === $prior ) && ! EMPTY_TRASH_DAYS ) {
+                // With EMPTY_TRASH_DAYS at 0, wp_trash_comment() deletes the comment permanently.
+                clean_comment_cache( $comment_id );
+                $applied = true === $changed && ! get_comment( $comment_id );
+            } else {
+                $after   = $this->current_v2_status( $comment_id );
+                $applied = true === $changed && ( $this->moderation_post_state_matches( $action, $after ) || ( false !== $prior && $prior === $after ) );
+            }
         }
         if ( ! $applied ) {
             return array(

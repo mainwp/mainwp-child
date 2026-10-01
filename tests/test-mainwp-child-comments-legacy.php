@@ -254,6 +254,41 @@ PHP;
 		$this->assertStringContainsString( $selector, file_get_contents( dirname( __DIR__ ) . '/class/class-mainwp-child-comments.php' ) );
 	}
 
+	/** A trashed comment marked as spam goes back to trash on unspam, and that is a success. */
+	public function test_unspam_returns_a_comment_spammed_from_trash_to_trash() {
+		$single = $this->create_comment( '1' );
+		$bulk   = $this->create_comment( '1' );
+		foreach ( array( $single, $bulk ) as $comment_id ) {
+			$this->assertSame( array( 'status' => 'SUCCESS' ), $this->comments->comment_action_result( 'trash', $comment_id ) );
+			$this->assertSame( array( 'status' => 'SUCCESS' ), $this->comments->comment_action_result( 'spam', $comment_id ) );
+			$this->assert_stored_state( $comment_id, 'spam' );
+		}
+
+		$this->assertSame( array( 'status' => 'SUCCESS' ), $this->comments->comment_action_result( 'unspam', $single ) );
+		$this->assert_stored_state( $single, 'trash' );
+		$this->assertSame( array( 'success' => 1 ), $this->comments->comment_bulk_action_result( 'unspam', (string) $bulk ) );
+		$this->assert_stored_state( $bulk, 'trash' );
+	}
+
+	/** @dataProvider action_provider */
+	public function test_unknown_status_such_as_a_live_v2_claim_is_refused( $action ) {
+		global $wpdb;
+		$single = $this->create_comment( '1' );
+		$bulk   = $this->create_comment( '1' );
+		foreach ( array( $single, $bulk ) as $comment_id ) {
+			$wpdb->update( $wpdb->comments, array( 'comment_approved' => 'mainwp-claim' ), array( 'comment_ID' => $comment_id ) );
+			update_comment_meta( $comment_id, '_mainwp_v2_claim', '1|' . time() );
+			clean_comment_cache( $comment_id );
+		}
+		$original_single = $this->stored_comment( $single );
+		$original_bulk   = $this->stored_comment( $bulk );
+
+		$this->assertSame( $this->conflict_reply(), $this->comments->comment_action_result( $action, $single ) );
+		$this->assertSame( array( 'success' => 0, 'failed' => array( $bulk ) ), $this->comments->comment_bulk_action_result( $action, (string) $bulk ) );
+		$this->assertSame( $original_single, $this->stored_comment( $single ) );
+		$this->assertSame( $original_bulk, $this->stored_comment( $bulk ) );
+	}
+
 	/** @return array */
 	public static function action_provider() {
 		return array(
