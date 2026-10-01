@@ -192,8 +192,8 @@ class MainWP_Child_HTML_Regression { //phpcs:ignore -- NOSONAR - multi methods.
      * @return array List of CSS and JS files.
      */
     public function get_frontend_assets_only() {
-        global $wp_styles, $wp_scripts;
-
+        $wp_styles     = wp_styles();
+        $wp_scripts    = wp_scripts();
         $plugin_assets = array();
 
         // Helper function to process assets.
@@ -244,6 +244,14 @@ class MainWP_Child_HTML_Regression { //phpcs:ignore -- NOSONAR - multi methods.
             $admin_assets = get_option( 'html-regression-track-admin-assets' );
         }
 
+        $admin_assets = wp_parse_args(
+            is_array( $admin_assets ) ? $admin_assets : array(),
+            array(
+                'styles'  => array(),
+                'scripts' => array(),
+            )
+        );
+
         if ( 'style' === $type ) {
             // Check if the style is in the admin's enqueue list.
             if ( in_array( $handle, $admin_assets['styles'], true ) ) {
@@ -268,7 +276,8 @@ class MainWP_Child_HTML_Regression { //phpcs:ignore -- NOSONAR - multi methods.
      * @return void update option tracking admin assets plugins.
      */
     public function track_admin_assets() {
-        global $wp_styles, $wp_scripts;
+        $wp_styles    = wp_styles();
+        $wp_scripts   = wp_scripts();
         $admin_assets = array(
             'styles'  => array(),
             'scripts' => array(),
