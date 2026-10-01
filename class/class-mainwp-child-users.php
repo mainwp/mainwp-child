@@ -105,7 +105,7 @@ class MainWP_Child_Users {
         if ( 'delete' === $action ) {
             wp_delete_user( $userId, $reassign );
         } elseif ( 'changeRole' === $action ) {
-            $act_dt['old_roles'] = $theUser ? implode( ',', array_values( $theUser->roles ) ) : '';
+            $act_dt['old_roles'] = isset( $act_dt['roles'] ) ? $act_dt['roles'] : '';
             $my_user             = array();
             $my_user['ID']       = $userId;
             $my_user['role']     = $extra;
