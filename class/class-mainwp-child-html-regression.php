@@ -240,7 +240,7 @@ class MainWP_Child_HTML_Regression { //phpcs:ignore -- NOSONAR - multi methods.
         $is_in_admin  = false;
         $admin_assets = get_option( 'html-regression-track-admin-assets', array() );
         if ( empty( $admin_assets ) ) {
-            do_action( 'admin_enqueue_scripts' );
+            do_action( 'admin_enqueue_scripts', '' );
             $admin_assets = get_option( 'html-regression-track-admin-assets' );
         }
 
