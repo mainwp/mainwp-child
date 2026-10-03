@@ -52,9 +52,10 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Logged-in cookie issued by wp_set_auth_cookie() during this request.
      *
-     * Empty until the one-click login sends a new cookie. wp_set_auth_cookie()
-     * does not write $_COOKIE, and wp_create_nonce() reads the session token
-     * from that cookie.
+     * Empty until the one-click login sends a new cookie, and cleared at the
+     * start of each login() so an early return cannot reuse an older capture.
+     * wp_set_auth_cookie() does not write $_COOKIE, and wp_create_nonce()
+     * reads the session token from that cookie.
      *
      * @var string
      */
@@ -1077,6 +1078,9 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * Remember the logged-in cookie from a login established in this request.
      *
+     * The listener is registered once for this instance. login() clears any
+     * cookie captured by an earlier call before it runs.
+     *
      * @return void
      */
     private function listen_for_fresh_logged_in_cookie() {
@@ -1156,7 +1160,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             $open_url      = rtrim( $open_url, '&' );
             $open_location = '/wp-admin/' . $_path . '?' . $open_url;
         } elseif ( strpos( $open_location, 'nonce=child_temp_nonce' ) !== false ) {
-                $open_location = str_replace( 'nonce=child_temp_nonce', 'nonce=' . $this->create_nonce_for_fresh_login( 'wp-ajax' ), $open_location );
+            $open_location = str_replace( 'nonce=child_temp_nonce', 'nonce=' . $this->create_nonce_for_fresh_login( 'wp-ajax' ), $open_location );
         }
         wp_safe_redirect( site_url() . $open_location );
         exit();
@@ -1411,6 +1415,8 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function login( $username, $doAction = false ) { // phpcs:ignore -- NOSONAR - multi return.
 
+        // A long-lived process can log in again without issuing a new cookie.
+        $this->fresh_logged_in_cookie = '';
         $this->listen_for_fresh_logged_in_cookie();
 
         /**
