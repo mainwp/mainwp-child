@@ -26,6 +26,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 class MainWP_Clone_Install {
 
     /**
+     * Maximum recursion depth accepted while processing serialized clone data.
+     *
+     * @var int
+     */
+    private const MAX_SERIALIZED_DEPTH = 32;
+
+    /**
+     * Maximum values inspected while processing one serialized database cell.
+     *
+     * @var int
+     */
+    private const MAX_SERIALIZED_VISITS = 100000;
+
+    /**
      * Public static variable to hold the single instance of the class.
      *
      * @var mixed Default null
@@ -847,7 +861,7 @@ class MainWP_Clone_Install {
     }
 
     /**
-     * Check whether a value contains an object or exceeds the safe nesting depth.
+     * Check whether a value contains an object or exceeds a processing bound.
      *
      * Restricted unserialization represents objects as __PHP_Incomplete_Class.
      * Re-serializing that value would restore the original class name, so values
@@ -855,22 +869,25 @@ class MainWP_Clone_Install {
      *
      * @param mixed $value Value to inspect.
      * @param int   $depth Current nesting depth.
+     * @param int   $visits Number of values visited while processing this cell.
      *
      * @return bool True when the value is unsafe to re-serialize.
      */
-    private function value_contains_object( $value, $depth = 0 ) {
+    private function value_contains_object( $value, $depth, &$visits ) {
+        ++$visits;
+
         if ( is_object( $value ) ) {
             return true;
         }
 
-        // Serialized references can produce cyclic arrays after decoding.
-        if ( $depth > 32 ) {
+        // Serialized references can produce cyclic or repeatedly shared arrays after decoding.
+        if ( $depth > self::MAX_SERIALIZED_DEPTH || $visits > self::MAX_SERIALIZED_VISITS ) {
             return true;
         }
 
         if ( is_array( $value ) ) {
             foreach ( $value as $item ) {
-                if ( $this->value_contains_object( $item, $depth + 1 ) ) {
+                if ( $this->value_contains_object( $item, $depth + 1, $visits ) ) {
                     return true;
                 }
             }
@@ -885,12 +902,41 @@ class MainWP_Clone_Install {
      *
      * @param string $from String we're looking to replace.
      * @param string $to What we want it to be replaced with.
-     * @param array  $data Used to pass any subordinate arrays back.
+     * @param mixed  $data Used to pass any subordinate values back.
      * @param bool   $serialised Does the array passed via $data need serialising.
      *
-     * @return array The original array with all elements replaced as needed.
+     * @return mixed The original value with all elements replaced as needed.
      */
     public function recursive_unserialize_replace( $from = '', $to = '', $data = '', $serialised = false ) {
+        $original_data     = $data;
+        $preserve_original = false;
+        $visits            = 0;
+        $data              = $this->recursive_unserialize_replace_value( $from, $to, $data, $serialised, 0, $preserve_original, $visits );
+
+        return $preserve_original ? $original_data : $data;
+    }
+
+    /**
+     * Recursively replace values using shared depth and visit budgets.
+     *
+     * @param string $from String we're looking to replace.
+     * @param string $to What we want it to be replaced with.
+     * @param mixed  $data Value being processed.
+     * @param bool   $serialised Whether the returned value needs serializing.
+     * @param int    $depth Current recursion depth.
+     * @param bool   $preserve_original Whether the original caller value must be preserved.
+     * @param int    $visits Number of values visited while processing this cell.
+     *
+     * @return mixed Processed value.
+     */
+    private function recursive_unserialize_replace_value( $from, $to, $data, $serialised, $depth, &$preserve_original, &$visits ) {
+        ++$visits;
+
+        if ( $preserve_original || $depth > self::MAX_SERIALIZED_DEPTH || $visits > self::MAX_SERIALIZED_VISITS ) {
+            $preserve_original = true;
+
+            return $data;
+        }
 
         // some unseriliased data cannot be re-serialised eg. SimpleXMLElements.
         try {
@@ -898,28 +944,43 @@ class MainWP_Clone_Install {
             $is_serialized_string = $is_serialized && is_serialized_string( $data );
             $has_object_token     = $is_serialized && ! $is_serialized_string && $this->serialized_data_contains_object_token( $data );
             $unserialized         = false;
+            $unserialize_failed   = false;
 
             if ( $is_serialized && ! $is_serialized_string && ! $has_object_token ) {
                 // Restrict untrusted clone-source data and suppress malformed-value warnings from the clone response.
                 // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.PHP.NoSilencedErrors.Discouraged -- Restricted decode.
-                $unserialized = @unserialize(
+                $unserialized       = @unserialize(
                     $data,
-                    array( 'allowed_classes' => false )
+                    array(
+                        'allowed_classes' => false,
+                        'max_depth'       => self::MAX_SERIALIZED_DEPTH,
+                    )
                 );
+                $unserialize_failed = false === $unserialized && 'b:0;' !== trim( $data );
             }
 
-            if ( $has_object_token ) {
-                $data = '';
-            } elseif ( $is_serialized && ! $is_serialized_string && false !== $unserialized ) {
-                if ( $this->value_contains_object( $unserialized ) ) {
-                    $data = '';
+            if ( $has_object_token || $unserialize_failed ) {
+                $preserve_original = true;
+
+                return $data;
+            } elseif ( $is_serialized && ! $is_serialized_string ) {
+                if ( $this->value_contains_object( $unserialized, 0, $visits ) ) {
+                    $preserve_original = true;
+
+                    return $data;
                 } else {
-                    $data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
+                    $data = $this->recursive_unserialize_replace_value( $from, $to, $unserialized, true, $depth + 1, $preserve_original, $visits );
+                    if ( $preserve_original ) {
+                        return $data;
+                    }
                 }
             } elseif ( is_array( $data ) ) {
                 $_tmp = array();
                 foreach ( $data as $key => $value ) {
-                    $_tmp[ $key ] = $this->recursive_unserialize_replace( $from, $to, $value, false );
+                    $_tmp[ $key ] = $this->recursive_unserialize_replace_value( $from, $to, $value, false, $depth + 1, $preserve_original, $visits );
+                    if ( $preserve_original ) {
+                        return $data;
+                    }
                 }
                 $data = $_tmp;
                 unset( $_tmp );
@@ -930,21 +991,32 @@ class MainWP_Clone_Install {
                 if ( '__PHP_Incomplete_Class' !== $cls_name ) {
                     $props = get_object_vars( $data );
                     foreach ( $props as $key => $value ) {
-                        $_tmp->{$key} = $this->recursive_unserialize_replace( $from, $to, $value, false );
+                        $_tmp->{$key} = $this->recursive_unserialize_replace_value( $from, $to, $value, false, $depth + 1, $preserve_original, $visits );
+                        if ( $preserve_original ) {
+                            return $data;
+                        }
                     }
                 }
                 $data = $_tmp;
                 unset( $_tmp );
             } elseif ( $is_serialized_string ) {
+                $serialized_data = $data;
                 // Suppress malformed-value warnings from the clone response.
                 // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.PHP.NoSilencedErrors.Discouraged -- Restricted decode.
                 $data = @unserialize(
                     $data,
-                    array( 'allowed_classes' => false )
+                    array(
+                        'allowed_classes' => false,
+                        'max_depth'       => self::MAX_SERIALIZED_DEPTH,
+                    )
                 );
                 if ( false !== $data ) {
                     $data = str_replace( $from, $to, $data );
                     $data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+                } else {
+                    $preserve_original = true;
+
+                    return $serialized_data;
                 }
             } elseif ( is_string( $data ) ) {
                     $data = str_replace( $from, $to, $data );
@@ -953,8 +1025,8 @@ class MainWP_Clone_Install {
             if ( $serialised ) {
                 return serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
             }
-        } catch ( \Exception $error ) {
-            // ok!
+        } catch ( \Throwable $error ) {
+            $preserve_original = true;
         }
 
         return $data;
