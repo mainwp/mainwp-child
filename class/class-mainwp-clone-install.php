@@ -789,6 +789,97 @@ class MainWP_Clone_Install {
     }
 
     /**
+     * Check serialized bytes for object-like tokens without deserializing them.
+     *
+     * PHP's allowed_classes option blocks normal objects, but enum payloads can
+     * still invoke an autoloader. Serialized string contents are skipped so text
+     * that merely resembles an object token is not rejected.
+     *
+     * @param string $data Serialized data to inspect.
+     *
+     * @return bool True when an object, custom object, or enum token is present.
+     */
+    private function serialized_data_contains_object_token( $data ) {
+        $data_length = strlen( $data );
+
+        for ( $offset = 0; $offset < $data_length; ++$offset ) {
+            $token = $data[ $offset ];
+
+            if ( in_array( $token, array( 'O', 'C', 'E' ), true ) && isset( $data[ $offset + 1 ] ) && ':' === $data[ $offset + 1 ] ) {
+                $cursor       = $offset + 2;
+                $length_start = $cursor;
+
+                while ( $cursor < $data_length && '0' <= $data[ $cursor ] && '9' >= $data[ $cursor ] ) {
+                    ++$cursor;
+                }
+
+                if ( $cursor > $length_start && $cursor < $data_length && ':' === $data[ $cursor ] ) {
+                    return true;
+                }
+            }
+
+            if ( 's' !== $token || ! isset( $data[ $offset + 1 ] ) || ':' !== $data[ $offset + 1 ] ) {
+                continue;
+            }
+
+            $cursor       = $offset + 2;
+            $length_start = $cursor;
+            while ( $cursor < $data_length && '0' <= $data[ $cursor ] && '9' >= $data[ $cursor ] ) {
+                ++$cursor;
+            }
+
+            if ( $cursor === $length_start || ! isset( $data[ $cursor + 1 ] ) || ':' !== $data[ $cursor ] || '"' !== $data[ $cursor + 1 ] ) {
+                continue;
+            }
+
+            $string_length = (int) substr( $data, $length_start, $cursor - $length_start );
+            if ( $string_length > $data_length ) {
+                continue;
+            }
+
+            $string_end = $cursor + 2 + $string_length;
+            if ( isset( $data[ $string_end + 1 ] ) && '"' === $data[ $string_end ] && ';' === $data[ $string_end + 1 ] ) {
+                $offset = $string_end + 1;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check whether a value contains an object or exceeds the safe nesting depth.
+     *
+     * Restricted unserialization represents objects as __PHP_Incomplete_Class.
+     * Re-serializing that value would restore the original class name, so values
+     * containing objects must not be written back to the database.
+     *
+     * @param mixed $value Value to inspect.
+     * @param int   $depth Current nesting depth.
+     *
+     * @return bool True when the value is unsafe to re-serialize.
+     */
+    private function value_contains_object( $value, $depth = 0 ) {
+        if ( is_object( $value ) ) {
+            return true;
+        }
+
+        // Serialized references can produce cyclic arrays after decoding.
+        if ( $depth > 32 ) {
+            return true;
+        }
+
+        if ( is_array( $value ) ) {
+            foreach ( $value as $item ) {
+                if ( $this->value_contains_object( $item, $depth + 1 ) ) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Take a serialised array and un-serialize it replacing elements as needed and
      * un-serializing any subordinate arrays and performing the replace on those too.
      *
@@ -803,9 +894,28 @@ class MainWP_Clone_Install {
 
         // some unseriliased data cannot be re-serialised eg. SimpleXMLElements.
         try {
-            $unserialized = ( is_string( $data ) && is_serialized( $data ) ) ? unserialize( $data ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
-            if ( is_string( $data ) && is_serialized( $data ) && ! is_serialized_string( $data ) && false !== $unserialized ) {
-                $data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
+            $is_serialized        = is_string( $data ) && is_serialized( $data );
+            $is_serialized_string = $is_serialized && is_serialized_string( $data );
+            $has_object_token     = $is_serialized && ! $is_serialized_string && $this->serialized_data_contains_object_token( $data );
+            $unserialized         = false;
+
+            if ( $is_serialized && ! $is_serialized_string && ! $has_object_token ) {
+                // Restrict untrusted clone-source data and suppress malformed-value warnings from the clone response.
+                // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.PHP.NoSilencedErrors.Discouraged -- Restricted decode.
+                $unserialized = @unserialize(
+                    $data,
+                    array( 'allowed_classes' => false )
+                );
+            }
+
+            if ( $has_object_token ) {
+                $data = '';
+            } elseif ( $is_serialized && ! $is_serialized_string && false !== $unserialized ) {
+                if ( $this->value_contains_object( $unserialized ) ) {
+                    $data = '';
+                } else {
+                    $data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
+                }
             } elseif ( is_array( $data ) ) {
                 $_tmp = array();
                 foreach ( $data as $key => $value ) {
@@ -825,8 +935,13 @@ class MainWP_Clone_Install {
                 }
                 $data = $_tmp;
                 unset( $_tmp );
-            } elseif ( is_serialized_string( $data ) && is_serialized( $data ) ) {
-                $data = unserialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+            } elseif ( $is_serialized_string ) {
+                // Suppress malformed-value warnings from the clone response.
+                // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.PHP.NoSilencedErrors.Discouraged -- Restricted decode.
+                $data = @unserialize(
+                    $data,
+                    array( 'allowed_classes' => false )
+                );
                 if ( false !== $data ) {
                     $data = str_replace( $from, $to, $data );
                     $data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
