@@ -118,6 +118,32 @@ class Test_Clone_Unserialize_Hardening extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A fake string inside an escaped S: string must not hide an enum token from the scanner.
+	 */
+	public function test_escaped_string_cannot_hide_enum_from_autoload() {
+		$autoloaded = false;
+		$autoload   = static function ( $class_name ) use ( &$autoloaded ) {
+			if ( 'MainWP_Missing_Enum_Canary' === $class_name ) {
+				$autoloaded = true;
+			}
+		};
+		spl_autoload_register( $autoload );
+
+		try {
+			$enum_name = 'MainWP_Missing_Enum_Canary:CASE';
+			$tail      = '";i:1;E:' . strlen( $enum_name ) . ':"' . $enum_name;
+			$fake      = 's:' . strlen( $tail ) . ':"';
+			$payload   = 'a:2:{i:0;S:' . strlen( $fake ) . ':"' . $fake . $tail . '";}';
+			$clone     = new MainWP_Clone_Install();
+
+			$this->assertSame( $payload, $clone->recursive_unserialize_replace( 'old', 'new', $payload ) );
+			$this->assertFalse( $autoloaded );
+		} finally {
+			spl_autoload_unregister( $autoload );
+		}
+	}
+
+	/**
 	 * Object-like text inside a serialized string must not be a false positive.
 	 */
 	public function test_object_token_text_inside_string_is_preserved() {

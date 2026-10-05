@@ -807,11 +807,14 @@ class MainWP_Clone_Install {
      *
      * PHP's allowed_classes option blocks normal objects, but enum payloads can
      * still invoke an autoloader. Serialized string contents are skipped so text
-     * that merely resembles an object token is not rejected.
+     * that merely resembles an object token is not rejected. Escaped S: strings
+     * are rejected rather than skipped: their length counts decoded bytes, so a
+     * fake s: inside one could make the skip jump over a real E: token, and
+     * serialize() never emits S: anyway.
      *
      * @param string $data Serialized data to inspect.
      *
-     * @return bool True when an object, custom object, or enum token is present.
+     * @return bool True when an object, custom object, enum, or escaped string token is present.
      */
     private function serialized_data_contains_object_token( $data ) {
         $data_length = strlen( $data );
@@ -819,7 +822,7 @@ class MainWP_Clone_Install {
         for ( $offset = 0; $offset < $data_length; ++$offset ) {
             $token = $data[ $offset ];
 
-            if ( in_array( $token, array( 'O', 'C', 'E' ), true ) && isset( $data[ $offset + 1 ] ) && ':' === $data[ $offset + 1 ] ) {
+            if ( in_array( $token, array( 'O', 'C', 'E', 'S' ), true ) && isset( $data[ $offset + 1 ] ) && ':' === $data[ $offset + 1 ] ) {
                 $cursor       = $offset + 2;
                 $length_start = $cursor;
 
