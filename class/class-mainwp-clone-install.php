@@ -26,6 +26,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 class MainWP_Clone_Install {
 
     /**
+     * Maximum recursion depth accepted while processing serialized clone data.
+     *
+     * @var int
+     */
+    private const MAX_SERIALIZED_DEPTH = 32;
+
+    /**
+     * Maximum values inspected while processing one serialized database cell.
+     *
+     * @var int
+     */
+    private const MAX_SERIALIZED_VISITS = 100000;
+
+    /**
      * Public static variable to hold the single instance of the class.
      *
      * @var mixed Default null
@@ -789,27 +803,187 @@ class MainWP_Clone_Install {
     }
 
     /**
+     * Check serialized bytes for object-like tokens without deserializing them.
+     *
+     * PHP's allowed_classes option blocks normal objects, but enum payloads can
+     * still invoke an autoloader. Serialized string contents are skipped so text
+     * that merely resembles an object token is not rejected. Escaped S: strings
+     * are rejected rather than skipped: their length counts decoded bytes, so a
+     * fake s: inside one could make the skip jump over a real E: token, and
+     * serialize() never emits S: anyway.
+     *
+     * @param string $data Serialized data to inspect.
+     *
+     * @return bool True when an object, custom object, enum, or escaped string token is present.
+     */
+    private function serialized_data_contains_object_token( $data ) {
+        $data_length = strlen( $data );
+
+        for ( $offset = 0; $offset < $data_length; ++$offset ) {
+            $token = $data[ $offset ];
+
+            if ( in_array( $token, array( 'O', 'C', 'E', 'S' ), true ) && isset( $data[ $offset + 1 ] ) && ':' === $data[ $offset + 1 ] ) {
+                $cursor       = $offset + 2;
+                $length_start = $cursor;
+
+                while ( $cursor < $data_length && '0' <= $data[ $cursor ] && '9' >= $data[ $cursor ] ) {
+                    ++$cursor;
+                }
+
+                if ( $cursor > $length_start && $cursor < $data_length && ':' === $data[ $cursor ] ) {
+                    return true;
+                }
+            }
+
+            if ( 's' !== $token || ! isset( $data[ $offset + 1 ] ) || ':' !== $data[ $offset + 1 ] ) {
+                continue;
+            }
+
+            $cursor       = $offset + 2;
+            $length_start = $cursor;
+            while ( $cursor < $data_length && '0' <= $data[ $cursor ] && '9' >= $data[ $cursor ] ) {
+                ++$cursor;
+            }
+
+            if ( $cursor === $length_start || ! isset( $data[ $cursor + 1 ] ) || ':' !== $data[ $cursor ] || '"' !== $data[ $cursor + 1 ] ) {
+                continue;
+            }
+
+            $string_length = (int) substr( $data, $length_start, $cursor - $length_start );
+            if ( $string_length > $data_length ) {
+                continue;
+            }
+
+            $string_end = $cursor + 2 + $string_length;
+            if ( isset( $data[ $string_end + 1 ] ) && '"' === $data[ $string_end ] && ';' === $data[ $string_end + 1 ] ) {
+                $offset = $string_end + 1;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check whether a value contains an object or exceeds a processing bound.
+     *
+     * Restricted unserialization represents objects as __PHP_Incomplete_Class.
+     * Re-serializing that value would restore the original class name, so values
+     * containing objects must not be written back to the database.
+     *
+     * @param mixed $value Value to inspect.
+     * @param int   $depth Current nesting depth.
+     * @param int   $visits Number of values visited while processing this cell.
+     *
+     * @return bool True when the value is unsafe to re-serialize.
+     */
+    private function value_contains_object( $value, $depth, &$visits ) {
+        ++$visits;
+
+        if ( is_object( $value ) ) {
+            return true;
+        }
+
+        // Serialized references can produce cyclic or repeatedly shared arrays after decoding.
+        if ( $depth > self::MAX_SERIALIZED_DEPTH || $visits > self::MAX_SERIALIZED_VISITS ) {
+            return true;
+        }
+
+        if ( is_array( $value ) ) {
+            foreach ( $value as $item ) {
+                if ( $this->value_contains_object( $item, $depth + 1, $visits ) ) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Take a serialised array and un-serialize it replacing elements as needed and
      * un-serializing any subordinate arrays and performing the replace on those too.
      *
      * @param string $from String we're looking to replace.
      * @param string $to What we want it to be replaced with.
-     * @param array  $data Used to pass any subordinate arrays back.
+     * @param mixed  $data Used to pass any subordinate values back.
      * @param bool   $serialised Does the array passed via $data need serialising.
      *
-     * @return array The original array with all elements replaced as needed.
+     * @return mixed The original value with all elements replaced as needed.
      */
     public function recursive_unserialize_replace( $from = '', $to = '', $data = '', $serialised = false ) {
+        $original_data     = $data;
+        $preserve_original = false;
+        $visits            = 0;
+        $data              = $this->recursive_unserialize_replace_value( $from, $to, $data, $serialised, 0, $preserve_original, $visits );
+
+        return $preserve_original ? $original_data : $data;
+    }
+
+    /**
+     * Recursively replace values using shared depth and visit budgets.
+     *
+     * @param string $from String we're looking to replace.
+     * @param string $to What we want it to be replaced with.
+     * @param mixed  $data Value being processed.
+     * @param bool   $serialised Whether the returned value needs serializing.
+     * @param int    $depth Current recursion depth.
+     * @param bool   $preserve_original Whether the original caller value must be preserved.
+     * @param int    $visits Number of values visited while processing this cell.
+     *
+     * @return mixed Processed value.
+     */
+    private function recursive_unserialize_replace_value( $from, $to, $data, $serialised, $depth, &$preserve_original, &$visits ) {
+        ++$visits;
+
+        if ( $preserve_original || $depth > self::MAX_SERIALIZED_DEPTH || $visits > self::MAX_SERIALIZED_VISITS ) {
+            $preserve_original = true;
+
+            return $data;
+        }
 
         // some unseriliased data cannot be re-serialised eg. SimpleXMLElements.
         try {
-            $unserialized = ( is_string( $data ) && is_serialized( $data ) ) ? unserialize( $data ) : false; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
-            if ( is_string( $data ) && is_serialized( $data ) && ! is_serialized_string( $data ) && false !== $unserialized ) {
-                $data = $this->recursive_unserialize_replace( $from, $to, $unserialized, true );
+            $is_serialized        = is_string( $data ) && is_serialized( $data );
+            $is_serialized_string = $is_serialized && is_serialized_string( $data );
+            $has_object_token     = $is_serialized && ! $is_serialized_string && $this->serialized_data_contains_object_token( $data );
+            $unserialized         = false;
+            $unserialize_failed   = false;
+
+            if ( $is_serialized && ! $is_serialized_string && ! $has_object_token ) {
+                // Restrict untrusted clone-source data and suppress malformed-value warnings from the clone response.
+                // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.PHP.NoSilencedErrors.Discouraged -- Restricted decode.
+                $unserialized       = @unserialize(
+                    $data,
+                    array(
+                        'allowed_classes' => false,
+                        'max_depth'       => self::MAX_SERIALIZED_DEPTH,
+                    )
+                );
+                $unserialize_failed = false === $unserialized && 'b:0;' !== trim( $data );
+            }
+
+            if ( $has_object_token || $unserialize_failed ) {
+                $preserve_original = true;
+
+                return $data;
+            } elseif ( $is_serialized && ! $is_serialized_string ) {
+                if ( $this->value_contains_object( $unserialized, 0, $visits ) ) {
+                    $preserve_original = true;
+
+                    return $data;
+                } else {
+                    $data = $this->recursive_unserialize_replace_value( $from, $to, $unserialized, true, $depth + 1, $preserve_original, $visits );
+                    if ( $preserve_original ) {
+                        return $data;
+                    }
+                }
             } elseif ( is_array( $data ) ) {
                 $_tmp = array();
                 foreach ( $data as $key => $value ) {
-                    $_tmp[ $key ] = $this->recursive_unserialize_replace( $from, $to, $value, false );
+                    $_tmp[ $key ] = $this->recursive_unserialize_replace_value( $from, $to, $value, false, $depth + 1, $preserve_original, $visits );
+                    if ( $preserve_original ) {
+                        return $data;
+                    }
                 }
                 $data = $_tmp;
                 unset( $_tmp );
@@ -820,16 +994,32 @@ class MainWP_Clone_Install {
                 if ( '__PHP_Incomplete_Class' !== $cls_name ) {
                     $props = get_object_vars( $data );
                     foreach ( $props as $key => $value ) {
-                        $_tmp->{$key} = $this->recursive_unserialize_replace( $from, $to, $value, false );
+                        $_tmp->{$key} = $this->recursive_unserialize_replace_value( $from, $to, $value, false, $depth + 1, $preserve_original, $visits );
+                        if ( $preserve_original ) {
+                            return $data;
+                        }
                     }
                 }
                 $data = $_tmp;
                 unset( $_tmp );
-            } elseif ( is_serialized_string( $data ) && is_serialized( $data ) ) {
-                $data = unserialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+            } elseif ( $is_serialized_string ) {
+                $serialized_data = $data;
+                // Suppress malformed-value warnings from the clone response.
+                // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions,WordPress.PHP.NoSilencedErrors.Discouraged -- Restricted decode.
+                $data = @unserialize(
+                    $data,
+                    array(
+                        'allowed_classes' => false,
+                        'max_depth'       => self::MAX_SERIALIZED_DEPTH,
+                    )
+                );
                 if ( false !== $data ) {
                     $data = str_replace( $from, $to, $data );
                     $data = serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+                } else {
+                    $preserve_original = true;
+
+                    return $serialized_data;
                 }
             } elseif ( is_string( $data ) ) {
                     $data = str_replace( $from, $to, $data );
@@ -838,8 +1028,8 @@ class MainWP_Clone_Install {
             if ( $serialised ) {
                 return serialize( $data ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
             }
-        } catch ( \Exception $error ) {
-            // ok!
+        } catch ( \Throwable $error ) {
+            $preserve_original = true;
         }
 
         return $data;
