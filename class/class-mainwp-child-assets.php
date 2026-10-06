@@ -82,8 +82,7 @@ class MainWP_Child_Assets {
      */
     public function register_assets() {
         // Register jQuery UI styles only if needed.
-        global $wp_scripts;
-        $jquery_ui_core = $wp_scripts->query( 'jquery-ui-core' );
+        $jquery_ui_core = wp_scripts()->query( 'jquery-ui-core' );
         if ( ! $jquery_ui_core ) {
             return;
         }
