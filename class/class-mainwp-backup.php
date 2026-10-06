@@ -1222,6 +1222,13 @@ class MainWP_Backup {
     protected $failed_add_count = 0;
 
     /**
+     * Files omitted from the archive.
+     *
+     * @var string[] Files omitted from the archive.
+     */
+    protected $failed_add_paths = array();
+
+    /**
      * Abort threshold for failed file adds - past this the archive is
      * considered too incomplete to be a trustworthy backup.
      */
@@ -1349,6 +1356,7 @@ class MainWP_Backup {
      */
     public function record_failed_add( $path ) {
         ++$this->failed_add_count;
+        $this->failed_add_paths[] = (string) $path;
         static::record_skipped_path( $path );
         if ( $this->failed_add_count > self::MAX_FAILED_ADDS ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_TOO_MANY_SKIPPED ) ), null, MainWP_Backup_Error::ERR_TOO_MANY_SKIPPED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
@@ -1365,10 +1373,20 @@ class MainWP_Backup {
     }
 
     /**
+     * Returns files the manifest must omit from this base.
+     *
+     * @return string[] Failed file paths.
+     */
+    public function get_failed_add_paths() {
+        return $this->failed_add_paths;
+    }
+
+    /**
      * Reset the failed-add counter (start of a backup run).
      */
     public function reset_failed_adds() {
         $this->failed_add_count = 0;
+        $this->failed_add_paths = array();
     }
 
     /**

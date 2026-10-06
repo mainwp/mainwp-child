@@ -329,6 +329,109 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 
 	// ---- incremental run fixtures -----------------------------------------
 
+	public function test_failed_full_add_is_recovered_by_unchanged_incremental() {
+		$this->site = ABSPATH . 'mainwp-failed-add-' . uniqid();
+		mkdir( $this->site );
+		file_put_contents( $this->site . '/kept.txt', 'base bytes' );
+		file_put_contents( $this->site . '/missed.txt', 'recovered bytes' );
+		$site = $this->site;
+		$this->runner = new class() extends Testable_Task_Runner {
+			protected function walk_manifest_slice( $params, $backup_dir, $cursor, $deadline ) {
+				return \MainWP\Child\MainWP_Child_Backup_Task_Runner::walk_manifest_slice( $params, $backup_dir, $cursor, $deadline );
+			}
+			protected function make_walker( $params, $backup_dir ) {
+				$walker = parent::make_walker( $params, $backup_dir );
+				foreach ( array( 'root' => $this->test_site_root, 'root_real' => realpath( $this->test_site_root ) ) as $name => $value ) {
+					$property = new ReflectionProperty( $walker, $name );
+					$property->setAccessible( true );
+					$property->setValue( $walker, $value );
+				}
+				return $walker;
+			}
+		};
+		$this->runner->test_backup_dir = $this->backup_dir;
+		$this->runner->test_site_root = $site . '/';
+		$this->runner->stubs = array(
+			'tier1_available' => true,
+			'dump_tier1' => array( $this->backup_dir . '/dbBackup-table1.sql.php' ),
+			'archive_db_artifact' => $this->backup_dir . '/backup-artifact.tar',
+			'promote_manifest_sidecars' => static function ( $dir ) {
+				return \MainWP\Child\MainWP_Child_Backup_File_Walker::promote_sidecars( $dir );
+			},
+		);
+		$attempt = 0;
+		$this->runner->stubs['run_file_archiver'] = function ( $params, $archive, $append, $deadline, $db_files ) use ( $site, &$attempt ) {
+			$path = $this->backup_dir . '/' . $archive;
+			$zip = new ZipArchive();
+			$this->assertTrue( $zip->open( $path, ZipArchive::CREATE ) );
+			$adapter = new class( $zip ) {
+				private $zip;
+				public function __construct( $zip ) { $this->zip = $zip; }
+				public function add_file( $path, $name ) {
+					return 'missed.txt' === $name ? false : $this->zip->addFile( $path, $name );
+				}
+			};
+			$backup = \MainWP\Child\MainWP_Backup::get();
+			$property = new ReflectionProperty( $backup, 'zip' );
+			$property->setAccessible( true );
+			$previous = $property->getValue( $backup );
+			$property->setValue( $backup, $adapter );
+			try {
+				if ( 0 === $attempt++ ) {
+					$backup->add_file_to_zipp( $site . '/kept.txt', 'kept.txt' );
+					$backup->add_file_to_zipp( $site . '/missed.txt', 'missed.txt' );
+				}
+			} finally {
+				$property->setValue( $backup, $previous );
+				$zip->close();
+			}
+			if ( 1 === $attempt ) {
+				throw new \MainWP\Child\MainWP_Backup_Budget_Exception( 'Forced archive yield.' );
+			}
+			return array( 'file' => $archive, 'filesize' => filesize( $path ) );
+		};
+		$backup = \MainWP\Child\MainWP_Backup::get();
+		$backup->reset_failed_adds();
+		try {
+			$full_id = $this->create_task( 'full', array( 'ext' => 'zip', 'emit_manifest' => true ) );
+			$full = $this->advance( $full_id );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES, $full->phase );
+			$backup->reset_failed_adds(); // A new request has no in-memory failure record.
+			$full = $this->advance( $full_id );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $full->phase );
+			$full_payload = MainWP_Child_Backup_Task::instance()->status_payload( $full, $this->backup_dir );
+			$full_roles = $this->artifacts_by_role( $full_payload );
+			$base = $this->backup_dir . '/' . $full_roles['full']['file'];
+			$parent = file_get_contents( $this->backup_dir . '/files.list' );
+			$incremental_id = $this->create_task( 'incremental', array( 'parent_manifest_b64' => base64_encode( $parent ) ) );
+			$incremental = $this->advance( $incremental_id );
+			for ( $slice = 0; $slice < 4 && MainWP_Child_Backup_Task::PHASE_COMPLETED !== $incremental->phase; ++$slice ) {
+				$incremental = $this->advance( $incremental_id );
+			}
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $incremental->phase );
+			$payload = MainWP_Child_Backup_Task::instance()->status_payload( $incremental, $this->backup_dir );
+			$parts = array( $base );
+			foreach ( $payload['artifacts'] as $artifact ) {
+				if ( 'part' === $artifact['role'] ) { $parts[] = $this->backup_dir . '/' . $artifact['file']; }
+			}
+			$target = $this->backup_dir . '/restored';
+			mkdir( $target );
+			$hashes = array();
+			foreach ( $parts as $part ) { $hashes[ basename( $part ) ] = hash_file( 'sha256', $part ); }
+			$result = ( new \MainWP\Child\MainWP_Child_Backup_File_Restorer() )->restore_slice( array(), array( 'parts' => $parts, 'hashes' => $hashes, 'extract_to' => $target ), PHP_INT_MAX );
+			$this->assertNull( $result['error'] );
+			$this->assertTrue( $result['done'] );
+			$this->assertFileExists( $target . '/missed.txt', 'An unchanged file missing from the base must be restored from the incremental.' );
+			$this->assertSame( 'recovered bytes', file_get_contents( $target . '/missed.txt' ) );
+			$this->assertSame( 'base bytes', file_get_contents( $target . '/kept.txt' ) );
+			$this->assertStringNotContainsString( 'missed.txt', $parent );
+			$this->assertSame( array( 'missed.txt' ), $this->packed_entries( $payload ) );
+		} finally {
+			$backup->reset_failed_adds();
+			\MainWP\Child\MainWP_Backup::reset_skipped_paths();
+		}
+	}
+
 	/**
 	 * Build a site tree (added/changed/carried files plus a plugin file),
 	 * point the runner's pack loop at it, and wire the emit seam to stage

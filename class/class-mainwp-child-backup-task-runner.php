@@ -795,6 +795,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             }
             $version = $result['version'];
 
+            $archive_yielded = false;
+            if ( ! $append ) {
+                MainWP_Backup::get()->reset_failed_adds();
+            }
             try {
                 $res = $this->run_file_archiver(
                     $params,
@@ -809,8 +813,13 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                     throw $e;
                 }
                 unset( $e );
-                // Partial progress is in the archive itself - just yield.
-                return $this->slice_result( $version, true );
+                $archive_yielded = true;
+            } finally {
+                // The manifest may resume in another request after the archive closes.
+                $sub_state['failed_add_paths'] = array_values( array_unique( array_merge( $sub_state['failed_add_paths'] ?? array(), MainWP_Backup::get()->get_failed_add_paths() ) ) );
+            }
+            if ( $archive_yielded ) {
+                return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
             }
 
             // The engine reads its own size right after closing the archive it
@@ -842,7 +851,9 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             // The Dashboard reports a base with no manifest as a corrupt file
             // without a cause, so the walk failure must reach it as an error.
             try {
-                $walk = $this->walk_manifest_slice( $params, $backup_dir, isset( $sub_state['walk_cursor'] ) ? $sub_state['walk_cursor'] : null, $deadline );
+                $walk_params                     = $params;
+                $walk_params['failed_add_paths'] = $sub_state['failed_add_paths'] ?? array();
+                $walk                            = $this->walk_manifest_slice( $walk_params, $backup_dir, isset( $sub_state['walk_cursor'] ) ? $sub_state['walk_cursor'] : null, $deadline );
             } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - manifest failures must reach the Dashboard.
                 if ( $e instanceof MainWP_Exception && ! empty( $e->get_message_error_code() ) ) {
                     throw $e;
@@ -1753,7 +1764,13 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @return MainWP_Child_Backup_File_Walker The walker.
      */
     protected function make_walker( $params, $backup_dir ) {
-        $walk   = $this->manifest_walk_params( $params );
+        $walk = $this->manifest_walk_params( $params );
+        $root = $this->site_root();
+        foreach ( $params['failed_add_paths'] ?? array() as $path ) {
+            if ( 0 === strpos( $path, $root ) ) {
+                $walk['excludes'][] = substr( $path, strlen( $root ) );
+            }
+        }
         $walker = new MainWP_Child_Backup_File_Walker(
             null,
             $walk['excludes'],
