@@ -42,6 +42,16 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
     const TIER2_CHUNK_ROWS = 10000;
 
     /**
+     * Aim for 8 MiB of row data because wpdb buffers each Tier-2 read.
+     */
+    const TIER2_TARGET_CHUNK_BYTES = 8388608;
+
+    /**
+     * Keep at least 100 rows per read so large-row tables still make progress.
+     */
+    const TIER2_MIN_CHUNK_ROWS = 100;
+
+    /**
      * Singleton instance.
      *
      * @var MainWP_Backup_Db_Dumper|null
@@ -723,7 +733,14 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         }
         $cursor['last_id'] = null;
         $cursor['offset']  = 0;
-        $cursor['started'] = true;
+        // Persist the estimate once per table so resumed slices use the same LIMIT.
+        $errors         = $wpdb->suppress_errors( true );
+        $avg_row_length = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT AVG_ROW_LENGTH FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s', $table ) );
+        $wpdb->suppress_errors( $errors );
+        $cursor['chunk_rows'] = $avg_row_length > 0
+            ? max( self::TIER2_MIN_CHUNK_ROWS, min( self::TIER2_CHUNK_ROWS, (int) floor( self::TIER2_TARGET_CHUNK_BYTES / max( $avg_row_length, 1 ) ) ) )
+            : self::TIER2_CHUNK_ROWS;
+        $cursor['started']    = true;
         //phpcs:enable WordPress.DB, WordPress.WP.AlternativeFunctions
     }
 
@@ -771,6 +788,9 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             )
         );
 
+        $chunk_rows = isset( $cursor['chunk_rows'] )
+            ? max( self::TIER2_MIN_CHUNK_ROWS, min( self::TIER2_CHUNK_ROWS, (int) $cursor['chunk_rows'] ) )
+            : self::TIER2_CHUNK_ROWS;
         if ( null !== $cursor['pk_col'] ) {
             $sql = sprintf(
                 'SELECT %s FROM %s%s ORDER BY %s ASC LIMIT %d',
@@ -779,7 +799,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 $this->quote_ident( $table ),
                 null === $cursor['last_id'] ? '' : ' WHERE ' . $this->quote_ident( $cursor['pk_col'] ) . ' > ' . (int) $cursor['last_id'],
                 $this->quote_ident( $cursor['pk_col'] ),
-                self::TIER2_CHUNK_ROWS
+                $chunk_rows
             );
         } else {
             $sql = sprintf(
@@ -788,7 +808,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 // nosec: identifier from SHOW FULL TABLES or the task's table list, backtick-quoted by quote_ident(); MySQL cannot bind identifiers.
                 $this->quote_ident( $table ),
                 implode( ', ', array_map( array( $this, 'quote_ident' ), $cursor['order_cols'] ) ),
-                self::TIER2_CHUNK_ROWS,
+                $chunk_rows,
                 (int) $cursor['offset']
             );
         }
@@ -862,7 +882,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         set_time_limit( 600 ); // phpcs:ignore -- per-chunk timer reset so long dumps survive max_execution_time.
         //phpcs:enable WordPress.DB, WordPress.WP.AlternativeFunctions
 
-        return $row_count < self::TIER2_CHUNK_ROWS;
+        return $row_count < $chunk_rows;
     }
 
     /**

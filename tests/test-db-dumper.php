@@ -454,6 +454,114 @@ class DbDumperTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'INSERT INTO', $content );
 	}
 
+	/** @dataProvider tier2_row_estimates */
+	public function test_tier2_chunk_size_limits_rows_and_survives_resume( $estimate, $expected, $seek ) {
+		global $wpdb;
+		$this->assertNotFalse( $wpdb->query( "UPDATE `{$this->fixture_table}` SET payload = REPEAT('x', 32768)" ), $wpdb->last_error );
+		$reads = 0;
+		$selects = array();
+		$filter = function ( $sql ) use ( &$estimate, &$reads, &$selects ) {
+			// Fix the estimate so engine statistics cannot change the expected LIMIT.
+			if ( false !== stripos( $sql, 'AVG_ROW_LENGTH' ) ) {
+				++$reads;
+				return false === $estimate ? 'SELECT NULL WHERE 1 = 0' : 'SELECT ' . ( null === $estimate ? 'NULL' : (int) $estimate );
+			}
+			if ( 0 === strpos( $sql, 'SELECT ' ) && false !== strpos( $sql, '`' . $this->fixture_table . '`' ) && false !== strpos( $sql, ' LIMIT ' ) ) {
+				$selects[] = $sql;
+			}
+			return $sql;
+		};
+		add_filter( 'query', $filter );
+		try {
+			$dumper = MainWP_Backup_Db_Dumper::instance();
+			$prefix = $this->scratch . '/sized';
+			$result = $dumper->dump_tables_tier2_slice( array( $this->fixture_table ), $prefix, array(), 0 );
+			$this->assertArrayHasKey( 'chunk_rows', $result['cursor'], 'Persist the table estimate before yielding.' );
+			$this->assertSame( $expected, $result['cursor']['chunk_rows'] );
+			$cursor = json_decode( wp_json_encode( $result['cursor'] ), true );
+			if ( ! $seek ) {
+				$cursor['pk_col'] = null;
+			}
+			$estimate = 1;
+			$result = $dumper->dump_tables_tier2_slice( array( $this->fixture_table ), $prefix, $cursor, 0 );
+			$this->assertTrue( $result['done'] );
+			$this->assertSame( 1, $reads, 'A resumed table must keep its original estimate.' );
+			$this->assertCount( 1, $selects );
+			$this->assertMatchesRegularExpression( '/ LIMIT ' . $expected . '(?: OFFSET 0)?$/', $selects[0] );
+		} finally {
+			remove_filter( 'query', $filter );
+		}
+	}
+
+	public static function tier2_row_estimates() {
+		$cases = array();
+		foreach ( array( 'seek' => true, 'offset' => false ) as $mode => $seek ) {
+			$cases[ $mode . '-large' ] = array( 32768, 256, $seek );
+			$cases[ $mode . '-floor' ] = array( 32769, 255, $seek );
+			$cases[ $mode . '-minimum' ] = array( 8388608, 100, $seek );
+			$cases[ $mode . '-small' ] = array( 1, 10000, $seek );
+			$cases[ $mode . '-zero' ] = array( 0, 10000, $seek );
+			$cases[ $mode . '-null' ] = array( null, 10000, $seek );
+			$cases[ $mode . '-missing' ] = array( false, 10000, $seek );
+		}
+		return $cases;
+	}
+
+	public function test_tier2_full_sized_chunk_does_not_finish_table() {
+		global $wpdb;
+		for ( $id = 3; $id <= 103; ++$id ) {
+			$this->assertSame( 1, $wpdb->insert( $this->fixture_table, array( 'id' => $id, 'name' => 'row-' . $id ) ), $wpdb->last_error );
+		}
+		$filter = function ( $sql ) {
+			return false !== stripos( $sql, 'AVG_ROW_LENGTH' ) ? 'SELECT 8388608' : $sql;
+		};
+		add_filter( 'query', $filter );
+		try {
+			$dumper = MainWP_Backup_Db_Dumper::instance();
+			$prefix = $this->scratch . '/completion';
+			$result = $dumper->dump_tables_tier2_slice( array( $this->fixture_table ), $prefix, array(), 0 );
+			$result = $dumper->dump_tables_tier2_slice( array( $this->fixture_table ), $prefix, $result['cursor'], 0 );
+			$this->assertFalse( $result['done'], 'A full computed chunk must leave the table open.' );
+			$this->assertSame( 100, $result['cursor']['offset'] );
+			$this->assertSame( 100, $result['cursor']['last_id'] );
+			$result = $dumper->dump_tables_tier2_slice( array( $this->fixture_table ), $prefix, $result['cursor'], 0 );
+			$this->assertTrue( $result['done'], 'The short final chunk must finish the table.' );
+			$this->replay_tier2_fixture( $result['files'][0] );
+			$this->assertSame( '103', $wpdb->get_var( "SELECT COUNT(*) FROM `{$this->fixture_table}`" ) );
+		} finally {
+			remove_filter( 'query', $filter );
+		}
+	}
+
+	public function test_tier2_cursor_without_chunk_size_resumes() {
+		$dumper = MainWP_Backup_Db_Dumper::instance();
+		$prefix = $this->scratch . '/legacy-cursor';
+		$result = $dumper->dump_tables_tier2_slice( array( $this->fixture_table ), $prefix, array(), 0 );
+		unset( $result['cursor']['chunk_rows'] );
+		$selects = array();
+		$reads = 0;
+		$filter = function ( $sql ) use ( &$selects, &$reads ) {
+			if ( false !== stripos( $sql, 'AVG_ROW_LENGTH' ) ) {
+				++$reads;
+			}
+			if ( 0 === strpos( $sql, 'SELECT ' ) && false !== strpos( $sql, '`' . $this->fixture_table . '`' ) && false !== strpos( $sql, ' LIMIT ' ) ) {
+				$selects[] = $sql;
+			}
+			return $sql;
+		};
+		add_filter( 'query', $filter );
+		try {
+			$result = $dumper->dump_tables_tier2_slice( array( $this->fixture_table ), $prefix, $result['cursor'], 0 );
+			$this->assertTrue( $result['done'] );
+			$this->assertSame( 0, $reads );
+			$this->assertCount( 1, $selects );
+			$this->assertStringEndsWith( ' LIMIT 10000', $selects[0] );
+			$this->assertStringContainsString( 'INSERT INTO', file_get_contents( $result['files'][0] ) );
+		} finally {
+			remove_filter( 'query', $filter );
+		}
+	}
+
 	/**
 	 * A failed row read must not finalize a schema-only backup.
 	 */
