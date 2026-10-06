@@ -94,32 +94,10 @@ class MainWP_Child_Comments {
      */
     public function comment_action() {
         $action = MainWP_System::instance()->validate_params( 'action' );
-        // phpcs:disable WordPress.Security.NonceVerification
-        $commentId = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
-
-        if ( 'approve' === $action ) {
-            wp_set_comment_status( $commentId, 'approve' );
-        } elseif ( 'unapprove' === $action ) {
-            wp_set_comment_status( $commentId, 'hold' );
-        } elseif ( 'spam' === $action ) {
-            wp_spam_comment( $commentId );
-        } elseif ( 'unspam' === $action ) {
-            wp_unspam_comment( $commentId );
-        } elseif ( 'trash' === $action ) {
-            add_action( 'trashed_comment', array( MainWP_Child_Links_Checker::get_class_name(), 'hook_trashed_comment' ), 10, 1 );
-            wp_trash_comment( $commentId );
-        } elseif ( 'restore' === $action ) {
-            wp_untrash_comment( $commentId );
-        } elseif ( 'delete' === $action ) {
-            wp_delete_comment( $commentId, true );
-        } else {
-            $information['status'] = 'FAIL';
-        }
-
-        if ( ! isset( $information['status'] ) ) {
-            $information['status'] = 'SUCCESS';
-        }
-        // phpcs:enable
+        // sanitize_text_field() strips tags and octets, so "3<b>41" would reach comment 341; canonical_positive_integer() is the whitelist.
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Authenticated MainWP Child callable; the id is validated as a canonical positive integer.
+        $commentId   = isset( $_POST['id'] ) && is_string( $_POST['id'] ) ? trim( wp_unslash( $_POST['id'] ) ) : '';
+        $information = $this->comment_action_result( $action, $commentId );
         MainWP_Helper::write( $information );
     }
 
@@ -139,33 +117,142 @@ class MainWP_Child_Comments {
         }
 
         $action = MainWP_System::instance()->validate_params( 'action' );
-        // phpcs:disable WordPress.Security.NonceVerification
-        $commentIds = isset( $_POST['ids'] ) ? explode( ',', sanitize_text_field( wp_unslash( $_POST['ids'] ) ) ) : array();
-        // phpcs:enable
-        $information['success'] = 0;
-        foreach ( $commentIds as $commentId ) {
-            if ( $commentId ) {
+        // Each token is validated as a canonical positive integer; sanitizing first could join a malformed token into another id.
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Authenticated MainWP Child callable.
+        $commentIds  = isset( $_POST['ids'] ) && is_string( $_POST['ids'] ) ? wp_unslash( $_POST['ids'] ) : '';
+        $information = $this->comment_bulk_action_result( $action, $commentIds );
+        MainWP_Helper::write( $information );
+    }
+
+    /**
+     * Return a legacy single reply without ending the request.
+     *
+     * @param string $action     Moderation action name.
+     * @param mixed  $comment_id Comment ID as received.
+     * @return array
+     */
+    public function comment_action_result( $action, $comment_id ) {
+        return $this->legacy_comment_action_result( $action, $comment_id, true );
+    }
+
+    /**
+     * Return a legacy bulk reply without ending the request.
+     *
+     * @param string $action      Moderation action name.
+     * @param string $comment_ids Comma-separated comment IDs.
+     * @return array
+     */
+    public function comment_bulk_action_result( $action, $comment_ids ) {
+        // Released Dashboards read only the success count; keep partial failures in separate fields.
+        $information = array( 'success' => 0 );
+        if ( ! in_array( $action, array( 'approve', 'unapprove', 'spam', 'unspam', 'trash', 'restore', 'delete' ), true ) ) {
+            return $information;
+        }
+
+        $seen = array();
+        foreach ( explode( ',', $comment_ids ) as $token ) {
+            $token = trim( $token );
+            if ( '' === $token || '0' === $token ) {
+                continue;
+            }
+            $comment_id = $this->canonical_positive_integer( $token );
+            if ( false === $comment_id ) {
+                $information['invalid'] = isset( $information['invalid'] ) ? $information['invalid'] + 1 : 1;
+                continue;
+            }
+            if ( isset( $seen[ $comment_id ] ) ) {
+                continue;
+            }
+            $seen[ $comment_id ] = true;
+            $result              = $this->legacy_comment_action_result( $action, $comment_id );
+            if ( isset( $result['status'] ) && 'SUCCESS' === $result['status'] ) {
                 ++$information['success'];
-                if ( 'approve' === $action ) {
-                    wp_set_comment_status( $commentId, 'approve' );
-                } elseif ( 'unapprove' === $action ) {
-                    wp_set_comment_status( $commentId, 'hold' );
-                } elseif ( 'spam' === $action ) {
-                    wp_spam_comment( $commentId );
-                } elseif ( 'unspam' === $action ) {
-                    wp_unspam_comment( $commentId );
-                } elseif ( 'trash' === $action ) {
-                    wp_trash_comment( $commentId );
-                } elseif ( 'restore' === $action ) {
-                    wp_untrash_comment( $commentId );
-                } elseif ( 'delete' === $action ) {
-                    wp_delete_comment( $commentId, true );
-                } else {
-                    --$information['success'];
-                }
+            } elseif ( 'comment_not_found' === $result['error_code'] ) {
+                $information['not_found'][] = $comment_id;
+            } else {
+                $information['failed'][] = $comment_id;
             }
         }
-        MainWP_Helper::write( $information );
+        return $information;
+    }
+
+    /**
+     * Verify a legacy mutation before reporting the reply released Dashboards read.
+     *
+     * @param string $action     Moderation action name.
+     * @param mixed  $comment_id Comment ID as received.
+     * @param bool   $single     Whether to register the single-call Links Checker hook.
+     * @return array
+     */
+    private function legacy_comment_action_result( $action, $comment_id, $single = false ) {
+        if ( ! in_array( $action, array( 'approve', 'unapprove', 'spam', 'unspam', 'trash', 'restore', 'delete' ), true ) ) {
+            return array( 'status' => 'FAIL' );
+        }
+        $comment_id = $this->canonical_positive_integer( $comment_id );
+        $comment    = false === $comment_id ? null : $this->load_v2_comment( $comment_id );
+        // WordPress 7.1 clones before checking for a missing comment; mutations need a loaded object.
+        if ( ! $comment ) {
+            return array(
+                'error'      => 'The comment was not found.',
+                'error_code' => 'comment_not_found',
+            );
+        }
+
+        // wp_get_comment_status() reports post-trashed (a comment on a trashed post) as false, the same
+        // as a live v2 claim; the first is a status every legacy action handled, the second must not be touched.
+        $before = 'post-trashed' === (string) $comment->comment_approved ? 'post-trashed' : $this->canonical_comment_status( wp_get_comment_status( $comment ) );
+        // A no-op is refused, and unspam and restore only apply to spam and trash: on any other comment
+        // WordPress demotes it to pending. Any status outside this table, a v2 claim included, is refused.
+        $allowed_from = array(
+            'approve'   => array( 'pending', 'spam', 'trash', 'post-trashed' ),
+            'unapprove' => array( 'approved', 'spam', 'trash', 'post-trashed' ),
+            'spam'      => array( 'approved', 'pending', 'trash', 'post-trashed' ),
+            'unspam'    => array( 'spam' ),
+            'trash'     => array( 'approved', 'pending', 'spam', 'post-trashed' ),
+            'restore'   => array( 'trash' ),
+            'delete'    => array( 'approved', 'pending', 'spam', 'trash', 'post-trashed' ),
+        );
+        if ( ! in_array( $before, $allowed_from[ $action ], true ) ) {
+            return array(
+                'error'      => 'The comment is not in a status this action applies to.',
+                'error_code' => 'status_conflict',
+            );
+        }
+
+        // Unspam and restore put back the status stored when the comment left it, which can be trash
+        // (a trashed comment marked as spam), so that status is an outcome too.
+        $prior = false;
+        if ( 'unspam' === $action || 'restore' === $action ) {
+            $prior = (string) get_comment_meta( $comment_id, '_wp_trash_meta_status', true );
+            $prior = $this->canonical_comment_status( empty( $prior ) ? '0' : $prior );
+        }
+
+        if ( 'delete' === $action ) {
+            $changed = wp_delete_comment( $comment, true );
+            clean_comment_cache( $comment_id );
+            $applied = true === $changed && ! get_comment( $comment_id );
+        } else {
+            if ( $single && 'trash' === $action ) {
+                add_action( 'trashed_comment', array( MainWP_Child_Links_Checker::get_class_name(), 'hook_trashed_comment' ), 10, 1 );
+            }
+            $changed = $this->apply_v2_moderation( $action, $comment );
+            if ( 'trash' === $action && ! EMPTY_TRASH_DAYS ) {
+                // With EMPTY_TRASH_DAYS at 0, wp_trash_comment() deletes the comment permanently.
+                clean_comment_cache( $comment_id );
+                $applied = true === $changed && ! get_comment( $comment_id );
+            } else {
+                $after   = $this->current_v2_status( $comment_id );
+                $applied = true === $changed && ( $this->moderation_post_state_matches( $action, $after ) || ( false !== $prior && $prior === $after ) );
+            }
+        }
+        if ( ! $applied ) {
+            return array(
+                'error'      => 'The comment action could not be completed.',
+                'error_code' => 'mutation_failed',
+            );
+        }
+        // Released Dashboards require this exact success shape and read failures through the error key.
+        return array( 'status' => 'SUCCESS' );
     }
 
     /**
@@ -655,9 +742,9 @@ class MainWP_Child_Comments {
         if ( false === $status || ! $post || 1 > (int) $comment->comment_ID || 1 > (int) $comment->comment_post_ID || false === $timestamp || 1 > $timestamp ) {
             return false;
         }
-        $author  = $this->bounded_v2_text( $comment->comment_author, 200 );
-        $content = $this->bounded_v2_text( $comment->comment_content, 10000 );
-        $title   = $this->bounded_v2_text( $post->post_title, 500 );
+        $author  = $this->bounded_v2_text( $comment->comment_author, 255 );
+        $content = $this->bounded_v2_text( $comment->comment_content, 65535 );
+        $title   = $this->bounded_v2_text( $post->post_title, 65535 );
         if ( false === $author || false === $content || false === $title ) {
             return false;
         }
