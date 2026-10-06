@@ -189,15 +189,28 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
             $dir_hash = static::get_backup_dir_hash();
             $newdir   = $dir . 'backup-' . $dir_hash . DIRECTORY_SEPARATOR;
             static::check_dir( $newdir, $die_on_error );
+            $protected = true;
             if ( ! $wp_filesystem->exists( $newdir . 'index.php' ) ) {
-                touch( $newdir . 'index.php' );
+                $protected = @touch( $newdir . 'index.php' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- warnings disclose the private backup path; failure is reported below.
             }
 
             $another_name = '.htaccess';
-            if ( ! $wp_filesystem->exists( $newdir . $another_name ) ) {
-                $file = fopen( $newdir . $another_name, 'w+' );
-                fwrite( $file, 'deny from all' );
-                fclose( $file );
+            if ( $protected && ! $wp_filesystem->exists( $newdir . $another_name ) ) {
+                $file = @fopen( $newdir . $another_name, 'w+' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- warnings disclose the private backup path; failure is reported below.
+                if ( false === $file ) {
+                    $protected = false;
+                } else {
+                    $protected = strlen( 'deny from all' ) === @fwrite( $file, 'deny from all' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- warnings disclose the private backup path; failure is reported below.
+                    $protected = @fclose( $file ) && $protected; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- warnings disclose the private backup path; failure is reported below.
+                }
+            }
+            if ( ! $protected ) {
+                $error = esc_html__( 'Unable to create the backup directory. Is its parent directory writable by the server?', 'mainwp-child' );
+                if ( $die_on_error ) {
+                    static::instance()->error( $error );
+                } else {
+                    throw new MainWP_Exception( $error ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- translated message is escaped.
+                }
             }
             $url .= 'backup-' . $dir_hash . '/';
         } else {

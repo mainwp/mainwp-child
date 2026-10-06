@@ -799,9 +799,19 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             if ( ! $append ) {
                 MainWP_Backup::get()->reset_failed_adds();
             }
+            $archive_params = $params;
+            if ( $append ) {
+                $root                       = $this->site_root();
+                $archive_params['excludes'] = isset( $params['excludes'] ) && is_array( $params['excludes'] ) ? $params['excludes'] : array();
+                foreach ( $sub_state['failed_add_paths'] ?? array() as $path ) {
+                    if ( 0 === strpos( $path, $root ) ) {
+                        $archive_params['excludes'][] = substr( $path, strlen( $root ) );
+                    }
+                }
+            }
             try {
                 $res = $this->run_file_archiver(
-                    $params,
+                    $archive_params,
                     $sub_state['archive_file'],
                     $append,
                     $deadline,
@@ -1788,7 +1798,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
-     * Keep recorded coverage identical to the walker's inputs.
+     * Record requested coverage before make_walker() adds failed-path exclusions.
      *
      * @param array $params Backup parameters.
      * @return array Manifest coverage.

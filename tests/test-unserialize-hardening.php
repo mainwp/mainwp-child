@@ -495,26 +495,36 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 			$not_a_call[] = T_NULLSAFE_OBJECT_OPERATOR;
 		}
 
-		// A "use function \unserialize as decode;" import makes decode() the same call. Grouped
-		// imports (use function Foo\{...}) are not followed.
+		// Keep aliases file-wide so a namespace boundary cannot hide an unsafe call.
 		$aliases = array();
 		foreach ( $tokens as $index => $token ) {
-			if ( T_USE !== $token[0] || ! isset( $tokens[ $index + 1 ] ) || T_FUNCTION !== $tokens[ $index + 1 ][0] ) {
+			if ( T_USE !== $token[0] || ! isset( $tokens[ $index + 1 ] ) || '(' === $tokens[ $index + 1 ][1] ) {
 				continue;
 			}
-			$import = array( array() );
-			for ( $i = $index + 2; isset( $tokens[ $i ] ) && ';' !== $tokens[ $i ][1]; ++$i ) {
-				if ( ',' === $tokens[ $i ][1] ) {
-					$import[] = array();
-				} else {
-					$import[ count( $import ) - 1 ][] = $tokens[ $i ];
+			$function_import = T_FUNCTION === $tokens[ $index + 1 ][0];
+			$prefix = '';
+			$imports = array( array() );
+			for ( $i = $index + ( $function_import ? 2 : 1 ); isset( $tokens[ $i ] ) && ';' !== $tokens[ $i ][1]; ++$i ) {
+				$text = $tokens[ $i ][1];
+				if ( '{' === $text ) {
+					foreach ( $imports[0] as $part ) { $prefix .= $part[1]; }
+					$imports = array( array() );
+				} elseif ( ',' === $text ) {
+					$imports[] = array();
+				} elseif ( '}' !== $text ) {
+					$imports[ count( $imports ) - 1 ][] = $tokens[ $i ];
 				}
 			}
-			foreach ( $import as $parts ) {
-				$target = '';
+			foreach ( $imports as $parts ) {
+				$target = $prefix;
+				$is_function = $function_import;
 				foreach ( $parts as $position => $part ) {
+					if ( T_FUNCTION === $part[0] ) {
+						$is_function = true;
+						continue;
+					}
 					if ( T_AS === $part[0] ) {
-						if ( 'unserialize' === strtolower( ltrim( $target, '\\' ) ) && 2 === count( $parts ) - $position ) {
+						if ( $is_function && 'unserialize' === strtolower( substr( (string) strrchr( '\\' . $target, '\\' ), 1 ) ) && 2 === count( $parts ) - $position ) {
 							$aliases[] = strtolower( $parts[ $position + 1 ][1] );
 						}
 						break;
@@ -639,6 +649,43 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 		return null;
 	}
 
+	public static function namespaced_import_alias_cases() {
+		$cases = array();
+		$imports = array(
+			'qualified' => 'use function Foo\\Unserialize as x;',
+			'function group' => 'use function Foo\\{strlen, unserialize as x};',
+			'mixed group' => 'use Foo\\{Bar, function unserialize as x, const VALUE};',
+		);
+		foreach ( $imports as $name => $import ) {
+			$cases[ $name . ' missing options' ] = array( $import . "\n" . 'x( $v );', array( 2 ) );
+			$cases[ $name . ' allowed classes' ] = array( $import . "\n" . 'x( $v, array( "allowed_classes" => true ) );', array( 2 ) );
+			$cases[ $name . ' restricted' ] = array( $import . "\n" . 'x( $v, array( "allowed_classes" => false ) );', array() );
+		}
+		return $cases;
+	}
+
+	/** @dataProvider namespaced_import_alias_cases */
+	public function test_namespaced_unserialize_import_aliases( $source, $expected ) {
+		$this->assertSame( $expected, $this->find_bare_unserialize_lines( $source ) );
+	}
+
+	public function test_every_class_unserialize_restriction_is_detected_when_flipped() {
+		$flipped = 0;
+		$files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( dirname( __DIR__ ) . '/class', FilesystemIterator::SKIP_DOTS ) );
+		foreach ( $files as $file ) {
+			if ( 'php' !== strtolower( $file->getExtension() ) ) { continue; }
+			$source = file_get_contents( $file->getPathname() );
+			preg_match_all( '/([\'"])allowed_classes\1\s*=>\s*false\b/i', $source, $matches, PREG_OFFSET_CAPTURE );
+			foreach ( $matches[0] as $match ) {
+				$line = 1 + substr_count( substr( $source, 0, $match[1] ), "\n" );
+				$unsafe = substr_replace( $source, preg_replace( '/false$/i', 'true', $match[0] ), $match[1], strlen( $match[0] ) );
+				$this->assertNotEmpty( $this->find_bare_unserialize_lines( $unsafe ), $file->getFilename() . ':' . $line );
+				++$flipped;
+			}
+		}
+		$this->assertGreaterThan( 0, $flipped, 'The mutation probe must exercise real restrictions.' );
+	}
+
 	/**
 	 * Every shape the bare-unserialize guard must flag or accept, with the
 	 * exact lines it must report.
@@ -699,7 +746,7 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 			'alias name as a method and a qualified call'      => array( "use function \\unserialize as decode;\n\$o->decode( \$v ); Foo\\decode( \$v );", array() ),
 		);
 
-		foreach ( $cases as $name => $case ) {
+		foreach ( array_merge( $cases, self::namespaced_import_alias_cases() ) as $name => $case ) {
 			$this->assertSame( $case[1], $this->find_bare_unserialize_lines( $case[0] ), $name );
 		}
 	}

@@ -9,8 +9,17 @@ use MainWP\Child\MainWP_Child_Backup_File_Walker;
 
 class FailedWalkerWriteStream {
 	public $context;
-	public function stream_open( $path, $mode, $options, &$opened_path ) { return true; }
-	public function stream_write( $data ) { return -1; }
+	public $path;
+	public function stream_open( $path, $mode, $options, &$opened_path ) { $this->path = $path; return true; }
+	public static $short_path;
+	private $remaining = 1;
+	public function stream_write( $data ) {
+		if ( null === self::$short_path ) { return -1; }
+		if ( false === strpos( $this->path, self::$short_path ) ) { return strlen( $data ); }
+		$written = min( strlen( $data ), $this->remaining );
+		$this->remaining -= $written;
+		return $written;
+	}
 	public function stream_close() {}
 	public function unlink( $path ) { return true; }
 }
@@ -128,7 +137,8 @@ class CorruptOnceSlicingWalker extends SlicingTestWalker {
 class BackupFileWalkerTest extends WP_UnitTestCase {
 
 	/** @dataProvider failed_run_write_cases */
-	public function test_failed_run_write_uses_confirmed_space( $free, $expected, $merge ) {
+	public function test_failed_run_write_uses_confirmed_space( $free, $expected, $merge, $short_path = null ) {
+		FailedWalkerWriteStream::$short_path = $short_path;
 		$this->assertTrue( stream_wrapper_register( 'failedwalkerwrite', FailedWalkerWriteStream::class ) );
 		$walker = new class( $free ) extends MainWP_Child_Backup_File_Walker {
 			public $probed_dir;
@@ -162,7 +172,23 @@ class BackupFileWalkerTest extends WP_UnitTestCase {
 			$this->assertSame( $merge ? 'failedwalkerwrite://sidecars' : 'failedwalkerwrite://runs', $walker->probed_dir );
 		} finally {
 			stream_wrapper_unregister( 'failedwalkerwrite' );
+			FailedWalkerWriteStream::$short_path = null;
 		}
+	}
+
+	/** @dataProvider short_manifest_write_cases */
+	public function test_short_manifest_writes_use_confirmed_space( $free, $expected, $merge, $path ) {
+		$this->test_failed_run_write_uses_confirmed_space( $free, $expected, $merge, $path );
+	}
+
+	public static function short_manifest_write_cases() {
+		$cases = array();
+		foreach ( array( 'runs' => false, 'files.list' => true, 'paths.cache' => true ) as $path => $merge ) {
+			foreach ( array( 'insufficient' => 0, 'available' => PHP_INT_MAX, 'unavailable' => false ) as $space => $free ) {
+				$cases[ $path . '-' . $space ] = array( $free, 0 === $free ? 'mainwp_backup_disk_full' : 'mainwp_backup_manifest_walk_failed', $merge, $path );
+			}
+		}
+		return $cases;
 	}
 
 	public static function failed_run_write_cases() {

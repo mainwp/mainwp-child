@@ -14,6 +14,7 @@ class Tar_Incomplete_Write_Stream {
 
 	public $context;
 	public static $remaining;
+	public static $flush_ok = true;
 
 	public function stream_open( $path, $mode, $options, &$opened_path ) {
 		return true;
@@ -26,7 +27,7 @@ class Tar_Incomplete_Write_Stream {
 	}
 
 	public function stream_flush() {
-		return true;
+		return self::$flush_ok;
 	}
 }
 
@@ -47,6 +48,30 @@ class Incomplete_Write_Tar_Archiver extends Tar_Archiver {
 		if ( is_resource( $this->archive ) ) {
 			$this->close();
 		}
+	}
+}
+
+class Final_Failure_Tar_Archiver extends Tar_Archiver {
+	public $failure;
+	public function __construct( $type, $buffered, $failure ) {
+		parent::__construct( MainWP_Backup::get(), $type );
+		$this->debug = $buffered;
+		$this->failure = $failure;
+	}
+	protected function close_archive_stream() {
+		$result = parent::close_archive_stream();
+		if ( 'close' === $this->failure ) { return false; }
+		if ( 'footer' === $this->failure || 'short' === $this->failure ) {
+			$handle = fopen( $this->archivePath, 'r+b' );
+			if ( 'short' === $this->failure ) {
+				ftruncate( $handle, 17 );
+			} else {
+				fseek( $handle, -4, SEEK_END );
+				fwrite( $handle, pack( 'V', 1 ) );
+			}
+			fclose( $handle );
+		}
+		return $result;
 	}
 }
 
@@ -116,6 +141,122 @@ class TarArchiverIntegrityTest extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_mid_file_read_failure_records_path_and_aborts_archive() {
+		$backup = MainWP_Backup::get();
+		$backup->reset_failed_adds();
+		$source = $this->fixture_dir . '/read-failure.txt';
+		file_put_contents( $source, str_repeat( 'x', 1024000 * 5 + 1 ) );
+		$archiver = new class( $backup, 'tar.gz' ) extends Tar_Archiver {
+			private $reads = 0;
+			protected function read_source_data( $handle, $length ) {
+				return ++$this->reads > 1 ? false : parent::read_source_data( $handle, $length );
+			}
+		};
+		$archiver->create( $this->archive_path );
+		try {
+			try {
+				$this->invoke_private( $archiver, 'add_file', $source, 'read-failure.txt' );
+				$this->fail( 'A source read failure must abort rather than publish a short entry.' );
+			} catch ( MainWP_Exception $e ) {
+				$this->assertSame( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED, $e->get_message_error_code() );
+			}
+			$this->assertSame( array( $source ), $backup->get_failed_add_paths() );
+		} finally {
+			$archiver->close();
+			$backup->reset_failed_adds();
+			MainWP_Backup::reset_skipped_paths();
+		}
+	}
+
+	public function test_unreadable_tar_add_aborts_past_failure_limit() {
+		$backup = MainWP_Backup::get();
+		$backup->reset_failed_adds();
+		$source = $this->fixture_dir . '/file-0.txt';
+		chmod( $source, 0000 );
+		$archiver = new Tar_Archiver( $backup, 'tar.gz' );
+		try {
+			clearstatcache( true, $source );
+			if ( is_readable( $source ) ) { $this->markTestSkipped( 'The test user can read a chmod 0000 file.' ); }
+			for ( $i = 0; $i < MainWP_Backup::MAX_FAILED_ADDS; ++$i ) { $backup->record_failed_add( $source ); }
+			$archiver->create( $this->archive_path );
+			try {
+				@$this->invoke_private( $archiver, 'add_file', $source, 'unreadable.txt' );
+				$this->fail( 'Tar additions must enforce the failed-add limit.' );
+			} catch ( MainWP_Exception $e ) {
+				$this->assertSame( MainWP_Backup_Error::ERR_TOO_MANY_SKIPPED, $e->get_message_error_code() );
+			}
+		} finally {
+			if ( $archiver->is_open() ) { $archiver->close(); }
+			chmod( $source, 0644 );
+			$backup->reset_failed_adds();
+			MainWP_Backup::reset_skipped_paths();
+		}
+	}
+
+	public static function final_write_failures() {
+		return array(
+			'tar close' => array( 'tar', false, 'close', false ),
+			'chunk gzip close' => array( 'tar.gz', true, 'close', false ),
+			'gzip footer' => array( 'tar.gz', false, 'footer', false ),
+			'gzip too short' => array( 'tar.gz', false, 'short', false ),
+			'appended gzip footer' => array( 'tar.gz', false, 'footer', true ),
+		);
+	}
+
+	/** @dataProvider final_write_failures */
+	public function test_final_flush_or_close_failure_aborts_backup( $type, $buffered, $failure, $append ) {
+		$archiver = new Final_Failure_Tar_Archiver( $type, $buffered, $failure );
+		$archiver->create( $this->archive_path );
+		$this->invoke_private( $archiver, 'add_file_from_string', 'before.txt', 'prefix bytes' );
+		if ( $append ) {
+			$archiver->failure = null;
+			$archiver->close();
+			$archiver->append( $this->archive_path );
+			$archiver->failure = $failure;
+			$this->invoke_private( $archiver, 'add_file_from_string', 'after.txt', 'appended bytes' );
+		}
+		$this->expectException( MainWP_Exception::class );
+		try {
+			$archiver->close();
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED, $e->get_message_error_code() );
+			throw $e;
+		}
+	}
+
+	public function test_gzip_final_flush_failure_aborts_backup() {
+		$archiver = new class() extends Tar_Archiver {
+			public function __construct() { parent::__construct( MainWP_Backup::get(), 'tar.gz' ); }
+			public function create( $path ) {
+				parent::create( $path );
+				gzclose( $this->archive );
+				$this->archive = fopen( 'tarincomplete://archive', 'wb' );
+			}
+		};
+		Tar_Incomplete_Write_Stream::$remaining = PHP_INT_MAX;
+		Tar_Incomplete_Write_Stream::$flush_ok = false;
+		try {
+			$archiver->create( $this->archive_path );
+			$this->expectException( MainWP_Exception::class );
+			try {
+				$archiver->close();
+			} catch ( MainWP_Exception $e ) {
+				$this->assertSame( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED, $e->get_message_error_code() );
+				throw $e;
+			}
+		} finally {
+			Tar_Incomplete_Write_Stream::$flush_ok = true;
+		}
+	}
+
+	public function test_read_close_does_not_validate_gzip_footer() {
+		file_put_contents( $this->archive_path, gzencode( 'read bytes' ) );
+		$reader = new Tar_Archiver( MainWP_Backup::get(), 'tar.gz' );
+		$reader->read( $this->archive_path );
+		$reader->close( false );
+		$this->assertSame( 'read bytes', gzdecode( file_get_contents( $this->archive_path ) ) );
+	}
+
 	protected function invoke_private( $archiver, $name, ...$args ) {
 		$method = new ReflectionMethod( Tar_Archiver::class, $name );
 		$method->setAccessible( true );
@@ -168,6 +309,20 @@ class TarArchiverIntegrityTest extends WP_UnitTestCase {
 
 	/** @dataProvider gzip_prefixes */
 	public function test_resume_after_last_entry_finishes_or_restarts_gzip( $state ) {
+		$disabled = array_map( 'trim', explode( ',', (string) ini_get( 'disable_functions' ) ) );
+		foreach ( array( 'exec', 'shell_exec' ) as $function ) {
+			if ( ! function_exists( $function ) || in_array( $function, $disabled, true ) ) {
+				$this->markTestSkipped( 'Gzip resume integrity needs exec and shell_exec.' );
+			}
+		}
+		foreach ( array( 'gzip', 'tar' ) as $binary ) {
+			$output = array();
+			$status = null;
+			exec( 'command -v ' . escapeshellarg( $binary ) . ' 2>/dev/null', $output, $status );
+			if ( 0 !== $status || array() === $output ) {
+				$this->markTestSkipped( 'Gzip resume integrity needs gzip and tar on PATH.' );
+			}
+		}
 		$tar = $this->create_entry_prefix();
 		$gzip = file_get_contents( $this->archive_path );
 		if ( 'concatenated' === $state ) {

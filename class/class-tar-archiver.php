@@ -48,6 +48,20 @@ class Tar_Archiver {
     protected $archivePath;
 
     /**
+     * Whether the current handle can write archive data.
+     *
+     * @var bool
+     */
+    protected $archiveWriting = false;
+
+    /**
+     * Uncompressed bytes in the current gzip member, modulo 2^32.
+     *
+     * @var int
+     */
+    protected $gzipMemberBytes = 0;
+
+    /**
      * Number of files added to the archive, for the periodic disk space floor.
      *
      * @var int Added file count.
@@ -713,6 +727,7 @@ class Tar_Archiver {
             if ( gzwrite( $this->archive, $data, $len ) !== $len ) {
                 $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
+            $this->gzipMemberBytes = ( $this->gzipMemberBytes + $len ) & 0xFFFFFFFF;
         } elseif ( 'tar.bz2' === $this->type ) {
             if ( bzwrite( $this->archive, $data, $len ) !== $len ) {
                 $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
@@ -973,9 +988,12 @@ class Tar_Archiver {
         }
 
         $stat = stat( $path ); // NOSONAR .
-        $fp   = fopen( $path, 'rb' ); // NOSONAR .
+        $fp   = @fopen( $path, 'rb' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- unreadable files are recorded below without exposing their paths.
         if ( ! $fp ) {
-            return;
+            if ( $this->backup instanceof MainWP_Backup ) {
+                $this->backup->record_failed_add( $path );
+            }
+            return false;
         }
 
         $prefix = '';
@@ -1062,7 +1080,15 @@ class Tar_Archiver {
             $alreadyRead = ( $rslt['bytesRead'] % 512 );
             $toRead      = 512 - $alreadyRead;
             if ( $toRead > 0 ) {
-                $this->tempContent = fread( $fp, $toRead );
+                $this->tempContent = $this->read_source_data( $fp, $toRead );
+                if ( false === $this->tempContent ) {
+                    fclose( $fp );
+                    if ( $this->backup instanceof MainWP_Backup ) {
+                        $this->backup->record_failed_add( $path );
+                    }
+                    // A compressed entry cannot be rolled back after its header was written.
+                    $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+                }
 
                 $this->add_data( $this->tempContent );
 
@@ -1075,7 +1101,15 @@ class Tar_Archiver {
         }
 
         while ( ! feof( $fp ) ) {
-            $this->tempContent = fread( $fp, 1024000 * 5 );
+            $this->tempContent = $this->read_source_data( $fp, 1024000 * 5 );
+            if ( false === $this->tempContent ) {
+                fclose( $fp );
+                if ( $this->backup instanceof MainWP_Backup ) {
+                    $this->backup->record_failed_add( $path );
+                }
+                // A compressed entry cannot be rolled back after its header was written.
+                $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+            }
 
             $read   = strlen( $this->tempContent );
             $divide = $read % 512;
@@ -1092,6 +1126,17 @@ class Tar_Archiver {
         fclose( $fp );
 
         return true;
+    }
+
+    /**
+     * Keep source read warnings out of the Dashboard response.
+     *
+     * @param resource $handle Source stream.
+     * @param int      $length Maximum bytes to read.
+     * @return string|false Source bytes, or false on a read failure.
+     */
+    protected function read_source_data( $handle, $length ) {
+        return @fread( $handle, $length ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- the caller records the failed path and aborts the partial archive.
     }
 
     /**
@@ -1386,6 +1431,9 @@ class Tar_Archiver {
      * @param string $filepath File location path.
      */
     public function create( $filepath ) {
+        $this->archivePath     = $filepath;
+        $this->archiveWriting  = true;
+        $this->gzipMemberBytes = 0;
         $this->log( 'Creating ' . $filepath );
         if ( $this->debug ) {
             if ( 'tar.bz2' === $this->type ) {
@@ -1412,6 +1460,9 @@ class Tar_Archiver {
      * @param string $filepath File location path.
      */
     public function append( $filepath ) {
+        $this->archivePath     = $filepath;
+        $this->archiveWriting  = true;
+        $this->gzipMemberBytes = 0;
         $this->log( 'Appending to ' . $filepath );
         if ( $this->debug ) {
             if ( 'tar.bz2' === $this->type ) {
@@ -1559,6 +1610,7 @@ class Tar_Archiver {
      * @param string $filepath File location path.
      */
     public function read( $filepath ) {
+        $this->archiveWriting = false;
         $this->log( 'Reading ' . $filepath );
         $this->archiveSize = false;
 
@@ -1593,14 +1645,54 @@ class Tar_Archiver {
         }
 
         if ( $this->archive ) {
-            if ( 'tar.gz' === $this->type ) {
-                gzclose( $this->archive );
-            } elseif ( 'tar.bz2' === $this->type ) {
-                bzclose( $this->archive );
-            } else {
-                fclose( $this->archive );
+            $writing = $this->archiveWriting;
+            $gzip    = 'tar.gz' === $this->type && ! $this->debug;
+            $flushed = true;
+            if ( $writing && $gzip ) {
+                $flushed = @fflush( $this->archive ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- write failures use the backup error registry.
+            }
+            $closed               = $this->close_archive_stream();
+            $this->archive        = null;
+            $this->archiveWriting = false;
+            if ( $writing && 'tar.bz2' !== $this->type ) {
+                if ( ! $flushed || ! $closed ) {
+                    $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+                }
+                if ( $gzip ) {
+                    // gzclose() can report success even when the final footer write fails.
+                    $footer = @fopen( $this->archivePath, 'rb' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- missing output is a write failure, without a path-bearing warning.
+                    $size   = false;
+                    if ( false !== $footer ) {
+                        $stat = fstat( $footer );
+                        if ( false !== $stat && $stat['size'] >= 18 && 0 === fseek( $footer, -4, SEEK_END ) ) {
+                            $bytes = fread( $footer, 4 );
+                            if ( false !== $bytes && 4 === strlen( $bytes ) ) {
+                                $size = unpack( 'Vsize', $bytes )['size'];
+                            }
+                        }
+                        fclose( $footer );
+                    }
+                    if ( $size !== $this->gzipMemberBytes ) {
+                        $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+                    }
+                }
             }
         }
+    }
+
+    /**
+     * Chunked gzip output uses a plain file handle.
+     *
+     * @return bool Whether the stream closed successfully.
+     */
+    protected function close_archive_stream() {
+        if ( 'tar.gz' === $this->type && ! $this->debug ) {
+            return @gzclose( $this->archive ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- write failures use the backup error registry.
+        }
+        if ( 'tar.bz2' === $this->type ) {
+            return bzclose( $this->archive );
+        }
+        return @fclose( $this->archive ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- write failures use the backup error registry.
     }
 
     /**

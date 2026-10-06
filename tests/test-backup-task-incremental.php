@@ -329,6 +329,110 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 
 	// ---- incremental run fixtures -----------------------------------------
 
+	public static function tar_failed_add_slices() {
+		return array( 'single slice' => array( false ), 'resumed slice' => array( true ) );
+	}
+
+	/** @dataProvider tar_failed_add_slices */
+	public function test_failed_tar_full_add_is_recovered_by_unchanged_incremental( $sliced ) {
+		$this->site = ABSPATH . 'mainwp-tar-failed-add-' . uniqid();
+		mkdir( $this->site );
+		file_put_contents( $this->site . '/missed.txt', 'recovered bytes' );
+		file_put_contents( $this->site . '/kept.txt', 'base bytes' );
+		file_put_contents( $this->site . '/later.txt', 'later bytes' );
+		$missed = $this->site . '/missed.txt';
+		chmod( $missed, 0000 );
+		$backup = \MainWP\Child\MainWP_Backup::get();
+		$backup->reset_failed_adds();
+		try {
+			clearstatcache( true, $missed );
+			if ( is_readable( $missed ) ) { $this->markTestSkipped( 'The test user can read a chmod 0000 file.' ); }
+			$excludes = array();
+			foreach ( glob( ABSPATH . '*' ) as $node ) {
+				if ( $node !== $this->site ) { $excludes[] = str_replace( ABSPATH, '', $node ); }
+			}
+			$excludes[] = '.htaccess';
+			$this->runner = new class() extends Testable_Task_Runner {
+				protected function walk_manifest_slice( $params, $backup_dir, $cursor, $deadline ) {
+					return \MainWP\Child\MainWP_Child_Backup_Task_Runner::walk_manifest_slice( $params, $backup_dir, $cursor, $deadline );
+				}
+			};
+			$this->runner->test_backup_dir = $this->backup_dir;
+			$this->runner->test_site_root = ABSPATH;
+			$this->runner->stubs = array(
+				'tier1_available' => true,
+				'dump_tier1' => array( $this->backup_dir . '/dbBackup-table1.sql.php' ),
+				'archive_db_artifact' => $this->backup_dir . '/backup-artifact.tar',
+				'promote_manifest_sidecars' => static function ( $dir ) {
+					return \MainWP\Child\MainWP_Child_Backup_File_Walker::promote_sidecars( $dir );
+				},
+			);
+			$attempt = 0;
+			$this->runner->stubs['run_file_archiver'] = function ( $params, $archive, $append ) use ( $backup, $sliced, &$attempt ) {
+				$path = $this->backup_dir . '/' . $archive;
+				$archiver = new \MainWP\Child\Tar_Archiver( $backup, 'tar.gz' );
+				$first = 0 === $attempt++;
+				$processed = 0;
+				if ( $sliced && $first ) {
+					$archiver->set_progress_callback( static function () use ( &$processed ) {
+						if ( ++$processed === 3 ) { throw new \MainWP\Child\MainWP_Backup_Budget_Exception( 'Forced yield after the skipped file and a valid entry.' ); }
+					} );
+				}
+				$backup->set_prepared_db_files( array() );
+				try {
+					@$archiver->create_full_backup( $path, $params['excludes'], false, true, false, false, $append );
+				} finally {
+					$backup->set_prepared_db_files( null );
+					$handle = new ReflectionProperty( $archiver, 'archive' );
+					$handle->setAccessible( true );
+					if ( is_resource( $handle->getValue( $archiver ) ) ) { $archiver->close(); }
+				}
+				clearstatcache( true, $path );
+				return array( 'file' => $archive, 'filesize' => filesize( $path ) );
+			};
+			$full_id = $this->create_task( 'full', array( 'ext' => 'tar.gz', 'excludes' => $excludes, 'emit_manifest' => true ) );
+			$full = $this->advance( $full_id );
+			if ( $sliced ) {
+				$this->assertSame( MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES, $full->phase );
+				$backup->reset_failed_adds();
+				$full = $this->advance( $full_id );
+			}
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $full->phase, 'A skipped file must not corrupt resume alignment.' );
+			$full_payload = MainWP_Child_Backup_Task::instance()->status_payload( $full, $this->backup_dir );
+			$full_roles = $this->artifacts_by_role( $full_payload );
+			$base = $this->backup_dir . '/' . $full_roles['full']['file'];
+			$parent = file_get_contents( $this->backup_dir . '/files.list' );
+			chmod( $missed, 0644 );
+			$incremental_id = $this->create_task( 'incremental', array( 'excludes' => $excludes, 'parent_manifest_b64' => base64_encode( $parent ) ) );
+			$incremental = $this->advance( $incremental_id );
+			for ( $slice = 0; $slice < 4 && MainWP_Child_Backup_Task::PHASE_COMPLETED !== $incremental->phase; ++$slice ) {
+				$incremental = $this->advance( $incremental_id );
+			}
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $incremental->phase );
+			$payload = MainWP_Child_Backup_Task::instance()->status_payload( $incremental, $this->backup_dir );
+			$entry = basename( $this->site ) . '/missed.txt';
+			$this->assertSame( array( $entry ), $this->packed_entries( $payload ), 'An unchanged file absent from the base must be archived by the incremental.' );
+			$this->assertStringNotContainsString( 'missed.txt', $parent );
+			$parts = array( $base );
+			foreach ( $payload['artifacts'] as $artifact ) {
+				if ( 'part' === $artifact['role'] ) { $parts[] = $this->backup_dir . '/' . $artifact['file']; }
+			}
+			$hashes = array();
+			foreach ( $parts as $part ) { $hashes[ basename( $part ) ] = hash_file( 'sha256', $part ); }
+			$target = $this->backup_dir . '/tar-restored';
+			mkdir( $target );
+			$result = ( new \MainWP\Child\MainWP_Child_Backup_File_Restorer() )->restore_slice( array(), array( 'parts' => $parts, 'hashes' => $hashes, 'extract_to' => $target ), PHP_INT_MAX );
+			$this->assertNull( $result['error'] );
+			$this->assertTrue( $result['done'] );
+			$this->assertSame( 'recovered bytes', file_get_contents( $target . '/' . $entry ) );
+			$this->assertSame( 'base bytes', file_get_contents( $target . '/' . basename( $this->site ) . '/kept.txt' ) );
+		} finally {
+			chmod( $missed, 0644 );
+			$backup->reset_failed_adds();
+			\MainWP\Child\MainWP_Backup::reset_skipped_paths();
+		}
+	}
+
 	public function test_failed_full_add_is_recovered_by_unchanged_incremental() {
 		$this->site = ABSPATH . 'mainwp-failed-add-' . uniqid();
 		mkdir( $this->site );

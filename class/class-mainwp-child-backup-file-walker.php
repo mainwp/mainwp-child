@@ -766,7 +766,7 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
         foreach ( $buffer as $entry ) {
             $line     = $entry[0] . "\t" . $entry[1] . "\t" . $entry[2] . "\t" . $entry[3] . "\n";
             $required = max( 4096, strlen( $line ) );
-            $ok       = false !== fwrite( $fh, $line ) && $ok; // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed run write.
+            $ok       = strlen( $line ) === fwrite( $fh, $line ) && $ok; // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed run write.
             if ( ! $ok ) {
                 break;
             }
@@ -842,8 +842,8 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
                 $file_row = $e[0] . "\t" . $e[1] . "\t" . $e[2] . "\n";
                 $path_row = $e[3] . "\t" . $e[0] . "\n";
                 $required = max( 4096, strlen( $file_row ), strlen( $path_row ) );
-                $write_ok = false !== fwrite( $fl, $file_row ) && $write_ok; // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed sidecar write.
-                $write_ok = false !== fwrite( $pc, $path_row ) && $write_ok; // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed sidecar write.
+                $write_ok = strlen( $file_row ) === fwrite( $fl, $file_row ) && $write_ok; // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed sidecar write.
+                $write_ok = strlen( $path_row ) === fwrite( $pc, $path_row ) && $write_ok; // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed sidecar write.
                 if ( ! $write_ok ) {
                     break;
                 }

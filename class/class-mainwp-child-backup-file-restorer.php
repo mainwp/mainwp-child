@@ -810,6 +810,11 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             }
 
             if ( ! @unlink( $target ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- failure is returned through the restore error registry.
+                clearstatcache( true, $target );
+                if ( ! file_exists( $target ) ) {
+                    ++$deleted;
+                    continue;
+                }
                 return array(
                     'deleted'    => $deleted,
                     'error'      => sprintf( 'Could not delete tombstoned file: %s.', esc_html( $relpath ) ),

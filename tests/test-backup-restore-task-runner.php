@@ -3563,6 +3563,40 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $this->site . '/stale.txt' );
 	}
 
+	public function test_tombstone_removed_during_failed_unlink_counts_as_deleted() {
+		$directory = $this->site . '/unlink-race';
+		mkdir( $directory );
+		$target = $directory . '/stale.txt';
+		file_put_contents( $target, 'old bytes' );
+		$tombstones = $this->make_named_tombstones_artifact( 'race-tombstones.list', "unlink-race/stale.txt\n" );
+		chmod( $directory, 0555 );
+		try {
+			clearstatcache( true, $directory );
+			if ( is_writable( $directory ) ) { $this->markTestSkipped( 'The test user can delete from a read-only directory.' ); }
+			$raced = false;
+			set_error_handler( static function ( $severity, $message ) use ( $directory, $target, &$raced ) {
+				if ( false !== strpos( $message, 'unlink(' ) && ! $raced ) {
+					$raced = true;
+					chmod( $directory, 0755 );
+					unlink( $target );
+				}
+				return true;
+			} );
+			try {
+				$result = ( new \MainWP\Child\MainWP_Child_Backup_File_Restorer() )->apply_tombstones( $this->dir . '/' . $tombstones['file'], $this->site );
+			} finally {
+				restore_error_handler();
+			}
+			$this->assertTrue( $raced, 'The fixture must exercise a failed unlink.' );
+			$this->assertNull( $result['error'], 'Another process already deleted the tombstone.' );
+			$this->assertNull( $result['error_code'] );
+			$this->assertSame( 1, $result['deleted'] );
+			$this->assertFileDoesNotExist( $target );
+		} finally {
+			chmod( $directory, 0755 );
+		}
+	}
+
 	public function test_failed_tombstone_unlink_fails_restore_status() {
 		$directory = $this->site . '/locked';
 		mkdir( $directory );

@@ -37,6 +37,54 @@ class BackupDirTest extends WP_UnitTestCase {
 		}
 	}
 
+	/** @dataProvider protection_file_failures */
+	public function test_backup_protection_write_failure_hides_path( $existing_index ) {
+		$root = sys_get_temp_dir() . '/mainwp-protection-' . uniqid();
+		$directory = $root . '/mainwp/backup-a1B2c3D4e5F6g7H8';
+		mkdir( $directory, 0755, true );
+		file_put_contents( $root . '/mainwp/index.php', '' );
+		if ( $existing_index ) { file_put_contents( $directory . '/index.php', '' ); }
+		update_option( 'mainwp_backup_dir_hash', 'a1B2c3D4e5F6g7H8' );
+		$filter = static function ( $uploads ) use ( $root ) {
+			$uploads['basedir'] = $root;
+			return $uploads;
+		};
+		add_filter( 'mainwp_child_get_wp_upload_dir', $filter );
+		chmod( $directory, 0555 );
+		try {
+			clearstatcache( true, $directory );
+			if ( is_writable( $directory ) ) { $this->markTestSkipped( 'The test user can write to a read-only directory.' ); }
+			$warnings = array();
+			$error = null;
+			set_error_handler( static function ( $severity, $message ) use ( &$warnings ) {
+				if ( error_reporting() & $severity ) { $warnings[] = $message; }
+				return true;
+			} );
+			try {
+				MainWP_Helper::get_mainwp_dir( 'backup', false );
+			} catch ( Throwable $e ) {
+				$error = $e;
+			} finally {
+				restore_error_handler();
+			}
+			$this->assertSame( array(), $warnings, 'Protection-file warnings must not disclose the backup path.' );
+			$this->assertInstanceOf( \MainWP\Child\MainWP_Exception::class, $error );
+			$this->assertSame( 'Unable to create the backup directory. Is its parent directory writable by the server?', $error->getMessage() );
+		} finally {
+			remove_filter( 'mainwp_child_get_wp_upload_dir', $filter );
+			chmod( $directory, 0755 );
+			if ( $existing_index ) { unlink( $directory . '/index.php' ); }
+			rmdir( $directory );
+			unlink( $root . '/mainwp/index.php' );
+			rmdir( $root . '/mainwp' );
+			rmdir( $root );
+		}
+	}
+
+	public static function protection_file_failures() {
+		return array( 'index' => array( false ), 'htaccess' => array( true ) );
+	}
+
 	public static function directory_error_paths() {
 		return array(
 			'private backup' => array( 'backup-a1B2c3D4e5F6g7H8', true ),
