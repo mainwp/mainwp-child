@@ -448,49 +448,176 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 
 		$this->assertSame( $allowed, $actual, 'unreviewed maybe_unserialize() in child class surface — harden it like insert_postmeta() (dashboard-fed) or add the file to the reviewed allowlist with a rationale' );
 	}
-	/** Remove approved calls, then report the line numbers of any unserialize() that remains. */
+	/**
+	 * Report the line of every unserialize() call whose own options argument is
+	 * not an array literal ending up with 'allowed_classes' => false.
+	 *
+	 * Runs on PHP tokens so comments and string contents never count as code, and
+	 * judges each call on its own arguments: a restricted outer call cannot vouch
+	 * for an unrestricted call nested inside it, and a marker in the first
+	 * argument or a neighboring call does not count.
+	 *
+	 * @param string $source PHP source, with or without the opening tag.
+	 *
+	 * @return int[] Line numbers of unrestricted calls.
+	 */
 	private function find_bare_unserialize_lines( $source ) {
-		$lines = preg_split( '/(?<=\n)/', $source );
-		foreach ( $lines as $index => $line ) {
-			if ( preg_match( '/^\s*(?:\*|\/\/)/', $line ) ) {
-				$lines[ $index ] = "\n";
-			}
+		if ( 0 !== strpos( ltrim( $source ), '<?php' ) ) {
+			// No newline after the tag, so line numbers match the fragment's own.
+			$source = '<?php ' . $source;
 		}
-		$stripped = preg_replace( '/\b(?:maybe_unserialize|is_serialized(?:_string)?)\s*\(/', '(', implode( '', $lines ) );
-		// The argument list may span lines, so the balanced-paren match runs over the whole source; newlines are kept so offsets still map to line numbers.
-		$stripped = preg_replace_callback(
-			'/(?<![\w$>:])unserialize\s*(\((?:[^()]++|(?1))*\))/',
-			function ( $match ) {
-				return preg_match( '/[\'"]allowed_classes[\'"]\s*=>\s*false\b/', $match[1] ) ? str_repeat( "\n", substr_count( $match[0], "\n" ) ) : $match[0];
-			},
-			$stripped
-		);
+
+		$tokens = array();
+		$line   = 1;
+		foreach ( token_get_all( $source ) as $token ) {
+			$type = is_array( $token ) ? $token[0] : null;
+			$text = is_array( $token ) ? $token[1] : $token;
+			if ( is_array( $token ) ) {
+				$line = $token[2];
+			}
+			if ( ! in_array( $type, array( T_WHITESPACE, T_COMMENT, T_DOC_COMMENT, T_OPEN_TAG, T_INLINE_HTML ), true ) ) {
+				$tokens[] = array( $type, $text, $line );
+			}
+			$line += substr_count( $text, "\n" );
+		}
+
+		$names      = defined( 'T_NAME_FULLY_QUALIFIED' ) ? array( T_STRING, T_NAME_FULLY_QUALIFIED ) : array( T_STRING );
+		$not_a_call = array( T_OBJECT_OPERATOR, T_DOUBLE_COLON, T_FUNCTION, T_NEW, T_CONST );
+		if ( defined( 'T_NULLSAFE_OBJECT_OPERATOR' ) ) {
+			$not_a_call[] = T_NULLSAFE_OBJECT_OPERATOR;
+		}
 
 		$found = array();
-		if ( preg_match_all( '/(?<![\w$>:])unserialize\s*\(/', $stripped, $matches, PREG_OFFSET_CAPTURE ) ) {
-			foreach ( $matches[0] as $match ) {
-				$found[] = substr_count( $stripped, "\n", 0, $match[1] ) + 1;
+		foreach ( $tokens as $index => $token ) {
+			if ( ! in_array( $token[0], $names, true ) || 'unserialize' !== strtolower( ltrim( $token[1], '\\' ) ) ) {
+				continue;
+			}
+			if ( ! isset( $tokens[ $index + 1 ] ) || '(' !== $tokens[ $index + 1 ][1] ) {
+				continue;
+			}
+			if ( $index > 0 && in_array( $tokens[ $index - 1 ][0], $not_a_call, true ) ) {
+				continue;
+			}
+			if ( ! $this->unserialize_call_is_restricted( $tokens, $index + 1 ) ) {
+				$found[] = $token[2];
 			}
 		}
 		return array_values( array_unique( $found ) );
 	}
 
-	/** Remove approved calls, then inspect what remains. */
-	private function has_bare_unserialize( $source ) {
-		return array() !== $this->find_bare_unserialize_lines( $source );
+	/**
+	 * Whether the call opening at $open passes an array literal as its second
+	 * argument, and that literal's last allowed_classes key is set to false.
+	 *
+	 * @param array $tokens Significant tokens as array( type, text, line ).
+	 * @param int   $open   Index of the call's opening parenthesis.
+	 *
+	 * @return bool
+	 */
+	private function unserialize_call_is_restricted( $tokens, $open ) {
+		$call = $this->split_bracketed( $tokens, $open );
+		if ( null === $call || ! isset( $call[0][1] ) ) {
+			return false;
+		}
+
+		$options = $call[0][1];
+		$start   = ( isset( $options[0] ) && T_ARRAY === $options[0][0] ) ? 1 : 0;
+		$literal = $this->split_bracketed( $options, $start );
+		// Anything after the literal's closing bracket (a "+ $more" union) means the options are not this literal.
+		if ( null === $literal || count( $options ) - 1 !== $literal[1] ) {
+			return false;
+		}
+
+		$allowed = null;
+		foreach ( $literal[0] as $element ) {
+			if ( isset( $element[1] ) && T_CONSTANT_ENCAPSED_STRING === $element[0][0] && 'allowed_classes' === substr( $element[0][1], 1, -1 ) && T_DOUBLE_ARROW === $element[1][0] ) {
+				// A repeated key overwrites the earlier one, so only the last occurrence decides.
+				$allowed = 3 === count( $element ) && 'false' === strtolower( $element[2][1] );
+			}
+		}
+		return true === $allowed;
 	}
 
-	/** An allowed wrapper or restricted call cannot hide a neighboring bare call. */
-	public function test_bare_unserialize_guard_checks_shared_lines() {
-		$this->assertTrue( $this->has_bare_unserialize( 'if ( is_serialized( $v ) ) { $v = unserialize( $v ); }' ) );
-		$this->assertTrue( $this->has_bare_unserialize( '$a = maybe_unserialize( $v ); $b = unserialize( $v );' ) );
-		$this->assertTrue( $this->has_bare_unserialize( '$a = unserialize( $v, array( "allowed_classes" => false ) ); $b = unserialize( $v );' ) );
-		$this->assertTrue( $this->has_bare_unserialize( '$a = unserialize( $v ); // allowed_classes' ) );
-		$this->assertFalse( $this->has_bare_unserialize( '$a = maybe_unserialize( $v );' ) );
-		$this->assertFalse( $this->has_bare_unserialize( '$a = unserialize( trim( $v ), array( "allowed_classes" => false ) );' ) );
-		$this->assertFalse( $this->has_bare_unserialize( "\$a = @unserialize(\n\t\$v,\n\tarray(\n\t\t'allowed_classes' => false,\n\t)\n);" ) );
-		$this->assertTrue( $this->has_bare_unserialize( "\$a = @unserialize(\n\t\$v,\n\tarray(\n\t\t'max_depth' => 4,\n\t)\n);" ) );
-		$this->assertTrue( $this->has_bare_unserialize( "\$a = @unserialize(\n\t\$v,\n\tarray( 'allowed_classes' => false )\n);\n\$b = unserialize( \$v );" ) );
+	/**
+	 * Split a bracketed token run at its top-level commas.
+	 *
+	 * @param array $tokens Significant tokens as array( type, text, line ).
+	 * @param int   $start  Index of the opening ( or [.
+	 *
+	 * @return array|null array( parts, closing index ), or null when $start is not an opener or the brackets never close.
+	 */
+	private function split_bracketed( $tokens, $start ) {
+		if ( ! isset( $tokens[ $start ] ) || ! in_array( $tokens[ $start ][1], array( '(', '[' ), true ) ) {
+			return null;
+		}
+
+		$parts = array( array() );
+		$depth = 0;
+		$count = count( $tokens );
+		for ( $i = $start; $i < $count; ++$i ) {
+			$text = $tokens[ $i ][1];
+			if ( in_array( $text, array( '(', '[', '{', '${' ), true ) ) {
+				++$depth;
+				if ( 1 === $depth ) {
+					continue;
+				}
+			} elseif ( in_array( $text, array( ')', ']', '}' ), true ) ) {
+				--$depth;
+				if ( 0 === $depth ) {
+					return array( $parts, $i );
+				}
+			} elseif ( 1 === $depth && ',' === $text ) {
+				$parts[] = array();
+				continue;
+			}
+			$parts[ count( $parts ) - 1 ][] = $tokens[ $i ];
+		}
+		return null;
+	}
+
+	/**
+	 * Every shape the bare-unserialize guard must flag or accept, with the
+	 * exact lines it must report.
+	 *
+	 * @return void
+	 */
+	public function test_bare_unserialize_guard_matrix() {
+		$cases = array(
+			'bare call beside an is_serialized() wrapper'      => array( 'if ( is_serialized( $v ) ) { $v = unserialize( $v ); }', array( 1 ) ),
+			'bare call beside maybe_unserialize()'             => array( '$a = maybe_unserialize( $v ); $b = unserialize( $v );', array( 1 ) ),
+			'bare call beside a restricted call'               => array( '$a = unserialize( $v, array( "allowed_classes" => false ) ); $b = unserialize( $v );', array( 1 ) ),
+			'marker only in a trailing comment'                => array( '$a = unserialize( $v ); // allowed_classes', array( 1 ) ),
+			'maybe_unserialize() alone'                        => array( '$a = maybe_unserialize( $v );', array() ),
+			'restricted call with a nested first argument'     => array( '$a = unserialize( trim( $v ), array( "allowed_classes" => false ) );', array() ),
+			'restricted call across lines'                     => array( "\$a = @unserialize(\n\t\$v,\n\tarray(\n\t\t'allowed_classes' => false,\n\t)\n);", array() ),
+			'options without allowed_classes across lines'     => array( "\$a = @unserialize(\n\t\$v,\n\tarray(\n\t\t'max_depth' => 4,\n\t)\n);", array( 1 ) ),
+			'bare call after a multiline restricted call'      => array( "\$a = @unserialize(\n\t\$v,\n\tarray( 'allowed_classes' => false )\n);\n\$b = unserialize( \$v );", array( 5 ) ),
+			'bare call nested inside a restricted call'        => array( "\$a = unserialize(\n    unserialize( \$v ),\n    array( \"allowed_classes\" => false )\n);", array( 2 ) ),
+			'marker inside the first argument'                 => array( "\$a = unserialize(\n    get_value( array( \"allowed_classes\" => false ) )\n);", array( 1 ) ),
+			'marker inside a comment within the call'          => array( "\$a = unserialize(\n    \$v /* \"allowed_classes\" => false */\n);", array( 1 ) ),
+			'paren in a string reaching a neighboring call'    => array( "\$a = unserialize(\n    \$v . \"(\"\n);\n\$b = foo( array( \"allowed_classes\" => false ), \" )\" );", array( 1 ) ),
+			'wrapper split across lines keeps line numbers'    => array( "is_serialized\n( \$v );\n\$b = unserialize( \$v );", array( 3 ) ),
+			'options passed as a variable'                     => array( '$a = unserialize( $v, $opts );', array( 1 ) ),
+			'allowed_classes true'                             => array( '$a = unserialize( $v, array( "allowed_classes" => true ) );', array( 1 ) ),
+			'allowed_classes as a class list'                  => array( '$a = unserialize( $v, array( "allowed_classes" => array( "Foo" ) ) );', array( 1 ) ),
+			'marker nested below the options array'            => array( '$a = unserialize( $v, array( "x" => array( "allowed_classes" => false ) ) );', array( 1 ) ),
+			'options literal unioned with more options'        => array( '$a = unserialize( $v, array( "allowed_classes" => false ) + $more );', array( 1 ) ),
+			'later duplicate key re-allows classes'            => array( '$a = unserialize( $v, array( "allowed_classes" => false, "allowed_classes" => true ) );', array( 1 ) ),
+			'empty second argument'                            => array( '$a = unserialize( $v, );', array( 1 ) ),
+			'short array with another key first'               => array( '$a = unserialize( $v, [ "max_depth" => 4, "allowed_classes" => false ] );', array() ),
+			'uppercase function name and FALSE'                => array( '$a = UNSERIALIZE( $v, array( "allowed_classes" => FALSE ) );', array() ),
+			'uppercase bare call'                              => array( '$a = UNSERIALIZE( $v );', array( 1 ) ),
+			'fully qualified bare call'                        => array( '$a = \unserialize( $v );', array( 1 ) ),
+			'silenced bare call'                               => array( '$a = @unserialize( $v );', array( 1 ) ),
+			'method call, static call and method definition'   => array( '$o->unserialize( $v ); Foo::unserialize( $v ); function unserialize( $data ) {}', array() ),
+			'call text inside a string literal'                => array( '$s = \'unserialize( $v )\';', array() ),
+			'call text inside a docblock'                      => array( "/**\n * unserialize( \$v )\n */\n\$a = 1;", array() ),
+			'full file with an opening tag'                    => array( "<?php\n\n\$a = unserialize( \$v );", array( 3 ) ),
+		);
+
+		foreach ( $cases as $name => $case ) {
+			$this->assertSame( $case[1], $this->find_bare_unserialize_lines( $case[0] ), $name );
+		}
 	}
 
 }
