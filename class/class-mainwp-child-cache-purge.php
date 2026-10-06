@@ -52,6 +52,13 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
     public $wp_optimize_class = '\WP_Optimize';
 
     /**
+     * Whether a successful Cloudflare purge may update the shared last-purged timestamp.
+     *
+     * @var bool
+     */
+    protected $update_cf_timestamp = true;
+
+    /**
      * Method instance()
      *
      * Create a public static instance.
@@ -346,7 +353,14 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
 
             // Fire off CloudFlare purge if enabled & not using a CDN Cache Plugin. ( Stops double purging Cloudflare ).
             if ( '1' === get_option( 'mainwp_child_cloud_flair_enabled' ) && 'CDN Cache Plugin' !== $cache_plugin_solution ) {
-                $information['cloudflare'] = $this->cloudflair_auto_purge_cache();
+                $prior_cf_update           = $this->update_cf_timestamp;
+                $this->update_cf_timestamp = isset( $information['action'] ) && 'SUCCESS' === $information['action'];
+
+                try {
+                    $information['cloudflare'] = $this->cloudflair_auto_purge_cache();
+                } finally {
+                    $this->update_cf_timestamp = $prior_cf_update;
+                }
             }
         } else {
             // If Cache Control is disabled, set status to disabled but still pass "SUCCESS" action because it did not fail.
@@ -399,15 +413,152 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function pressable_cache_management_auto_purge_cache() {
 
-        $success_message = 'Pressable Cache Management => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+        $success_message   = 'Pressable Cache Management => Cache auto cleared on: (' . current_time( 'mysql' ) . ')';
+        $failed_operations = array();
 
-        if ( ! is_callable( 'flush_pressable_cache_callback' ) ) {
-            return $this->purge_result( 'Pressable Cache Management => There was an issue purging your cache.', 'ERROR', 'provider_missing' );
+        $object_cache_flushed = $this->pressable_flush_object_cache();
+        $batcache_flushed     = $this->pressable_flush_batcache();
+
+        if ( ! $object_cache_flushed ) {
+            $failed_operations[] = 'Object Cache';
         }
-        flush_pressable_cache_callback();
+
+        if ( ! $batcache_flushed ) {
+            $failed_operations[] = 'Batcache';
+        }
+
+        if ( $object_cache_flushed ) {
+            update_option( 'flush-obj-cache-time-stamp', gmdate( 'j M Y, g:ia' ) . ' UTC' );
+            try {
+                do_action( 'pcm_after_object_cache_flush' );
+            } catch ( \Throwable $e ) {
+                $failed_operations[] = 'Object Cache post-purge hook';
+            }
+        }
+
+        if ( $this->pressable_edge_cache_is_enabled() ) {
+            if ( ! $this->pressable_purge_edge_cache() ) {
+                $failed_operations[] = 'Edge Cache';
+            } else {
+                try {
+                    do_action( 'pcm_after_edge_cache_purge' );
+                } catch ( \Throwable $e ) {
+                    $failed_operations[] = 'Edge Cache post-purge hook';
+                }
+            }
+        }
+
+        if ( ! empty( $failed_operations ) ) {
+            $error_message = 'Pressable Cache Management => Cache purge incomplete. Failed operations: ' . implode( ', ', $failed_operations ) . '.';
+            return $this->purge_result( $error_message, 'ERROR', 'attempt_failed' );
+        }
         // record results.
         update_option( 'mainwp_cache_control_last_purged', time() );
-        return $this->purge_result( $success_message, 'SUCCESS', 'dispatched_unverified' );
+        return $this->purge_result( $success_message, 'SUCCESS', 'provider_confirmed' );
+    }
+
+    /**
+     * Flush the WordPress persistent object cache.
+     *
+     * @return bool Whether the cache flush completed successfully.
+     */
+    protected function pressable_flush_object_cache() {
+        try {
+            $result = wp_cache_flush();
+        } catch ( \Throwable $e ) {
+            return false;
+        }
+
+        if ( false === $result ) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Flush Pressable Batcache when it is active.
+     *
+     * @return bool Whether Batcache was unavailable or flushed successfully.
+     */
+    protected function pressable_flush_batcache() {
+        if ( ! function_exists( 'batcache_clear_cache' ) ) {
+            return true;
+        }
+
+        try {
+            $result = batcache_clear_cache();
+        } catch ( \Throwable $e ) {
+            return false;
+        }
+
+        return false !== $result;
+    }
+
+    /**
+     * Check whether Pressable Edge Cache is enabled.
+     *
+     * Pressable exposes its live status through a static singleton accessor.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     *
+     * @return bool Whether Edge Cache is enabled.
+     */
+    protected function pressable_edge_cache_is_enabled() {
+        $edge_cache_enabled = 'enabled' === get_option( 'edge-cache-enabled' );
+
+        if ( ! class_exists( 'Edge_Cache_Plugin' ) || ! is_callable( array( '\\Edge_Cache_Plugin', 'get_instance' ) ) ) {
+            return $edge_cache_enabled;
+        }
+
+        try {
+            $edge_cache = \Edge_Cache_Plugin::get_instance();
+
+            if ( method_exists( $edge_cache, 'get_ec_status' ) ) {
+                $edge_cache_status = $edge_cache->get_ec_status();
+
+                if ( defined( 'Edge_Cache_Plugin::EC_ENABLED' ) && \Edge_Cache_Plugin::EC_ENABLED === $edge_cache_status ) {
+                    return true;
+                }
+
+                if ( defined( 'Edge_Cache_Plugin::EC_DISABLED' ) && \Edge_Cache_Plugin::EC_DISABLED === $edge_cache_status ) {
+                    return false;
+                }
+            }
+        } catch ( \Throwable $e ) {
+            return $edge_cache_enabled;
+        }
+
+        return $edge_cache_enabled;
+    }
+
+    /**
+     * Purge Pressable Edge Cache.
+     *
+     * Pressable exposes its purge method through a static singleton accessor.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     *
+     * @return bool Whether the Edge Cache purge completed successfully.
+     */
+    protected function pressable_purge_edge_cache() {
+        if ( ! class_exists( 'Edge_Cache_Plugin' ) || ! is_callable( array( '\\Edge_Cache_Plugin', 'get_instance' ) ) ) {
+            return false;
+        }
+
+        try {
+            $edge_cache = \Edge_Cache_Plugin::get_instance();
+
+            if ( ! method_exists( $edge_cache, 'purge_domain_now' ) || ! $edge_cache->purge_domain_now( 'mainwp-cache-control-purge' ) ) {
+                return false;
+            }
+        } catch ( \Throwable $e ) {
+            return false;
+        }
+
+        update_option( 'edge-cache-purge-time-stamp', gmdate( 'j M Y, g:ia' ) . ' UTC' );
+
+        return true;
     }
 
     /**
@@ -1077,8 +1228,10 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             $errors = substr( $errors, 0, 512 );
             return $this->purge_result( 'Cloudflare => There was an issue purging the cache. ' . $errors, 'ERROR', 'provider_confirmed' );
         }
-        // Save last purge time to database on success.
-        update_option( 'mainwp_cache_control_last_purged', time() );
+        // Save last purge time to database when the primary cache purge also succeeded.
+        if ( $this->update_cf_timestamp ) {
+            update_option( 'mainwp_cache_control_last_purged', time() );
+        }
         return $this->purge_result( 'Cloudflare => Cache auto cleared on: (' . current_time( 'mysql' ) . ')', 'SUCCESS', 'provider_confirmed' );
     }
 

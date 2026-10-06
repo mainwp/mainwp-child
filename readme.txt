@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 6.2
+Stable tag: 6.2.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -126,6 +126,16 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 * Added: WooCommerce order preservation during restore.
 * Added: Multisite network backup and restore.
 * Added: Backup and restore capability reporting so the Dashboard can refuse an operation this version does not support instead of failing it midway.
+
+= 6.2.2 - 10-5-2026 =
+
+* Security: Hardened serialized data handling during Clone/Restore operations
+
+= 6.2.1 - 9-30-2026 =
+
+* Fixed: Resolved an issue where installed premium updates remained listed after synchronizing the child site with the MainWP Dashboard.
+* Updated: Premium update requests now return results immediately for more timely status reporting.
+* Updated: Expanded the Unique Security ID guidance to cover automatic generation, regeneration, connection methods, and updates in the MainWP Dashboard
 
 = 6.2 - 9-9-2026 =
 

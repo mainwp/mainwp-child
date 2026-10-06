@@ -73,9 +73,11 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 		$method = new ReflectionMethod( MainWP_Clone_Install::class, 'value_contains_object' );
 		$method->setAccessible( true );
 
-		$this->assertTrue( $method->invoke( $target, $a ) );
-		$this->assertTrue( $method->invoke( $target, unserialize( serialize( $a ), array( 'allowed_classes' => false ) ) ) );
-		$this->assertSame( '', $target->recursive_unserialize_replace( 'old', 'new', serialize( $a ) ) );
+		$visits = 0;
+		$this->assertTrue( $method->invokeArgs( $target, array( $a, 0, &$visits ) ) );
+		$visits = 0;
+		$this->assertTrue( $method->invokeArgs( $target, array( unserialize( serialize( $a ), array( 'allowed_classes' => false ) ), 0, &$visits ) ) );
+		$this->assertSame( serialize( $a ), $target->recursive_unserialize_replace( 'old', 'new', serialize( $a ) ), 'a cyclic clone-source value must be returned as the original bytes' );
 	}
 
 	/**
@@ -90,7 +92,8 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 		$method = new ReflectionMethod( MainWP_Clone_Install::class, 'value_contains_object' );
 		$method->setAccessible( true );
 
-		$this->assertFalse( $method->invoke( $target, $value ) );
+		$visits = 0;
+		$this->assertFalse( $method->invokeArgs( $target, array( $value, 0, &$visits ) ) );
 		$this->assertSame( serialize( $value ), $target->recursive_unserialize_replace( 'old', 'new', serialize( $value ) ) );
 	}
 
@@ -125,14 +128,13 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 
 	/**
 	 * A serialized object string fed to the legacy clone replacer must not
-	 * instantiate the class, and the object payload must be dropped rather than
-	 * re-serialized back into the row. Round-tripping the __PHP_Incomplete_Class
-	 * would re-emit the original class string for a later get_option() read to
-	 * rehydrate into a gadget, so the whole value is neutralized to empty.
+	 * instantiate the class, and the original bytes must come back untouched.
+	 * The cell is never decoded and re-serialized, so no __PHP_Incomplete_Class
+	 * round trip can rewrite the payload.
 	 *
 	 * @return void
 	 */
-	public function test_clone_replacer_drops_object_payload() {
+	public function test_clone_replacer_preserves_object_payload() {
 		$payload = serialize( new MainWP_Unserialize_Canary() ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- building a hostile fixture.
 
 		MainWP_Unserialize_Canary::$woke = false;
@@ -140,18 +142,17 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 		$out                             = $clone->recursive_unserialize_replace( 'http://old.example', 'http://new.example', $payload );
 
 		$this->assertFalse( MainWP_Unserialize_Canary::$woke, 'clone replacer instantiated a live object via unserialize()' );
-		$this->assertSame( '', $out, 'a clone-source object payload must be dropped, not round-tripped back into the row' );
-		$this->assertFalse( is_serialized( $out ), 'the neutralized value must carry no serialized payload a later unserialize() could rehydrate' );
+		$this->assertSame( $payload, $out, 'a clone-source object payload must be returned as the original bytes' );
 	}
 
 	/**
 	 * The same protection must hold when the object is nested inside a
 	 * serialized array (the common shape of wp_options / postmeta rows): the
-	 * whole cell is dropped so no forged class string survives the rewrite.
+	 * whole cell is returned as the original bytes, with no replacement applied.
 	 *
 	 * @return void
 	 */
-	public function test_clone_replacer_drops_object_nested_in_array() {
+	public function test_clone_replacer_preserves_object_nested_in_array() {
 		$payload = serialize( array( 'canary' => new MainWP_Unserialize_Canary() ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- building a hostile fixture.
 
 		MainWP_Unserialize_Canary::$woke = false;
@@ -159,8 +160,7 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 		$out                             = $clone->recursive_unserialize_replace( 'http://old.example', 'http://new.example', $payload );
 
 		$this->assertFalse( MainWP_Unserialize_Canary::$woke, 'nested object was instantiated via unserialize()' );
-		$this->assertSame( '', $out, 'a nested object payload must be dropped, not round-tripped back into the row' );
-		$this->assertFalse( is_serialized( $out ), 'the neutralized value must carry no serialized payload a later unserialize() could rehydrate' );
+		$this->assertSame( $payload, $out, 'a nested object payload must be returned as the original bytes' );
 	}
 
 	/**
@@ -270,11 +270,8 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 				continue;
 			}
 			$lines = file( $file->getPathname() );
-			foreach ( $lines as $number => $line ) {
-				if ( ! $this->has_bare_unserialize( $line ) ) {
-					continue;
-				}
-				$offenders[] = $file->getFilename() . ':' . ( $number + 1 ) . ' -> ' . trim( $line );
+			foreach ( $this->find_bare_unserialize_lines( implode( '', $lines ) ) as $number ) {
+				$offenders[] = $file->getFilename() . ':' . $number . ' -> ' . trim( $lines[ $number - 1 ] );
 			}
 		}
 
@@ -451,20 +448,36 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 
 		$this->assertSame( $allowed, $actual, 'unreviewed maybe_unserialize() in child class surface — harden it like insert_postmeta() (dashboard-fed) or add the file to the reviewed allowlist with a rationale' );
 	}
-	/** Remove approved calls, then inspect what remains on the same line. */
-	private function has_bare_unserialize( $line ) {
-		if ( preg_match( '/^\s*(?:\*|\/\/)/', $line ) ) {
-			return false;
+	/** Remove approved calls, then report the line numbers of any unserialize() that remains. */
+	private function find_bare_unserialize_lines( $source ) {
+		$lines = preg_split( '/(?<=\n)/', $source );
+		foreach ( $lines as $index => $line ) {
+			if ( preg_match( '/^\s*(?:\*|\/\/)/', $line ) ) {
+				$lines[ $index ] = "\n";
+			}
 		}
-		$stripped = preg_replace( '/\b(?:maybe_unserialize|is_serialized(?:_string)?)\s*\(/', '(', $line );
+		$stripped = preg_replace( '/\b(?:maybe_unserialize|is_serialized(?:_string)?)\s*\(/', '(', implode( '', $lines ) );
+		// The argument list may span lines, so the balanced-paren match runs over the whole source; newlines are kept so offsets still map to line numbers.
 		$stripped = preg_replace_callback(
 			'/(?<![\w$>:])unserialize\s*(\((?:[^()]++|(?1))*\))/',
 			function ( $match ) {
-				return preg_match( '/[\'"]allowed_classes[\'"]\s*=>\s*false\b/', $match[1] ) ? '' : $match[0];
+				return preg_match( '/[\'"]allowed_classes[\'"]\s*=>\s*false\b/', $match[1] ) ? str_repeat( "\n", substr_count( $match[0], "\n" ) ) : $match[0];
 			},
 			$stripped
 		);
-		return (bool) preg_match( '/(?<![\w$>:])unserialize\s*\(/', $stripped );
+
+		$found = array();
+		if ( preg_match_all( '/(?<![\w$>:])unserialize\s*\(/', $stripped, $matches, PREG_OFFSET_CAPTURE ) ) {
+			foreach ( $matches[0] as $match ) {
+				$found[] = substr_count( $stripped, "\n", 0, $match[1] ) + 1;
+			}
+		}
+		return array_values( array_unique( $found ) );
+	}
+
+	/** Remove approved calls, then inspect what remains. */
+	private function has_bare_unserialize( $source ) {
+		return array() !== $this->find_bare_unserialize_lines( $source );
 	}
 
 	/** An allowed wrapper or restricted call cannot hide a neighboring bare call. */
@@ -475,6 +488,9 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 		$this->assertTrue( $this->has_bare_unserialize( '$a = unserialize( $v ); // allowed_classes' ) );
 		$this->assertFalse( $this->has_bare_unserialize( '$a = maybe_unserialize( $v );' ) );
 		$this->assertFalse( $this->has_bare_unserialize( '$a = unserialize( trim( $v ), array( "allowed_classes" => false ) );' ) );
+		$this->assertFalse( $this->has_bare_unserialize( "\$a = @unserialize(\n\t\$v,\n\tarray(\n\t\t'allowed_classes' => false,\n\t)\n);" ) );
+		$this->assertTrue( $this->has_bare_unserialize( "\$a = @unserialize(\n\t\$v,\n\tarray(\n\t\t'max_depth' => 4,\n\t)\n);" ) );
+		$this->assertTrue( $this->has_bare_unserialize( "\$a = @unserialize(\n\t\$v,\n\tarray( 'allowed_classes' => false )\n);\n\$b = unserialize( \$v );" ) );
 	}
 
 }
