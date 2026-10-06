@@ -15,6 +15,36 @@ use MainWP\Child\MainWP_Helper;
  */
 class BackupDirTest extends WP_UnitTestCase {
 
+	/** @dataProvider directory_error_paths */
+	public function test_check_dir_error_hides_backup_hash_only( $name, $private ) {
+		$parent = tempnam( sys_get_temp_dir(), 'mainwp-dir-error-' );
+		$path = $parent . '/' . $name . '/';
+		try {
+			try {
+				@MainWP_Helper::check_dir( $path, false );
+				$this->fail( 'A file cannot be the parent of a new directory.' );
+			} catch ( \MainWP\Child\MainWP_Exception $e ) {
+				$message = $e->getMessage();
+			}
+			if ( $private ) {
+				$this->assertStringNotContainsString( 'backup-a1B2c3D4e5F6g7H8', $message, 'Directory errors must not disclose the backup-directory hash.' );
+				$this->assertStringNotContainsString( $parent, $message );
+			} else {
+				$this->assertSame( 'Unable to create directory ' . str_replace( ABSPATH, '', $path ) . '. Is its parent directory writable by the server?', $message );
+			}
+		} finally {
+			unlink( $parent );
+		}
+	}
+
+	public static function directory_error_paths() {
+		return array(
+			'private backup' => array( 'backup-a1B2c3D4e5F6g7H8', true ),
+			'ordinary directory' => array( 'uploads', false ),
+			'ordinary backup name' => array( 'backup-reports', false ),
+		);
+	}
+
 	/**
 	 * Reset the stored hash between tests.
 	 */

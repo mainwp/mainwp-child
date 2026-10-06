@@ -401,7 +401,11 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
             }
 
             if ( ! file_exists( $dir ) ) {
-                $error = esc_html__( 'Unable to create directory ', 'mainwp-child' ) . str_replace( ABSPATH, '', $dir ) . '.' . esc_html__( ' Is its parent directory writable by the server?', 'mainwp-child' );
+                if ( preg_match( '/^backup-[A-Za-z0-9]{16}$/', basename( untrailingslashit( $dir ) ) ) ) {
+                    $error = esc_html__( 'Unable to create the backup directory. Is its parent directory writable by the server?', 'mainwp-child' );
+                } else {
+                    $error = esc_html__( 'Unable to create directory ', 'mainwp-child' ) . str_replace( ABSPATH, '', $dir ) . '.' . esc_html__( ' Is its parent directory writable by the server?', 'mainwp-child' );
+                }
                 if ( $die_on_error ) {
                     static::instance()->error( $error );
                 } else {
