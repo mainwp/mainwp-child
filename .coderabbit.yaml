@@ -1,0 +1,66 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+inheritance: true
+reviews:
+  path_filters:
+    - '**'
+    - '!**/vendor/**'
+    - '!libs/**'
+    - '!**/node_modules/**'
+    - '!**/coverage/**'
+    - '!**/*.min.js'
+    - '!**/*.min.css'
+    - '!**/*.map'
+  path_instructions:
+    - path: '**'
+      instructions: >-
+        Review MainWP Child6 in mainwp/mainwp-child-6. Follow the runtime floors in
+        readme.txt and composer.json, the PHPCS rules, and existing naming conventions.
+        Preserve callable names, hooks, payload fields, response/error shapes, stored
+        values, and supported third-party adapter fallbacks. Trace affected Dashboard6
+        and extension callers. Distinguish default-branch and public-release behavior
+        from coordinated changes on a named PR or branch. Historical learnings are
+        revision-specific context; verify the current implementation and tests before
+        applying an exception. Past deferrals do not exempt new security or data-loss
+        regressions. Source inspection does not establish runtime compatibility.
+    - path: 'class/class-mainwp-{child,child-callable,connect,connect-lib,child-keys-manager}.php'
+      instructions: >-
+        Trace requests from MainWP_Child::parse_init() through MainWP_Connect::auth(),
+        parse_init_auth(), and the callable dispatcher. Verify signatures, replay and
+        expiry checks, authenticated callable allowlists, and operation-specific guards.
+        Registration and other explicitly unauthenticated endpoints have separate
+        contracts; do not move a mutating action into that set to make a request work.
+        Signed Dashboard6 requests are not ordinary browser AJAX requests. Local admin
+        actions still require their applicable nonce and capability checks. Assign
+        severity from a reachable bypass and concrete impact. PHPCS suppressions do
+        not establish security safety; preserve credential redaction in diagnostics.
+    - path: 'class/class-mainwp-*.php'
+      instructions: >-
+        Validate Dashboard fields, provider responses, stored options, filesystem paths,
+        and uploaded/archive data before use. Prepare dynamic SQL values, validate
+        identifiers separately, and escape output for its actual context. Trace
+        backup/restore locks, task states, tokens, manifests, chunk offsets, path and
+        symlink containment, resource limits, cancellation, and cleanup together when
+        those paths change. Preserve failure propagation and stable errors. Keep
+        third-party integrations safe when their dependency is absent or older.
+    - path: 'tests/**'
+      instructions: >-
+        Check meaningful assertions and failure cases relevant to the changed behavior.
+        Distinguish test fixtures from production paths. For protocol changes, inspect
+        matched Dashboard6 callers and tests; do not claim end-to-end compatibility or
+        passing suites from source inspection.
+knowledge_base:
+  automatic_linking_mode: auto
+  linked_repositories:
+    - repository: mainwp/mainwp-6
+      instructions: >-
+        MainWP Dashboard6 sends signed commands to Child6 and consumes its responses.
+        Trace changed wire contracts against the corresponding Dashboard6 callers,
+        including action names, input fields, signatures, version/capability negotiation,
+        errors, and third-party extension flows. Report a mismatch with evidence from
+        both sides. Distinguish public-release compatibility from coordinated changes
+        on a named PR or branch; source inspection is not runtime validation.
+  learnings:
+    scope: local
+  code_guidelines:
+    enabled: true
