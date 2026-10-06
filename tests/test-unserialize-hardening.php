@@ -495,9 +495,40 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 			$not_a_call[] = T_NULLSAFE_OBJECT_OPERATOR;
 		}
 
+		// A "use function \unserialize as decode;" import makes decode() the same call. Grouped
+		// imports (use function Foo\{...}) are not followed.
+		$aliases = array();
+		foreach ( $tokens as $index => $token ) {
+			if ( T_USE !== $token[0] || ! isset( $tokens[ $index + 1 ] ) || T_FUNCTION !== $tokens[ $index + 1 ][0] ) {
+				continue;
+			}
+			$import = array( array() );
+			for ( $i = $index + 2; isset( $tokens[ $i ] ) && ';' !== $tokens[ $i ][1]; ++$i ) {
+				if ( ',' === $tokens[ $i ][1] ) {
+					$import[] = array();
+				} else {
+					$import[ count( $import ) - 1 ][] = $tokens[ $i ];
+				}
+			}
+			foreach ( $import as $parts ) {
+				$target = '';
+				foreach ( $parts as $position => $part ) {
+					if ( T_AS === $part[0] ) {
+						if ( 'unserialize' === strtolower( ltrim( $target, '\\' ) ) && 2 === count( $parts ) - $position ) {
+							$aliases[] = strtolower( $parts[ $position + 1 ][1] );
+						}
+						break;
+					}
+					$target .= $part[1];
+				}
+			}
+		}
+
 		$found = array();
 		foreach ( $tokens as $index => $token ) {
-			if ( ! in_array( $token[0], $names, true ) || 'unserialize' !== strtolower( substr( (string) strrchr( '\\' . $token[1], '\\' ), 1 ) ) ) {
+			$is_alias = T_STRING === $token[0] && in_array( strtolower( $token[1] ), $aliases, true )
+				&& ( 0 === $index || T_NS_SEPARATOR !== $tokens[ $index - 1 ][0] );
+			if ( ! $is_alias && ( ! in_array( $token[0], $names, true ) || 'unserialize' !== strtolower( substr( (string) strrchr( '\\' . $token[1], '\\' ), 1 ) ) ) ) {
 				continue;
 			}
 			if ( ! isset( $tokens[ $index + 1 ] ) || '(' !== $tokens[ $index + 1 ][1] ) {
@@ -657,6 +688,15 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 			'namespace-relative bare call'                     => array( 'namespace\\unserialize( $v );', array( 1 ) ),
 			'namespace-qualified bare call'                    => array( 'Foo\\unserialize( $v );', array( 1 ) ),
 			'namespace-relative restricted call'               => array( 'namespace\\unserialize( $v, array( \'allowed_classes\' => false ) );', array() ),
+			'bare call through a fully qualified import alias' => array( "use function \\unserialize as decode;\n\$a = decode( \$v );", array( 2 ) ),
+			'bare call through an unqualified import alias'    => array( "use function unserialize as decode;\n\$a = decode( \$v );", array( 2 ) ),
+			'import alias with a restricted second argument'   => array( "use function \\unserialize as decode;\n\$a = decode( \$v, array( 'allowed_classes' => false ) );", array() ),
+			'import alias beside a restricted direct call'     => array( "use function \\unserialize as decode;\n\$a = unserialize( \$v, array( 'allowed_classes' => false ) );\n\$b = decode( \$v );", array( 3 ) ),
+			'import alias in a comma-separated list'           => array( "use function strlen, \\unserialize as decode;\n\$a = decode( \$v );", array( 2 ) ),
+			'import alias called in another case'              => array( "use function \\unserialize as decode;\n\$a = DECODE( \$v );", array( 2 ) ),
+			'import alias of another function'                 => array( "use function \\strlen as decode;\n\$a = decode( \$v );", array() ),
+			'decode without an unserialize import'             => array( '$a = decode( $v );', array() ),
+			'alias name as a method and a qualified call'      => array( "use function \\unserialize as decode;\n\$o->decode( \$v ); Foo\\decode( \$v );", array() ),
 		);
 
 		foreach ( $cases as $name => $case ) {
