@@ -1172,9 +1172,9 @@ class Tar_Archiver {
         $block    = substr_replace( $block, $checksum, 148, 8 );
 
         $this->add_data( $block );
-        $i = 0;
-        while ( ( $line = substr( $content, $i * 512, 512 ) ) !== '' ) {
-            ++$i;
+        $contentLength = strlen( $content );
+        for ( $offset = 0; $offset < $contentLength; $offset += 512 ) {
+            $line = substr( $content, $offset, 512 );
             $this->add_data( pack( 'a512', $line ) );
         }
 
