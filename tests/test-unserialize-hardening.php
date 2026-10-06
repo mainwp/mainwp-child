@@ -450,7 +450,7 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 	}
 	/**
 	 * Report the line of every unserialize() call whose own options argument is
-	 * not an array literal ending up with 'allowed_classes' => false.
+	 * not an array literal with plain keys ending up with 'allowed_classes' => false.
 	 *
 	 * Runs on PHP tokens so comments and string contents never count as code, and
 	 * judges each call on its own arguments: a restricted outer call cannot vouch
@@ -481,7 +481,15 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 			$line += substr_count( $text, "\n" );
 		}
 
-		$names      = defined( 'T_NAME_FULLY_QUALIFIED' ) ? array( T_STRING, T_NAME_FULLY_QUALIFIED ) : array( T_STRING );
+		// PHP 8 reads namespace\unserialize and Foo\unserialize as single name tokens; PHP 7.4
+		// splits them, leaving a plain T_STRING. Any name ending in unserialize counts, so
+		// both versions flag the same calls.
+		$names = array( T_STRING );
+		foreach ( array( 'T_NAME_FULLY_QUALIFIED', 'T_NAME_RELATIVE', 'T_NAME_QUALIFIED' ) as $name_token ) {
+			if ( defined( $name_token ) ) {
+				$names[] = constant( $name_token );
+			}
+		}
 		$not_a_call = array( T_OBJECT_OPERATOR, T_DOUBLE_COLON, T_FUNCTION, T_NEW, T_CONST );
 		if ( defined( 'T_NULLSAFE_OBJECT_OPERATOR' ) ) {
 			$not_a_call[] = T_NULLSAFE_OBJECT_OPERATOR;
@@ -489,7 +497,7 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 
 		$found = array();
 		foreach ( $tokens as $index => $token ) {
-			if ( ! in_array( $token[0], $names, true ) || 'unserialize' !== strtolower( ltrim( $token[1], '\\' ) ) ) {
+			if ( ! in_array( $token[0], $names, true ) || 'unserialize' !== strtolower( substr( (string) strrchr( '\\' . $token[1], '\\' ), 1 ) ) ) {
 				continue;
 			}
 			if ( ! isset( $tokens[ $index + 1 ] ) || '(' !== $tokens[ $index + 1 ][1] ) {
@@ -507,7 +515,8 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 
 	/**
 	 * Whether the call opening at $open passes an array literal as its second
-	 * argument, and that literal's last allowed_classes key is set to false.
+	 * argument, every key in it is a plain literal, and its last allowed_classes
+	 * key is set to false.
 	 *
 	 * @param array $tokens Significant tokens as array( type, text, line ).
 	 * @param int   $open   Index of the call's opening parenthesis.
@@ -528,14 +537,38 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 			return false;
 		}
 
+		// Every key must be a literal whose value is visible in the source. A computed,
+		// variable, escaped or interpolated key, a spread, or a bare value could resolve
+		// to allowed_classes and overwrite the restriction, so any of them refuses the call.
 		$allowed = null;
 		foreach ( $literal[0] as $element ) {
-			if ( isset( $element[1] ) && T_CONSTANT_ENCAPSED_STRING === $element[0][0] && 'allowed_classes' === substr( $element[0][1], 1, -1 ) && T_DOUBLE_ARROW === $element[1][0] ) {
+			if ( array() === $element ) {
+				continue;
+			}
+			if ( ! isset( $element[1] ) || T_DOUBLE_ARROW !== $element[1][0] || ! $this->is_plain_literal_key( $element[0] ) ) {
+				return false;
+			}
+			if ( 'allowed_classes' === substr( $element[0][1], 1, -1 ) ) {
 				// A repeated key overwrites the earlier one, so only the last occurrence decides.
 				$allowed = 3 === count( $element ) && 'false' === strtolower( $element[2][1] );
 			}
 		}
 		return true === $allowed;
+	}
+
+	/**
+	 * Whether a token is an array key whose value the source spells out: an integer,
+	 * or a quoted string with no escape sequence or interpolation.
+	 *
+	 * @param array $token Token as array( type, text, line ).
+	 *
+	 * @return bool
+	 */
+	private function is_plain_literal_key( $token ) {
+		if ( T_LNUMBER === $token[0] ) {
+			return true;
+		}
+		return T_CONSTANT_ENCAPSED_STRING === $token[0] && false === strpbrk( $token[1], '\\$' );
 	}
 
 	/**
@@ -613,6 +646,17 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 			'call text inside a string literal'                => array( '$s = \'unserialize( $v )\';', array() ),
 			'call text inside a docblock'                      => array( "/**\n * unserialize( \$v )\n */\n\$a = 1;", array() ),
 			'full file with an opening tag'                    => array( "<?php\n\n\$a = unserialize( \$v );", array( 3 ) ),
+			'computed key overwrites the restriction'          => array( '$a = unserialize( $v, [ "allowed_classes" => false, "allowed_" . "classes" => true ] );', array( 1 ) ),
+			'variable key overwrites the restriction'          => array( '$a = unserialize( $v, [ "allowed_classes" => false, $key => true ] );', array( 1 ) ),
+			'escaped key overwrites the restriction'           => array( '$a = unserialize( $v, [ "allowed_classes" => false, "allowed_\\x63lasses" => true ] );', array( 1 ) ),
+			'interpolated key overwrites the restriction'      => array( '$a = unserialize( $v, [ "allowed_classes" => false, "{$key}" => true ] );', array( 1 ) ),
+			'spread overwrites the restriction'                => array( '$a = unserialize( $v, [ "allowed_classes" => false, ...$more ] );', array( 1 ) ),
+			'variable key before the final false'              => array( '$a = unserialize( $v, [ $key => true, "allowed_classes" => false ] );', array( 1 ) ),
+			'value without a key'                              => array( '$a = unserialize( $v, [ "allowed_classes" => false, $more ] );', array( 1 ) ),
+			'integer key beside the restriction'               => array( '$a = unserialize( $v, array( 0 => 1, \'allowed_classes\' => false ) );', array() ),
+			'namespace-relative bare call'                     => array( 'namespace\\unserialize( $v );', array( 1 ) ),
+			'namespace-qualified bare call'                    => array( 'Foo\\unserialize( $v );', array( 1 ) ),
+			'namespace-relative restricted call'               => array( 'namespace\\unserialize( $v, array( \'allowed_classes\' => false ) );', array() ),
 		);
 
 		foreach ( $cases as $name => $case ) {
