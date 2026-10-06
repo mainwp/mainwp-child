@@ -961,6 +961,19 @@ class Tar_Archiver {
         // hard kill) must be skipped again, not matched against the next entry.
         $fp = @fopen( $path, 'rb' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- unreadable files are recorded below without exposing their paths.
         if ( ! $fp ) {
+            if ( self::APPEND === $this->mode ) {
+                // A source that became unreadable may already have a complete archived copy.
+                $startOffset = ftell( $this->archive );
+                try {
+                    $rslt = $this->is_next_file( $entryName );
+                } catch ( \Exception $e ) {
+                    $rslt = false;
+                }
+                if ( true === $rslt ) {
+                    return true;
+                }
+                fseek( $this->archive, $startOffset );
+            }
             if ( $this->backup instanceof MainWP_Backup ) {
                 $this->backup->record_failed_add( $path );
             }

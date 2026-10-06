@@ -6,6 +6,7 @@
  */
 
 use MainWP\Child\MainWP_Backup;
+use MainWP\Child\MainWP_Backup_Budget_Exception;
 use MainWP\Child\MainWP_Backup_Error;
 use MainWP\Child\MainWP_Exception;
 use MainWP\Child\Tar_Archiver;
@@ -249,31 +250,133 @@ class TarArchiverIntegrityTest extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_resume_skips_file_unreadable_since_an_uncheckpointed_slice() {
+	public static function unreadable_archived_slices() {
+		return array(
+			'tar, two slices' => array( 'tar', false ),
+			'tar.gz, two slices' => array( 'tar.gz', false ),
+			'tar, three slices' => array( 'tar', true ),
+			'tar.gz, three slices' => array( 'tar.gz', true ),
+		);
+	}
+
+	/** @dataProvider unreadable_archived_slices */
+	public function test_resume_keeps_file_unreadable_since_an_archived_slice( $type, $yield_after_unreadable ) {
+		if ( 'tar' === $type ) {
+			$this->archive_path = substr( $this->archive_path, 0, -3 );
+		}
+		$backup = MainWP_Backup::get();
+		$backup->reset_failed_adds();
+		MainWP_Backup::reset_skipped_paths();
 		$unreadable = $this->fixture_dir . '/file-0.txt';
-		$archiver   = new Tar_Archiver( MainWP_Backup::get(), 'tar.gz' );
+		$archiver = new Tar_Archiver( $backup, $type );
+		$mode = new ReflectionProperty( Tar_Archiver::class, 'mode' );
+		$mode->setAccessible( true );
+		$archive_path = new ReflectionProperty( Tar_Archiver::class, 'archivePath' );
+		$archive_path->setAccessible( true );
+		$failed_paths = array();
+		try {
+			$archiver->create( $this->archive_path );
+			$archiver->set_budget_deadline( time() );
+			try {
+				$archiver->add_dir( $this->fixture_dir, array() );
+				$this->fail( 'Slice one must yield after archiving the first file.' );
+			} catch ( MainWP_Backup_Budget_Exception $e ) {
+				$this->assertSame( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED, $e->get_message_error_code() );
+			} finally {
+				$archiver->close();
+			}
+			$prefix = file_get_contents( $this->archive_path );
+			if ( 'tar.gz' === $type ) { $prefix = gzdecode( $prefix ); }
+			$name = basename( rtrim( substr( $prefix, 512, 100 ), "\0 " ) );
+			$this->assertArrayHasKey( $name, $this->contents );
+			$unreadable = $this->fixture_dir . '/' . $name;
+			$prefix_length = 1024 + (int) ( ceil( strlen( $this->contents[ $name ] ) / 512 ) * 512 );
+			$this->assertSame( $prefix_length, strlen( $prefix ), 'Slice one contains a directory header and the first complete file.' );
+			chmod( $unreadable, 0000 );
+			clearstatcache( true, $unreadable );
+			if ( is_readable( $unreadable ) ) {
+				$this->markTestSkipped( 'The test user can read a chmod 0000 file.' );
+			}
+
+			$last_slice = $yield_after_unreadable ? 3 : 2;
+			for ( $slice = 2; $slice <= $last_slice; ++$slice ) {
+				$backup->reset_failed_adds();
+				$excludes = array();
+				// Checkpointed failed paths become excludes on the next slice.
+				foreach ( $failed_paths as $path ) {
+					$excludes[] = str_replace( ABSPATH, '', $path );
+				}
+				$archiver = new Tar_Archiver( $backup, $type );
+				$mode->setValue( $archiver, Tar_Archiver::APPEND );
+				$archive_path->setValue( $archiver, $this->archive_path );
+				$archiver->prepare_append( $this->archive_path );
+				$should_yield = $slice < $last_slice;
+				$archiver->set_budget_deadline( $should_yield ? time() : null );
+				$yielded = false;
+				try {
+					$archiver->add_dir( $this->fixture_dir, $excludes );
+					$this->invoke_private( $archiver, 'add_data', str_repeat( "\0", 1024 ) );
+				} catch ( MainWP_Backup_Budget_Exception $e ) {
+					$yielded = true;
+				} catch ( MainWP_Exception $e ) {
+					$this->fail( 'Resume failed with ' . $e->get_message_error_code() . ': ' . $e->getMessage() );
+				} finally {
+					$failed_paths = array_merge( $failed_paths, $backup->get_failed_add_paths() );
+					$archiver->close();
+				}
+				$this->assertSame( $should_yield, $yielded, 'Only the middle slice yields after the unreadable file.' );
+			}
+			$this->assertSame( array(), $failed_paths, 'An archived copy must never become a failed-add exclude.' );
+			$this->assertSame( 0, $backup->get_failed_add_count() );
+			$stream = 'tar.gz' === $type ? gzopen( $this->archive_path, 'rb' ) : fopen( $this->archive_path, 'rb' );
+			$finished = stream_get_contents( $stream );
+			if ( 'tar.gz' === $type ) { gzclose( $stream ); } else { fclose( $stream ); }
+			$this->assertSame( 6144, strlen( $finished ), 'The archive contains one directory, three files and the trailer, without duplicates.' );
+			$this->assertSame( $prefix, substr( $finished, 0, strlen( $prefix ) ), 'The archived copy must remain unchanged.' );
+			$this->assertSame( str_repeat( "\0", 1024 ), substr( $finished, -1024 ) );
+			$archiver->read( $this->archive_path );
+			foreach ( $this->contents as $name => $content ) {
+				$entry = str_replace( ABSPATH, '', $this->fixture_dir ) . '/' . $name;
+				$this->assertSame( $content, $archiver->get_from_name( $entry ), 'Extracted bytes for ' . $entry );
+			}
+		} finally {
+			$archiver->close();
+			chmod( $unreadable, 0644 );
+			$backup->reset_failed_adds();
+			MainWP_Backup::reset_skipped_paths();
+		}
+	}
+
+	/** @dataProvider truncated_entries */
+	public function test_resume_skips_file_unreadable_since_an_uncheckpointed_slice( $type ) {
+		if ( 'tar' === $type ) {
+			$this->archive_path = substr( $this->archive_path, 0, -3 );
+		}
+		$unreadable = $this->fixture_dir . '/file-0.txt';
+		$archiver   = new Tar_Archiver( MainWP_Backup::get(), $type );
 		$archiver->create( $this->archive_path );
 		foreach ( array( 'file-1.txt', 'file-2.txt' ) as $name ) {
 			$this->assertTrue( $this->invoke_private( $archiver, 'add_file', $this->fixture_dir . '/' . $name, basename( WP_CONTENT_DIR ) . '/' . $name ) );
 		}
 		$archiver->close();
-		$prefix = gzdecode( file_get_contents( $this->archive_path ) );
+		$prefix = file_get_contents( $this->archive_path );
+		if ( 'tar.gz' === $type ) { $prefix = gzdecode( $prefix ); }
 		chmod( $unreadable, 0000 );
 		try {
 			clearstatcache( true, $unreadable );
 			if ( is_readable( $unreadable ) ) {
 				$this->markTestSkipped( 'The test user can read a chmod 0000 file.' );
 			}
-			$this->assertTrue( $this->resume_backup(), 'A resume without persisted failed paths must skip the unreadable file again.' );
+			$this->assertTrue( $this->resume_backup( true, $type ), 'A resume without persisted failed paths must skip the unreadable file again.' );
 		} finally {
 			// The resume deletes its prepared files after archiving them.
 			if ( file_exists( $unreadable ) ) {
 				chmod( $unreadable, 0644 );
 			}
 		}
-		$stream   = gzopen( $this->archive_path, 'rb' );
+		$stream   = 'tar.gz' === $type ? gzopen( $this->archive_path, 'rb' ) : fopen( $this->archive_path, 'rb' );
 		$finished = stream_get_contents( $stream );
-		gzclose( $stream );
+		if ( 'tar.gz' === $type ) { gzclose( $stream ); } else { fclose( $stream ); }
 		$this->assertSame( strlen( $prefix ) + 1024, strlen( $finished ) );
 		$this->assertSame( $prefix, substr( $finished, 0, strlen( $prefix ) ) );
 		$this->assertSame( str_repeat( "\0", 1024 ), substr( $finished, -1024 ) );
