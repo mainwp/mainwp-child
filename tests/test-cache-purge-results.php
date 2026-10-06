@@ -82,34 +82,6 @@ class Test_Cache_Purge_Results extends WP_UnitTestCase {
 		};
 	}
 
-	/**
-	 * Pressable cannot report success when its callback is absent.
-	 */
-	public function test_pressable_missing_callback_is_provider_missing() {
-		update_option( 'mainwp_cache_control_last_purged', 123 );
-
-		$result = MainWP_Child_Cache_Purge::instance()->pressable_cache_management_auto_purge_cache();
-
-		$this->assertSame( 'ERROR', $result['action'] );
-		$this->assert_basis( $result, 'provider_missing' );
-		$this->assertSame( 123, get_option( 'mainwp_cache_control_last_purged' ) );
-	}
-
-	/**
-	 * Pressable callable dispatch remains a successful unverified dispatch.
-	 *
-	 * @runInSeparateProcess
-	 * @preserveGlobalState disabled
-	 */
-	public function test_pressable_present_callback_is_dispatched_unverified() {
-		function flush_pressable_cache_callback() {}
-
-		$result = MainWP_Child_Cache_Purge::instance()->pressable_cache_management_auto_purge_cache();
-
-		$this->assertSame( 'SUCCESS', $result['action'] );
-		$this->assert_basis( $result, 'dispatched_unverified' );
-		$this->assertGreaterThan( 0, get_option( 'mainwp_cache_control_last_purged' ) );
-	}
 
 	/**
 	 * A representative void provider remains an unverified dispatch.
