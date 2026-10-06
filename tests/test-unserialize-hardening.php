@@ -126,6 +126,99 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 		$this->assertFalse( $method->invoke( $target, $value ) );
 	}
 
+	public function test_custom_post_type_rejects_shared_reference_graph_quickly() {
+		$levels = array( array( 'plain' ) );
+		for ( $depth = 1; $depth <= 30; ++$depth ) {
+			$levels[ $depth ] = array();
+			$levels[ $depth ][0] = &$levels[ $depth - 1 ];
+			$levels[ $depth ][1] = &$levels[ $depth - 1 ];
+		}
+		$payload = serialize( $levels[30] );
+		$this->assertStringContainsString( 'R:', $payload );
+		$this->assertLessThan( 4096, strlen( $payload ) );
+		$script = 'define("ABSPATH", "/"); require ' . var_export( dirname( __DIR__ ) . '/class/class-mainwp-custom-post-type.php', true ) . ';'
+			. '$class = new ReflectionClass("MainWP\\\\Child\\\\MainWP_Custom_Post_Type");'
+			. '$target = $class->newInstanceWithoutConstructor();'
+			. '$method = $class->getMethod("value_contains_object"); $method->setAccessible(true);'
+			. '$value = unserialize(base64_decode(' . var_export( base64_encode( $payload ), true ) . '), array("allowed_classes" => false, "max_depth" => 32));'
+			. 'echo $method->invoke($target, $value) ? "unsafe" : "safe";';
+		// Bound the failing run too: an unbudgeted walk expands billions of visits.
+		$process = proc_open( array( PHP_BINARY, '-r', $script ), array( 0 => array( 'pipe', 'r' ), 1 => array( 'pipe', 'w' ), 2 => array( 'pipe', 'w' ) ), $pipes );
+		$this->assertIsResource( $process );
+		fclose( $pipes[0] );
+		$deadline = microtime( true ) + 2;
+		try {
+			do {
+				$status = proc_get_status( $process );
+				if ( ! $status['running'] ) {
+					break;
+				}
+				usleep( 10000 );
+			} while ( microtime( true ) < $deadline );
+			$this->assertFalse( $status['running'], 'Shared-reference traversal exceeded 2 seconds.' );
+			$this->assertSame( '', stream_get_contents( $pipes[2] ) );
+			$this->assertSame( 'unsafe', stream_get_contents( $pipes[1] ), 'A 30-level shared subtree must exhaust the visit budget.' );
+		} finally {
+			if ( $status['running'] ) {
+				proc_terminate( $process, 9 );
+			}
+			fclose( $pipes[1] );
+			fclose( $pipes[2] );
+			proc_close( $process );
+		}
+	}
+
+	public function test_custom_post_type_shared_graph_within_budget_is_safe() {
+		$levels = array( array( 'plain' ) );
+		for ( $depth = 1; $depth <= 8; ++$depth ) {
+			$levels[ $depth ] = array();
+			$levels[ $depth ][0] = &$levels[ $depth - 1 ];
+			$levels[ $depth ][1] = &$levels[ $depth - 1 ];
+		}
+		$value = unserialize( serialize( $levels[8] ), array( 'allowed_classes' => false ) );
+		$method = new ReflectionMethod( MainWP_Custom_Post_Type::class, 'value_contains_object' );
+		$method->setAccessible( true );
+		$this->assertFalse( $method->invoke( MainWP_Custom_Post_Type::instance(), $value ) );
+	}
+
+	public function test_insert_postmeta_refuses_shared_reference_graph() {
+		$levels = array( array( 'plain' ) );
+		for ( $depth = 1; $depth <= 18; ++$depth ) {
+			$levels[ $depth ] = array();
+			$levels[ $depth ][0] = &$levels[ $depth - 1 ];
+			$levels[ $depth ][1] = &$levels[ $depth - 1 ];
+		}
+		$post_id = self::factory()->post->create();
+		$data = array( 'postmeta' => array( array( 'meta_key' => 'mainwp_shared_meta', 'meta_value' => serialize( $levels[18] ) ) ) );
+		$method = new ReflectionMethod( MainWP_Custom_Post_Type::class, 'insert_postmeta' );
+		$method->setAccessible( true );
+		$this->assertTrue( $method->invokeArgs( MainWP_Custom_Post_Type::instance(), array( $post_id, $data, false, false ) ) );
+		$this->assertFalse( metadata_exists( 'post', $post_id, 'mainwp_shared_meta' ), 'An over-budget graph must not reach WordPress meta storage.' );
+	}
+
+	public function test_insert_postmeta_refuses_over_depth_array() {
+		$value = 'plain';
+		for ( $depth = 0; $depth < 34; ++$depth ) {
+			$value = array( $value );
+		}
+		$post_id = self::factory()->post->create();
+		$data = array( 'postmeta' => array( array( 'meta_key' => 'mainwp_deep_meta', 'meta_value' => serialize( $value ) ) ) );
+		$method = new ReflectionMethod( MainWP_Custom_Post_Type::class, 'insert_postmeta' );
+		$method->setAccessible( true );
+		$this->assertTrue( $method->invokeArgs( MainWP_Custom_Post_Type::instance(), array( $post_id, $data, false, false ) ) );
+		$this->assertFalse( metadata_exists( 'post', $post_id, 'mainwp_deep_meta' ) );
+	}
+
+	public function test_insert_postmeta_preserves_serialized_false() {
+		$post_id = self::factory()->post->create();
+		$data = array( 'postmeta' => array( array( 'meta_key' => 'mainwp_false_meta', 'meta_value' => 'b:0;' ) ) );
+		$method = new ReflectionMethod( MainWP_Custom_Post_Type::class, 'insert_postmeta' );
+		$method->setAccessible( true );
+		$this->assertTrue( $method->invokeArgs( MainWP_Custom_Post_Type::instance(), array( $post_id, $data, false, false ) ) );
+		$this->assertTrue( metadata_exists( 'post', $post_id, 'mainwp_false_meta' ) );
+		$this->assertSame( '', get_post_meta( $post_id, 'mainwp_false_meta', true ) );
+	}
+
 	/**
 	 * A serialized object string fed to the legacy clone replacer must not
 	 * instantiate the class, and the original bytes must come back untouched.

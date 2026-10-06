@@ -23,6 +23,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 class MainWP_Custom_Post_Type {
 
     /**
+     * Bound work when serialized references repeatedly share the same subtree.
+     */
+    private const MAX_SERIALIZED_VISITS = 100000;
+
+    /**
      * Public static variable to hold the single instance of the class.
      *
      * @var mixed Default null
@@ -1075,9 +1080,17 @@ class MainWP_Custom_Post_Type {
 
                 if ( is_string( $meta_value ) && is_serialized( $meta_value ) ) {
                     // nosec: allowed_classes => false instantiates no objects, and value_contains_object() drops any payload that still carries one.
-                    $meta_value = @unserialize( trim( $meta_value ), array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions, WordPress.PHP.NoSilencedErrors -- restricted unserialize of a dashboard-fed meta_value (no classes instantiated); the @ matches WordPress core's maybe-unserialize wrapper so a malformed-but-is_serialized payload cannot leak a warning into the response.
-                    if ( $this->value_contains_object( $meta_value ) ) {
-                        continue; // A forged dashboard smuggled a PHP object; never persist a payload WordPress would later re-instantiate on get_post_meta().
+                    $serialized_meta_value = trim( $meta_value );
+                    $meta_value            = @unserialize( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions, WordPress.PHP.NoSilencedErrors -- restricted decode; suppress malformed-value warnings as WordPress core does.
+                        $serialized_meta_value,
+                        array(
+                            'allowed_classes' => false,
+                            'max_depth'       => 32,
+                        )
+                    );
+                    $visits                = 0;
+                    if ( ( false === $meta_value && 'b:0;' !== $serialized_meta_value ) || $this->value_contains_object( $meta_value, 0, $visits ) ) {
+                        continue; // Refuse failed decodes and unsafe values before WordPress re-serializes them.
                     }
                 }
                 if ( add_post_meta( $post_id, $key['meta_key'], $meta_value ) === false ) {
@@ -1100,23 +1113,22 @@ class MainWP_Custom_Post_Type {
      *
      * @param mixed $value Value to inspect.
      * @param int   $depth Current nesting depth.
+     * @param int   $visits Number of values inspected in this payload.
      *
-     * @return bool True if the value is an object, contains a nested object, or nests too deep to trust.
+     * @return bool True if the value contains an object or exceeds the depth or visit budget.
      */
-    private function value_contains_object( $value, $depth = 0 ) {
+    private function value_contains_object( $value, $depth = 0, &$visits = 0 ) {
+        ++$visits;
         if ( is_object( $value ) ) {
             return true;
         }
-        // Serialized R: back-references survive the restricted decode, so a
-        // dashboard-fed payload can hand back an array that contains itself.
-        // Anything deeper than real post meta ever nests is treated like an
-        // object: refused, never walked forever.
-        if ( $depth > 32 ) {
+        // Serialized references can produce cyclic or repeatedly shared arrays.
+        if ( $depth > 32 || $visits > self::MAX_SERIALIZED_VISITS ) {
             return true;
         }
         if ( is_array( $value ) ) {
             foreach ( $value as $item ) {
-                if ( $this->value_contains_object( $item, $depth + 1 ) ) {
+                if ( $this->value_contains_object( $item, $depth + 1, $visits ) ) {
                     return true;
                 }
             }
