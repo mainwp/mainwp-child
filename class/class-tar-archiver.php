@@ -460,6 +460,12 @@ class Tar_Archiver {
                 $this->add_file_from_string( 'clone/config.txt', $string );
             }
 
+            if ( self::APPEND === $this->mode && 'tar.bz2' !== $this->type ) {
+                $this->close( false );
+                $this->append( $filepath );
+                $this->mode = self::CREATE;
+            }
+
             $this->add_data( pack( 'a1024', '' ) );
             $this->close();
             foreach ( $db_files as $db_file ) {
@@ -698,16 +704,21 @@ class Tar_Archiver {
             return;
         }
 
+        $len = strlen( $data );
+        if ( 0 === $len ) {
+            return;
+        }
+
         if ( 'tar.gz' === $this->type ) {
-            if ( false === gzwrite( $this->archive, $data, strlen( $data ) ) ) {
+            if ( gzwrite( $this->archive, $data, $len ) !== $len ) {
                 $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
         } elseif ( 'tar.bz2' === $this->type ) {
-            if ( false === bzwrite( $this->archive, $data, strlen( $data ) ) ) {
+            if ( bzwrite( $this->archive, $data, $len ) !== $len ) {
                 $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
         } else {
-            if ( false === fwrite( $this->archive, $data, strlen( $data ) ) ) {
+            if ( fwrite( $this->archive, $data, $len ) !== $len ) {
                 $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
             fflush( $this->archive );
@@ -729,16 +740,17 @@ class Tar_Archiver {
         if ( 'tar.gz' === $this->type ) {
             $this->log( 'writing & flushing ' . $len );
             $this->chunk = gzencode( $this->chunk );
-            if ( false === fwrite( $this->archive, $this->chunk, strlen( $this->chunk ) ) ) {
+            $len         = strlen( $this->chunk );
+            if ( fwrite( $this->archive, $this->chunk, $len ) !== $len ) {
                 $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
             fflush( $this->archive );
         } elseif ( 'tar.bz2' === $this->type ) {
-            if ( false === bzwrite( $this->archive, $this->chunk, $len ) ) {
+            if ( bzwrite( $this->archive, $this->chunk, $len ) !== $len ) {
                 $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
         } else {
-            if ( false === fwrite( $this->archive, $this->chunk, $len ) ) {
+            if ( fwrite( $this->archive, $this->chunk, $len ) !== $len ) {
                 $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
             fflush( $this->archive );
@@ -1208,7 +1220,7 @@ class Tar_Archiver {
                 $startOffset = $rslt['startOffset'];
                 fseek( $this->archive, $startOffset );
                 ftruncate( $this->archive, $startOffset );
-            } elseif ( 'tar.gz' === $this->type ) {
+            } elseif ( 'tar.gz' === $this->type && isset( $rslt['bytesRead'] ) ) {
                 $readOffset = $rslt['readOffset'];
                 $bytesRead  = $rslt['bytesRead'];
 
@@ -1309,6 +1321,9 @@ class Tar_Archiver {
     private function read_next_bytes( $file ) {
         $previousFtell = ftell( $this->archive );
         $bytes         = $file['stat'][7] + ( 512 === ( 512 - $file['stat'][7] % 512 ) ? 0 : ( 512 - $file['stat'][7] % 512 ) );
+        if ( false !== $this->archiveSize && $previousFtell + $bytes > $this->archiveSize ) {
+            $this->throw_backup_error( MainWP_Backup_Error::ERR_FILE_CORRUPT );
+        }
         fseek( $this->archive, ftell( $this->archive ) + $bytes );
         $ftell = ftell( $this->archive );
         if ( 'tar.gz' === $this->type ) {
@@ -1434,6 +1449,17 @@ class Tar_Archiver {
      * @throws \Exception Error message.
      */
     public function prepare_append( $filepath ) {
+        $gzipSize = false;
+        if ( 'tar.gz' === $this->type ) {
+            $gzipSize = $this->complete_gzip_size( $filepath );
+            if ( false === $gzipSize ) {
+                // A new gzip member cannot finish an interrupted previous member.
+                $this->mode = self::CREATE;
+                $this->create( $filepath );
+                return;
+            }
+        }
+
         if ( $this->debug ) {
             if ( 'tar.gz' === substr( $filepath, - 6 ) ) {
                 $text        = chr( 31 ) . chr( 139 ) . chr( 8 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 );
@@ -1473,6 +1499,58 @@ class Tar_Archiver {
         }
 
         $this->read( $filepath );
+        if ( false !== $gzipSize ) {
+            $this->archiveSize = $gzipSize;
+        }
+    }
+
+    /**
+     * Count decoded bytes only when every gzip member ends with a valid footer.
+     *
+     * @param string $filepath Archive path.
+     * @return int|false Decoded size, or false for an incomplete or invalid container.
+     */
+    private function complete_gzip_size( $filepath ) {
+        $handle = fopen( $filepath, 'rb' );
+        if ( false === $handle ) {
+            return false;
+        }
+
+        $inflater = null;
+        $complete = false;
+        $size     = 0;
+        try {
+            while ( ! feof( $handle ) ) {
+                // Bound the decoded allocation even for highly compressed input.
+                $data = fread( $handle, 1024 );
+                if ( false === $data || ( '' === $data && ! feof( $handle ) ) ) {
+                    return false;
+                }
+                while ( '' !== $data ) {
+                    if ( null === $inflater ) {
+                        $inflater = inflate_init( ZLIB_ENCODING_GZIP );
+                        if ( false === $inflater ) {
+                            return false;
+                        }
+                    }
+                    $before  = inflate_get_read_len( $inflater );
+                    $decoded = @inflate_add( $inflater, $data, ZLIB_SYNC_FLUSH ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- invalid input causes a clean archive restart.
+                    $read    = inflate_get_read_len( $inflater ) - $before;
+                    if ( false === $decoded || $read <= 0 ) {
+                        return false;
+                    }
+                    $size    += strlen( $decoded );
+                    $data     = substr( $data, $read );
+                    $complete = ZLIB_STREAM_END === inflate_get_status( $inflater );
+                    if ( $complete ) {
+                        $inflater = null;
+                    }
+                }
+            }
+            return $complete ? $size : false;
+        } finally {
+            fclose( $handle );
+        }
     }
 
     /**
