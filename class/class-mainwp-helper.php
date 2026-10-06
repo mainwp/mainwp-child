@@ -249,15 +249,19 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      * authenticated MainWP Dashboard response (backup_preflight).
      *
      * @return string 16-character alphanumeric secret.
+     * @throws MainWP_Exception When the stored secret is missing or invalid.
      */
     public static function get_backup_dir_hash() {
         $dir_hash = get_option( 'mainwp_backup_dir_hash' );
-        if ( empty( $dir_hash ) ) {
+        if ( false === $dir_hash ) {
             // add_option() so a concurrent first backup cannot overwrite the
             // winner's value; autoload disabled to keep the secret out of the
             // alloptions preload.
             add_option( 'mainwp_backup_dir_hash', wp_generate_password( 16, false ), '', 'no' );
             $dir_hash = get_option( 'mainwp_backup_dir_hash' );
+        }
+        if ( ! is_string( $dir_hash ) || 1 !== preg_match( '/^[A-Za-z0-9]{16}$/D', $dir_hash ) ) {
+            throw new MainWP_Exception( esc_html__( 'The backup directory secret is missing or invalid. Check the child site database options before retrying the backup.', 'mainwp-child' ), null, MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped; code identifies an unusable backup directory.
         }
         return $dir_hash;
     }

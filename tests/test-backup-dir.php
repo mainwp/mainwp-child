@@ -132,6 +132,118 @@ class BackupDirTest extends WP_UnitTestCase {
 		$this->assertSame( $first, $second );
 	}
 
+	public function test_existing_valid_backup_dir_hash_is_returned_unchanged() {
+		$hash = 'a1B2c3D4e5F6g7H8';
+		$this->assertTrue( add_option( 'mainwp_backup_dir_hash', $hash, '', 'no' ) );
+		$this->assertSame( $hash, MainWP_Helper::get_backup_dir_hash() );
+		$this->assertSame( $hash, get_option( 'mainwp_backup_dir_hash' ) );
+	}
+
+	/** @dataProvider invalid_backup_dir_hashes */
+	public function test_malformed_backup_dir_hash_is_refused_without_replacement( $stored ) {
+		$this->assertTrue( add_option( 'mainwp_backup_dir_hash', $stored, '', 'no' ) );
+		$before = get_option( 'mainwp_backup_dir_hash' );
+		$attempts = 0;
+		$filter = static function ( $value ) use ( &$attempts ) {
+			++$attempts;
+			return $value;
+		};
+		$failure = null;
+		add_filter( 'random_password', $filter );
+		try {
+			try {
+				MainWP_Helper::get_backup_dir_hash();
+			} catch ( \MainWP\Child\MainWP_Exception $e ) {
+				$failure = $e;
+			}
+			$this->assertInstanceOf( \MainWP\Child\MainWP_Exception::class, $failure, 'An invalid directory secret must refuse the backup.' );
+			$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE, $failure->get_message_error_code() );
+			$this->assertStringContainsString( 'backup directory secret', $failure->getMessage() );
+			$this->assertSame( $before, get_option( 'mainwp_backup_dir_hash' ), 'Never replace an existing malformed secret.' );
+			$this->assertSame( 0, $attempts, 'Only an absent option may generate a secret.' );
+		} finally {
+			remove_filter( 'random_password', $filter );
+		}
+	}
+
+	public static function invalid_backup_dir_hashes() {
+		return array(
+			'empty' => array( '' ),
+			'short' => array( 'bad' ),
+			'long' => array( 'a1B2c3D4e5F6g7H8x' ),
+			'path' => array( '../outside' ),
+			'array' => array( array( 'bad' ) ),
+			'integer' => array( 123 ),
+			'newline' => array( "a1B2c3D4e5F6g7H8\n" ),
+		);
+	}
+
+	/** @dataProvider backup_dir_hash_failure_paths */
+	public function test_backup_dir_hash_write_failure_refuses_callers( $filtered_read, $preflight ) {
+		global $wpdb;
+		$root = sys_get_temp_dir() . '/mainwp-secret-failure-' . uniqid();
+		mkdir( $root );
+		$upload_filter = static function ( $uploads ) use ( $root ) {
+			$uploads['basedir'] = $root;
+			return $uploads;
+		};
+		$writes = 0;
+		$query_filter = static function ( $sql ) use ( $wpdb, &$writes ) {
+			if ( 0 === strpos( $sql, 'INSERT INTO `' . $wpdb->options . '`' ) && false !== strpos( $sql, 'mainwp_backup_dir_hash' ) ) {
+				++$writes;
+				return 'SELECT 1 WHERE 0'; // A zero-row result makes add_option() report write failure.
+			}
+			return $sql;
+		};
+		add_filter( 'mainwp_child_get_wp_upload_dir', $upload_filter );
+		if ( $filtered_read ) {
+			add_filter( 'pre_option_mainwp_backup_dir_hash', '__return_empty_string' );
+		} else {
+			add_filter( 'query', $query_filter );
+		}
+		$failure = null;
+		try {
+			try {
+				if ( $preflight ) {
+					\MainWP\Child\MainWP_Backup::get()->check_backup_readiness();
+				} else {
+					MainWP_Helper::get_mainwp_dir( 'backup', false );
+				}
+			} catch ( \MainWP\Child\MainWP_Exception $e ) {
+				$failure = $e;
+			}
+			$this->assertDirectoryDoesNotExist( $root . '/mainwp/backup-', 'A failed option read or write must never create backup-/.' );
+			$this->assertSame( array(), glob( $root . '/mainwp/backup-*', GLOB_ONLYDIR ) );
+			$this->assertInstanceOf( \MainWP\Child\MainWP_Exception::class, $failure );
+			$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE, $failure->get_message_error_code() );
+			$this->assertSame( 'The backup directory secret is missing or invalid. Check the child site database options before retrying the backup.', $failure->getMessage() );
+			$this->assertSame( $filtered_read ? 0 : 1, $writes );
+		} finally {
+			remove_filter( 'mainwp_child_get_wp_upload_dir', $upload_filter );
+			remove_filter( 'pre_option_mainwp_backup_dir_hash', '__return_empty_string' );
+			remove_filter( 'query', $query_filter );
+			// Remove artifacts even when the unchanged code creates backup-/.
+			$files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+			foreach ( $files as $file ) {
+				if ( $file->isDir() ) {
+					rmdir( $file->getPathname() );
+				} else {
+					unlink( $file->getPathname() );
+				}
+			}
+			rmdir( $root );
+		}
+	}
+
+	public static function backup_dir_hash_failure_paths() {
+		return array(
+			'filtered read directory' => array( true, false ),
+			'write failure directory' => array( false, false ),
+			'filtered read preflight' => array( true, true ),
+			'write failure preflight' => array( false, true ),
+		);
+	}
+
 	/**
 	 * The backup directory path embeds the hash and is protected.
 	 */
