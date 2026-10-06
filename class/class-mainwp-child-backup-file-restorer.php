@@ -809,9 +809,14 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 );
             }
 
-            if ( unlink( $target ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- applying a deletion record.
-                ++$deleted;
+            if ( ! @unlink( $target ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- failure is returned through the restore error registry.
+                return array(
+                    'deleted'    => $deleted,
+                    'error'      => sprintf( 'Could not delete tombstoned file: %s.', esc_html( $relpath ) ),
+                    'error_code' => MainWP_Backup_Error::ERR_RESTORE_EXTRACT,
+                );
             }
+            ++$deleted;
         }
 
         return array(

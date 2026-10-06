@@ -3563,6 +3563,39 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $this->site . '/stale.txt' );
 	}
 
+	public function test_failed_tombstone_unlink_fails_restore_status() {
+		$directory = $this->site . '/locked';
+		mkdir( $directory );
+		file_put_contents( $directory . '/stale.txt', 'undeleted bytes' );
+		$tombstones = $this->make_named_tombstones_artifact( 'locked-tombstones.list', "locked/stale.txt\n" );
+		chmod( $directory, 0555 );
+		try {
+			clearstatcache( true, $directory );
+			if ( is_writable( $directory ) ) {
+				$this->markTestSkipped( 'The test user can delete from a read-only directory.' );
+			}
+			$warnings = array();
+			set_error_handler( static function ( $severity, $message ) use ( &$warnings ) {
+				if ( error_reporting() & $severity ) { $warnings[] = $message; }
+				return true;
+			} );
+			try {
+				$task = $this->drive( $this->make_task( 'files', array( $tombstones ) ) );
+			} finally {
+				restore_error_handler();
+			}
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase, 'An undeleted tombstone must fail the restore.' );
+			$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->dir );
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $payload['error_code'] );
+			$this->assertStringContainsString( 'locked/stale.txt', $payload['error'] );
+			$this->assertStringNotContainsString( $this->site, $payload['error'] );
+			$this->assertSame( 'undeleted bytes', file_get_contents( $directory . '/stale.txt' ) );
+			$this->assertSame( array(), $warnings );
+		} finally {
+			chmod( $directory, 0755 );
+		}
+	}
+
 	/**
 	 * Build a zip artifact with arbitrary entries in the backup dir.
 	 *
