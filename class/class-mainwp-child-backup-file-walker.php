@@ -761,9 +761,12 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ) ), null, MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
         }
 
-        $ok = true;
+        $ok       = true;
+        $required = 4096;
         foreach ( $buffer as $entry ) {
-            $ok = false !== fwrite( $fh, $entry[0] . "\t" . $entry[1] . "\t" . $entry[2] . "\t" . $entry[3] . "\n" ) && $ok; // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed run write.
+            $line     = $entry[0] . "\t" . $entry[1] . "\t" . $entry[2] . "\t" . $entry[3] . "\n";
+            $required = max( 4096, strlen( $line ) );
+            $ok       = false !== fwrite( $fh, $line ) && $ok; // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed run write.
             if ( ! $ok ) {
                 break;
             }
@@ -773,7 +776,9 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
 
         if ( ! $ok ) {
             wp_delete_file( $path ); // NOSONAR .
-            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) ), null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            $free = $this->free_disk_space( dirname( $path ) );
+            $code = false !== $free && $free < $required ? MainWP_Backup_Error::ERR_DISK_FULL : MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED;
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( $code ) ), null, $code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message.
         }
 
         return $path;
@@ -807,6 +812,7 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
 
         $handles  = array();
         $write_ok = true;
+        $required = 4096;
         try {
             $heads = array();
             foreach ( $runs as $run ) {
@@ -833,8 +839,11 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
                 }
 
                 $e        = $heads[ $min ];
-                $write_ok = false !== fwrite( $fl, $e[0] . "\t" . $e[1] . "\t" . $e[2] . "\n" ) && $write_ok; // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed sidecar write.
-                $write_ok = false !== fwrite( $pc, $e[3] . "\t" . $e[0] . "\n" ) && $write_ok; // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed sidecar write.
+                $file_row = $e[0] . "\t" . $e[1] . "\t" . $e[2] . "\n";
+                $path_row = $e[3] . "\t" . $e[0] . "\n";
+                $required = max( 4096, strlen( $file_row ), strlen( $path_row ) );
+                $write_ok = false !== fwrite( $fl, $file_row ) && $write_ok; // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed sidecar write.
+                $write_ok = false !== fwrite( $pc, $path_row ) && $write_ok; // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed sidecar write.
                 if ( ! $write_ok ) {
                     break;
                 }
@@ -862,8 +871,23 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         if ( ! $write_ok ) {
-            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) ), null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            $free = $this->free_disk_space( dirname( $files_list ) );
+            $code = false !== $free && $free < $required ? MainWP_Backup_Error::ERR_DISK_FULL : MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED;
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( $code ) ), null, $code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message.
         }
+    }
+
+    /**
+     * Read available bytes on the target filesystem, or false when unavailable.
+     *
+     * @param string $directory Target directory.
+     * @return float|false Free bytes.
+     */
+    protected function free_disk_space( $directory ) {
+        if ( ! function_exists( 'disk_free_space' ) ) {
+            return false;
+        }
+        return @disk_free_space( $directory ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- an unavailable reading cannot confirm disk exhaustion.
     }
 
     /**

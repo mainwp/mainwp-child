@@ -32,6 +32,8 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
     const ERR_DB_CONNECTION_LOST = 'mainwp_backup_db_connection_lost';
     const ERR_DB_QUERY_FAILED    = 'mainwp_backup_db_query_failed';
     const ERR_DB_DUMP_EMPTY      = 'mainwp_backup_db_dump_empty';
+    const ERR_DB_WRITE_FAILED    = 'mainwp_backup_db_write_failed';
+    const ERR_DB_RENAME_FAILED   = 'mainwp_backup_db_rename_failed';
     const ERR_FILE_CORRUPT       = 'mainwp_backup_file_corrupt';
     const ERR_FILE_TOO_SMALL     = 'mainwp_backup_file_too_small';
     const ERR_ZIP_FAILED         = 'mainwp_backup_zip_failed';
@@ -218,6 +220,8 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
             self::ERR_DB_CONNECTION_LOST         => esc_html__( 'The database connection was lost during the backup. The database server may be overloaded. Try running the backup again during low-traffic hours.', 'mainwp-child' ),
             self::ERR_DB_QUERY_FAILED            => esc_html__( 'Could not read table data for the backup. The database connection may have been interrupted. Check the child site error log and try running the backup again.', 'mainwp-child' ),
             self::ERR_DB_DUMP_EMPTY              => esc_html__( 'The database backup did not return any data. The database connection may have been lost mid-dump. Try running the backup again.', 'mainwp-child' ),
+            self::ERR_DB_WRITE_FAILED            => esc_html__( 'The database dump could not be written. Check the child site error log and try again.', 'mainwp-child' ),
+            self::ERR_DB_RENAME_FAILED           => esc_html__( 'The database dump could not be finalized. Check the child site error log and try again.', 'mainwp-child' ),
             self::ERR_FILE_CORRUPT               => esc_html__( 'The backup archive appears to be damaged. This can happen if the server ran out of disk space during the backup or the process was interrupted. Try running the backup again.', 'mainwp-child' ),
             self::ERR_FILE_TOO_SMALL             => esc_html__( 'The backup file is smaller than expected and is likely incomplete. The backup process may have been interrupted. Try running the backup again.', 'mainwp-child' ),
             self::ERR_ZIP_FAILED                 => esc_html__( 'Could not create the ZIP archive. The ZipArchive PHP extension may not be available or the backup directory is not writable. Check the child site PHP configuration and directory permissions.', 'mainwp-child' ),

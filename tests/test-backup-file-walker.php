@@ -7,6 +7,14 @@
 
 use MainWP\Child\MainWP_Child_Backup_File_Walker;
 
+class FailedWalkerWriteStream {
+	public $context;
+	public function stream_open( $path, $mode, $options, &$opened_path ) { return true; }
+	public function stream_write( $data ) { return -1; }
+	public function stream_close() {}
+	public function unlink( $path ) { return true; }
+}
+
 /**
  * Tests for the manifest file walker.
  *
@@ -118,6 +126,54 @@ class CorruptOnceSlicingWalker extends SlicingTestWalker {
 }
 
 class BackupFileWalkerTest extends WP_UnitTestCase {
+
+	/** @dataProvider failed_run_write_cases */
+	public function test_failed_run_write_uses_confirmed_space( $free, $expected, $merge ) {
+		$this->assertTrue( stream_wrapper_register( 'failedwalkerwrite', FailedWalkerWriteStream::class ) );
+		$walker = new class( $free ) extends MainWP_Child_Backup_File_Walker {
+			public $probed_dir;
+			private $free;
+			public function __construct( $free ) { $this->free = $free; }
+			protected function free_disk_space( $directory ) {
+				$this->probed_dir = $directory;
+				return $this->free;
+			}
+			public function failed_run() {
+				$this->run_dir = 'failedwalkerwrite://runs/';
+				return $this->write_run( array( array( 'file.txt', 1, 1, 'core' ) ) );
+			}
+			public function failed_merge( $run ) {
+				return $this->merge_runs( array( $run ), 'failedwalkerwrite://sidecars/files.list', 'failedwalkerwrite://sidecars/paths.cache' );
+			}
+		};
+		try {
+			try {
+				if ( $merge ) {
+					$run = $this->backup_dir . '/merge-run';
+					file_put_contents( $run, "file.txt\t1\t1\tcore\n" );
+					$walker->failed_merge( $run );
+				} else {
+					$walker->failed_run();
+				}
+				$this->fail( 'A failed manifest spill write must abort the walk.' );
+			} catch ( \MainWP\Child\MainWP_Exception $e ) {
+				$this->assertSame( $expected, $e->get_message_error_code(), 'A manifest write failure needs confirmed disk exhaustion to use disk_full.' );
+			}
+			$this->assertSame( $merge ? 'failedwalkerwrite://sidecars' : 'failedwalkerwrite://runs', $walker->probed_dir );
+		} finally {
+			stream_wrapper_unregister( 'failedwalkerwrite' );
+		}
+	}
+
+	public static function failed_run_write_cases() {
+		$cases = array();
+		foreach ( array( 'run' => false, 'merge' => true ) as $operation => $merge ) {
+			$cases[ $operation . '-insufficient' ] = array( 0, 'mainwp_backup_disk_full', $merge );
+			$cases[ $operation . '-available' ] = array( PHP_INT_MAX, 'mainwp_backup_manifest_walk_failed', $merge );
+			$cases[ $operation . '-unavailable' ] = array( false, 'mainwp_backup_manifest_walk_failed', $merge );
+		}
+		return $cases;
+	}
 
 	/**
 	 * Site tree root fixture.

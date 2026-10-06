@@ -38,6 +38,93 @@ class Topology_Probing_Dumper extends MainWP_Backup_Db_Dumper {
  */
 class DbDumperTest extends WP_UnitTestCase {
 
+	/** @dataProvider failed_dump_write_cases */
+	public function test_failed_dump_write_uses_confirmed_space( $free, $expected, $tier1 ) {
+		$dumper = new class( $free ) extends MainWP_Backup_Db_Dumper {
+			public $probed_dir;
+			private $free;
+			public function __construct( $free ) { $this->free = $free; }
+			protected function free_disk_space( $directory ) {
+				$this->probed_dir = $directory;
+				return $this->free;
+			}
+			protected function write_checked( $fh, $data, $heartbeat = null ) {
+				$readonly = fopen( stream_get_meta_data( $fh )['uri'], 'rb' );
+				try { parent::write_checked( $readonly, $data, $heartbeat ); }
+				finally { fclose( $readonly ); }
+			}
+		};
+		$handle = fopen( $this->scratch . '/failed-write', 'wb' );
+		$method = new ReflectionMethod( $dumper, 'write_checked' );
+		$method->setAccessible( true );
+		try {
+			try {
+				if ( $tier1 ) {
+					@$dumper->dump_to_files( $this->scratch . '/failed-dump' );
+				} else {
+					@$method->invoke( $dumper, $handle, str_repeat( 'x', 8192 ) );
+				}
+				$this->fail( 'A write to a read-only handle must fail.' );
+			} catch ( \MainWP\Child\MainWP_Exception $e ) {
+				$this->assertSame( $expected, $e->get_message_error_code(), 'An I/O failure needs evidence before it can be classified as disk_full.' );
+			}
+			$this->assertSame( $this->scratch, $dumper->probed_dir );
+			$this->assertContains( $expected, \MainWP\Child\MainWP_Backup_Error::get_registered_codes() );
+		} finally {
+			fclose( $handle );
+		}
+	}
+
+	public static function failed_dump_write_cases() {
+		$cases = array();
+		foreach ( array( 'direct' => false, 'tier1' => true ) as $tier => $tier1 ) {
+			$cases[ $tier . '-insufficient' ] = array( 0, 'mainwp_backup_disk_full', $tier1 );
+			$cases[ $tier . '-available' ] = array( PHP_INT_MAX, 'mainwp_backup_db_write_failed', $tier1 );
+			$cases[ $tier . '-unavailable' ] = array( false, 'mainwp_backup_db_write_failed', $tier1 );
+		}
+		$cases['write-larger-than-free'] = array( 8191, 'mainwp_backup_disk_full', false );
+		return $cases;
+	}
+
+	/** @dataProvider failed_dump_rename_cases */
+	public function test_failed_dump_rename_uses_confirmed_space( $free, $expected ) {
+		$dumper = new class( $free ) extends MainWP_Backup_Db_Dumper {
+			public $probed_dir;
+			private $free;
+			public function __construct( $free ) { $this->free = $free; }
+			protected function free_disk_space( $directory ) {
+				$this->probed_dir = $directory;
+				return $this->free;
+			}
+		};
+		$prefix = $this->scratch . '/rename-failure';
+		$final = $prefix . '-' . $this->fixture_table . '.sql.php';
+		$cursor = $dumper->dump_tables_tier2_slice( array( $this->fixture_table ), $prefix, array(), 0 )['cursor'];
+		mkdir( $final ); // Renaming a file onto a directory fails with space available.
+		try {
+			try {
+				for ( $slice = 0; $slice < 4; ++$slice ) {
+					$cursor = @$dumper->dump_tier2_slice( $prefix, $cursor, 0 )['cursor'];
+				}
+				$this->fail( 'A failed final rename must abort the dump.' );
+			} catch ( \MainWP\Child\MainWP_Exception $e ) {
+				$this->assertSame( $expected, $e->get_message_error_code(), 'A failed rename with unconfirmed disk exhaustion must use the rename code.' );
+			}
+			$this->assertSame( $this->scratch, $dumper->probed_dir );
+			$this->assertContains( $expected, \MainWP\Child\MainWP_Backup_Error::get_registered_codes() );
+		} finally {
+			rmdir( $final );
+		}
+	}
+
+	public static function failed_dump_rename_cases() {
+		return array(
+			'insufficient' => array( 0, 'mainwp_backup_disk_full' ),
+			'available' => array( PHP_INT_MAX, 'mainwp_backup_db_rename_failed' ),
+			'unavailable' => array( false, 'mainwp_backup_db_rename_failed' ),
+		);
+	}
+
 	/**
 	 * Scratch directory for dump files.
 	 *

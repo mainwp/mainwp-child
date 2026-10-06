@@ -598,8 +598,10 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 call_user_func( $heartbeat );
             }
             if ( $finished_rows ) {
-                if ( ! rename( $tmp, $final ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- atomic finalize of the per-table dump.
-                    throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) ), null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+                if ( ! @rename( $tmp, $final ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename, WordPress.PHP.NoSilencedErrors.Discouraged -- atomic finalize; failure returns a registered error.
+                    $free = $this->free_disk_space( dirname( $final ) );
+                    $code = false !== $free && $free < 4096 ? MainWP_Backup_Error::ERR_DISK_FULL : MainWP_Backup_Error::ERR_DB_RENAME_FAILED;
+                    throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( $code ) ), null, $code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message.
                 }
                 $cursor['files'][] = $final;
                 ++$cursor['index'];
@@ -978,8 +980,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
     }
 
     /**
-     * Write to the dump file with the result checked - a short or failed
-     * write means the disk filled mid-dump.
+     * Reject failed or short writes, distinguishing confirmed disk exhaustion.
      *
      * @param resource      $fh        Open file handle.
      * @param string        $data      Data to write.
@@ -991,14 +992,30 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         if ( null !== $heartbeat ) {
             call_user_func( $heartbeat );
         }
-        $written = fwrite( $fh, $data ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- streaming dump writes.
+        $written = @fwrite( $fh, $data ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite, WordPress.PHP.NoSilencedErrors.Discouraged -- failure returns a registered error.
         if ( false === $written || $written < strlen( $data ) ) {
-            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) ), null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+            $meta = stream_get_meta_data( $fh );
+            $free = $this->free_disk_space( dirname( $meta['uri'] ) );
+            $code = false !== $free && $free < max( 4096, strlen( $data ) ) ? MainWP_Backup_Error::ERR_DISK_FULL : MainWP_Backup_Error::ERR_DB_WRITE_FAILED;
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( $code ) ), null, $code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message.
         }
         $this->heartbeat_bytes += $written;
         while ( null !== $heartbeat && $this->heartbeat_bytes >= 5 * 1024 * 1024 ) {
             call_user_func( $heartbeat );
             $this->heartbeat_bytes -= 5 * 1024 * 1024;
         }
+    }
+
+    /**
+     * Read available bytes on the target filesystem, or false when unavailable.
+     *
+     * @param string $directory Target directory.
+     * @return float|false Free bytes.
+     */
+    protected function free_disk_space( $directory ) {
+        if ( ! function_exists( 'disk_free_space' ) ) {
+            return false;
+        }
+        return @disk_free_space( $directory ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- an unavailable reading cannot confirm disk exhaustion.
     }
 }
