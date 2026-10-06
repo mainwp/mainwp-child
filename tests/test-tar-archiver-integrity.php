@@ -249,6 +249,36 @@ class TarArchiverIntegrityTest extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_resume_skips_file_unreadable_since_an_uncheckpointed_slice() {
+		$unreadable = $this->fixture_dir . '/file-0.txt';
+		$archiver   = new Tar_Archiver( MainWP_Backup::get(), 'tar.gz' );
+		$archiver->create( $this->archive_path );
+		foreach ( array( 'file-1.txt', 'file-2.txt' ) as $name ) {
+			$this->assertTrue( $this->invoke_private( $archiver, 'add_file', $this->fixture_dir . '/' . $name, basename( WP_CONTENT_DIR ) . '/' . $name ) );
+		}
+		$archiver->close();
+		$prefix = gzdecode( file_get_contents( $this->archive_path ) );
+		chmod( $unreadable, 0000 );
+		try {
+			clearstatcache( true, $unreadable );
+			if ( is_readable( $unreadable ) ) {
+				$this->markTestSkipped( 'The test user can read a chmod 0000 file.' );
+			}
+			$this->assertTrue( $this->resume_backup(), 'A resume without persisted failed paths must skip the unreadable file again.' );
+		} finally {
+			// The resume deletes its prepared files after archiving them.
+			if ( file_exists( $unreadable ) ) {
+				chmod( $unreadable, 0644 );
+			}
+		}
+		$stream   = gzopen( $this->archive_path, 'rb' );
+		$finished = stream_get_contents( $stream );
+		gzclose( $stream );
+		$this->assertSame( strlen( $prefix ) + 1024, strlen( $finished ) );
+		$this->assertSame( $prefix, substr( $finished, 0, strlen( $prefix ) ) );
+		$this->assertSame( str_repeat( "\0", 1024 ), substr( $finished, -1024 ) );
+	}
+
 	public function test_read_close_does_not_validate_gzip_footer() {
 		file_put_contents( $this->archive_path, gzencode( 'read bytes' ) );
 		$reader = new Tar_Archiver( MainWP_Backup::get(), 'tar.gz' );

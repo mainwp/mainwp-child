@@ -956,10 +956,22 @@ class Tar_Archiver {
             call_user_func( $this->progressCallback );
         }
 
+        // Open the source before matching it against the archive: a file skipped in
+        // an earlier slice that never checkpointed its failed paths (lost lease,
+        // hard kill) must be skipped again, not matched against the next entry.
+        $fp = @fopen( $path, 'rb' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- unreadable files are recorded below without exposing their paths.
+        if ( ! $fp ) {
+            if ( $this->backup instanceof MainWP_Backup ) {
+                $this->backup->record_failed_add( $path );
+            }
+            return false;
+        }
+
         $rslt = false;
         if ( self::APPEND === $this->mode ) {
             $rslt = $this->check_before_append( $entryName );
             if ( true === $rslt ) {
+                fclose( $fp );
                 return true;
             }
         }
@@ -988,13 +1000,6 @@ class Tar_Archiver {
         }
 
         $stat = stat( $path ); // NOSONAR .
-        $fp   = @fopen( $path, 'rb' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- unreadable files are recorded below without exposing their paths.
-        if ( ! $fp ) {
-            if ( $this->backup instanceof MainWP_Backup ) {
-                $this->backup->record_failed_add( $path );
-            }
-            return false;
-        }
 
         $prefix = '';
         if ( strlen( $entryName ) > 99 ) {
@@ -1095,7 +1100,7 @@ class Tar_Archiver {
                 $remainder = 512 - ( strlen( $this->tempContent ) + $alreadyRead );
                 $this->log( 'DEBUG-Added ' . strlen( $this->tempContent ) . '(before: ' . $alreadyRead . ') will pack: ' . $remainder . ' (packed: ' . strlen( pack( 'a' . $remainder, '' ) ) );
                 if ( $remainder > 0 ) {
-                    $this->add_data( pack( 'a' . $remainder ), '' );
+                    $this->add_data( pack( 'a' . $remainder, '' ) );
                 }
             }
         }

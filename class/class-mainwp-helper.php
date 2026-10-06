@@ -202,6 +202,10 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
                 } else {
                     $protected = strlen( 'deny from all' ) === @fwrite( $file, 'deny from all' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- warnings disclose the private backup path; failure is reported below.
                     $protected = @fclose( $file ) && $protected; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- warnings disclose the private backup path; failure is reported below.
+                    if ( ! $protected ) {
+                        // A retry skips an existing .htaccess, so an empty one must not survive.
+                        wp_delete_file( $newdir . $another_name );
+                    }
                 }
             }
             if ( ! $protected ) {
