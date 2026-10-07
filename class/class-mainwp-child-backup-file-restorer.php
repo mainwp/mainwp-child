@@ -240,7 +240,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 $this->extract_entry( $zip, $name, $extract_to, $cursor );
             } catch ( \Exception $e ) {
                 $zip->close();
-                return $this->result( false, $cursor, $e->getMessage(), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+                $error_code = $e instanceof MainWP_Exception ? $e->get_message_error_code() : '';
+                return $this->result( false, $cursor, $e->getMessage(), ! empty( $error_code ) ? $error_code : MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
             }
 
             ++$cursor['entry_index'];
@@ -266,6 +267,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      *
      * @throws \Exception When an entry cannot be read or written (caught
      *                    and converted to a coded slice result).
+     * @throws MainWP_Exception When an entry directory cannot be created (returned as a coded slice result).
      *
      * @return array|null Slice result to propagate, or null.
      */
@@ -354,6 +356,9 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                     $target = static::validate_extract_path( rtrim( $entry['name'], '/' ), $extract_to );
                     if ( ! is_dir( $target ) ) {
                         wp_mkdir_p( $target );
+                        if ( ! is_dir( $target ) ) {
+                            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_TARGET_NOT_WRITABLE ) ), null, MainWP_Backup_Error::ERR_RESTORE_TARGET_NOT_WRITABLE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+                        }
                     }
                 } else {
                     $target = static::validate_extract_path( $entry['name'], $extract_to );
@@ -372,7 +377,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 // the error path must too, or a rejected archive leaves a
                 // full-size plain tar behind in the backup directory.
                 $this->discard_plain_tar( $part, $plain );
-                return $this->result( false, $cursor, $e->getMessage(), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+                $error_code = $e instanceof MainWP_Exception ? $e->get_message_error_code() : '';
+                return $this->result( false, $cursor, $e->getMessage(), ! empty( $error_code ) ? $error_code : MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
             }
 
             ++$cursor['entry_index'];
@@ -832,13 +838,17 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     }
 
     /**
-     * Map legacy aliases, skipping them when the real .htaccess is present.
+     * Skip legacy clone configuration and redundant .htaccess aliases.
      *
      * @param string $name                  Archive entry name.
      * @param array  $real_htaccess_entries Real .htaccess presence keyed by entry name.
-     * @return string|null Destination entry name, or null for a redundant alias.
+     * @return string|null Destination entry name, or null for a skipped entry.
      */
     private static function map_entry_name( $name, $real_htaccess_entries = array() ) {
+        $normalized = implode( '/', array_diff( explode( '/', wp_normalize_path( $name ) ), array( '', '.' ) ) );
+        if ( in_array( $normalized, array( 'clone', 'clone/config.txt' ), true ) ) {
+            return null;
+        }
         $mapped = preg_replace( '#(^|/)mainwp-htaccess$#', '$1.htaccess', $name );
         return $mapped !== $name && ! empty( $real_htaccess_entries[ $mapped ] ) ? null : $mapped;
     }
@@ -870,13 +880,16 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      *
      * @throws \Exception When the entry validates outside the root or
      *                    cannot be written.
-     * @throws MainWP_Exception When entry metadata cannot be read.
+     * @throws MainWP_Exception When entry metadata cannot be read or a directory cannot be created.
      */
     private function extract_entry( $zip, $name, $extract_to, &$cursor ) {
         if ( static::should_skip_entry( $name ) ) {
             return;
         }
         $mapped = static::map_entry_name( $name );
+        if ( null === $mapped ) {
+            return;
+        }
         if ( $mapped !== $name && ! array_key_exists( $mapped, $this->real_htaccess_entries ) ) {
             $this->real_htaccess_entries[ $mapped ] = false !== $zip->locateName( $mapped );
         }
@@ -894,6 +907,9 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             $target = static::validate_extract_path( rtrim( $entry_name, '/' ), $extract_to );
             if ( ! is_dir( $target ) ) {
                 wp_mkdir_p( $target );
+                if ( ! is_dir( $target ) ) {
+                    throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_TARGET_NOT_WRITABLE ) ), null, MainWP_Backup_Error::ERR_RESTORE_TARGET_NOT_WRITABLE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+                }
             }
             return;
         }
@@ -1203,6 +1219,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      *
      * @throws \Exception When the entry would resolve outside the
      *                    extraction root.
+     * @throws MainWP_Exception When an entry's parent directory cannot be created.
      */
     public static function validate_extract_path( $entry_name, $extract_to ) {
         // Reject absolute paths - PHP 7.4 compatible.
@@ -1249,6 +1266,9 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 );
             }
             wp_mkdir_p( dirname( $target_path ) );
+            if ( ! is_dir( dirname( $target_path ) ) ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_TARGET_NOT_WRITABLE ) ), null, MainWP_Backup_Error::ERR_RESTORE_TARGET_NOT_WRITABLE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+            }
             $real_target = realpath( dirname( $target_path ) );
         }
 

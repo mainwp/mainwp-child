@@ -438,6 +438,13 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 	 */
 	public $test_site_root = '';
 
+	/** @var array|null Content roots override; null uses the site configuration. */
+	public $test_content_roots = null;
+
+	protected function content_roots() {
+		return null !== $this->test_content_roots ? $this->test_content_roots : parent::content_roots();
+	}
+
 	/**
 	 * Shared fake engine.
 	 *
@@ -843,6 +850,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->runner                  = new Testable_Restore_Task_Runner();
 		$this->runner->test_backup_dir = $this->dir;
 		$this->runner->test_site_root  = $this->site;
+		$this->runner->test_content_roots = array( $this->site . '/wp-content', $this->site . '/wp-content/uploads' );
 		$this->runner->fake_engine     = new Fake_Restore_Engine();
 
 		$this->spine = MainWP_Child_Backup_Task::instance();
@@ -4469,6 +4477,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		};
 		$this->runner->test_backup_dir = $this->dir;
 		$this->runner->test_site_root = $this->site;
+		$this->runner->test_content_roots = array( $this->site . '/wp-content' );
 
 		// Use the real replay parser on the test connection so its temporary tables remain visible.
 		$this->runner->fake_engine = new class extends Fake_Restore_Engine {
@@ -4791,6 +4800,38 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertTrue( MainWP_Child_Restore_Task_Runner::is_restore_type( 'restore_files' ) );
 	}
 
+	/** Unsupported layouts must be refused before creating restore state. */
+	public function test_create_restore_task_refuses_external_content_without_state() {
+		global $wpdb;
+		$this->runner->test_content_roots = array( $this->dir . '/wp-content' );
+		foreach ( array( 'full', 'files' ) as $sub_type ) {
+			try {
+				$this->make_task( $sub_type, array( $this->make_part_artifact() ) );
+				$this->fail( 'File restores must refuse content outside the site root: ' . $sub_type );
+			} catch ( MainWP_Exception $e ) {
+				$this->assertSame( MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT, $e->get_message_error_code() );
+				$this->assertSame( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT ) ), $e->getMessage() );
+			}
+			$this->assertSame( 0, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $this->spine->get_table_name() ) );
+			$this->assertNull( \MainWP\Child\MainWP_Child_Backup_Mutex::holder() );
+			$this->assertSame( array(), $this->runner->fake_engine->calls );
+			$this->assertSame( array(), glob( $this->dir . '/restore-*' ) );
+		}
+	}
+
+	public function test_create_db_restore_allows_external_content() {
+		$this->runner->test_content_roots = array( $this->dir . '/wp-content' );
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$this->assertSame( 'restore_db', $this->spine->get_task( $task_id )->type );
+	}
+
+	public function test_create_restore_allows_empty_site_root() {
+		$this->runner->test_site_root = '';
+		$this->runner->test_content_roots = null;
+		$task_id = $this->make_task( 'files', array( $this->make_part_artifact() ) );
+		$this->assertSame( 'restore_files', $this->spine->get_task( $task_id )->type );
+	}
+
 	/**
 	 * A files sub_type creates a restore_files task.
 	 */
@@ -4989,6 +5030,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$runner                  = new Cloud_Pull_Test_Restore_Runner();
 		$runner->test_backup_dir = $this->dir;
 		$runner->test_site_root  = $this->site;
+		$runner->test_content_roots = $this->runner->test_content_roots;
 		$runner->fake_engine     = $this->runner->fake_engine;
 		$this->runner            = $runner;
 		return $runner;

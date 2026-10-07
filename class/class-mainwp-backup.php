@@ -1250,6 +1250,38 @@ class MainWP_Backup {
     protected $allowed_backup_bases = null;
 
     /**
+     * Whether content lives outside the tree covered by native file backups.
+     *
+     * @param string   $site_root     Site directory.
+     * @param string[] $content_roots Content and uploads directories.
+     *
+     * @return bool True when any non-empty content root is outside the site.
+     */
+    public static function content_outside_site_root( $site_root, array $content_roots ) {
+        // An unset site root provides no layout to check; test runners may omit it.
+        if ( '' === $site_root ) {
+            return false;
+        }
+
+        $normalized_site = trailingslashit( wp_normalize_path( $site_root ) );
+        $real_site       = realpath( $site_root );
+        foreach ( $content_roots as $root ) {
+            if ( '' === $root ) {
+                continue;
+            }
+            if ( 0 === strpos( trailingslashit( wp_normalize_path( $root ) ), $normalized_site ) ) {
+                continue;
+            }
+            $real_root = realpath( $root );
+            if ( false !== $real_site && false !== $real_root && 0 === strpos( trailingslashit( wp_normalize_path( $real_root ) ), trailingslashit( wp_normalize_path( $real_site ) ) ) ) {
+                continue;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Keep containment consistent when content or uploads live outside ABSPATH.
      *
      * @return string[] Resolved site, content and uploads bases.

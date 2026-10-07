@@ -50,6 +50,8 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
     const ERR_DL_FILE_CHANGED    = 'mainwp_backup_dl_file_changed';
     const ERR_DL_TOKEN_INVALID   = 'mainwp_backup_dl_token_invalid';
 
+    const ERR_UNSUPPORTED_LAYOUT = 'mainwp_backup_unsupported_layout';
+
     const ERR_INCREMENTAL_BASE_MISSING = 'mainwp_backup_incremental_base_missing';
     const ERR_MANIFEST_TOO_LARGE       = 'mainwp_backup_manifest_too_large';
     const ERR_MANIFEST_WALK_FAILED     = 'mainwp_backup_manifest_walk_failed';
@@ -66,6 +68,8 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
     const ERR_RESTORE_WRONG_PHASE     = 'mainwp_restore_wrong_phase';
     const ERR_RESTORE_CANCELLED       = 'mainwp_restore_cancelled';
     const ERR_RESTORE_DB_PERMS        = 'mainwp_restore_db_perms';
+
+    const ERR_RESTORE_TARGET_NOT_WRITABLE = 'mainwp_restore_target_not_writable';
 
     const ERR_RESTORE_ROLLED_BACK     = 'mainwp_restore_rolled_back';
     const ERR_RESTORE_ROLLBACK_FAILED = 'mainwp_restore_rollback_failed';
@@ -216,6 +220,7 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
             self::ERR_MEMORY_LIMIT               => esc_html__( 'The backup is approaching the PHP memory limit. Increase the child site PHP memory limit or exclude large folders from the backup.', 'mainwp-child' ),
             self::ERR_PERMISSIONS                => esc_html__( 'Could not create a file or directory for the backup. Check that the web server has write permission on the MainWP backup directory under wp-content/uploads.', 'mainwp-child' ),
             self::ERR_DIR_NOT_WRITABLE           => esc_html__( 'The backup directory is not writable. Check the directory permissions on the MainWP backup directory under wp-content/uploads.', 'mainwp-child' ),
+            self::ERR_UNSUPPORTED_LAYOUT         => esc_html__( 'MainWP backups cannot run on this site yet. Its wp-content folder is stored outside the WordPress core folder. Some managed hosts, such as Pressable and WordPress.com, and Bedrock installs use this layout. No backup or restore was started and nothing on the site was changed. Use the backups your host provides for this site for now.', 'mainwp-child' ),
             self::ERR_MISSING_EXTENSION          => esc_html__( 'A required PHP extension is not available on the child site. Ask your host to enable the ZipArchive or mysqli PHP extension.', 'mainwp-child' ),
             self::ERR_DB_CONNECTION_LOST         => esc_html__( 'The database connection was lost during the backup. The database server may be overloaded. Try running the backup again during low-traffic hours.', 'mainwp-child' ),
             self::ERR_DB_QUERY_FAILED            => esc_html__( 'Could not read table data for the backup. The database connection may have been interrupted. Check the child site error log and try running the backup again.', 'mainwp-child' ),
@@ -248,6 +253,8 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
             self::ERR_RESTORE_DB_REPLAY          => esc_html__( 'The database could not be replayed from the backup. The live database was not changed. Check the child site error log for the failing table and try the restore again.', 'mainwp-child' ),
             self::ERR_RESTORE_SWAP_FAILED        => esc_html__( 'The restored tables could not be promoted to live. The previous tables are still in place. Check the child site error log and try the restore again.', 'mainwp-child' ),
             self::ERR_RESTORE_EXTRACT            => esc_html__( 'The backup archive could not be extracted safely. Extraction stopped before any unsafe path was written. Check the child site error log for the rejected entry.', 'mainwp-child' ),
+            self::ERR_RESTORE_TARGET_NOT_WRITABLE
+                => esc_html__( 'The restore stopped because a folder on the site is not writable. Files restored before that point may already have been replaced. Ask your host to give the web server write access to the site files, then run the restore again.', 'mainwp-child' ),
             self::ERR_RESTORE_RECONCILE          => esc_html__( 'File reconciliation stopped because the file list or a deletion path was unsafe. Check the backup file list before retrying the restore.', 'mainwp-child' ),
             self::ERR_RESTORE_MULTISITE          => esc_html__( 'Restore is not available for multisite installations in this version.', 'mainwp-child' ),
             self::ERR_RESTORE_CROSS_PREFIX_FK    => esc_html__( 'This backup uses a different database table prefix than this site and its database has foreign keys, which cannot be restored across prefixes. Restore it to a site that uses the same table prefix as the backup.', 'mainwp-child' ),

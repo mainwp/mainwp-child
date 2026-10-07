@@ -156,7 +156,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     public function create_restore_task( $sub_type, $params, &$reused = false ) {
         global $wpdb;
         $reused = false;
-        $spine  = MainWP_Child_Backup_Task::instance();
+
+        if ( 'db' !== $sub_type && MainWP_Backup::content_outside_site_root( $this->site_root(), $this->content_roots() ) ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT ) ), null, MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+        }
+
+        $spine = MainWP_Child_Backup_Task::instance();
         $spine->install();
         // An idle site's watchdog may never clear a deadline-expired task.
         $spine->reclaim_expired_tasks( $this->backup_dir() );

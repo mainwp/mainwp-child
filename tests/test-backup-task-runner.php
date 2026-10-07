@@ -175,6 +175,13 @@ class Testable_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 	 */
 	public $test_site_root = '';
 
+	/** @var array|null Content roots override; null uses the site configuration. */
+	public $test_content_roots = null;
+
+	protected function content_roots() {
+		return null !== $this->test_content_roots ? $this->test_content_roots : parent::content_roots();
+	}
+
 	/**
 	 * Pack-loop site root: the test fixture tree when set.
 	 *
@@ -530,6 +537,58 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 			}
 		);
 		$this->assertCount( 1, $dump_calls, 'The database must be dumped exactly once' );
+	}
+
+	/** Unsupported layouts must be refused before creating a task or taking the mutex. */
+	public function test_create_task_refuses_external_content_without_state() {
+		global $wpdb;
+		$spine = MainWP_Child_Backup_Task::instance();
+		$this->runner->test_site_root = $this->backup_dir . '/core/';
+		$this->runner->test_content_roots = array( $this->backup_dir . '/wp-content' );
+		foreach ( array( 'full', 'files', 'incremental' ) as $type ) {
+			try {
+				$this->runner->create_task_for_params( $type, array() );
+				$this->fail( 'File backups must refuse content outside the site root: ' . $type );
+			} catch ( MainWP_Exception $e ) {
+				$this->assertSame( MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT, $e->get_message_error_code() );
+				$this->assertSame( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT ) ), $e->getMessage() );
+			}
+			$this->assertSame( 0, (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $spine->get_table_name() ) );
+			$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+			$this->assertSame( array(), $this->runner->calls );
+		}
+	}
+
+	public function test_create_db_task_allows_external_content() {
+		$this->runner->test_site_root = $this->backup_dir . '/core/';
+		$this->runner->test_content_roots = array( $this->backup_dir . '/wp-content' );
+		$task_id = $this->runner->create_task_for_params( 'db', array() );
+		$this->assertSame( 'db', MainWP_Child_Backup_Task::instance()->get_task( $task_id )->type );
+	}
+
+	/** The clone entry written after the walk is what catches a truncated last entry on tar resume. */
+	public function test_native_file_archiver_keeps_clone_sentinel() {
+		$backup = new class() extends MainWP_Backup {
+			public $archive_args;
+			public function create_full_backup( $excludes = array(), $filePrefix = '', $addConfig = true, $includeCoreFiles = true, $file_descriptors = 0, $fileSuffix = false, $excludezip = false, $excludenonwp = false, $loadFilesBeforeZip = true, $ext = 'zip', $pid = false, $append = false ) {
+				$this->archive_args = func_get_args();
+				return array( 'file' => $fileSuffix, 'filesize' => 2048 );
+			}
+		};
+		$slot = new ReflectionProperty( MainWP_Backup::class, 'instance' );
+		$slot->setAccessible( true );
+		$original = $slot->getValue();
+		$slot->setValue( null, $backup );
+		$method = new ReflectionMethod( MainWP_Child_Backup_Task_Runner::class, 'run_file_archiver' );
+		$method->setAccessible( true );
+		try {
+			$result = $method->invoke( $this->runner, array( 'ext' => 'tar' ), 'native.tar', false, time() + 30, array(), true );
+			$this->assertSame( 'native.tar', $result['file'] );
+			$this->assertTrue( $backup->archive_args[2], 'Native archives keep the clone entry as the tar resume sentinel; restore skips it.' );
+			$this->assertTrue( $backup->archive_args[3], 'Native archives must still include core files.' );
+		} finally {
+			$slot->setValue( null, $original );
+		}
 	}
 
 	/**

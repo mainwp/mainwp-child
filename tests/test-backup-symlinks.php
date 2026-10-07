@@ -80,6 +80,42 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 		$this->assertTrue( MainWP_Backup::is_safe_backup_path( rtrim( ABSPATH, '/' ) ) );
 	}
 
+	public function test_content_layout_accepts_roots_inside_site() {
+		$this->assertFalse( MainWP_Backup::content_outside_site_root( $this->scratch, array( $this->scratch . '/wp-content/', $this->scratch . '/wp-content/uploads', '' ) ) );
+		$this->assertFalse( MainWP_Backup::content_outside_site_root( $this->scratch . '/', array( $this->scratch ) ) );
+	}
+
+	public function test_content_layout_rejects_sibling_root() {
+		$this->assertTrue( MainWP_Backup::content_outside_site_root( $this->scratch, array( $this->scratch . '/wp-content', $this->external ) ) );
+	}
+
+	public function test_content_layout_rejects_prefix_sibling() {
+		$root = $this->scratch . '/wp';
+		mkdir( $root );
+		mkdir( $this->scratch . '/wp-content' );
+		$this->assertTrue( MainWP_Backup::content_outside_site_root( $root, array( $this->scratch . '/wp-content' ) ) );
+	}
+
+	public function test_content_layout_accepts_outward_symlink_under_site_root() {
+		$link = $this->scratch . '/wp-content';
+		$this->assertTrue( symlink( $this->external, $link ) );
+		$this->assertFalse( MainWP_Backup::content_outside_site_root( $this->scratch, array( $link, $link . '/uploads' ) ) );
+	}
+
+	public function test_content_layout_accepts_alias_resolving_inside_root() {
+		$link = $this->external . '/content-alias';
+		$this->assertTrue( symlink( $this->scratch, $link ) );
+		$this->assertFalse( MainWP_Backup::content_outside_site_root( $this->scratch, array( $link ) ) );
+	}
+
+	public function test_content_layout_allows_empty_site_root() {
+		$this->assertFalse( MainWP_Backup::content_outside_site_root( '', array( $this->external ) ) );
+	}
+
+	public function test_content_layout_ignores_empty_roots() {
+		$this->assertFalse( MainWP_Backup::content_outside_site_root( $this->scratch, array( '' ) ) );
+	}
+
 	public function external_uploads( $uploads ) {
 		$uploads['basedir'] = $this->external . '/uploads';
 		return $uploads;

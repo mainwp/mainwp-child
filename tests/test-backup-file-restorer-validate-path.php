@@ -6,6 +6,8 @@
  */
 
 use MainWP\Child\MainWP_Child_Backup_File_Restorer;
+use MainWP\Child\MainWP_Backup_Error;
+use MainWP\Child\MainWP_Exception;
 
 /**
  * Tests for the zip-slip extraction path guard.
@@ -155,6 +157,30 @@ class BackupFileRestorerValidatePathTest extends WP_UnitTestCase {
 		$this->assertSame( $this->extract_to . '/a/b/c/d.txt', $path );
 	}
 
+	public function test_read_only_parent_reports_target_not_writable() {
+		if ( function_exists( 'posix_geteuid' ) && 0 === posix_geteuid() ) {
+			$this->markTestSkipped( 'Root ignores directory permissions.' );
+		}
+		$parent = $this->extract_to . '/locked';
+		mkdir( $parent );
+		$this->assertTrue( chmod( $parent, 0500 ) );
+		clearstatcache( true, $parent );
+		try {
+			$this->assertFalse( is_writable( $parent ), 'The fixture must refuse writes.' );
+			try {
+				MainWP_Child_Backup_File_Restorer::validate_extract_path( 'locked/missing/file.txt', $this->extract_to );
+				$this->fail( 'An uncreatable parent must stop extraction.' );
+			} catch ( MainWP_Exception $e ) {
+				$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_TARGET_NOT_WRITABLE, $e->get_message_error_code() );
+				$this->assertSame( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_TARGET_NOT_WRITABLE ) ), $e->getMessage() );
+			}
+			$this->assertDirectoryDoesNotExist( $parent . '/missing' );
+		} finally {
+			chmod( $parent, 0755 );
+			clearstatcache( true, $parent );
+		}
+	}
+
 	public function test_outward_symlink_does_not_create_missing_parents() {
 		$this->assertTrue( symlink( $this->sibling, $this->extract_to . '/link' ) );
 		try {
@@ -162,6 +188,7 @@ class BackupFileRestorerValidatePathTest extends WP_UnitTestCase {
 			$this->fail( 'An outward symlink must be rejected before creating parents.' );
 		} catch ( \Exception $e ) {
 			$this->assertStringContainsString( 'outside extraction directory', $e->getMessage() );
+			$this->assertNotInstanceOf( MainWP_Exception::class, $e );
 		}
 		$this->assertDirectoryDoesNotExist( $this->sibling . '/a' );
 	}

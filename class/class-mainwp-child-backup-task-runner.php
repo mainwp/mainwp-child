@@ -149,6 +149,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             throw new MainWP_Exception( 'Unknown backup type requested for the backup task.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
         }
 
+        if ( 'db' !== $type && MainWP_Backup::content_outside_site_root( $this->site_root(), $this->content_roots() ) ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT ) ), null, MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+        }
+
         $spine = MainWP_Child_Backup_Task::instance();
         $spine->install();
 
@@ -1277,6 +1281,20 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      */
     protected function site_root() {
         return ABSPATH;
+    }
+
+    /**
+     * Content directories the native file backup must cover.
+     *
+     * @return string[] Content and uploads roots.
+     */
+    protected function content_roots() {
+        $roots   = array( WP_CONTENT_DIR );
+        $uploads = wp_upload_dir( null, false );
+        if ( ! empty( $uploads['basedir'] ) ) {
+            $roots[] = $uploads['basedir'];
+        }
+        return $roots;
     }
 
     /**

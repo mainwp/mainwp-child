@@ -374,6 +374,112 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		return $result;
 	}
 
+	/** @dataProvider data_read_only_target_formats */
+	public function test_restore_skips_clone_config_but_keeps_site_content( $format ) {
+		$path = $this->dir . '/clone.' . $format;
+		if ( 'tar' === $format ) {
+			$archive = new PharData( $path );
+			$archive->addEmptyDir( 'clone' );
+			$archive->addFromString( 'clone/config.txt', 'legacy clone configuration' );
+			$archive->addFromString( 'clone/keep.txt', 'site content' );
+		} else {
+			$archive = new ZipArchive();
+			$this->assertTrue( $archive->open( $path, ZipArchive::CREATE ) );
+			$archive->addEmptyDir( 'clone' );
+			$archive->addFromString( 'clone/config.txt', 'legacy clone configuration' );
+			$archive->addFromString( 'clone/keep.txt', 'site content' );
+			$archive->close();
+		}
+		unset( $archive );
+		$result = $this->run_sliced( $this->config( array( $path ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertFileDoesNotExist( $this->extract_to . '/clone/config.txt' );
+		$this->assertSame( 'site content', file_get_contents( $this->extract_to . '/clone/keep.txt' ) );
+	}
+
+	public function test_restore_skips_clone_config_under_a_dotted_entry_name() {
+		$path    = $this->dir . '/clone-dotted.zip';
+		$archive = new ZipArchive();
+		$this->assertTrue( $archive->open( $path, ZipArchive::CREATE ) );
+		$archive->addFromString( './clone/config.txt', 'legacy clone configuration' );
+		$archive->addFromString( 'clone//config.txt', 'legacy clone configuration' );
+		$archive->addFromString( 'keep.txt', 'site content' );
+		$archive->close();
+		$result = $this->run_sliced( $this->config( array( $path ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertFileDoesNotExist( $this->extract_to . '/clone/config.txt' );
+		$this->assertSame( 'site content', file_get_contents( $this->extract_to . '/keep.txt' ) );
+	}
+
+	/** @dataProvider data_read_only_target_formats */
+	public function test_restore_skips_clone_directory_without_creating_it( $format ) {
+		$path = $this->dir . '/clone-dir.' . $format;
+		if ( 'tar' === $format ) {
+			$archive = new PharData( $path );
+			$archive->addEmptyDir( 'clone' );
+			$archive->addFromString( 'clone/config.txt', 'legacy clone configuration' );
+		} else {
+			$archive = new ZipArchive();
+			$this->assertTrue( $archive->open( $path, ZipArchive::CREATE ) );
+			$archive->addEmptyDir( 'clone' );
+			$archive->addFromString( 'clone/config.txt', 'legacy clone configuration' );
+			$archive->close();
+		}
+		unset( $archive );
+		$result = $this->run_all( $this->config( array( $path ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertDirectoryDoesNotExist( $this->extract_to . '/clone' );
+	}
+
+	public static function data_unwritable_parent_entries() {
+		return array(
+			'zip file' => array( 'zip', false ),
+			'tar file' => array( 'tar', false ),
+			'zip directory' => array( 'zip', true ),
+			'tar directory' => array( 'tar', true ),
+		);
+	}
+
+	/** @dataProvider data_unwritable_parent_entries */
+	public function test_restore_forwards_target_not_writable_code( $format, $directory ) {
+		if ( function_exists( 'posix_geteuid' ) && 0 === posix_geteuid() ) {
+			$this->markTestSkipped( 'Root ignores directory permissions.' );
+		}
+		$path = $this->dir . '/unwritable.' . $format;
+		if ( $directory ) {
+			$archive = 'tar' === $format ? new PharData( $path ) : new ZipArchive();
+			if ( 'zip' === $format ) {
+				$this->assertTrue( $archive->open( $path, ZipArchive::CREATE ) );
+			}
+			$archive->addEmptyDir( 'locked/missing' );
+			if ( 'zip' === $format ) {
+				$archive->close();
+			}
+			unset( $archive );
+		} else {
+			$entries = array( 'locked/missing/file.txt' => 'unwritable content' );
+			$path = 'tar' === $format ? $this->make_tar( 'unwritable.tar', $entries ) : $this->make_zip( 'unwritable.zip', $entries );
+		}
+		$parent = $this->extract_to . '/locked';
+		mkdir( $parent );
+		$this->assertTrue( chmod( $parent, 0500 ) );
+		clearstatcache( true, $parent );
+		try {
+			$this->assertFalse( is_writable( $parent ), 'The fixture must refuse writes.' );
+			$result = $this->run_all( $this->config( array( $path ) ) );
+			$this->assertFalse( $result['done'] );
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_TARGET_NOT_WRITABLE, $result['error_code'] );
+			$this->assertSame( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_TARGET_NOT_WRITABLE ) ), $result['error'] );
+			$this->assertDirectoryDoesNotExist( $parent . '/missing' );
+		} finally {
+			chmod( $parent, 0755 );
+			clearstatcache( true, $parent );
+		}
+	}
+
 	/**
 	 * Entries land at their validated paths with intact content.
 	 */
