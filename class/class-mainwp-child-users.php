@@ -105,12 +105,12 @@ class MainWP_Child_Users {
         if ( 'delete' === $action ) {
             wp_delete_user( $userId, $reassign );
         } elseif ( 'changeRole' === $action ) {
-            $my_user         = array();
-            $my_user['ID']   = $userId;
-            $my_user['role'] = $extra;
+            $act_dt['old_roles'] = isset( $act_dt['roles'] ) ? $act_dt['roles'] : '';
+            $my_user             = array();
+            $my_user['ID']       = $userId;
+            $my_user['role']     = $extra;
             wp_update_user( $my_user );
-            $act_dt['old_roles'] = $act_dt[ $userId ]['roles'];
-            $act_dt['roles']     = $extra;
+            $act_dt['roles'] = $extra;
         } elseif ( 'update_password' === $action ) {
             $my_user              = array();
             $my_user['ID']        = $userId;
