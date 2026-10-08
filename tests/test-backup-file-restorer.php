@@ -1875,7 +1875,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->restorer = new PharlessRestorer();
 		$result         = $this->run_all( $this->config( array( $part ) ) );
 		$this->assertFalse( $result['done'] );
-		$this->assertStringContainsString( 'phar extension disabled', $result['error'] );
+		$this->assertStringContainsString( 'phar extension is disabled', $result['error'] );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
 		$this->assertFileDoesNotExist( $plain );
 	}

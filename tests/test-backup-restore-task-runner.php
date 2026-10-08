@@ -5810,7 +5810,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			$this->fail( 'A backup mutex must block restore creation.' );
 		} catch ( MainWP_Exception $e ) {
 			$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
-			$this->assertSame( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) . ' legacy' ), $e->getMessage() );
+			$this->assertSame( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), $e->getMessage() );
 			$this->assertSame( $holder, MainWP_Child_Backup_Mutex::holder() );
 			$this->assertEmpty( $this->spine->get_active_tasks() );
 		} finally {

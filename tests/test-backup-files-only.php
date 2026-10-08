@@ -261,7 +261,7 @@ class BackupFilesOnlyTest extends WP_UnitTestCase {
 			$this->fail( 'A native owner must refuse the legacy entry.' );
 		} catch ( MainWP_Exception $e ) {
 			$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
-			$this->assertStringContainsString( 'native', $e->getMessage() );
+			$this->assertSame( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), $e->getMessage() );
 		}
 		$this->assertFalse( $backup->backup_full_called );
 		$this->assertSame( 'native-owner', MainWP_Child_Backup_Mutex::holder()['owner'] );

@@ -313,7 +313,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
 
         if ( ! $this->phar_available() ) {
             $this->discard_plain_tar( $part, $plain );
-            return $this->result( false, $cursor, "This site's PHP has the phar extension disabled, which the restore needs to read .tar archives.", MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+            return $this->result( false, $cursor, 'The PHP phar extension is disabled on this site. The restore needs it to read .tar archives.', MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
 
         try {

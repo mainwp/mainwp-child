@@ -115,7 +115,7 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 
 == Changelog ==
 
-= 6.3-beta1 - 9-23-2026 =
+= 6.3-beta1 - 10-8-2026 =
 
 * Added: Native Backups (beta): a resumable backup engine that archives files and the database in slices, so backups complete on hosts with short request limits.
 * Added: Incremental backups that record only the files changed since the last run, with chains that restore as complete points in time.
@@ -126,6 +126,7 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 * Added: WooCommerce order preservation during restore.
 * Added: Multisite network backup and restore.
 * Added: Backup and restore capability reporting so the Dashboard can refuse an operation this version does not support instead of failing it midway.
+* Updated: File backups and restores are refused on sites where wp-content lives outside the WordPress core folder (Pressable, WordPress.com, Bedrock layouts). Database backups still run.
 
 = 6.2.2 - 10-5-2026 =
 

@@ -106,7 +106,7 @@ class CloneBackupMutexTest extends WP_UnitTestCase {
 				$this->fail( 'Native admission must refuse while the clone owns the mutex.' );
 			} catch ( MainWP_Exception $e ) {
 				$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
-				$this->assertStringContainsString( 'legacy', $e->getMessage() );
+				$this->assertSame( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), $e->getMessage() );
 			}
 			$this->assertFileExists( $fragment );
 			$this->assertSame( $holder, MainWP_Child_Backup_Mutex::holder() );
@@ -272,7 +272,7 @@ class CloneBackupMutexTest extends WP_UnitTestCase {
 			$this->fail( 'A native owner must refuse the clone entry.' );
 		} catch ( MainWP_Exception $e ) {
 			$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $e->get_message_error_code() );
-			$this->assertStringContainsString( 'native', $e->getMessage() );
+			$this->assertSame( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), $e->getMessage() );
 		}
 		$this->assertFalse( $backup->archive_called );
 		$this->assertSame( 'native-owner', MainWP_Child_Backup_Mutex::holder()['owner'] );
