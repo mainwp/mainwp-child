@@ -4819,6 +4819,27 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		}
 	}
 
+	/** Extraction resolves symlinks, so a restore must refuse content that only looks inside the site root. */
+	public function test_create_restore_task_refuses_outward_symlinked_content() {
+		$site     = $this->dir . '/linked-site';
+		$external = sys_get_temp_dir() . '/mwp-restore-external-' . uniqid();
+		mkdir( $site, 0755, true );
+		mkdir( $external . '/uploads', 0755, true );
+		$this->assertTrue( symlink( $external, $site . '/wp-content' ) );
+		$this->runner->test_site_root     = $site;
+		$this->runner->test_content_roots = array( $site . '/wp-content', $site . '/wp-content/uploads' );
+		try {
+			$this->make_task( 'full', array( $this->make_part_artifact() ) );
+			$this->fail( 'A restore must refuse wp-content that resolves outside the site root.' );
+		} catch ( MainWP_Exception $e ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT, $e->get_message_error_code() );
+		} finally {
+			unlink( $site . '/wp-content' );
+			rmdir( $external . '/uploads' );
+			rmdir( $external );
+		}
+	}
+
 	public function test_create_db_restore_allows_external_content() {
 		$this->runner->test_content_roots = array( $this->dir . '/wp-content' );
 		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );

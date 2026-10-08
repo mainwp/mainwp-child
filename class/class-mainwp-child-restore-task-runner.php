@@ -157,7 +157,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         global $wpdb;
         $reused = false;
 
-        if ( 'db' !== $sub_type && MainWP_Backup::content_outside_site_root( $this->site_root(), $this->content_roots() ) ) {
+        if ( 'db' !== $sub_type && MainWP_Backup::content_outside_site_root( $this->site_root(), $this->content_roots(), true ) ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT ) ), null, MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
         }
 

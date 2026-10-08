@@ -1251,12 +1251,18 @@ class MainWP_Backup {
     /**
      * Whether content lives outside the tree covered by native file backups.
      *
+     * Backups follow a wp-content symlink, so a root that sits under the site
+     * by name passes. Restore extraction checks resolved paths, so restores ask
+     * for $resolved and a root whose real path leaves the site is refused before
+     * any file is replaced.
+     *
      * @param string   $site_root     Site directory.
      * @param string[] $content_roots Content and uploads directories.
+     * @param bool     $resolved      Judge roots by their resolved path.
      *
      * @return bool True when any non-empty content root is outside the site.
      */
-    public static function content_outside_site_root( $site_root, array $content_roots ) {
+    public static function content_outside_site_root( $site_root, array $content_roots, $resolved = false ) {
         // An unset site root provides no layout to check; test runners may omit it.
         if ( '' === $site_root ) {
             return false;
@@ -1268,10 +1274,12 @@ class MainWP_Backup {
             if ( '' === $root ) {
                 continue;
             }
-            if ( 0 === strpos( trailingslashit( wp_normalize_path( $root ) ), $normalized_site ) ) {
+            $real_root = realpath( $root );
+            $lexical   = 0 === strpos( trailingslashit( wp_normalize_path( $root ) ), $normalized_site );
+            // A root that does not exist yet has nothing to resolve; its name decides.
+            if ( $lexical && ( ! $resolved || false === $real_root ) ) {
                 continue;
             }
-            $real_root = realpath( $root );
             if ( false !== $real_site && false !== $real_root && 0 === strpos( trailingslashit( wp_normalize_path( $real_root ) ), trailingslashit( wp_normalize_path( $real_site ) ) ) ) {
                 continue;
             }

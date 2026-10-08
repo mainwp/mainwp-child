@@ -102,6 +102,17 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 		$this->assertFalse( MainWP_Backup::content_outside_site_root( $this->scratch, array( $link, $link . '/uploads' ) ) );
 	}
 
+	public function test_content_layout_resolved_rejects_outward_symlink_under_site_root() {
+		$link = $this->scratch . '/wp-content';
+		$this->assertTrue( symlink( $this->external, $link ) );
+		$this->assertTrue( MainWP_Backup::content_outside_site_root( $this->scratch, array( $link, $link . '/uploads' ), true ) );
+	}
+
+	public function test_content_layout_resolved_accepts_real_roots_inside_site() {
+		mkdir( $this->scratch . '/wp-content/uploads', 0755, true );
+		$this->assertFalse( MainWP_Backup::content_outside_site_root( $this->scratch, array( $this->scratch . '/wp-content', $this->scratch . '/wp-content/uploads', $this->scratch . '/wp-content/missing' ), true ) );
+	}
+
 	public function test_content_layout_accepts_alias_resolving_inside_root() {
 		$link = $this->external . '/content-alias';
 		$this->assertTrue( symlink( $this->scratch, $link ) );
