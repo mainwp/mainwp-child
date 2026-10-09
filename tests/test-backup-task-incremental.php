@@ -814,6 +814,46 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $path );
 	}
 
+	/**
+	 * Every incremental names the shared files.list and tombstones.list. A
+	 * prune of the run that promoted the chain base (retention, or an
+	 * abandoned run) must leave that base, so the next incremental's local
+	 * base check still passes.
+	 */
+	public function test_prune_of_completed_incremental_keeps_chain_base() {
+		$this->arrange_incremental_fixtures();
+		$this->runner->stubs['promote_manifest_sidecars'] = static function ( $backup_dir ) {
+			return \MainWP\Child\MainWP_Child_Backup_File_Walker::promote_sidecars( $backup_dir );
+		};
+		$parent = $this->backup_dir . '/pushed-parent.list';
+		file_put_contents( $parent, $this->parent_manifest_content() );
+		$task_id = $this->create_task( 'incremental', array( 'parent_manifest_file' => basename( $parent ) ) );
+		$this->advance( $task_id );
+		$task  = $this->advance( $task_id );
+		$spine = MainWP_Child_Backup_Task::instance();
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$roles = $this->artifacts_by_role( $spine->status_payload( $task, $this->backup_dir ) );
+		$this->assertSame( 'files.list', $roles['manifest']['file'] );
+		$this->assertSame( 'tombstones.list', $roles['tombstones']['file'] );
+
+		$this->assertSame( 'pruned', $spine->prune_task( $task_id, $this->backup_dir ) );
+
+		foreach ( array( 'files.list', 'paths.cache', 'files.list.writer.json' ) as $name ) {
+			$this->assertFileExists( $this->backup_dir . '/' . $name, $name . ' is the chain base and must survive the prune.' );
+		}
+		$this->assertFileDoesNotExist( $this->backup_dir . '/' . $roles['db']['file'], 'The pruned run\'s own files still go.' );
+
+		$next = 'task-next-' . uniqid();
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', $next, 3600 ) );
+		$current = new ReflectionProperty( \MainWP\Child\MainWP_Child_Backup_Task_Runner::class, 'current_task_id' );
+		$current->setAccessible( true );
+		$current->setValue( $this->runner, $next );
+		$cursor  = array( 'params' => array( 'parent_child_task_id' => $task_id ) );
+		$resolve = new ReflectionMethod( $this->runner, 'resolve_parent_manifest' );
+		$resolve->setAccessible( true );
+		$this->assertSame( $this->backup_dir . '/files.list', $resolve->invokeArgs( $this->runner, array( &$cursor, $this->backup_dir ) ), 'The next incremental can still use the local base.' );
+	}
+
 	/** @return array Terminal spill cleanup paths. */
 	public static function spilled_parent_cleanup_cases() {
 		return array(

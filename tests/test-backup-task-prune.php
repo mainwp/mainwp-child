@@ -379,6 +379,100 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A pre-restore safety backup is the rollback source for the site's last
+	 * restore. The Child keeps it with no age limit; the Dashboard retires it.
+	 */
+	public function test_sweep_keeps_safety_backup_past_seven_days() {
+		$archive = $this->backup_dir . '/backup-1791262128.tar.gz';
+		file_put_contents( $archive, 'x' );
+		$task_id = $this->make_terminal_task(
+			MainWP_Child_Backup_Task::PHASE_COMPLETED,
+			array(
+				'params'   => array( 'purpose' => MainWP_Child_Backup_Task::PURPOSE_PRE_RESTORE ),
+				'artifact' => array(
+					'file' => basename( $archive ),
+					'size' => 1,
+				),
+			)
+		);
+		$this->backdate_task( $task_id, 30 * DAY_IN_SECONDS );
+
+		MainWP_Child_Backup_Task::instance()->sweep_stale_markers( $this->backup_dir );
+
+		$this->assertFileExists( $archive, 'A safety backup is kept until the Dashboard retires it.' );
+	}
+
+	/**
+	 * Lay out the fixed-name chain files.
+	 *
+	 * @return string[] Absolute paths keyed by name.
+	 */
+	private function make_chain_files() {
+		$chain = array();
+		foreach ( array( 'files.list', 'paths.cache', 'files.list.writer.json', 'tombstones.list', 'changes.list' ) as $name ) {
+			$chain[ $name ] = $this->backup_dir . '/' . $name;
+			file_put_contents( $chain[ $name ], 'chain' );
+		}
+		return $chain;
+	}
+
+	/**
+	 * Every incremental names the same files.list and tombstones.list, so a
+	 * prune of one run (retention, or an abandoned run) must delete its own
+	 * files and leave the chain base the next incremental diffs against.
+	 */
+	public function test_prune_of_incremental_keeps_chain_files() {
+		$chain = $this->make_chain_files();
+		$db    = $this->backup_dir . '/dbBackup-1791291867.sql.zip';
+		$part  = $this->backup_dir . '/plugins.task1791291867abc.part001.zip';
+		foreach ( array( $db, $part ) as $file ) {
+			file_put_contents( $file, 'x' );
+		}
+		$task_id = $this->make_terminal_task(
+			MainWP_Child_Backup_Task::PHASE_COMPLETED,
+			array(
+				'artifact'  => array(
+					'file' => 'files.list',
+					'size' => 5,
+				),
+				'artifacts' => array(
+					array( 'file' => 'files.list', 'role' => 'manifest' ),
+					array( 'file' => 'tombstones.list', 'role' => 'tombstones' ),
+					array( 'file' => basename( $db ), 'role' => 'db' ),
+					array( 'file' => basename( $part ), 'role' => 'part' ),
+				),
+			)
+		);
+
+		$this->assertSame( 'pruned', MainWP_Child_Backup_Task::instance()->prune_task( $task_id, $this->backup_dir ) );
+
+		$this->assertFileDoesNotExist( $db );
+		$this->assertFileDoesNotExist( $part );
+		foreach ( $chain as $name => $path ) {
+			$this->assertFileExists( $path, $name . ' belongs to the chain, not to the pruned run.' );
+		}
+	}
+
+	/**
+	 * A completed run keeps the name of its spilled parent copy, but
+	 * parent-files.list is a fixed name: a prune must not delete the copy a
+	 * running incremental is diffing against.
+	 */
+	public function test_prune_keeps_parent_copy_a_running_task_uses() {
+		$spine  = MainWP_Child_Backup_Task::instance();
+		$parent = $this->backup_dir . '/parent-files.list';
+		file_put_contents( $parent, 'running parent' );
+		$old = $this->make_terminal_task(
+			MainWP_Child_Backup_Task::PHASE_COMPLETED,
+			array( 'params' => array( 'parent_manifest_file' => 'parent-files.list' ) )
+		);
+		$spine->create_task( 'incremental', array( 'params' => array( 'parent_manifest_file' => 'parent-files.list' ) ) );
+
+		$this->assertSame( 'pruned', $spine->prune_task( $old, $this->backup_dir ) );
+		$this->assertFileExists( $parent );
+	}
+
+	/**
 	 * Run the prune callable's logic for the given ids.
 	 *
 	 * @param string[] $task_ids Task ids.

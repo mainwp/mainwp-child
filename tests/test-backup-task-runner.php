@@ -1317,7 +1317,9 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Completion removes the sidecar file.
+	 * Completion removes every superseded sidecar. A cursor still too big for
+	 * the row keeps the one sidecar the row points to, so the finished
+	 * artifact stays readable until prune_task() removes it with the row.
 	 */
 	public function test_completed_terminal_cleans_sidecar() {
 		$spine   = MainWP_Child_Backup_Task::instance();
@@ -1336,7 +1338,13 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$task = $this->advance( $task_id );
 
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
-		$this->assertCount( 0, (array) glob( $this->backup_dir . '/task_substate-' . $task_id . '-v*.json' ), 'No sidecar litter after completion' );
+		$this->assertFileDoesNotExist( $this->backup_dir . '/' . json_decode( $serialized, true )['file'], 'Superseded sidecars go at completion' );
+		$live = json_decode( $task->sub_state, true );
+		$this->assertSame( array( $this->backup_dir . '/' . $live['file'] ), (array) glob( $this->backup_dir . '/task_substate-' . $task_id . '-v*.json' ), 'Only the sidecar the row points to remains' );
+		$this->assertSame( 'backup-artifact.tar', $spine->status_payload( $task, $this->backup_dir )['file'] );
+
+		$this->assertSame( 'pruned', $spine->prune_task( $task_id, $this->backup_dir ) );
+		$this->assertCount( 0, (array) glob( $this->backup_dir . '/task_substate-' . $task_id . '-v*.json' ), 'No sidecar litter after prune' );
 	}
 
 	/**
@@ -2163,6 +2171,93 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		foreach ( $chain as $name => $path ) {
 			$this->assertFileExists( $path, $name . ' belongs to the chain and must survive the sweep.' );
 		}
+	}
+
+	/**
+	 * A cancel without the mutex also leaves the half-written archive, dump
+	 * fragments and incremental parts named on the row, so the next sweep
+	 * deletes them instead of leaving them in the uploads folder for good.
+	 */
+	public function test_cancel_without_mutex_defers_mid_flight_files_to_next_sweep() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->runner->create_task_for_params( 'incremental', array( 'ext' => 'zip' ) );
+		$token   = preg_replace( '/[^A-Za-z0-9]/', '', $task_id );
+		$chain   = $this->make_chain_files();
+		$prefix  = $this->backup_dir . '/dbBackup-' . $task_id;
+		$own     = array(
+			'partial'   => $this->backup_dir . '/backup-1791291867.zip',
+			'fragment'  => $prefix . '-wp_posts.sql.php',
+			'closed'    => $this->backup_dir . '/plugins.' . $token . '.part001.zip',
+			'open_part' => $this->backup_dir . '/themes.' . $token . '.part001.zip',
+		);
+		foreach ( $own as $path ) {
+			file_put_contents( $path, 'mid-flight' );
+		}
+		$task = $spine->get_task( $task_id );
+		$spine->checkpoint(
+			$task_id,
+			(int) $task->version,
+			array(
+				'phase'     => MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES,
+				'sub_state' => array(
+					'db_prefix'       => $prefix,
+					'db_files'        => array( $own['fragment'] ),
+					'archive_file'    => basename( $own['partial'] ),
+					'completed_parts' => array( array( 'file' => basename( $own['closed'] ) ) ),
+				),
+			)
+		);
+		MainWP_Child_Backup_Mutex::release( $task_id );
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'other-engine', 300 ) );
+		try {
+			$this->assertSame( 'ok', $this->runner->cancel_backup_task( $task_id )['result'] );
+			foreach ( $own as $path ) {
+				$this->assertFileExists( $path, 'Without the mutex the cancel must not delete files.' );
+			}
+		} finally {
+			MainWP_Child_Backup_Mutex::release( 'other-engine' );
+		}
+
+		$spine->sweep_stale_markers( $this->backup_dir );
+
+		foreach ( $own as $name => $path ) {
+			$this->assertFileDoesNotExist( $path, $name . ' of a cancelled run must go at the next sweep.' );
+		}
+		foreach ( $chain as $name => $path ) {
+			$this->assertFileExists( $path, $name . ' belongs to the chain and must survive the sweep.' );
+		}
+	}
+
+	/**
+	 * A completed run whose cursor is too big for the row spills it to a
+	 * sidecar. The terminal cleanup must not leave the row pointing at a
+	 * deleted sidecar: the Dashboard still needs the artifact from the status
+	 * payload, and the sweep needs its name.
+	 */
+	public function test_completed_run_with_large_cursor_keeps_artifact_visible() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task(
+			'db',
+			array(
+				'params' => array(
+					'ext'      => 'tar',
+					'file'     => '',
+					'excludes' => array_fill( 0, 2000, str_repeat( 'x', 40 ) ),
+				),
+			)
+		);
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', $task_id, 3600 ) );
+
+		$task = $this->advance( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$payload = $spine->status_payload( $task, $this->backup_dir );
+		$this->assertSame( 'backup-artifact.tar', $payload['file'] ?? null, 'The completed status must still name the artifact.' );
+
+		global $wpdb;
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET last_progress_at = DATE_SUB(NOW(), INTERVAL 8 DAY) WHERE task_id = %s', $task_id ) );
+		$spine->sweep_stale_markers( $this->backup_dir );
+		$this->assertFileDoesNotExist( $this->backup_dir . '/backup-artifact.tar', 'The sweep must see the artifact of a large-cursor run.' );
 	}
 
 	/**

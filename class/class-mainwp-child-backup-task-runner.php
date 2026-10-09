@@ -272,8 +272,9 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         $this->cleanup_walk_runs( $backup_dir );
 
         // checkpoint() overwrites sub_state, so carry forward the names of the
-        // files the run already finished (its artifacts and any spilled parent
-        // manifest). Without the mutex below they are not deleted here, and the
+        // files the run wrote: finished artifacts, the half-written archive,
+        // dump fragments, closed incremental parts and any spilled parent
+        // manifest. Without the mutex below they are not deleted here, and the
         // next sweep or prune finds them by these names.
         $cancelled_state = array(
             'error' => array(
@@ -283,7 +284,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         );
         $existing_state  = $spine->read_sub_state( $task, $backup_dir );
         if ( is_array( $existing_state ) ) {
-            foreach ( array( 'artifact', 'artifacts' ) as $key ) {
+            foreach ( array( 'artifact', 'artifacts', 'archive_file', 'db_files', 'completed_parts' ) as $key ) {
                 if ( isset( $existing_state[ $key ] ) ) {
                     $cancelled_state[ $key ] = $existing_state[ $key ];
                 }
@@ -328,12 +329,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             $holder = MainWP_Child_Backup_Mutex::acquire( 'native', $task_id, 60 );
             if ( '' !== $backup_dir && ( true === $holder || ( is_array( $holder ) && $holder['owner'] === $task_id ) ) ) {
                 // A cancelled run never gets a Dashboard snapshot, so retention
-                // never prunes it; its finished files go now, except the chain
-                // files and anything another task still owns.
-                $spine->delete_cancelled_artifacts( $existing_state, $backup_dir );
-                $leftovers = is_array( $existing_state ) ? $existing_state : array();
-                unset( $leftovers['artifact'], $leftovers['artifacts'], $leftovers['params']['parent_manifest_file'] );
-                $this->cleanup_failed_task_artifacts( $task_id, $leftovers, $backup_dir );
+                // never prunes it: its finished files go now with the mid-flight
+                // ones. The by-name delete skips the chain files and anything
+                // another task still owns.
+                $this->cleanup_failed_task_artifacts( $task_id, $existing_state, $backup_dir );
             }
             $spine->delete_sidecar( $task_id, $backup_dir );
         } finally {
@@ -1395,7 +1394,15 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                         wp_delete_file( $parent_manifest_path );
                     }
                 }
-                $spine->delete_sidecar( $task->task_id, $backup_dir );
+                // A backup cursor too big for the row stays in its sidecar:
+                // the status payload, prune and sweep read the finished
+                // artifact names from it. prune_task() removes it with the row.
+                $keep    = '';
+                $pointer = json_decode( (string) $serialized, true );
+                if ( ! MainWP_Child_Backup_Task::is_restore_type( $task->type ) && is_array( $pointer ) && ! empty( $pointer['_sidecar'] ) && isset( $pointer['file'] ) ) {
+                    $keep = (string) $pointer['file'];
+                }
+                $spine->delete_superseded_sidecars( $task->task_id, $backup_dir, $keep );
             } finally {
                 if ( ! MainWP_Child_Backup_Task::is_restore_type( $task->type ) ) {
                     MainWP_Child_Backup_Mutex::release( $task->task_id );
@@ -1896,7 +1903,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @param string     $backup_dir Backup directory.
      */
     public function cleanup_failed_task_artifacts( $task_id, $sub_state, $backup_dir ) {
-        MainWP_Child_Backup_Task::instance()->delete_artifact_files( $sub_state, $backup_dir );
+        MainWP_Child_Backup_Task::instance()->delete_artifact_files( $sub_state, $backup_dir, $task_id );
 
         $dir = rtrim( $backup_dir, '/' ) . '/';
 

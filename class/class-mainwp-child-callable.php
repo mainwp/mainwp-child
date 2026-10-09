@@ -765,6 +765,12 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             'emit_manifest'      => isset( $_POST['emit_manifest'] ) && '1' === $_POST['emit_manifest'],
         );
 
+        // The backup a restore can roll back to is kept with no age limit, so
+        // the sweep must be able to tell it from an uncollected regular run.
+        if ( isset( $_POST['purpose'] ) && MainWP_Child_Backup_Task::PURPOSE_PRE_RESTORE === $_POST['purpose'] ) {
+            $params['purpose'] = MainWP_Child_Backup_Task::PURPOSE_PRE_RESTORE;
+        }
+
         if ( 'incremental' === $type ) {
             $raw_manifest = isset( $_POST['parent_manifest'] ) ? wp_unslash( $_POST['parent_manifest'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated as strict base64 below.
             if ( strlen( $raw_manifest ) > 6 * 1024 * 1024 ) {
