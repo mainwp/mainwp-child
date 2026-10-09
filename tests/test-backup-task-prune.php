@@ -560,6 +560,142 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A prune deletes only while it holds the backup mutex, so a restore
+	 * cannot be created between its ownership read and its deletes. While
+	 * another owner holds the mutex it answers active and keeps the row.
+	 */
+	public function test_prune_answers_active_while_mutex_is_live_elsewhere() {
+		$archive = $this->backup_dir . '/backup-1790820530.tar.gz';
+		file_put_contents( $archive, 'x' );
+		$task_id = $this->make_terminal_task(
+			MainWP_Child_Backup_Task::PHASE_COMPLETED,
+			array(
+				'artifact' => array(
+					'file' => basename( $archive ),
+					'size' => 1,
+				),
+			)
+		);
+		$this->assertTrue( \MainWP\Child\MainWP_Child_Backup_Mutex::acquire( 'legacy', 'clone-owner', 300 ) );
+		try {
+			$response = $this->prune_response( array( $task_id ) );
+		} finally {
+			\MainWP\Child\MainWP_Child_Backup_Mutex::release( 'clone-owner' );
+		}
+
+		$this->assertSame( 1, $response['active'] );
+		$this->assertSame( 0, $response['pruned'] );
+		$this->assertFileExists( $archive );
+		$this->assertNotNull( MainWP_Child_Backup_Task::instance()->get_task( $task_id ) );
+
+		$this->assertSame( 1, $this->prune_response( array( $task_id ) )['pruned'], 'Once the mutex is free the prune goes through.' );
+		$this->assertFileDoesNotExist( $archive );
+	}
+
+	/**
+	 * If the sweep loses the mutex mid-pass (its lease ran out and another
+	 * owner took over), it stops before its next delete.
+	 */
+	public function test_sweep_stops_when_mutex_ownership_is_lost() {
+		global $wpdb;
+		$doomed = $this->backup_dir . '/backup-1791285837.tar.gz';
+		$stale  = $this->backup_dir . '/dbBackup-dead-run.sql';
+		file_put_contents( $doomed, 'x' );
+		file_put_contents( $stale, 'x' );
+		touch( $stale, time() - 4 * 3600 );
+		$this->make_terminal_task(
+			MainWP_Child_Backup_Task::PHASE_FAILED,
+			array(
+				'error'    => array( 'code' => 'mainwp_backup_cancelled' ),
+				'artifact' => array(
+					'file' => basename( $doomed ),
+					'size' => 1,
+				),
+			)
+		);
+		$table  = MainWP_Child_Backup_Task::instance()->get_table_name();
+		$option = \MainWP\Child\MainWP_Child_Backup_Mutex::OPTION_NAME;
+		$thief  = function ( $query ) use ( $table, $option, $wpdb, &$thief ) {
+			if ( 0 === strpos( ltrim( $query ), 'SELECT task_id, phase, sub_state' ) && false !== strpos( $query, $table ) ) {
+				remove_filter( 'query', $thief );
+				$wpdb->query( $wpdb->prepare( "UPDATE $wpdb->options SET option_value = %s WHERE option_name = %s", 'native|restore-create-thief|' . ( time() + 600 ), $option ) );
+				wp_cache_delete( $option, 'options' );
+			}
+			return $query;
+		};
+		add_filter( 'query', $thief );
+		try {
+			MainWP_Child_Backup_Task::instance()->sweep_stale_markers( $this->backup_dir );
+		} finally {
+			remove_filter( 'query', $thief );
+			$holder = \MainWP\Child\MainWP_Child_Backup_Mutex::holder();
+			delete_option( $option );
+		}
+
+		$this->assertSame( 'restore-create-thief', $holder['owner'], 'The sweep must not release a mutex it no longer owns.' );
+		$this->assertFileExists( $doomed, 'No delete after ownership is lost.' );
+		$this->assertFileExists( $stale, 'No delete after ownership is lost.' );
+	}
+
+	/**
+	 * A restore past its deadline whose worker is gone stops protecting the
+	 * archive it named: the prune first runs the existing lease-aware
+	 * deadline reclamation, then deletes.
+	 */
+	public function test_prune_reclaims_expired_protector_first() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$archive = $this->backup_dir . '/backup-1791262128.tar.gz';
+		file_put_contents( $archive, 'safety' );
+		$safety  = $this->make_terminal_task(
+			MainWP_Child_Backup_Task::PHASE_COMPLETED,
+			array(
+				'artifact' => array(
+					'file' => basename( $archive ),
+					'size' => 6,
+				),
+			)
+		);
+		$restore = $spine->create_task( 'restore', array( 'params' => array( 'artifacts' => array( array( 'file' => basename( $archive ) ) ) ) ) );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET max_wall_clock_at = DATE_SUB(NOW(), INTERVAL 60 SECOND), started_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE task_id = %s', $restore ) );
+
+		$this->assertSame( 1, $this->prune_response( array( $safety ) )['pruned'] );
+		$this->assertFileDoesNotExist( $archive );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $spine->get_task( $restore )->phase );
+	}
+
+	/**
+	 * A failed row may still point to the legacy unversioned sidecar name.
+	 * The sweep keeps that file like a versioned one.
+	 */
+	public function test_sweep_keeps_legacy_sidecar_a_failed_row_points_to() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->make_terminal_task(
+			MainWP_Child_Backup_Task::PHASE_FAILED,
+			array( 'error' => array( 'code' => 'x' ) )
+		);
+		$legacy  = 'task_substate-' . sanitize_file_name( $task_id ) . '.json';
+		file_put_contents( $this->backup_dir . '/' . $legacy, wp_json_encode( array( 'error' => array( 'code' => 'x' ) ) ) );
+		$wpdb->update(
+			$spine->get_table_name(),
+			array(
+				'sub_state' => wp_json_encode(
+					array(
+						'_sidecar' => true,
+						'file'     => $legacy,
+					)
+				),
+			),
+			array( 'task_id' => $task_id )
+		);
+
+		$spine->sweep_stale_markers( $this->backup_dir );
+
+		$this->assertFileExists( $this->backup_dir . '/' . $legacy );
+	}
+
+	/**
 	 * Run the prune callable's logic for the given ids.
 	 *
 	 * @param string[] $task_ids Task ids.

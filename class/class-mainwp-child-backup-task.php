@@ -90,6 +90,26 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     const QUEUED_STALL_WINDOW_SECONDS = 15 * MINUTE_IN_SECONDS;
 
     /**
+     * Lifetime of the native mutex a prune or sweep takes, refreshed before
+     * every delete.
+     */
+    const CLEANUP_MUTEX_TTL = 60;
+
+    /**
+     * Work budget for one prune or sweep pass, well under the mutex lifetime.
+     * What is left waits for the next pass.
+     */
+    const CLEANUP_BUDGET_SECONDS = 20;
+
+    /**
+     * The mutex a running prune or sweep holds: owner token, budget deadline,
+     * and whether ownership or budget was lost. Null outside those passes.
+     *
+     * @var array|null
+     */
+    private $fence = null;
+
+    /**
      * Fresh wall-clock budget granted to a foreign-key rollback when a replay
      * is rerouted to it at its deadline, so the recovery has time to finish.
      */
@@ -815,7 +835,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         }
 
         $legacy = $dir . 'task_substate-' . $name . '.json';
-        if ( is_file( $legacy ) ) {
+        if ( is_file( $legacy ) && basename( $legacy ) !== $keep ) {
             unlink( $legacy ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- scratch cleanup.
         }
     }
@@ -1233,6 +1253,13 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * refused, and a missing row counts as already pruned so the call is
      * idempotent.
      *
+     * The prune holds the native backup mutex from reading which task owns
+     * what until the row is gone, so no restore or backup can be created in
+     * between with a claim it never saw. When the mutex is live elsewhere, a
+     * file is still needed by a live task, or the work budget runs out, the
+     * prune answers active and keeps the row - the only record of what is
+     * left to delete - so the Dashboard retries.
+     *
      * @param string                               $task_id        Task id.
      * @param string                               $backup_dir     Backup directory holding the artifacts.
      * @param MainWP_Backup_Db_Restore_Engine|null $restore_engine Engine used to drop a restore's aside tables before the row goes; null skips that step.
@@ -1249,11 +1276,48 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             return 'active';
         }
 
+        // A task past its deadline whose worker is gone must stop protecting
+        // the files it names; this is the same lease-aware path a new backup
+        // runs before admission.
+        $this->reclaim_expired_tasks( $backup_dir );
+
+        $owner = 'prune-' . strtolower( wp_generate_password( 12, false ) );
+        if ( true !== MainWP_Child_Backup_Mutex::acquire( 'native', $owner, self::CLEANUP_MUTEX_TTL ) ) {
+            return 'active';
+        }
+        $this->fence = array(
+            'owner'    => $owner,
+            'deadline' => microtime( true ) + self::CLEANUP_BUDGET_SECONDS,
+            'lost'     => false,
+        );
+        try {
+            return $this->prune_task_while_fenced( $task_id, $backup_dir, $restore_engine );
+        } finally {
+            $this->fence = null;
+            MainWP_Child_Backup_Mutex::release( $owner );
+        }
+    }
+
+    /**
+     * The prune body; the caller holds the native backup mutex.
+     *
+     * @param string                               $task_id        Task id.
+     * @param string                               $backup_dir     Backup directory holding the artifacts.
+     * @param MainWP_Backup_Db_Restore_Engine|null $restore_engine Engine used to drop a restore's aside tables, or null.
+     *
+     * @return string One of 'pruned', 'active', 'missing'.
+     */
+    private function prune_task_while_fenced( $task_id, $backup_dir, $restore_engine ) {
+        $task = $this->get_task( $task_id );
+        if ( null === $task ) {
+            return 'missing';
+        }
+
         $sub_state = $this->read_sub_state( $task, $backup_dir );
         // A file another live task still needs (a rollback about to adopt
         // this safety backup) cannot go yet. The row is the only record of
         // it, so keep the row and its sidecar and let the Dashboard retry.
-        if ( ! empty( $this->delete_artifact_files( $sub_state, $backup_dir, $task_id ) ) ) {
+        if ( ! empty( $this->delete_artifact_files( $sub_state, $backup_dir, $task_id ) ) || ! $this->fence_holds() ) {
             return 'active';
         }
 
@@ -1280,6 +1344,34 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         );
 
         return 'pruned';
+    }
+
+    /**
+     * Whether a fenced prune or sweep may still delete: it must be inside its
+     * work budget and still own the mutex it took, read fresh from the
+     * database before every delete. A claim close to expiry is extended
+     * first, so a pass never deletes on a mutex another owner could take.
+     * Unfenced callers (failure cleanup and cancel, which hold the mutex as
+     * their task) always may.
+     *
+     * @return bool
+     */
+    private function fence_holds() {
+        if ( null === $this->fence ) {
+            return true;
+        }
+        if ( ! $this->fence['lost'] && microtime( true ) < $this->fence['deadline'] ) {
+            $holder = MainWP_Child_Backup_Mutex::holder();
+            $owned  = null !== $holder && $holder['owner'] === $this->fence['owner'];
+            if ( $owned && $holder['expires_at'] - time() < self::CLEANUP_MUTEX_TTL / 2 ) {
+                $owned = MainWP_Child_Backup_Mutex::refresh( $this->fence['owner'], self::CLEANUP_MUTEX_TTL );
+            }
+            if ( $owned ) {
+                return true;
+            }
+        }
+        $this->fence['lost'] = true;
+        return false;
     }
 
     /**
@@ -1402,23 +1494,34 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         if ( MainWP_Backup::is_pid_lock_fresh( $backup_dir ) ) {
             return;
         }
+        $owner = $caller_owner;
         if ( null !== $caller_owner ) {
             $holder = MainWP_Child_Backup_Mutex::holder();
             if ( null !== $holder && $holder['expires_at'] >= time() && $holder['owner'] !== $caller_owner ) {
                 return;
             }
-            $this->sweep_while_fenced( $backup_dir, $age_seconds );
-            return;
+        } else {
+            // A task past its deadline whose worker is gone must stop
+            // protecting the files it names. A caller that holds the mutex
+            // (backup creation) has already run this.
+            $this->reclaim_expired_tasks( $backup_dir );
+            $owner = 'sweep-' . strtolower( wp_generate_password( 12, false ) );
+            if ( true !== MainWP_Child_Backup_Mutex::acquire( 'native', $owner, self::CLEANUP_MUTEX_TTL ) ) {
+                return;
+            }
         }
-
-        $owner = 'sweep-' . strtolower( wp_generate_password( 12, false ) );
-        if ( true !== MainWP_Child_Backup_Mutex::acquire( 'native', $owner, 60 ) ) {
-            return;
-        }
+        $this->fence = array(
+            'owner'    => $owner,
+            'deadline' => microtime( true ) + self::CLEANUP_BUDGET_SECONDS,
+            'lost'     => false,
+        );
         try {
             $this->sweep_while_fenced( $backup_dir, $age_seconds );
         } finally {
-            MainWP_Child_Backup_Mutex::release( $owner );
+            $this->fence = null;
+            if ( null === $caller_owner ) {
+                MainWP_Child_Backup_Mutex::release( $owner );
+            }
         }
     }
 
@@ -1440,6 +1543,9 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         $claims = $this->artifact_claims( $backup_dir );
         $this->delete_unclaimed_files( $claims['doomed'], $claims, $backup_dir );
         foreach ( $claims['sidecars'] as $failed_task_id => $keep ) {
+            if ( ! $this->fence_holds() ) {
+                return;
+            }
             $this->delete_superseded_sidecars( (string) $failed_task_id, $backup_dir, $keep );
         }
 
@@ -1462,6 +1568,9 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                     }
                 }
                 if ( is_file( $file ) && filemtime( $file ) < $cutoff ) {
+                    if ( ! $this->fence_holds() ) {
+                        return;
+                    }
                     wp_delete_file( $file );
                     clearstatcache( true, $file );
                     if ( ! file_exists( $file ) && preg_match( '/^manifest-staged-([a-z0-9]{16})\.list\z/', $base, $token ) ) {
@@ -1643,7 +1752,8 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * @param array    $claims     Claims from artifact_claims().
      * @param string   $backup_dir Backup directory.
      *
-     * @return string[] Existing files kept because a live task still needs them.
+     * @return string[] Existing files kept because a live task still needs them,
+     *                  or because a fenced pass lost its mutex or budget.
      */
     private function delete_unclaimed_files( $names, $claims, $backup_dir ) {
         $dir  = rtrim( $backup_dir, '/' ) . '/';
@@ -1664,9 +1774,14 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                 $kept[] = $name;
                 continue;
             }
-            if ( ! isset( $claims['names'][ $name ] ) ) {
-                wp_delete_file( $dir . $name );
+            if ( isset( $claims['names'][ $name ] ) ) {
+                continue;
             }
+            if ( ! $this->fence_holds() ) {
+                $kept[] = $name;
+                continue;
+            }
+            wp_delete_file( $dir . $name );
         }
         return $kept;
     }
