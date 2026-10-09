@@ -284,6 +284,101 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Backdate a task row's last write, which for a terminal row is when it
+	 * finished.
+	 *
+	 * @param string $task_id Task id.
+	 * @param int    $seconds Seconds in the past.
+	 */
+	private function backdate_task( $task_id, $seconds ) {
+		global $wpdb;
+		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- test fixture.
+			$wpdb->prepare(
+				'UPDATE ' . MainWP_Child_Backup_Task::instance()->get_table_name() . ' SET last_progress_at = DATE_SUB(NOW(), INTERVAL %d SECOND) WHERE task_id = %s', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- trusted table name.
+				$seconds,
+				$task_id
+			)
+		);
+	}
+
+	/**
+	 * A completed DB-only backup the Dashboard has not downloaded yet matches
+	 * the dbBackup-* fragment pattern, but it is a finished backup, not litter:
+	 * the sweep keeps it whatever its age within the collection window.
+	 */
+	public function test_sweep_keeps_completed_db_artifact_not_yet_collected() {
+		$archive = $this->backup_dir . '/dbBackup-1791459958.sql.tar.gz';
+		file_put_contents( $archive, 'db' );
+		touch( $archive, time() - 4 * 3600 );
+		$task_id = $this->make_terminal_task(
+			MainWP_Child_Backup_Task::PHASE_COMPLETED,
+			array(
+				'artifact' => array(
+					'file' => basename( $archive ),
+					'size' => 2,
+				),
+			)
+		);
+		$this->backdate_task( $task_id, 4 * 3600 );
+
+		MainWP_Child_Backup_Task::instance()->sweep_stale_markers( $this->backup_dir );
+
+		$this->assertFileExists( $archive, 'An uncollected completed backup must survive the stale-marker sweep.' );
+	}
+
+	/**
+	 * A completed backup the Dashboard never collected is deleted once it is
+	 * more than seven days old: archives in the uploads folder must not stay
+	 * forever. The chain files it names are kept.
+	 */
+	public function test_sweep_deletes_completed_artifacts_after_seven_days() {
+		$archive = $this->backup_dir . '/backup-1790820530.tar.gz';
+		$db      = $this->backup_dir . '/dbBackup-1790820530.sql.zip';
+		$chain   = $this->backup_dir . '/files.list';
+		$tombs   = $this->backup_dir . '/tombstones.list';
+		foreach ( array( $archive, $db, $chain, $tombs ) as $file ) {
+			file_put_contents( $file, 'x' );
+		}
+		$expired = $this->make_terminal_task(
+			MainWP_Child_Backup_Task::PHASE_COMPLETED,
+			array(
+				'artifact'  => array(
+					'file' => basename( $archive ),
+					'size' => 1,
+				),
+				'artifacts' => array(
+					array( 'file' => basename( $archive ), 'role' => 'full' ),
+					array( 'file' => basename( $db ), 'role' => 'db' ),
+					array( 'file' => 'files.list', 'role' => 'manifest' ),
+					array( 'file' => 'tombstones.list', 'role' => 'tombstones' ),
+				),
+			)
+		);
+		$this->backdate_task( $expired, 8 * DAY_IN_SECONDS );
+
+		$recent_archive = $this->backup_dir . '/backup-1791459958.tar.gz';
+		file_put_contents( $recent_archive, 'x' );
+		$recent = $this->make_terminal_task(
+			MainWP_Child_Backup_Task::PHASE_COMPLETED,
+			array(
+				'artifact' => array(
+					'file' => basename( $recent_archive ),
+					'size' => 1,
+				),
+			)
+		);
+		$this->backdate_task( $recent, 6 * DAY_IN_SECONDS );
+
+		MainWP_Child_Backup_Task::instance()->sweep_stale_markers( $this->backup_dir );
+
+		$this->assertFileDoesNotExist( $archive, 'An uncollected archive older than seven days must go.' );
+		$this->assertFileDoesNotExist( $db );
+		$this->assertFileExists( $chain, 'The chain base is never deleted by a run\'s name.' );
+		$this->assertFileExists( $tombs, 'tombstones.list is shared by every incremental run.' );
+		$this->assertFileExists( $recent_archive, 'A completed backup inside the collection window stays.' );
+	}
+
+	/**
 	 * The prune action is dashboard-callable.
 	 */
 	public function test_prune_callable_registered() {

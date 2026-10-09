@@ -210,8 +210,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * cancel respects the lease (a runner mid-slice owns the state, so the
      * cancel reports busy and the caller retries), sweeps the spilled walk-run
      * scratch the terminal sweep would have cleared, and lands the task
-     * terminal failed with the cancelled code. Restore tasks are never touched
-     * here - they have their own cancel.
+     * terminal failed with the cancelled code. With the backup mutex it then
+     * deletes the run's mid-flight and finished files; without it, the next
+     * sweep deletes the finished files by the names left on the row. Restore
+     * tasks are never touched here - they have their own cancel.
      *
      * @param string $task_id Task id, or '' to cancel the active backup.
      *
@@ -269,10 +271,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         // the wall-clock enforcer does for a forced-terminal backup.
         $this->cleanup_walk_runs( $backup_dir );
 
-        // checkpoint() overwrites sub_state, so carry forward the file
-        // references retention's prune_task() reads (the produced artifact and
-        // any spilled, unconsumed parent manifest); otherwise a late cancel
-        // orphans those leftover files on disk.
+        // checkpoint() overwrites sub_state, so carry forward the names of the
+        // files the run already finished (its artifacts and any spilled parent
+        // manifest). Without the mutex below they are not deleted here, and the
+        // next sweep or prune finds them by these names.
         $cancelled_state = array(
             'error' => array(
                 'message' => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_BACKUP_CANCELLED ),
@@ -324,9 +326,11 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             // Claim the scratch files after the terminal checkpoint so a new owner
             // cannot start writing them while cancellation removes them.
             $holder = MainWP_Child_Backup_Mutex::acquire( 'native', $task_id, 60 );
-            // The references carried into $cancelled_state stay on disk for
-            // retention's prune_task(); only the mid-flight leftovers go now.
             if ( '' !== $backup_dir && ( true === $holder || ( is_array( $holder ) && $holder['owner'] === $task_id ) ) ) {
+                // A cancelled run never gets a Dashboard snapshot, so retention
+                // never prunes it; its finished files go now, except the chain
+                // files and anything another task still owns.
+                $spine->delete_cancelled_artifacts( $existing_state, $backup_dir );
                 $leftovers = is_array( $existing_state ) ? $existing_state : array();
                 unset( $leftovers['artifact'], $leftovers['artifacts'], $leftovers['params']['parent_manifest_file'] );
                 $this->cleanup_failed_task_artifacts( $task_id, $leftovers, $backup_dir );

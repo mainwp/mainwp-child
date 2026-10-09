@@ -2005,4 +2005,216 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( 'successor-task', MainWP_Child_Backup_Mutex::holder()['owner'] );
 	}
 
+	/**
+	 * Lay out the chain files every incremental shares, so a test can prove a
+	 * cancel or sweep never deletes them.
+	 *
+	 * @return string[] Absolute paths.
+	 */
+	protected function make_chain_files() {
+		$chain = array();
+		foreach ( array( 'files.list', 'paths.cache', 'files.list.writer.json', 'tombstones.list', 'changes.list' ) as $name ) {
+			$chain[ $name ] = $this->backup_dir . '/' . $name;
+			file_put_contents( $chain[ $name ], 'chain ' . $name );
+		}
+		return $chain;
+	}
+
+	/**
+	 * Checkpoint a task as a run that finished its archive and is waiting in
+	 * the upload phase, naming its finished files and the chain files the way
+	 * a manifest-emitting run does.
+	 *
+	 * @param string $task_id Task id.
+	 *
+	 * @return string[] Absolute paths of the run's own finished files.
+	 */
+	protected function finish_archive_for_cancel( $task_id ) {
+		$spine = MainWP_Child_Backup_Task::instance();
+		$own   = array(
+			'archive'  => $this->backup_dir . '/backup-safety-1791262128.tar.gz',
+			'part'     => $this->backup_dir . '/plugins.part001.zip',
+			'manifest' => $this->backup_dir . '/parent-manifest-abcdefabcdef.list',
+		);
+		foreach ( $own as $path ) {
+			file_put_contents( $path, 'finished' );
+		}
+		$task = $spine->get_task( $task_id );
+		$this->assertNotFalse(
+			$spine->checkpoint(
+				$task_id,
+				(int) $task->version,
+				array(
+					'phase'     => MainWP_Child_Backup_Task::PHASE_UPLOADING,
+					'sub_state' => array(
+						'params'    => array( 'parent_manifest_file' => basename( $own['manifest'] ) ),
+						'artifact'  => array(
+							'file' => basename( $own['archive'] ),
+							'size' => 8,
+						),
+						'artifacts' => array(
+							array( 'file' => basename( $own['archive'] ), 'role' => 'full' ),
+							array( 'file' => basename( $own['part'] ), 'role' => 'part' ),
+							array( 'file' => 'files.list', 'role' => 'manifest' ),
+							array( 'file' => 'tombstones.list', 'role' => 'tombstones' ),
+						),
+					),
+				)
+			)
+		);
+		return $own;
+	}
+
+	/**
+	 * A cancelled run never gets a snapshot on the Dashboard, so retention
+	 * never names it: the cancel itself deletes the archive it already
+	 * finished and its spilled parent manifest, but never the chain base the
+	 * next incremental diffs against.
+	 */
+	public function test_cancel_deletes_finished_artifacts_but_not_chain_files() {
+		$task_id = $this->runner->create_task_for_params( 'full', array( 'ext' => 'tar.gz' ) );
+		$chain   = $this->make_chain_files();
+		$own     = $this->finish_archive_for_cancel( $task_id );
+
+		$result = $this->runner->cancel_backup_task( $task_id );
+
+		$this->assertSame( 'ok', $result['result'] );
+		foreach ( $own as $path ) {
+			$this->assertFileDoesNotExist( $path, 'A cancelled run must not leave its finished files behind.' );
+		}
+		foreach ( array( 'files.list', 'paths.cache', 'files.list.writer.json' ) as $name ) {
+			$this->assertFileExists( $chain[ $name ], $name . ' is the chain base and must survive a cancel.' );
+		}
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+	}
+
+	/**
+	 * A file another task row still names is never deleted by a cancel, even
+	 * when the cancelled cursor names it too.
+	 */
+	public function test_cancel_keeps_finished_file_another_task_names() {
+		$spine  = MainWP_Child_Backup_Task::instance();
+		$shared = $this->backup_dir . '/backup-shared.tar.gz';
+		file_put_contents( $shared, 'owned by a completed run' );
+		$other = $spine->create_task( 'full', array() );
+		$spine->checkpoint(
+			$other,
+			0,
+			array(
+				'phase'     => MainWP_Child_Backup_Task::PHASE_COMPLETED,
+				'sub_state' => array(
+					'artifact' => array(
+						'file' => 'backup-shared.tar.gz',
+						'size' => 1,
+					),
+				),
+			)
+		);
+
+		$task_id = $this->runner->create_task_for_params( 'full', array( 'ext' => 'tar.gz' ) );
+		$task    = $spine->get_task( $task_id );
+		$spine->checkpoint(
+			$task_id,
+			(int) $task->version,
+			array(
+				'sub_state' => array(
+					'artifact' => array(
+						'file' => 'backup-shared.tar.gz',
+						'size' => 1,
+					),
+				),
+			)
+		);
+
+		$this->assertSame( 'ok', $this->runner->cancel_backup_task( $task_id )['result'] );
+		$this->assertFileExists( $shared, 'A file a completed run names belongs to that run.' );
+	}
+
+	/**
+	 * When another owner holds the backup mutex the cancel cannot know the
+	 * shared folder is quiet, so it keeps the finished files and their names
+	 * on the row. The next sweep that runs with the mutex free deletes them,
+	 * and still never touches the chain files.
+	 */
+	public function test_cancel_without_mutex_defers_finished_artifacts_to_next_sweep() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->runner->create_task_for_params( 'full', array( 'ext' => 'tar.gz' ) );
+		$chain   = $this->make_chain_files();
+		$own     = $this->finish_archive_for_cancel( $task_id );
+		MainWP_Child_Backup_Mutex::release( $task_id );
+		$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'legacy', 'other-engine', 300 ) );
+
+		try {
+			$this->assertSame( 'ok', $this->runner->cancel_backup_task( $task_id )['result'] );
+			foreach ( $own as $path ) {
+				$this->assertFileExists( $path, 'Without the mutex the cancel must not delete files.' );
+			}
+			$sub = $spine->read_sub_state( $spine->get_task( $task_id ), $this->backup_dir );
+			$this->assertSame( basename( $own['archive'] ), $sub['artifact']['file'], 'The row must keep the names for the deferred delete.' );
+		} finally {
+			MainWP_Child_Backup_Mutex::release( 'other-engine' );
+		}
+
+		$spine->sweep_stale_markers( $this->backup_dir );
+
+		foreach ( $own as $path ) {
+			$this->assertFileDoesNotExist( $path, 'The next sweep deletes what the cancel deferred.' );
+		}
+		foreach ( $chain as $name => $path ) {
+			$this->assertFileExists( $path, $name . ' belongs to the chain and must survive the sweep.' );
+		}
+	}
+
+	/**
+	 * Cancelling a pre-restore safety backup mid-archive stops it and leaves
+	 * no archive, dump fragment or marker behind.
+	 */
+	public function test_cancel_running_safety_backup_leaves_no_archive() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->runner->create_task_for_params(
+			'full',
+			array(
+				'ext'                => 'tar.gz',
+				'file'               => '',
+				'excludes'           => array(),
+				'loadFilesBeforeZip' => false,
+			)
+		);
+		$prefix   = $this->backup_dir . '/dbBackup-' . $task_id;
+		$fragment = $prefix . '-wp_posts.sql.php';
+		$marker   = $prefix . '.sql';
+		$partial  = $this->backup_dir . '/backup-1791262128.tar.gz';
+		foreach ( array( $fragment, $marker, $partial ) as $path ) {
+			file_put_contents( $path, 'mid-flight' );
+		}
+		$task = $spine->get_task( $task_id );
+		$spine->checkpoint(
+			$task_id,
+			(int) $task->version,
+			array(
+				'phase'     => MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES,
+				'sub_state' => array(
+					'db_prefix'       => $prefix,
+					'db_files'        => array( $fragment, $marker ),
+					'archive_file'    => basename( $partial ),
+					'archive_started' => true,
+				),
+			)
+		);
+
+		$result = $this->runner->cancel_backup_task( $task_id );
+
+		$this->assertSame( 'ok', $result['result'] );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $spine->get_task( $task_id )->phase );
+		foreach ( array( $fragment, $marker, $partial ) as $path ) {
+			$this->assertFileDoesNotExist( $path );
+		}
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+
+		$this->runner->calls = array();
+		$this->advance( $task_id );
+		$this->assertSame( array(), $this->runner->seam_names(), 'A cancelled safety backup must not resume any work.' );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $spine->get_task( $task_id )->phase );
+	}
+
 }

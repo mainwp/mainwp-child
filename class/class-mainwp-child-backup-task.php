@@ -90,6 +90,14 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     const QUEUED_STALL_WINDOW_SECONDS = 15 * MINUTE_IN_SECONDS;
 
     /**
+     * How long a completed backup's artifacts wait for the Dashboard to
+     * collect them. Archives sit in the uploads folder, and on nginx only the
+     * random folder name protects them, so a run the Dashboard never collected
+     * must not stay forever.
+     */
+    const COMPLETED_ARTIFACT_TTL_SECONDS = 7 * DAY_IN_SECONDS;
+
+    /**
      * Fresh wall-clock budget granted to a foreign-key rollback when a replay
      * is rerouted to it at its deadline, so the recovery has time to finish.
      */
@@ -1321,17 +1329,22 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     }
 
     /**
-     * Sweep stale legacy run leftovers from the backup directory: .pid and
-     * .done markers and old db dump fragments past the age threshold. No
-     * task row tracks these. A live mutex held by another caller, or a fresh
-     * legacy pid, defers all four patterns, including .done and staged
-     * manifests: housekeeping can wait until the next prune, and a clone holds
-     * the mutex without a task row. An expired or malformed holder does not
-     * defer the sweep. Equality at expiry remains live to match
-     * acquire()'s strictly-earlier-than-now takeover test. Active task files
-     * remain protected.
-     * Archives are never touched, whatever their age - artifact deletion is
-     * prune_task's job and only ever by name.
+     * Sweep stale run leftovers from the backup directory. A live mutex held
+     * by another caller, or a fresh legacy pid, defers the whole sweep:
+     * housekeeping can wait until the next prune, and a clone holds the mutex
+     * without a task row. An expired or malformed holder does not defer the
+     * sweep. Equality at expiry remains live to match acquire()'s
+     * strictly-earlier-than-now takeover test. Active task files remain
+     * protected.
+     *
+     * Leftovers no task row tracks (.pid and .done markers, db dump fragments,
+     * staged manifests) go once they are past the age threshold. A completed
+     * task's artifacts are never treated as leftovers, even when a DB archive
+     * matches the dump pattern: they wait for the Dashboard to download or
+     * prune them, and go here only once the task is past the collection
+     * window. The finished files a failed task still names (a cancel that could
+     * not take the mutex) go now. Those deletions are by name only, and never
+     * touch the incremental chain files.
      *
      * @param string      $backup_dir   Backup directory.
      * @param int         $age_seconds  Minimum age before a leftover is stale.
@@ -1347,12 +1360,14 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
 
         // A long dump (>3h on a big site) leaves fragments older than the age
         // cutoff while its task is still running, and age alone cannot tell
-        // those apart from a dead run's litter. Protect every file an active
-        // task's cursor still depends on so the sweep never deletes fragments
-        // out from under a running backup.
-        $guard         = $this->active_task_sweep_guard( $backup_dir );
-        $safe_names    = $guard['names'];
-        $safe_prefixes = $guard['prefixes'];
+        // those apart from a dead run's litter. The claims protect every file
+        // an active task's cursor still depends on, and every artifact a
+        // completed task still owes the Dashboard.
+        $claims = $this->artifact_claims( $backup_dir );
+        $this->delete_unclaimed_files( $claims['doomed'], $claims, $backup_dir );
+
+        $safe_names    = $claims['names'];
+        $safe_prefixes = $claims['prefixes'];
 
         foreach ( $patterns as $pattern ) {
             $matches = glob( rtrim( $backup_dir, '/' ) . '/' . $pattern );
@@ -1418,12 +1433,173 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             if ( ! empty( $sub_state['params']['parent_manifest_file'] ) && is_string( $sub_state['params']['parent_manifest_file'] ) ) {
                 $names[ basename( $sub_state['params']['parent_manifest_file'] ) ] = true;
             }
+            if ( ! empty( $sub_state['archive_file'] ) && is_string( $sub_state['archive_file'] ) ) {
+                $names[ basename( $sub_state['archive_file'] ) ] = true;
+            }
+            foreach ( self::artifact_names( $sub_state ) as $name ) {
+                $names[ $name ] = true;
+            }
+            // A rollback restore adopts a safety backup from this folder by
+            // name, so the archive it is about to copy must not go mid-restore.
+            if ( ! empty( $sub_state['params']['artifacts'] ) && is_array( $sub_state['params']['artifacts'] ) ) {
+                foreach ( $sub_state['params']['artifacts'] as $entry ) {
+                    if ( is_array( $entry ) && ! empty( $entry['file'] ) && is_string( $entry['file'] ) ) {
+                        $names[ basename( $entry['file'] ) ] = true;
+                    }
+                }
+            }
         }
 
         return array(
             'names'    => $names,
             'prefixes' => array_values( array_unique( $prefixes ) ),
         );
+    }
+
+    /**
+     * Whether a file in the backup folder belongs to the incremental chain
+     * rather than to one run. Every manifest-emitting and incremental run
+     * names the same fixed files, so deleting one by a run's name would remove
+     * the base the next incremental diffs against, or another run's diff.
+     *
+     * @param string $name File name.
+     *
+     * @return bool
+     */
+    public static function is_chain_file( $name ) {
+        return in_array(
+            basename( (string) $name ),
+            array(
+                MainWP_Child_Backup_File_Walker::FILES_LIST,
+                MainWP_Child_Backup_File_Walker::PATHS_CACHE,
+                MainWP_Child_Backup_File_Walker::FILES_LIST . '.writer.json',
+                MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST,
+                MainWP_Child_Backup_Incremental_Diff::CHANGES_LIST,
+            ),
+            true
+        );
+    }
+
+    /**
+     * Delete the finished files a cancelled backup still names: its artifacts
+     * and the parent manifest spilled for it. A cancelled run never gets a
+     * snapshot on the Dashboard, so retention would never prune them.
+     *
+     * The caller must hold the backup mutex: a successor run may already be
+     * writing a fixed scratch name such as parent-files.list.
+     *
+     * @param array|null $sub_state  The cancelled task's cursor.
+     * @param string     $backup_dir Backup directory.
+     */
+    public function delete_cancelled_artifacts( $sub_state, $backup_dir ) {
+        if ( ! is_array( $sub_state ) ) {
+            return;
+        }
+        $names = self::artifact_names( $sub_state );
+        if ( ! empty( $sub_state['params']['parent_manifest_file'] ) && is_string( $sub_state['params']['parent_manifest_file'] ) ) {
+            $names[] = basename( $sub_state['params']['parent_manifest_file'] );
+        }
+        $this->delete_unclaimed_files( $names, $this->artifact_claims( $backup_dir ), $backup_dir );
+    }
+
+    /**
+     * Basenames of the artifacts a cursor records.
+     *
+     * @param array $sub_state Task cursor.
+     *
+     * @return string[]
+     */
+    private static function artifact_names( $sub_state ) {
+        $names = array();
+        if ( ! empty( $sub_state['artifact']['file'] ) && is_string( $sub_state['artifact']['file'] ) ) {
+            $names[] = basename( $sub_state['artifact']['file'] );
+        }
+        if ( ! empty( $sub_state['artifacts'] ) && is_array( $sub_state['artifacts'] ) ) {
+            foreach ( $sub_state['artifacts'] as $entry ) {
+                if ( is_array( $entry ) && ! empty( $entry['file'] ) && is_string( $entry['file'] ) ) {
+                    $names[] = basename( $entry['file'] );
+                }
+            }
+        }
+        return $names;
+    }
+
+    /**
+     * Which backup-folder files other task rows still own, and which finished
+     * files nothing will collect any more.
+     *
+     * Owned: everything an active task depends on, and the artifacts of a
+     * completed task inside the collection window. The Dashboard removes those
+     * itself by downloading them (delete_backup) or pruning the task. Doomed:
+     * the artifacts of a completed task past that window, and whatever a
+     * failed task still names. A completed cursor also keeps the name of its
+     * spilled parent manifest, but completion already deleted that file, so
+     * the name is not a claim.
+     *
+     * @param string $backup_dir Backup directory.
+     *
+     * @return array { names: array<string,true>, prefixes: string[], doomed: string[] }
+     */
+    private function artifact_claims( $backup_dir ) {
+        global $wpdb;
+
+        $claims           = $this->active_task_sweep_guard( $backup_dir );
+        $claims['doomed'] = array();
+
+        // MySQL owns the age test: last_progress_at is written with NOW(), and
+        // the PHP clock may sit in another timezone.
+        $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- dedicated spine table, always-fresh read.
+            $wpdb->prepare(
+                'SELECT task_id, phase, sub_state, ( last_progress_at < DATE_SUB( NOW(), INTERVAL %d SECOND ) ) AS expired FROM ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
+                " WHERE phase IN ('completed','failed') AND type NOT IN ('restore','restore_db','restore_files')",
+                self::COMPLETED_ARTIFACT_TTL_SECONDS
+            )
+        );
+        foreach ( (array) $rows as $row ) {
+            $sub_state = $this->read_sub_state( $row, $backup_dir );
+            if ( ! is_array( $sub_state ) ) {
+                continue;
+            }
+            $names = self::artifact_names( $sub_state );
+            if ( self::PHASE_COMPLETED === $row->phase && empty( $row->expired ) ) {
+                foreach ( $names as $name ) {
+                    $claims['names'][ $name ] = true;
+                }
+                continue;
+            }
+            if ( self::PHASE_FAILED === $row->phase && ! empty( $sub_state['params']['parent_manifest_file'] ) && is_string( $sub_state['params']['parent_manifest_file'] ) ) {
+                $names[] = basename( $sub_state['params']['parent_manifest_file'] );
+            }
+            $claims['doomed'] = array_merge( $claims['doomed'], $names );
+        }
+
+        return $claims;
+    }
+
+    /**
+     * Delete files by name from the backup folder, skipping the chain files
+     * and anything the claims protect.
+     *
+     * @param string[] $names      File names.
+     * @param array    $claims     Claims from artifact_claims().
+     * @param string   $backup_dir Backup directory.
+     */
+    private function delete_unclaimed_files( $names, $claims, $backup_dir ) {
+        $dir = rtrim( $backup_dir, '/' ) . '/';
+        foreach ( array_unique( $names ) as $name ) {
+            $name = basename( (string) $name );
+            if ( '' === $name || self::is_chain_file( $name ) || isset( $claims['names'][ $name ] ) ) {
+                continue;
+            }
+            foreach ( $claims['prefixes'] as $prefix ) {
+                if ( '' !== $prefix && 0 === strpos( $name, $prefix ) ) {
+                    continue 2;
+                }
+            }
+            if ( is_file( $dir . $name ) ) {
+                wp_delete_file( $dir . $name );
+            }
+        }
     }
 
     /**

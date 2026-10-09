@@ -778,7 +778,7 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 			$this->runner->cancel_backup_task( $task_id );
 			$task = $spine->get_task( $task_id );
 			$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
-			$this->assertFileExists( $path );
+			$this->assertFileDoesNotExist( $path, 'The cancel deletes the spilled parent copy, as completion and failure do.' );
 		} elseif ( 'failure' === $terminal || 'failure_before_manifest' === $terminal ) {
 			$seam = 'failure' === $terminal ? 'run_incremental_diff' : 'walk_manifest_slice';
 			$this->runner->stubs[ $seam ] = static function () {

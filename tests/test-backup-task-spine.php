@@ -854,8 +854,9 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 
 	/**
 	 * A late cancel keeps the artifact and spilled-manifest references in
-	 * sub_state so the retention prune can still delete those leftover files.
-	 * checkpoint() overwrites sub_state, so the cancel must carry them forward.
+	 * sub_state so a sweep or prune can still find those files by name when
+	 * the cancel could not delete them itself. checkpoint() overwrites
+	 * sub_state, so the cancel must carry them forward.
 	 */
 	public function test_cancel_backup_task_preserves_artifact_references_for_prune() {
 		$spine   = MainWP_Child_Backup_Task::instance();
