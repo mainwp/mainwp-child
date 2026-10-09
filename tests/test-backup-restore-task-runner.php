@@ -4320,6 +4320,56 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A rollback adopts the safety backup by copying it out of the backup
+	 * folder, so the source stays there after the restore. Pruning the
+	 * safety backup's task must delete that source.
+	 */
+	public function test_prune_of_adopted_safety_backup_removes_the_source() {
+		$artifact = $this->make_full_archive_with_embedded_dump();
+		$source   = $this->dir . '/' . $artifact['file'];
+
+		$safety_id = $this->spine->create_task( 'full', array() );
+		$this->spine->checkpoint(
+			$safety_id,
+			0,
+			array(
+				'phase'     => MainWP_Child_Backup_Task::PHASE_COMPLETED,
+				'sub_state' => array(
+					'artifact' => array(
+						'file' => $artifact['file'],
+						'size' => $artifact['size'],
+					),
+				),
+			)
+		);
+
+		$rollback = array_merge(
+			$artifact,
+			array(
+				'role'       => 'full',
+				'sha256'     => '',
+				'adopt_only' => true,
+			)
+		);
+		$task_id  = $this->make_task(
+			'full',
+			array( $rollback ),
+			array(
+				'source_prefix'    => '',
+				'has_foreign_keys' => false,
+			)
+		);
+		$task     = $this->drive( $task_id );
+
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertFileExists( $source, 'Adoption copies the safety backup; the source stays in the backup folder.' );
+		$this->assertDirectoryDoesNotExist( $this->dir . '/restore-' . $task_id, 'The adopted copy goes with the restore scratch.' );
+
+		$this->assertSame( 'pruned', $this->spine->prune_task( $safety_id, $this->dir ) );
+		$this->assertFileDoesNotExist( $source, 'Pruning the safety backup task deletes the source the copy came from.' );
+	}
+
+	/**
 	 * A bannerless embedded dump (older full backups) defaults its source
 	 * prefix to the live prefix - the only sane default for a same-site
 	 * restore.

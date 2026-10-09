@@ -887,11 +887,26 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             $task_ids = array();
         }
 
+        $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
+
+        MainWP_Helper::write( $this->prune_backup_tasks( $task_ids, $do_sweep, $dirs[0] ) );
+    }
+
+    /**
+     * Prune the named backup tasks and build the backup_task_prune response.
+     *
+     * Kept apart from the callable because MainWP_Helper::write() ends the
+     * request, so the response the Dashboard relies on is only testable here.
+     *
+     * @param array  $task_ids   Child task ids.
+     * @param bool   $do_sweep   Whether the stale sweep runs after the prunes.
+     * @param string $backup_dir Backup directory.
+     *
+     * @return array { result: 'ok', pruned: int, active: int, missing: int }
+     */
+    public function prune_backup_tasks( $task_ids, $do_sweep, $backup_dir ) {
         $spine = MainWP_Child_Backup_Task::instance();
         $spine->install();
-
-        $dirs       = MainWP_Helper::get_mainwp_dir( 'backup' );
-        $backup_dir = $dirs[0];
 
         $counts = array(
             'pruned'  => 0,
@@ -917,13 +932,11 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             $spine->sweep_stale_markers( $backup_dir );
         }
 
-        MainWP_Helper::write(
-            array(
-                'result'  => 'ok',
-                'pruned'  => $counts['pruned'],
-                'active'  => $counts['active'],
-                'missing' => $counts['missing'],
-            )
+        return array(
+            'result'  => 'ok',
+            'pruned'  => $counts['pruned'],
+            'active'  => $counts['active'],
+            'missing' => $counts['missing'],
         );
     }
 

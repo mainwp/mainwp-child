@@ -379,6 +379,106 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Run the prune callable's logic for the given ids.
+	 *
+	 * @param string[] $task_ids Task ids.
+	 * @param bool     $sweep    Whether the stale sweep runs after.
+	 *
+	 * @return array The response the Dashboard receives.
+	 */
+	private function prune_response( $task_ids, $sweep = false ) {
+		return \MainWP\Child\MainWP_Child_Callable::get_instance()->prune_backup_tasks( $task_ids, $sweep, $this->backup_dir );
+	}
+
+	/**
+	 * The Dashboard prunes a completed run it never downloaded by its child
+	 * task id: the archive is deleted and the response carries the aggregate
+	 * counts. A second prune of the same id reports it missing.
+	 */
+	public function test_prune_callable_removes_uncollected_completed_run() {
+		$archive = $this->backup_dir . '/backup-1790820530.tar.gz';
+		file_put_contents( $archive, 'x' );
+		$task_id = $this->make_terminal_task(
+			MainWP_Child_Backup_Task::PHASE_COMPLETED,
+			array(
+				'artifact' => array(
+					'file' => basename( $archive ),
+					'size' => 1,
+				),
+			)
+		);
+
+		$this->assertSame(
+			array(
+				'result'  => 'ok',
+				'pruned'  => 1,
+				'active'  => 0,
+				'missing' => 0,
+			),
+			$this->prune_response( array( $task_id ) )
+		);
+		$this->assertFileDoesNotExist( $archive );
+		$this->assertNull( MainWP_Child_Backup_Task::instance()->get_task( $task_id ) );
+
+		$this->assertSame(
+			array(
+				'result'  => 'ok',
+				'pruned'  => 0,
+				'active'  => 0,
+				'missing' => 1,
+			),
+			$this->prune_response( array( $task_id ) )
+		);
+	}
+
+	/**
+	 * A failed run that still names archives (a cancel that could not take
+	 * the mutex) is pruned the same way.
+	 */
+	public function test_prune_callable_removes_failed_run_archives() {
+		$archive = $this->backup_dir . '/backup-1791285837.tar.gz';
+		file_put_contents( $archive, 'x' );
+		$task_id = $this->make_terminal_task(
+			MainWP_Child_Backup_Task::PHASE_FAILED,
+			array(
+				'error'    => array( 'code' => 'mainwp_backup_cancelled' ),
+				'artifact' => array(
+					'file' => basename( $archive ),
+					'size' => 1,
+				),
+			)
+		);
+
+		$response = $this->prune_response( array( $task_id ) );
+
+		$this->assertSame( 1, $response['pruned'] );
+		$this->assertSame( 'ok', $response['result'] );
+		$this->assertFileDoesNotExist( $archive );
+	}
+
+	/**
+	 * An active run answers active and keeps its row and files.
+	 */
+	public function test_prune_callable_refuses_active_run() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$partial = $this->backup_dir . '/backup-1791291867.tar.gz';
+		file_put_contents( $partial, 'x' );
+		$task_id = $spine->create_task( 'full', array( 'archive_file' => basename( $partial ) ) );
+
+		$this->assertSame(
+			array(
+				'result'  => 'ok',
+				'pruned'  => 0,
+				'active'  => 1,
+				'missing' => 0,
+			),
+			$this->prune_response( array( $task_id ), true )
+		);
+		$this->assertNotNull( $spine->get_task( $task_id ) );
+		$this->assertFileExists( $partial );
+	}
+
+	/**
 	 * The prune action is dashboard-callable.
 	 */
 	public function test_prune_callable_registered() {
