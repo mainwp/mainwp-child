@@ -1495,8 +1495,8 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	/**
 	 * An engine failure deletes the partial artifacts the task produced -
 	 * the cursor-named files, its token-named incremental parts, and staged
-	 * scratch - while the promoted chain base and files it never produced
-	 * survive. The recorded error must survive the cleanup.
+	 * scratch - while the chain files and files it never produced survive.
+	 * The recorded error must survive the cleanup.
 	 */
 	public function test_engine_failure_deletes_partial_artifacts() {
 		$spine   = MainWP_Child_Backup_Task::instance();
@@ -1541,7 +1541,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $dump );
 		$this->assertFileDoesNotExist( $part, 'Token-named incremental parts belong to the failed task' );
 		$this->assertFileDoesNotExist( $staged, 'Unpromoted staged manifests belong to the failed run' );
-		$this->assertFileDoesNotExist( $changes );
+		$this->assertFileExists( $changes, 'changes.list is a chain file; the next incremental overwrites it' );
 		$this->assertFileExists( $chain, 'The promoted chain base must survive' );
 		$this->assertFileExists( $this->backup_dir . '/backup-artifact.tar', 'Files the failed task never produced must survive' );
 	}
@@ -2021,7 +2021,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	 */
 	protected function make_chain_files() {
 		$chain = array();
-		foreach ( array( 'files.list', 'paths.cache', 'files.list.writer.json', 'tombstones.list', 'changes.list' ) as $name ) {
+		foreach ( array( 'files.list', 'paths.cache', 'files.list.writer.json', 'tombstones.list', 'changes.list', 'parent-files.list' ) as $name ) {
 			$chain[ $name ] = $this->backup_dir . '/' . $name;
 			file_put_contents( $chain[ $name ], 'chain ' . $name );
 		}
@@ -2090,8 +2090,8 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		foreach ( $own as $path ) {
 			$this->assertFileDoesNotExist( $path, 'A cancelled run must not leave its finished files behind.' );
 		}
-		foreach ( array( 'files.list', 'paths.cache', 'files.list.writer.json' ) as $name ) {
-			$this->assertFileExists( $chain[ $name ], $name . ' is the chain base and must survive a cancel.' );
+		foreach ( $chain as $name => $path ) {
+			$this->assertFileExists( $path, $name . ' belongs to the chain and must survive a cancel.' );
 		}
 		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
 	}
@@ -2232,7 +2232,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	 * A completed run whose cursor is too big for the row spills it to a
 	 * sidecar. The terminal cleanup must not leave the row pointing at a
 	 * deleted sidecar: the Dashboard still needs the artifact from the status
-	 * payload, and the sweep needs its name.
+	 * payload, and a prune needs its name.
 	 */
 	public function test_completed_run_with_large_cursor_keeps_artifact_visible() {
 		$spine   = MainWP_Child_Backup_Task::instance();
@@ -2254,10 +2254,48 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$payload = $spine->status_payload( $task, $this->backup_dir );
 		$this->assertSame( 'backup-artifact.tar', $payload['file'] ?? null, 'The completed status must still name the artifact.' );
 
-		global $wpdb;
-		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET last_progress_at = DATE_SUB(NOW(), INTERVAL 8 DAY) WHERE task_id = %s', $task_id ) );
-		$spine->sweep_stale_markers( $this->backup_dir );
-		$this->assertFileDoesNotExist( $this->backup_dir . '/backup-artifact.tar', 'The sweep must see the artifact of a large-cursor run.' );
+		$this->assertSame( 'pruned', $spine->prune_task( $task_id, $this->backup_dir ) );
+		$this->assertFileDoesNotExist( $this->backup_dir . '/backup-artifact.tar', 'A prune must find the artifact of a large-cursor run.' );
+	}
+
+	/**
+	 * A failed run's cleanup goes through the same ownership and chain rule
+	 * as a prune: it deletes the run's own files and scratch, but never the
+	 * chain files a completed incremental still needs.
+	 */
+	public function test_failure_cleanup_keeps_complete_chain_set() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$chain   = $this->make_chain_files();
+		$task_id = $this->runner->create_task_for_params( 'full', array( 'ext' => 'tar.gz' ) );
+		$token   = preg_replace( '/[^A-Za-z0-9]/', '', $task_id );
+		$own     = array(
+			$this->backup_dir . '/backup-1791262128.tar.gz',
+			$this->backup_dir . '/plugins.' . $token . '.part001.zip',
+			$this->backup_dir . '/files.list.staged',
+			$this->backup_dir . '/walk-run-0001',
+		);
+		foreach ( $own as $path ) {
+			file_put_contents( $path, 'own' );
+		}
+		$task = $spine->get_task( $task_id );
+		$spine->checkpoint(
+			$task_id,
+			(int) $task->version,
+			array(
+				'phase'     => MainWP_Child_Backup_Task::PHASE_FAILED,
+				'sub_state' => array( 'error' => array( 'code' => 'x' ) ),
+			),
+			false
+		);
+
+		$this->runner->cleanup_failed_task_artifacts( $task_id, array( 'archive_file' => basename( $own[0] ) ), $this->backup_dir );
+
+		foreach ( $own as $path ) {
+			$this->assertFileDoesNotExist( $path );
+		}
+		foreach ( $chain as $name => $path ) {
+			$this->assertFileExists( $path, $name . ' belongs to the chain and must survive a failure cleanup.' );
+		}
 	}
 
 	/**

@@ -269,7 +269,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         // A cancelled backup never runs the runner's terminal sweep, so its
         // spilled walk-run files would linger; sweep them here, the same cleanup
         // the wall-clock enforcer does for a forced-terminal backup.
-        $this->cleanup_walk_runs( $backup_dir );
+        $spine->delete_task_files( $this->walk_run_names( $backup_dir ), $backup_dir, $task_id );
 
         // checkpoint() overwrites sub_state, so carry forward the names of the
         // files the run wrote: finished artifacts, the half-written archive,
@@ -1891,50 +1891,45 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     /**
      * Delete a failed backup task's own leftovers from the backup directory:
      * every file its pre-fail cursor names, its token-named incremental zip
-     * parts, the staged/diff scratch only a live run consumes, and the
-     * walk-run spill files. The promoted files.list/paths.cache pair is the
-     * incremental chain base from the last completed run and is never
-     * touched. Callers pass the cursor captured BEFORE the failure
-     * checkpoint - the checkpoint overwrites the row with the error, which
-     * is exactly how these files used to become undeletable.
+     * parts, the unpromoted staged manifests and the walk-run spill files.
+     * Every delete goes through the spine's by-name gate, so the incremental
+     * chain files (the promoted base, tombstones.list and changes.list, the
+     * inline parent copy) and anything another task owns are never touched;
+     * a failed run's own diff lists are overwritten by the next incremental.
+     * Callers pass the cursor captured BEFORE the failure checkpoint - the
+     * checkpoint overwrites the row with the error, which is exactly how
+     * these files used to become undeletable.
      *
      * @param string     $task_id    Task id.
      * @param array|null $sub_state  Pre-fail cursor, null when unrecoverable.
      * @param string     $backup_dir Backup directory.
      */
     public function cleanup_failed_task_artifacts( $task_id, $sub_state, $backup_dir ) {
-        MainWP_Child_Backup_Task::instance()->delete_artifact_files( $sub_state, $backup_dir, $task_id );
+        $spine = MainWP_Child_Backup_Task::instance();
+        $names = $spine->task_file_names( $task_id, $sub_state, $backup_dir );
 
-        $dir = rtrim( $backup_dir, '/' ) . '/';
+        // Staged manifests only the failed run itself could own (the
+        // single-task invariant); promotion happens only on completion.
+        $names[] = MainWP_Child_Backup_File_Walker::FILES_LIST . MainWP_Child_Backup_File_Walker::STAGED_SUFFIX;
+        $names[] = MainWP_Child_Backup_File_Walker::PATHS_CACHE . MainWP_Child_Backup_File_Walker::STAGED_SUFFIX;
+        $names   = array_merge( $names, $this->walk_run_names( $backup_dir ) );
 
-        // Incremental zip parts fold the task token into their name - the
-        // one archive shape safely globbable per task.
-        $token = preg_replace( '/[^A-Za-z0-9]/', '', (string) $task_id );
-        if ( '' !== $token ) {
-            foreach ( (array) glob( $dir . '*.' . $token . '.part*.zip' ) as $part ) {
-                if ( is_file( $part ) ) {
-                    wp_delete_file( $part );
-                }
-            }
+        $spine->delete_task_files( $names, $backup_dir, $task_id );
+    }
+
+    /**
+     * Names of the manifest walk's spilled run files.
+     *
+     * @param string $backup_dir Scratch directory.
+     *
+     * @return string[]
+     */
+    protected function walk_run_names( $backup_dir ) {
+        $names = array();
+        foreach ( (array) glob( rtrim( $backup_dir, '/' ) . '/' . MainWP_Child_Backup_File_Walker::RUN_PREFIX . '*' ) as $run ) {
+            $names[] = basename( $run );
         }
-
-        // Fixed-name scratch only the failed run itself could own (the
-        // single-task invariant): unpromoted staged manifests and the diff
-        // sidecars. Promotion to files.list/paths.cache happens only on
-        // completion, so the promoted names stay.
-        $scratch = array(
-            MainWP_Child_Backup_File_Walker::FILES_LIST . MainWP_Child_Backup_File_Walker::STAGED_SUFFIX,
-            MainWP_Child_Backup_File_Walker::PATHS_CACHE . MainWP_Child_Backup_File_Walker::STAGED_SUFFIX,
-            MainWP_Child_Backup_Incremental_Diff::CHANGES_LIST,
-            MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST,
-        );
-        foreach ( $scratch as $name ) {
-            if ( is_file( $dir . $name ) ) {
-                wp_delete_file( $dir . $name );
-            }
-        }
-
-        $this->cleanup_walk_runs( $backup_dir );
+        return $names;
     }
 
     /**

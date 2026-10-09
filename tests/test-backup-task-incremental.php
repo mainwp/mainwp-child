@@ -774,11 +774,15 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		}
 		$task_id = $this->create_task( 'incremental', $persisted['params'] );
 		$spine = MainWP_Child_Backup_Task::instance();
+		// The inline fallback writes the fixed name parent-files.list, which a
+		// cleanup by name never deletes: another run may be using it, and the
+		// next inline run overwrites it. Only completion removes it.
+		$shared_name = 'inline' === $source;
 		if ( 'cancel' === $terminal ) {
 			$this->runner->cancel_backup_task( $task_id );
 			$task = $spine->get_task( $task_id );
 			$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
-			$this->assertFileDoesNotExist( $path, 'The cancel deletes the spilled parent copy, as completion and failure do.' );
+			$this->assertSame( $shared_name, file_exists( $path ), 'The cancel deletes a spilled parent copy, as completion and failure do.' );
 		} elseif ( 'failure' === $terminal || 'failure_before_manifest' === $terminal ) {
 			$seam = 'failure' === $terminal ? 'run_incremental_diff' : 'walk_manifest_slice';
 			$this->runner->stubs[ $seam ] = static function () {
@@ -786,7 +790,7 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 			};
 			$task = $this->advance( $task_id );
 			$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
-			$this->assertFileDoesNotExist( $path );
+			$this->assertSame( $shared_name, file_exists( $path ) );
 			$this->assertSame( "unrelated.php\t1\t1\n", file_get_contents( $this->backup_dir . '/files.list' ) );
 		} else {
 			$task = $this->advance( $task_id );
@@ -811,7 +815,7 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 			$this->assertSame( basename( $path ), $terminal_state['params']['parent_manifest_file'] );
 		}
 		$this->assertSame( 'pruned', $spine->prune_task( $task_id, $this->backup_dir ) );
-		$this->assertFileDoesNotExist( $path );
+		$this->assertSame( $shared_name && 'completion' !== $terminal, file_exists( $path ) );
 	}
 
 	/**

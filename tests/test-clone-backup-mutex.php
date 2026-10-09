@@ -212,7 +212,12 @@ class CloneBackupMutexTest extends WP_UnitTestCase {
 		} else {
 			$this->assertFileDoesNotExist( $fragment );
 		}
-		$this->assertSame( $holder, MainWP_Child_Backup_Mutex::holder() );
+		if ( null === $caller_owner && ! $deferred ) {
+			// The sweep takes over an expired holder for its own run and releases it after.
+			$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+		} else {
+			$this->assertSame( $holder, MainWP_Child_Backup_Mutex::holder() );
+		}
 	}
 
 	public function test_clone_releases_mutex_and_completes_marker_on_success() {

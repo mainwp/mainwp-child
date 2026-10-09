@@ -90,21 +90,6 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     const QUEUED_STALL_WINDOW_SECONDS = 15 * MINUTE_IN_SECONDS;
 
     /**
-     * How long a completed backup's artifacts wait for the Dashboard to
-     * collect them. Archives sit in the uploads folder, and on nginx only the
-     * random folder name protects them, so a run the Dashboard never collected
-     * must not stay forever.
-     */
-    const COMPLETED_ARTIFACT_TTL_SECONDS = 7 * DAY_IN_SECONDS;
-
-    /**
-     * The params.purpose value the Dashboard sends when it creates the backup
-     * a restore can roll back to. The Child keeps that backup with no age
-     * limit; the Dashboard retires it with backup_task_prune.
-     */
-    const PURPOSE_PRE_RESTORE = 'pre_restore';
-
-    /**
      * Fresh wall-clock budget granted to a foreign-key rollback when a replay
      * is rerouted to it at its deadline, so the recovery has time to finish.
      */
@@ -1265,7 +1250,12 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         }
 
         $sub_state = $this->read_sub_state( $task, $backup_dir );
-        $this->delete_artifact_files( $sub_state, $backup_dir, $task_id );
+        // A file another live task still needs (a rollback about to adopt
+        // this safety backup) cannot go yet. The row is the only record of
+        // it, so keep the row and its sidecar and let the Dashboard retry.
+        if ( ! empty( $this->delete_artifact_files( $sub_state, $backup_dir, $task_id ) ) ) {
+            return 'active';
+        }
 
         $this->delete_sidecar( $task_id, $backup_dir );
 
@@ -1293,24 +1283,61 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     }
 
     /**
-     * Delete every backup-directory file a task's cursor names: the produced
-     * artifact(s), mid-flight db dump fragments, partial archive and closed
-     * incremental parts a failed task leaves behind, and a spilled parent
-     * manifest that was never consumed. Deletion is only ever by name from the
-     * task's own cursor - never by pattern - and skips the incremental chain
-     * files and any name another task row still owns, so pruning one run can
-     * never remove the chain base or another run's files. Quiet no-op on an
-     * unreadable cursor.
+     * Delete every backup-directory file a task left: what its cursor names
+     * (the produced artifact(s), mid-flight db dump fragments, partial archive
+     * and closed incremental parts, a spilled parent manifest never consumed)
+     * and, given its id, the incremental parts carrying its task token, which
+     * a part still open when the run stopped is only findable by. Deletion is
+     * only ever through delete_task_files(), so the chain files and anything
+     * another task row owns are never touched. Quiet no-op on an unreadable
+     * cursor apart from the token parts.
      *
      * @param array|null $sub_state  Task cursor.
      * @param string     $backup_dir Backup directory holding the artifacts.
-     * @param string     $task_id    The cursor's own task id, whose row must not count as another owner.
+     * @param string     $task_id    The cursor's own task id, or '' when unknown.
+     *
+     * @return string[] Names kept because a live task still needs them.
      */
     public function delete_artifact_files( $sub_state, $backup_dir, $task_id = '' ) {
-        if ( ! is_array( $sub_state ) ) {
-            return;
+        return $this->delete_task_files( $this->task_file_names( $task_id, $sub_state, $backup_dir ), $backup_dir, $task_id );
+    }
+
+    /**
+     * Delete files from the backup folder by name, on behalf of one task. The
+     * single gate every cleanup by name goes through: the incremental chain
+     * files are never deleted, and neither is a file another task row still
+     * owns.
+     *
+     * @param string[] $names      File names.
+     * @param string   $backup_dir Backup directory.
+     * @param string   $task_id    Task the files belong to; its own row is not an owner.
+     *
+     * @return string[] Names kept because a live task still needs them.
+     */
+    public function delete_task_files( $names, $backup_dir, $task_id = '' ) {
+        return $this->delete_unclaimed_files( $names, $this->artifact_claims( $backup_dir, $task_id ), $backup_dir );
+    }
+
+    /**
+     * Every file name a task may have left in the backup folder.
+     *
+     * @param string     $task_id    Task id, or '' to skip the token parts.
+     * @param array|null $sub_state  Task cursor.
+     * @param string     $backup_dir Backup directory.
+     *
+     * @return string[]
+     */
+    public function task_file_names( $task_id, $sub_state, $backup_dir ) {
+        $names = is_array( $sub_state ) ? self::cursor_file_names( $sub_state ) : array();
+        // Incremental zip parts fold the task token into their name - the one
+        // archive shape safely globbable per task.
+        $token = preg_replace( '/[^A-Za-z0-9]/', '', (string) $task_id );
+        if ( '' !== $token ) {
+            foreach ( (array) glob( rtrim( $backup_dir, '/' ) . '/*.' . $token . '.part*.zip' ) as $part ) {
+                $names[] = basename( $part );
+            }
         }
-        $this->delete_unclaimed_files( self::cursor_file_names( $sub_state ), $this->artifact_claims( $backup_dir, $task_id ), $backup_dir );
+        return $names;
     }
 
     /**
@@ -1348,33 +1375,60 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     }
 
     /**
-     * Sweep stale run leftovers from the backup directory. A live mutex held
-     * by another caller, or a fresh legacy pid, defers the whole sweep:
-     * housekeeping can wait until the next prune, and a clone holds the mutex
-     * without a task row. An expired or malformed holder does not defer the
-     * sweep. Equality at expiry remains live to match acquire()'s
-     * strictly-earlier-than-now takeover test. Active task files remain
-     * protected.
+     * Sweep stale run leftovers from the backup directory. The sweep holds
+     * the native backup mutex from reading which task owns what until its
+     * last delete, so no backup or restore can be created in between with a
+     * claim the sweep never saw; when the mutex is live elsewhere, or a legacy
+     * pid is fresh, the whole sweep waits for the next prune or create. A
+     * caller that already holds the mutex passes its owner token. An expired
+     * or malformed holder does not defer the sweep. Equality at expiry
+     * remains live to match acquire()'s strictly-earlier-than-now takeover
+     * test.
      *
      * Leftovers no task row tracks (.pid and .done markers, db dump fragments,
      * staged manifests) go once they are past the age threshold. A completed
-     * task's artifacts are never treated as leftovers, even when a DB archive
-     * matches the dump pattern: they wait for the Dashboard to download or
-     * prune them, and go here only once the task is past the collection
-     * window. A pre-restore safety backup has no window: the Dashboard retires
-     * it. The files a failed task still names (a cancel that could not take
-     * the mutex) go now. Those deletions are by name only, and never touch the
-     * incremental chain files.
+     * task's artifacts are never treated as leftovers, whatever their age,
+     * even when a DB archive matches the dump pattern: they wait for the
+     * Dashboard to download (delete_backup) or prune them. The files a failed
+     * task still names (a cancel that could not take the mutex) go now, with
+     * any sidecar the failed row no longer points to. Those deletions are by
+     * name only, and never touch the incremental chain files.
      *
      * @param string      $backup_dir   Backup directory.
      * @param int         $age_seconds  Minimum age before a leftover is stale.
      * @param string|null $caller_owner Caller's mutex owner token, or null when not held.
      */
     public function sweep_stale_markers( $backup_dir, $age_seconds = 10800, $caller_owner = null ) {
-        $holder = MainWP_Child_Backup_Mutex::holder();
-        if ( ( null !== $holder && $holder['expires_at'] >= time() && $holder['owner'] !== $caller_owner ) || MainWP_Backup::is_pid_lock_fresh( $backup_dir ) ) {
+        if ( MainWP_Backup::is_pid_lock_fresh( $backup_dir ) ) {
             return;
         }
+        if ( null !== $caller_owner ) {
+            $holder = MainWP_Child_Backup_Mutex::holder();
+            if ( null !== $holder && $holder['expires_at'] >= time() && $holder['owner'] !== $caller_owner ) {
+                return;
+            }
+            $this->sweep_while_fenced( $backup_dir, $age_seconds );
+            return;
+        }
+
+        $owner = 'sweep-' . strtolower( wp_generate_password( 12, false ) );
+        if ( true !== MainWP_Child_Backup_Mutex::acquire( 'native', $owner, 60 ) ) {
+            return;
+        }
+        try {
+            $this->sweep_while_fenced( $backup_dir, $age_seconds );
+        } finally {
+            MainWP_Child_Backup_Mutex::release( $owner );
+        }
+    }
+
+    /**
+     * The sweep body; the caller holds the native backup mutex.
+     *
+     * @param string $backup_dir  Backup directory.
+     * @param int    $age_seconds Minimum age before a leftover is stale.
+     */
+    private function sweep_while_fenced( $backup_dir, $age_seconds ) {
         $patterns = array( 'backup-*.pid', 'backup-*.done', 'dbBackup-*.sql*', 'manifest-staged-*.list' );
         $cutoff   = time() - $age_seconds;
 
@@ -1385,10 +1439,8 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         // completed task still owes the Dashboard.
         $claims = $this->artifact_claims( $backup_dir );
         $this->delete_unclaimed_files( $claims['doomed'], $claims, $backup_dir );
-        // An expired run's files are gone; a cursor kept in a sidecar names
-        // nothing left to collect.
-        foreach ( $claims['expired'] as $expired_task_id ) {
-            $this->delete_sidecar( $expired_task_id, $backup_dir );
+        foreach ( $claims['sidecars'] as $failed_task_id => $keep ) {
+            $this->delete_superseded_sidecars( (string) $failed_task_id, $backup_dir, $keep );
         }
 
         $safe_names    = $claims['names'];
@@ -1486,6 +1538,10 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * rather than to one run. Every manifest-emitting and incremental run
      * names the same fixed files, so deleting one by a run's name would remove
      * the base the next incremental diffs against, or another run's diff.
+     * parent-files.list is the inline-pushed parent copy: a running
+     * incremental writes it and starts its diff before its cursor names it,
+     * so no claim can protect it. Completion deletes its own copy directly,
+     * and the next inline run overwrites a leftover.
      *
      * @param string $name File name.
      *
@@ -1500,6 +1556,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                 MainWP_Child_Backup_File_Walker::FILES_LIST . '.writer.json',
                 MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST,
                 MainWP_Child_Backup_Incremental_Diff::CHANGES_LIST,
+                'parent-files.list',
             ),
             true
         );
@@ -1531,68 +1588,48 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * Which backup-folder files task rows still own, and which files nothing
      * will collect any more.
      *
-     * Owned: everything an active task depends on, the artifacts of a
-     * completed task inside the collection window, and a pre-restore safety
-     * backup at any age (the site's rollback source, retired by the Dashboard).
-     * The Dashboard removes the others itself by downloading them
-     * (delete_backup) or pruning the task. Doomed: the artifacts of a
-     * completed task past that window, and every file a failed task still
-     * names. A completed cursor also keeps the name of its spilled parent
-     * manifest, but completion already deleted that file, so the name is not
-     * a claim.
+     * Owned: everything an active task depends on ("live"), and the artifacts
+     * of every completed task, which the Dashboard removes itself by
+     * downloading them (delete_backup) or pruning the task. Doomed: every file
+     * a failed task still names. A completed cursor also keeps the name of its
+     * spilled parent manifest, but completion already deleted that file, so
+     * the name is not a claim. Failed rows also report which sidecar they
+     * still point to, so the sweep can reclaim the rest.
      *
      * @param string $backup_dir      Backup directory.
-     * @param string $exclude_task_id Task whose own row is not an owner (the one being pruned).
+     * @param string $exclude_task_id Task whose own row is not an owner (the one being cleaned).
      *
-     * @return array { names: array<string,true>, prefixes: string[], doomed: string[], expired: string[] }
+     * @return array { names: array<string,true>, live: array<string,true>, prefixes: string[], doomed: string[], sidecars: array<string,string> }
      */
     private function artifact_claims( $backup_dir, $exclude_task_id = '' ) {
         global $wpdb;
 
-        $claims            = $this->active_task_sweep_guard( $backup_dir );
-        $claims['doomed']  = array();
-        $claims['expired'] = array();
+        $claims             = $this->active_task_sweep_guard( $backup_dir );
+        $claims['live']     = $claims['names'];
+        $claims['doomed']   = array();
+        $claims['sidecars'] = array();
 
-        // MySQL owns the age test: last_progress_at is written with NOW(), and
-        // the PHP clock may sit in another timezone.
         $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- dedicated spine table, always-fresh read.
-            $wpdb->prepare(
-                'SELECT task_id, phase, sub_state, ( last_progress_at < DATE_SUB( NOW(), INTERVAL %d SECOND ) ) AS expired FROM ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
-                " WHERE phase IN ('completed','failed') AND type NOT IN ('restore','restore_db','restore_files')",
-                self::COMPLETED_ARTIFACT_TTL_SECONDS
-            )
+            'SELECT task_id, phase, sub_state FROM ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper, no user input.
+            " WHERE phase IN ('completed','failed') AND type NOT IN ('restore','restore_db','restore_files')"
         );
-
-        $dir = rtrim( $backup_dir, '/' ) . '/';
         foreach ( (array) $rows as $row ) {
             if ( $row->task_id === $exclude_task_id ) {
                 continue;
             }
             $sub_state = $this->read_sub_state( $row, $backup_dir );
-            if ( ! is_array( $sub_state ) ) {
-                continue;
-            }
             if ( self::PHASE_COMPLETED === $row->phase ) {
-                $safety = self::PURPOSE_PRE_RESTORE === ( $sub_state['params']['purpose'] ?? '' );
-                if ( $safety || empty( $row->expired ) ) {
-                    foreach ( self::artifact_names( $sub_state ) as $name ) {
-                        $claims['names'][ $name ] = true;
-                    }
-                    continue;
+                foreach ( is_array( $sub_state ) ? self::artifact_names( $sub_state ) : array() as $name ) {
+                    $claims['names'][ $name ] = true;
                 }
-                $claims['doomed']    = array_merge( $claims['doomed'], self::artifact_names( $sub_state ) );
-                $claims['expired'][] = $row->task_id;
                 continue;
             }
-            $claims['doomed'] = array_merge( $claims['doomed'], self::cursor_file_names( $sub_state ) );
-            // A cancel that could not take the mutex also left the incremental
-            // part still open; only the task token in its name finds it.
-            $token = preg_replace( '/[^A-Za-z0-9]/', '', (string) $row->task_id );
-            if ( '' !== $token && MainWP_Backup_Error::ERR_BACKUP_CANCELLED === ( $sub_state['error']['code'] ?? '' ) ) {
-                foreach ( (array) glob( $dir . '*.' . $token . '.part*.zip' ) as $part ) {
-                    $claims['doomed'][] = basename( $part );
-                }
-            }
+            $claims['doomed'] = array_merge( $claims['doomed'], $this->task_file_names( $row->task_id, $sub_state, $backup_dir ) );
+
+            $stored = json_decode( (string) $row->sub_state, true );
+            $keep   = is_array( $stored ) && ! empty( $stored['_sidecar'] ) && isset( $stored['file'] ) ? basename( (string) $stored['file'] ) : '';
+
+            $claims['sidecars'][ $row->task_id ] = $keep;
         }
 
         return $claims;
@@ -1605,23 +1642,33 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * @param string[] $names      File names.
      * @param array    $claims     Claims from artifact_claims().
      * @param string   $backup_dir Backup directory.
+     *
+     * @return string[] Existing files kept because a live task still needs them.
      */
     private function delete_unclaimed_files( $names, $claims, $backup_dir ) {
-        $dir = rtrim( $backup_dir, '/' ) . '/';
+        $dir  = rtrim( $backup_dir, '/' ) . '/';
+        $kept = array();
         foreach ( array_unique( $names ) as $name ) {
             $name = basename( (string) $name );
-            if ( '' === $name || self::is_chain_file( $name ) || isset( $claims['names'][ $name ] ) ) {
+            if ( '' === $name || self::is_chain_file( $name ) || ! is_file( $dir . $name ) ) {
                 continue;
             }
+            $live = isset( $claims['live'][ $name ] );
             foreach ( $claims['prefixes'] as $prefix ) {
                 if ( '' !== $prefix && 0 === strpos( $name, $prefix ) ) {
-                    continue 2;
+                    $live = true;
+                    break;
                 }
             }
-            if ( is_file( $dir . $name ) ) {
+            if ( $live ) {
+                $kept[] = $name;
+                continue;
+            }
+            if ( ! isset( $claims['names'][ $name ] ) ) {
                 wp_delete_file( $dir . $name );
             }
         }
+        return $kept;
     }
 
     /**

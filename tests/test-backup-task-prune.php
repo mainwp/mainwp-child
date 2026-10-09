@@ -304,7 +304,8 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 	/**
 	 * A completed DB-only backup the Dashboard has not downloaded yet matches
 	 * the dbBackup-* fragment pattern, but it is a finished backup, not litter:
-	 * the sweep keeps it whatever its age within the collection window.
+	 * the sweep keeps it whatever its age. delete_backup after the download,
+	 * or a prune, removes it.
 	 */
 	public function test_sweep_keeps_completed_db_artifact_not_yet_collected() {
 		$archive = $this->backup_dir . '/dbBackup-1791459958.sql.tar.gz';
@@ -319,87 +320,11 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 				),
 			)
 		);
-		$this->backdate_task( $task_id, 4 * 3600 );
-
-		MainWP_Child_Backup_Task::instance()->sweep_stale_markers( $this->backup_dir );
-
-		$this->assertFileExists( $archive, 'An uncollected completed backup must survive the stale-marker sweep.' );
-	}
-
-	/**
-	 * A completed backup the Dashboard never collected is deleted once it is
-	 * more than seven days old: archives in the uploads folder must not stay
-	 * forever. The chain files it names are kept.
-	 */
-	public function test_sweep_deletes_completed_artifacts_after_seven_days() {
-		$archive = $this->backup_dir . '/backup-1790820530.tar.gz';
-		$db      = $this->backup_dir . '/dbBackup-1790820530.sql.zip';
-		$chain   = $this->backup_dir . '/files.list';
-		$tombs   = $this->backup_dir . '/tombstones.list';
-		foreach ( array( $archive, $db, $chain, $tombs ) as $file ) {
-			file_put_contents( $file, 'x' );
-		}
-		$expired = $this->make_terminal_task(
-			MainWP_Child_Backup_Task::PHASE_COMPLETED,
-			array(
-				'artifact'  => array(
-					'file' => basename( $archive ),
-					'size' => 1,
-				),
-				'artifacts' => array(
-					array( 'file' => basename( $archive ), 'role' => 'full' ),
-					array( 'file' => basename( $db ), 'role' => 'db' ),
-					array( 'file' => 'files.list', 'role' => 'manifest' ),
-					array( 'file' => 'tombstones.list', 'role' => 'tombstones' ),
-				),
-			)
-		);
-		$this->backdate_task( $expired, 8 * DAY_IN_SECONDS );
-
-		$recent_archive = $this->backup_dir . '/backup-1791459958.tar.gz';
-		file_put_contents( $recent_archive, 'x' );
-		$recent = $this->make_terminal_task(
-			MainWP_Child_Backup_Task::PHASE_COMPLETED,
-			array(
-				'artifact' => array(
-					'file' => basename( $recent_archive ),
-					'size' => 1,
-				),
-			)
-		);
-		$this->backdate_task( $recent, 6 * DAY_IN_SECONDS );
-
-		MainWP_Child_Backup_Task::instance()->sweep_stale_markers( $this->backup_dir );
-
-		$this->assertFileDoesNotExist( $archive, 'An uncollected archive older than seven days must go.' );
-		$this->assertFileDoesNotExist( $db );
-		$this->assertFileExists( $chain, 'The chain base is never deleted by a run\'s name.' );
-		$this->assertFileExists( $tombs, 'tombstones.list is shared by every incremental run.' );
-		$this->assertFileExists( $recent_archive, 'A completed backup inside the collection window stays.' );
-	}
-
-	/**
-	 * A pre-restore safety backup is the rollback source for the site's last
-	 * restore. The Child keeps it with no age limit; the Dashboard retires it.
-	 */
-	public function test_sweep_keeps_safety_backup_past_seven_days() {
-		$archive = $this->backup_dir . '/backup-1791262128.tar.gz';
-		file_put_contents( $archive, 'x' );
-		$task_id = $this->make_terminal_task(
-			MainWP_Child_Backup_Task::PHASE_COMPLETED,
-			array(
-				'params'   => array( 'purpose' => MainWP_Child_Backup_Task::PURPOSE_PRE_RESTORE ),
-				'artifact' => array(
-					'file' => basename( $archive ),
-					'size' => 1,
-				),
-			)
-		);
 		$this->backdate_task( $task_id, 30 * DAY_IN_SECONDS );
 
 		MainWP_Child_Backup_Task::instance()->sweep_stale_markers( $this->backup_dir );
 
-		$this->assertFileExists( $archive, 'A safety backup is kept until the Dashboard retires it.' );
+		$this->assertFileExists( $archive, 'An uncollected completed backup must survive the stale-marker sweep.' );
 	}
 
 	/**
@@ -409,7 +334,7 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 	 */
 	private function make_chain_files() {
 		$chain = array();
-		foreach ( array( 'files.list', 'paths.cache', 'files.list.writer.json', 'tombstones.list', 'changes.list' ) as $name ) {
+		foreach ( array( 'files.list', 'paths.cache', 'files.list.writer.json', 'tombstones.list', 'changes.list', 'parent-files.list' ) as $name ) {
 			$chain[ $name ] = $this->backup_dir . '/' . $name;
 			file_put_contents( $chain[ $name ], 'chain' );
 		}
@@ -456,7 +381,9 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 	/**
 	 * A completed run keeps the name of its spilled parent copy, but
 	 * parent-files.list is a fixed name: a prune must not delete the copy a
-	 * running incremental is diffing against.
+	 * running incremental is diffing against, even in the window where the
+	 * running cursor still carries only the inline bytes and has not yet
+	 * checkpointed the file name.
 	 */
 	public function test_prune_keeps_parent_copy_a_running_task_uses() {
 		$spine  = MainWP_Child_Backup_Task::instance();
@@ -466,10 +393,170 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 			MainWP_Child_Backup_Task::PHASE_COMPLETED,
 			array( 'params' => array( 'parent_manifest_file' => 'parent-files.list' ) )
 		);
-		$spine->create_task( 'incremental', array( 'params' => array( 'parent_manifest_file' => 'parent-files.list' ) ) );
+		$spine->create_task( 'incremental', array( 'params' => array( 'parent_manifest_b64' => base64_encode( 'running parent' ) ) ) );
 
 		$this->assertSame( 'pruned', $spine->prune_task( $old, $this->backup_dir ) );
 		$this->assertFileExists( $parent );
+	}
+
+	/**
+	 * A safety backup whose archive a running rollback is about to adopt
+	 * cannot be deleted yet. The prune answers active and keeps the row and
+	 * its sidecar, so the Dashboard retries instead of losing the only record
+	 * of that archive.
+	 */
+	public function test_prune_of_archive_a_running_restore_adopts_answers_active() {
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$archive = $this->backup_dir . '/backup-1791262128.tar.gz';
+		file_put_contents( $archive, 'safety' );
+		$safety  = $spine->create_task( 'full', array() );
+		$state   = array(
+			'artifact' => array(
+				'file' => basename( $archive ),
+				'size' => 6,
+			),
+			'pad'      => array_fill( 0, 4000, str_repeat( 'x', 20 ) ),
+		);
+		$pointer = $spine->write_sub_state( $safety, $state, $this->backup_dir, 0 );
+		$spine->checkpoint(
+			$safety,
+			0,
+			array(
+				'phase'     => MainWP_Child_Backup_Task::PHASE_COMPLETED,
+				'sub_state' => $pointer,
+			)
+		);
+		$sidecar = $this->backup_dir . '/' . json_decode( $pointer, true )['file'];
+		$this->assertFileExists( $sidecar );
+		$spine->create_task( 'restore', array( 'params' => array( 'artifacts' => array( array( 'file' => basename( $archive ) ) ) ) ) );
+
+		$this->assertSame(
+			array(
+				'result'  => 'ok',
+				'pruned'  => 0,
+				'active'  => 1,
+				'missing' => 0,
+			),
+			$this->prune_response( array( $safety ) )
+		);
+		$this->assertFileExists( $archive );
+		$this->assertNotNull( $spine->get_task( $safety ), 'The row is the record of what is still to delete.' );
+		$this->assertFileExists( $sidecar, 'The sidecar lives as long as its row.' );
+	}
+
+	/**
+	 * A cancel that could not take the mutex leaves an incremental part that
+	 * was still open, so no cursor names it. A prune before the next sweep
+	 * finds it by the task token in its name.
+	 */
+	public function test_prune_finds_unnamed_part_by_task_token() {
+		$task_id = $this->make_terminal_task(
+			MainWP_Child_Backup_Task::PHASE_FAILED,
+			array( 'error' => array( 'code' => 'mainwp_backup_cancelled' ) )
+		);
+		$token   = preg_replace( '/[^A-Za-z0-9]/', '', $task_id );
+		$open    = $this->backup_dir . '/themes.' . $token . '.part001.zip';
+		$other   = $this->backup_dir . '/themes.othertask123.part001.zip';
+		file_put_contents( $open, 'open part' );
+		file_put_contents( $other, 'another run' );
+
+		$this->assertSame( 'pruned', MainWP_Child_Backup_Task::instance()->prune_task( $task_id, $this->backup_dir ) );
+
+		$this->assertFileDoesNotExist( $open );
+		$this->assertFileExists( $other );
+	}
+
+	/**
+	 * A fatal between a cancel's checkpoint and its sidecar cleanup leaves
+	 * sidecars behind. The sweep reclaims them, keeping the one a row still
+	 * points to.
+	 */
+	public function test_sweep_reclaims_superseded_sidecars_of_failed_rows() {
+		$spine  = MainWP_Child_Backup_Task::instance();
+		$inline = $this->make_terminal_task(
+			MainWP_Child_Backup_Task::PHASE_FAILED,
+			array( 'error' => array( 'code' => 'mainwp_backup_cancelled' ) )
+		);
+		$stale  = $this->backup_dir . '/task_substate-' . sanitize_file_name( $inline ) . '-v3.json';
+		file_put_contents( $stale, '{}' );
+
+		$pointed = $spine->create_task( 'full', array() );
+		$old     = $this->backup_dir . '/task_substate-' . sanitize_file_name( $pointed ) . '-v1.json';
+		file_put_contents( $old, '{}' );
+		$pointer = $spine->write_sub_state( $pointed, array( 'error' => array( 'code' => 'x' ), 'pad' => array_fill( 0, 4000, str_repeat( 'x', 20 ) ) ), $this->backup_dir, 7 );
+		$spine->checkpoint(
+			$pointed,
+			0,
+			array(
+				'phase'     => MainWP_Child_Backup_Task::PHASE_FAILED,
+				'sub_state' => $pointer,
+			)
+		);
+		$live = $this->backup_dir . '/' . json_decode( $pointer, true )['file'];
+
+		$spine->sweep_stale_markers( $this->backup_dir );
+
+		$this->assertFileDoesNotExist( $stale );
+		$this->assertFileDoesNotExist( $old );
+		$this->assertFileExists( $live, 'The sidecar a failed row points to stays.' );
+	}
+
+	/**
+	 * The sweep holds the backup mutex from reading who owns what until the
+	 * last delete, so a restore or backup cannot be created in between with a
+	 * claim the sweep never saw.
+	 */
+	public function test_sweep_holds_mutex_across_ownership_and_deletion() {
+		global $wpdb;
+		$table    = MainWP_Child_Backup_Task::instance()->get_table_name();
+		$attempts = array();
+		$probe    = function ( $query ) use ( $table, &$attempts ) {
+			if ( 0 === strpos( ltrim( $query ), 'SELECT task_id, phase, sub_state' ) && false !== strpos( $query, $table ) ) {
+				$attempts[] = \MainWP\Child\MainWP_Child_Backup_Mutex::acquire( 'native', 'restore-create-probe', 60 );
+				if ( true === end( $attempts ) ) {
+					\MainWP\Child\MainWP_Child_Backup_Mutex::release( 'restore-create-probe' );
+				}
+			}
+			return $query;
+		};
+		add_filter( 'query', $probe );
+		try {
+			MainWP_Child_Backup_Task::instance()->sweep_stale_markers( $this->backup_dir );
+		} finally {
+			remove_filter( 'query', $probe );
+		}
+
+		$this->assertNotEmpty( $attempts, 'The sweep reads task ownership.' );
+		foreach ( $attempts as $attempt ) {
+			$this->assertNotTrue( $attempt, 'A create must not get the mutex while the sweep runs.' );
+		}
+		$this->assertNull( \MainWP\Child\MainWP_Child_Backup_Mutex::holder(), 'The sweep releases the mutex it took.' );
+	}
+
+	/**
+	 * A cancel during a tier-2 dump leaves table fragments and a .tmp no
+	 * cursor names. They match the dbBackup-* pattern, so the next sweep
+	 * after the 3-hour threshold removes them.
+	 */
+	public function test_sweep_removes_cancelled_mid_dump_fragments_after_threshold() {
+		$runner  = \MainWP\Child\MainWP_Child_Backup_Task_Runner::instance();
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$prefix  = $this->backup_dir . '/dbBackup-1791459958';
+		$task_id = $spine->create_task( 'db', array( 'db_prefix' => $prefix, 'db_tier' => 2, 'db_cursor' => array( 'index' => 1 ) ) );
+		$files   = array( $prefix . '-wp_posts.sql.php', $prefix . '-wp_options.sql.php.tmp' );
+		foreach ( $files as $file ) {
+			file_put_contents( $file, 'dump' );
+		}
+		$this->assertSame( 'ok', $runner->cancel_backup_task( $task_id )['result'] );
+		foreach ( $files as $file ) {
+			touch( $file, time() - 4 * 3600 );
+		}
+
+		$spine->sweep_stale_markers( $this->backup_dir );
+
+		foreach ( $files as $file ) {
+			$this->assertFileDoesNotExist( $file );
+		}
 	}
 
 	/**
