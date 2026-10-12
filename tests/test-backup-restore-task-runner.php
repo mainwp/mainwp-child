@@ -4840,6 +4840,28 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertEquals( $before, $this->spine->get_task( $task_id ) );
 	}
 
+	public function test_callable_cancel_reports_failed_restore_id_lookup_as_error() {
+		global $wpdb;
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$before  = $this->spine->get_task( $task_id );
+		// Rewrites only the lookup so the query fails without DDL, which would end the test transaction.
+		$break    = static function ( $query ) {
+			return false !== strpos( $query, 'WHERE restore_id = ' ) ? 'SELECT * FROM mainwp_child_missing_restore_lookup' : $query;
+		};
+		$suppress = $wpdb->suppress_errors( true );
+		add_filter( 'query', $break );
+		try {
+			$outcome = $this->callable_cancel( array( 'restore_id' => $before->restore_id ) );
+		} finally {
+			remove_filter( 'query', $break );
+			$wpdb->suppress_errors( $suppress );
+		}
+
+		$this->assertArrayHasKey( 'error', $outcome );
+		$this->assertArrayNotHasKey( 'result', $outcome );
+		$this->assertEquals( $before, $this->spine->get_task( $task_id ) );
+	}
+
 	/** @dataProvider invalid_cancel_restore_ids */
 	public function test_callable_cancel_refuses_invalid_restore_id( $restore_id ) {
 		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );

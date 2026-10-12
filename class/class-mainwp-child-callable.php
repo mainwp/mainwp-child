@@ -1277,6 +1277,13 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
                 $spine->install();
                 $task = $spine->get_task_by_restore_id( $restore_id );
                 if ( null === $task ) {
+                    global $wpdb;
+                    // get_row() also returns null when the query fails. The Dashboard takes not_found as
+                    // "nothing is running", so a failed lookup must stay an error it will retry.
+                    if ( '' !== $wpdb->last_error ) {
+                        MainWP_Helper::instance()->error( esc_html__( 'Restore task not found. It may have been cleaned up or was never created on this site.', 'mainwp-child' ) );
+                        return null;
+                    }
                     MainWP_Helper::write( array( 'result' => 'not_found' ) );
                     return null;
                 }

@@ -26,6 +26,7 @@ class MainWPClonePageTest extends WP_UnitTestCase {
 		$message = 'Unable to create directory ' . $basedir . '/mainwp/. Is its parent directory writable by the server?';
 		$this->assertStringContainsString( '<div class="mainwp-child_info-box-red"><strong>' . esc_html( $message ) . '</strong></div>', $output );
 		$this->assertStringNotContainsString( 'id="title_03"', $output );
-		$this->assertStringContainsString( 'mainwp-child_uploadclonebutton', $output );
+		$this->assertStringContainsString( 'name="file"', $output );
+		$this->assertStringContainsString( 'id="mainwp-child_clone_status"', $output );
 	}
 }
