@@ -312,6 +312,7 @@ class MainWP_Child {
                 'mainwp_linkschecker_ext_enabled',
                 'mainwp_child_branding_settings',
                 'mainwp_child_plugintheme_days_outdate',
+                'mainwp_child_abandoned_check_by_local_date',
                 'mainwp_wp_staging_ext_enabled',
                 'mainwp_child_connected_admin',
                 'mainwp_child_actions_saved_number_of_days',
