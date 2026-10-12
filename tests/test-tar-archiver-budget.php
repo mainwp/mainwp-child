@@ -227,6 +227,88 @@ class TarArchiverBudgetTest extends WP_UnitTestCase {
 		$this->assertSame( str_repeat( "content-$index\n", 50 ), $content );
 	}
 
+	public function test_resumed_tar_gz_with_expired_deadline_adds_new_entry_then_yields() {
+		$this->archive_path .= '.gz';
+		$nested = $this->fixture_dir . '/nested';
+		mkdir( $nested );
+		$contents = array();
+		foreach ( $this->fixture_files as $i => $name ) {
+			$contents[ $this->fixture_dir . '/' . $name ] = str_repeat( "content-$i\n", 50 );
+		}
+		for ( $i = 0; $i < 3; ++$i ) {
+			$path = $nested . '/prior-' . $i . '.txt';
+			$contents[ $path ] = 'prior nested entry ' . $i;
+			file_put_contents( $path, $contents[ $path ] );
+		}
+		$paths = array();
+		$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $this->fixture_dir ), RecursiveIteratorIterator::SELF_FIRST );
+		foreach ( $iterator as $path ) {
+			if ( $path->isFile() ) {
+				$paths[] = $path->__toString();
+			}
+		}
+		// Leave a missing suffix in the same order the resume traversal uses.
+		$new_paths = array_slice( $paths, -2 );
+		$excludes = array_map( function ( $path ) { return str_replace( ABSPATH, '', $path ); }, $new_paths );
+		$archiver = new Tar_Archiver( MainWP_Backup::get(), 'tar.gz' );
+		$reader = new Tar_Archiver( MainWP_Backup::get(), 'tar.gz' );
+		try {
+			$archiver->create( $this->archive_path );
+			$archiver->add_dir( $this->fixture_dir, $excludes );
+			$archiver->close();
+			$prefix = gzdecode( file_get_contents( $this->archive_path ) );
+			foreach ( $contents as $path => $content ) {
+				file_put_contents( $path, in_array( $path, $new_paths, true ) ? 'new entry' : 'must not replace the archived entry' );
+			}
+
+			$archiver = new Tar_Archiver( MainWP_Backup::get(), 'tar.gz' );
+			$mode = new ReflectionProperty( Tar_Archiver::class, 'mode' );
+			$mode->setAccessible( true );
+			$mode->setValue( $archiver, Tar_Archiver::APPEND );
+			$archive_path = new ReflectionProperty( Tar_Archiver::class, 'archivePath' );
+			$archive_path->setAccessible( true );
+			$archive_path->setValue( $archiver, $this->archive_path );
+			$archiver->set_budget_deadline( time() - 1 );
+			$archiver->prepare_append( $this->archive_path );
+			$caught = null;
+			try {
+				$archiver->add_dir( $this->fixture_dir, array() );
+			} catch ( MainWP_Backup_Budget_Exception $e ) {
+				$caught = $e;
+			}
+			$this->assertInstanceOf( MainWP_Backup_Budget_Exception::class, $caught, 'An expired resumed slice must yield after a real add.' );
+			$archiver->close();
+			$stream = gzopen( $this->archive_path, 'rb' );
+			$finished = stream_get_contents( $stream );
+			gzclose( $stream );
+			$this->assertSame( $prefix, substr( $finished, 0, strlen( $prefix ) ), 'Archived files and directory headers must survive unchanged.' );
+
+			$reader->read( $this->archive_path );
+			foreach ( $contents as $path => $content ) {
+				if ( ! in_array( $path, $new_paths, true ) ) {
+					$this->assertSame( $content, $reader->get_from_name( str_replace( ABSPATH, '', $path ) ) );
+				}
+			}
+			$added = array();
+			foreach ( $new_paths as $path ) {
+				$content = $reader->get_from_name( str_replace( ABSPATH, '', $path ) );
+				if ( false !== $content ) {
+					$this->assertSame( 'new entry', $content );
+					$added[] = $path;
+				}
+			}
+			$this->assertCount( 1, $added, 'A resumed slice must write one new entry before yielding.' );
+			$this->assertSame( strlen( $prefix ) + 1024, strlen( $finished ), 'Only one new header and padded file may be appended.' );
+		} finally {
+			$archiver->close();
+			$reader->close();
+			foreach ( (array) glob( $nested . '/*' ) as $path ) {
+				unlink( $path );
+			}
+			rmdir( $nested );
+		}
+	}
+
 	/**
 	 * Clearing the deadline (null) restores unbounded traversal.
 	 */

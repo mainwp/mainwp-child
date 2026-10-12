@@ -42,10 +42,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     const LEASE_TTL_SECONDS = 180;
 
     /**
-     * Work budget for one slice, in seconds. Kept under typical proxy
-     * ceilings with margin for the surrounding request overhead.
+     * Work budget for one slice, in seconds. Some hosts replay POSTs around
+     * 60 seconds; leave room for engine work that overruns a deadline check.
      */
-    const SLICE_BUDGET_SECONDS = 75;
+    const SLICE_BUDGET_SECONDS = 40;
 
     /**
      * Minimum seconds of remaining budget worth starting engine work with.

@@ -161,13 +161,20 @@ class Tar_Archiver {
     protected $budgetDeadline = null;
 
     /**
-     * Whether any node was processed since the deadline was set. The budget
+     * Whether an entry was written since the deadline was set. The budget
      * never interrupts before at least one entry is added, so a slice always
      * makes forward progress even when it starts past its deadline.
      *
      * @var bool Forward-progress marker.
      */
     protected $budgetProgress = false;
+
+    /**
+     * Completed entry writes; skipped archived entries do not increment this.
+     *
+     * @var int
+     */
+    protected $addedEntryCount = 0;
 
     /**
      * Liveness callback fired per added file, or null.
@@ -227,7 +234,7 @@ class Tar_Archiver {
     /**
      * Interrupt the traversal when the slice deadline has passed.
      *
-     * Only fires after at least one node was processed since the deadline
+     * Only fires after at least one entry was written since the deadline
      * was set, and closes the archive first so the file on disk ends at a
      * complete entry that a later append run can extend.
      *
@@ -459,12 +466,15 @@ class Tar_Archiver {
                 }
 
                 if ( ! MainWP_Backup::excluded_by_path_or_target( $excludes, $node ) ) {
+                    $addedEntryCount = $this->addedEntryCount;
                     if ( is_dir( $node ) ) {
                         $this->add_dir( $node, $excludes, array( ABSPATH ) );
                     } elseif ( is_file( $node ) ) {
                         $this->add_file( $node, str_replace( ABSPATH, '', $node ) );
                     }
-                    $this->budgetProgress = true;
+                    if ( $this->addedEntryCount > $addedEntryCount ) {
+                        $this->budgetProgress = true;
+                    }
                 }
             }
 
@@ -665,6 +675,7 @@ class Tar_Archiver {
             }
 
             if ( ! MainWP_Backup::excluded_by_path_or_target( $excludes, $name ) ) {
+                $addedEntryCount = $this->addedEntryCount;
                 if ( $path->isLink() && $path->isDir() ) {
                     // RecursiveDirectoryIterator does not follow linked directories.
                     $this->add_dir( $name, $excludes, $descent_chain, $bases );
@@ -673,7 +684,9 @@ class Tar_Archiver {
                 } else {
                     $this->add_file( $name, str_replace( ABSPATH, '', $name ), $bases );
                 }
-                $this->budgetProgress = true;
+                if ( $this->addedEntryCount > $addedEntryCount ) {
+                    $this->budgetProgress = true;
+                }
             }
             $name = null;
             unset( $name );
@@ -883,6 +896,7 @@ class Tar_Archiver {
 
         $this->add_data( $block );
 
+        ++$this->addedEntryCount;
         return true;
     }
 
@@ -1143,6 +1157,7 @@ class Tar_Archiver {
 
         fclose( $fp );
 
+        ++$this->addedEntryCount;
         return true;
     }
 
@@ -1253,6 +1268,7 @@ class Tar_Archiver {
             $this->add_data( pack( 'a512', $line ) );
         }
 
+        ++$this->addedEntryCount;
         return true;
     }
 

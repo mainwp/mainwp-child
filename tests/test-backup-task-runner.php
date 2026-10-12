@@ -11,7 +11,21 @@ use MainWP\Child\MainWP_Backup_Error;
 use MainWP\Child\MainWP_Backup_Budget_Exception;
 use MainWP\Child\MainWP_Child_Backup_Task;
 use MainWP\Child\MainWP_Child_Backup_Task_Runner;
+use MainWP\Child\MainWP_Child_Callable;
 use MainWP\Child\MainWP_Exception;
+
+class Backup_Slice_Limit_Helper extends \MainWP\Child\MainWP_Helper {
+	public static $limits = array();
+	public static $response;
+
+	public static function set_limit( $timeout, $mem = false ) {
+		self::$limits[] = array( $timeout, $mem );
+	}
+
+	public static function write( $value ) {
+		self::$response = $value;
+	}
+}
 
 /**
  * Runner subclass with the engine seams stubbed and recorded.
@@ -331,6 +345,45 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 			rmdir( $this->backup_dir );
 		}
 		parent::tear_down();
+	}
+
+	public function test_runner_slice_budget_is_40_and_callable_limits_derive_from_it() {
+		$this->assertSame( 40, MainWP_Child_Backup_Task_Runner::SLICE_BUDGET_SECONDS );
+		$this->assertSame( 90, MainWP_Child_Backup_Task::SLICE_BUDGET_SECONDS );
+		$budget = new ReflectionMethod( MainWP_Child_Backup_Task_Runner::class, 'slice_budget' );
+		$budget->setAccessible( true );
+		$this->assertSame( 40, $budget->invoke( MainWP_Child_Backup_Task_Runner::instance() ) );
+
+		// Capture limits and responses because the real writer exits PHP.
+		if ( ! class_exists( 'MainWP\\Child\\Slice_Budget_Callable_Fixture', false ) ) {
+			$methods = '';
+			foreach ( array( 'backup_task_run', 'restore_task_run', 'load_restore_task_from_request' ) as $name ) {
+				$method = new ReflectionMethod( MainWP_Child_Callable::class, $name );
+				$lines = file( $method->getFileName() );
+				$methods .= str_replace( 'MainWP_Helper', '\\Backup_Slice_Limit_Helper', implode( '', array_slice( $lines, $method->getStartLine() - 1, $method->getEndLine() - $method->getStartLine() + 1 ) ) );
+			}
+			eval( 'namespace MainWP\\Child; class Slice_Budget_Callable_Fixture extends MainWP_Child_Callable {' . $methods . '}' );
+		}
+		$previous_post = $_POST;
+		$spine = MainWP_Child_Backup_Task::instance();
+		try {
+			foreach ( array( 'full' => 'backup_task_run', 'restore' => 'restore_task_run' ) as $type => $method ) {
+				$task_id = $spine->create_task( $type );
+				$this->assertNotFalse( $task_id );
+				$this->assertNotFalse( $spine->checkpoint( $task_id, 0, array( 'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED ) ) );
+				$_POST = array( 'task_id' => $task_id );
+				Backup_Slice_Limit_Helper::$limits = array();
+				Backup_Slice_Limit_Helper::$response = null;
+				( new \MainWP\Child\Slice_Budget_Callable_Fixture() )->$method();
+				$this->assertSame( array( array( 2 * MainWP_Child_Backup_Task_Runner::SLICE_BUDGET_SECONDS, '512M' ) ), Backup_Slice_Limit_Helper::$limits, $method );
+				$this->assertSame( 80, Backup_Slice_Limit_Helper::$limits[0][0], $method );
+				$this->assertSame( $task_id, Backup_Slice_Limit_Helper::$response['task_id'] );
+			}
+		} finally {
+			$_POST = $previous_post;
+			Backup_Slice_Limit_Helper::$limits = array();
+			Backup_Slice_Limit_Helper::$response = null;
+		}
 	}
 
 	public function test_create_task_mutex_insert_failure_has_write_failed_error_code() {
