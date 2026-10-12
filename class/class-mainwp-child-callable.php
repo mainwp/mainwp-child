@@ -1269,8 +1269,20 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      * @return object|null Task row, or null after writing an error.
      */
     private function load_restore_task_from_request( $verb ) {
-        unset( $verb );
         $task_id = isset( $_POST['task_id'] ) ? sanitize_text_field( wp_unslash( $_POST['task_id'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification -- authenticated MainWP request.
+        if ( '' === $task_id && 'cancel' === $verb ) {
+            $restore_id = isset( $_POST['restore_id'] ) ? sanitize_text_field( wp_unslash( $_POST['restore_id'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification -- authenticated MainWP request.
+            if ( preg_match( '/^[a-z0-9]{6,16}$/', $restore_id ) ) {
+                $spine = MainWP_Child_Backup_Task::instance();
+                $spine->install();
+                $task = $spine->get_task_by_restore_id( $restore_id );
+                if ( null === $task ) {
+                    MainWP_Helper::write( array( 'result' => 'not_found' ) );
+                    return null;
+                }
+                $task_id = $task->task_id;
+            }
+        }
         if ( '' === $task_id ) {
             MainWP_Helper::instance()->error( esc_html__( 'No restore task specified. The Dashboard did not send a task id with the request.', 'mainwp-child' ) );
             return null;

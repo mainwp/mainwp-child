@@ -15,6 +15,25 @@ use MainWP\Child\MainWP_Child_Callable;
 use MainWP\Child\MainWP_Child_Restore_Task_Runner;
 use MainWP\Child\MainWP_Exception;
 
+class Restore_Cancel_Response extends RuntimeException {
+	public $payload;
+
+	public function __construct( $payload ) {
+		parent::__construct( 'Restore cancel response' );
+		$this->payload = $payload;
+	}
+}
+
+class Restore_Cancel_Response_Helper extends \MainWP\Child\MainWP_Helper {
+	public static function instance() {
+		return new self();
+	}
+
+	public static function write( $value ) {
+		throw new Restore_Cancel_Response( $value );
+	}
+}
+
 /**
  * Scripted DB restore engine: no database side effects, behavior set
  * by the test.
@@ -4801,6 +4820,106 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$outcome = $this->runner->cancel_restore_task( 'no-such-task' );
 
 		$this->assertArrayHasKey( 'error', $outcome );
+	}
+
+	public function test_callable_cancel_by_restore_id_cancels_live_task() {
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$task = $this->spine->get_task( $task_id );
+		$outcome = $this->callable_cancel( array( 'restore_id' => $task->restore_id ) );
+
+		$this->assertSame( 'ok', $outcome['result'] ?? null );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $this->spine->get_task( $task_id )->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_CANCELLED, $this->spine->status_payload( $this->spine->get_task( $task_id ) )['error_code'] );
+	}
+
+	public function test_callable_cancel_unknown_restore_id_changes_nothing() {
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$before = $this->spine->get_task( $task_id );
+
+		$this->assertSame( array( 'result' => 'not_found' ), $this->callable_cancel( array( 'restore_id' => 'missing123' ) ) );
+		$this->assertEquals( $before, $this->spine->get_task( $task_id ) );
+	}
+
+	/** @dataProvider invalid_cancel_restore_ids */
+	public function test_callable_cancel_refuses_invalid_restore_id( $restore_id ) {
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$before = $this->spine->get_task( $task_id );
+		$outcome = $this->callable_cancel( array( 'restore_id' => $restore_id ) );
+
+		$this->assertArrayHasKey( 'error', $outcome );
+		$this->assertArrayNotHasKey( 'result', $outcome );
+		$this->assertEquals( $before, $this->spine->get_task( $task_id ) );
+	}
+
+	public static function invalid_cancel_restore_ids() {
+		return array(
+			'missing' => array( '' ),
+			'short' => array( 'abc12' ),
+			'long' => array( str_repeat( 'a', 17 ) ),
+			'uppercase' => array( 'RESTORE1' ),
+			'path' => array( '../restore1' ),
+		);
+	}
+
+	public function test_callable_cancel_task_id_takes_precedence_over_restore_id() {
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$before = $this->spine->get_task( $task_id );
+		$outcome = $this->callable_cancel( array( 'task_id' => 'unknown-task', 'restore_id' => $before->restore_id ) );
+		$this->assertArrayHasKey( 'error', $outcome );
+		$this->assertEquals( $before, $this->spine->get_task( $task_id ) );
+
+		$outcome = $this->callable_cancel( array( 'task_id' => $task_id, 'restore_id' => 'INVALID' ) );
+		$this->assertSame( 'ok', $outcome['result'] ?? null );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $this->spine->get_task( $task_id )->phase );
+	}
+
+	/** @dataProvider cancel_restore_id_outcomes */
+	public function test_callable_cancel_by_restore_id_preserves_runner_outcomes( $phase, $leased, $expected ) {
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$task = $this->spine->get_task( $task_id );
+		$this->spine->checkpoint( $task_id, (int) $task->version, array( 'phase' => $phase ) );
+		if ( $leased ) {
+			$this->assertTrue( $this->spine->acquire_lease( $task_id, 'other-runner', (int) $this->spine->get_task( $task_id )->version ) );
+		}
+		$outcome = $this->callable_cancel( array( 'restore_id' => $task->restore_id ) );
+		$this->assertSame( $expected, $outcome['result'] ?? null );
+		$this->assertSame( $phase, $this->spine->get_task( $task_id )->phase );
+	}
+
+	public static function cancel_restore_id_outcomes() {
+		return array(
+			'busy' => array( MainWP_Child_Backup_Task::PHASE_QUEUED, true, 'busy' ),
+			'terminal' => array( MainWP_Child_Backup_Task::PHASE_COMPLETED, false, 'already_terminal' ),
+			'rollback' => array( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK, false, 'rolling_back' ),
+		);
+	}
+
+	private function callable_cancel( $post ) {
+		// The response writer exits PHP, so only that boundary is replaced in the real methods.
+		if ( ! class_exists( 'MainWP\\Child\\Restore_Cancel_Callable_Fixture', false ) ) {
+			$methods = '';
+			foreach ( array( 'restore_task_cancel', 'load_restore_task_from_request' ) as $name ) {
+				$method = new ReflectionMethod( MainWP_Child_Callable::class, $name );
+				$lines = file( $method->getFileName() );
+				$methods .= str_replace( 'MainWP_Helper', '\\Restore_Cancel_Response_Helper', implode( '', array_slice( $lines, $method->getStartLine() - 1, $method->getEndLine() - $method->getStartLine() + 1 ) ) );
+			}
+			eval( 'namespace MainWP\\Child; class Restore_Cancel_Callable_Fixture extends MainWP_Child_Callable {' . $methods . '}' );
+		}
+		$previous_post = $_POST;
+		$property = new ReflectionProperty( MainWP_Child_Restore_Task_Runner::class, 'restore_instance' );
+		$property->setAccessible( true );
+		$previous_runner = $property->getValue();
+		$property->setValue( null, $this->runner );
+		$_POST = $post;
+		try {
+			( new \MainWP\Child\Restore_Cancel_Callable_Fixture() )->restore_task_cancel();
+			$this->fail( 'The callable must write a response.' );
+		} catch ( Restore_Cancel_Response $response ) {
+			return $response->payload;
+		} finally {
+			$_POST = $previous_post;
+			$property->setValue( null, $previous_runner );
+		}
 	}
 
 	/**

@@ -334,9 +334,14 @@ class MainWP_Clone_Page {
         $page         = isset( $_REQUEST['page'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['page'] ) ) : '';
         $sitesToClone = get_option( 'mainwp_child_clone_sites' );
         $url          = admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone#title_03' );
-        $dirs         = MainWP_Helper::get_mainwp_dir( 'backup', false );
-        $current_dir  = $dirs[0];
-        $backup_dir   = $current_dir;
+        try {
+            $dirs = MainWP_Helper::get_mainwp_dir( 'backup', false );
+        } catch ( MainWP_Exception $e ) {
+            echo '<div class="mainwp-child_info-box-red"><strong>' . esc_html( $e->getMessage() ) . '</strong></div>';
+            return;
+        }
+        $current_dir = $dirs[0];
+        $backup_dir  = $current_dir;
 
         if ( isset( $_REQUEST['dir'] ) ) {
             $current_dir = isset( $_REQUEST['dir'] ) ? stripslashes( rawurldecode( wp_unslash( $_REQUEST['dir'] ) ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
