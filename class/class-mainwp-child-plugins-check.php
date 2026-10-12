@@ -438,8 +438,7 @@ class MainWP_Child_Plugins_Check {
                 continue;
             }
 
-            // Deserialize the response.
-            $obj = '' === $body ? false : maybe_unserialize( $body );
+            $obj = $this->decode_wordpress_org_response( $body );
 
             // WordPress.org answered but could not date this plugin (premium or unpublished).
             if ( ! is_object( $obj ) || ! property_exists( $obj, 'last_updated' ) ) {
@@ -499,21 +498,15 @@ class MainWP_Child_Plugins_Check {
             'user-agent' => 'WordPress/' . $wp_ver . '; ' . get_bloginfo( 'url' ),
         );
 
-        // The URL for the endpoint.
-        $url      = 'http://api.wordpress.org/plugins/info/1.0/';
-        $http_url = 'http://api.wordpress.org/plugins/info/1.0/';
-
-        $ssl = wp_http_supports( array( 'ssl' ) );
-        if ( $ssl ) {
-            $url = set_url_scheme( $url, 'https' );
-        }
+        // WordPress.org plugin metadata must only be fetched over TLS.
+        $url = 'https://api.wordpress.org/plugins/info/1.0/';
 
         $plugin_dir = $plugin;
         if ( strpos( $plugin, '/' ) !== false ) {
             $plugin_dir = dirname( $plugin );
         }
 
-        // Try to get the response (usually the SSL version).
+        // Try to get the response.
         $raw_response = wp_remote_get( $url . $plugin_dir, $options );
 
         $body = $this->read_response_body( $raw_response, $answered );
@@ -521,17 +514,6 @@ class MainWP_Child_Plugins_Check {
             return $body;
         }
 
-        // The above valid!
-        // If we previously tried an SSL version try without SSL.
-        if ( $ssl ) {
-            $raw_response = wp_remote_get( $http_url . $plugin, $options );
-            $body         = $this->read_response_body( $raw_response, $answered );
-            if ( false !== $body ) {
-                return $body;
-            }
-        }
-
-        // The above failed!
         // If we're on a second pass already then there's nothing left to do but bail.
         if ( true === $second_pass ) {
             return $answered ? '' : false;
@@ -551,6 +533,25 @@ class MainWP_Child_Plugins_Check {
 
         // Everything above failed, bail!
         return $answered ? '' : false;
+    }
+
+    /**
+     * Decode a WordPress.org plugin info response without instantiating arbitrary classes.
+     *
+     * The version 1.0 API returns a serialized stdClass object.
+     *
+     * @param string $body Serialized response body.
+     *
+     * @return \stdClass|false Decoded plugin data, or false for an unexpected response.
+     */
+    private function decode_wordpress_org_response( $body ) {
+        if ( ! is_string( $body ) || ! is_serialized( $body ) ) {
+            return false;
+        }
+
+        $response = unserialize( $body, array( 'allowed_classes' => array( 'stdClass' ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize -- WordPress.org API v1.0 returns serialized data; restrict object creation to stdClass.
+
+        return $response instanceof \stdClass ? $response : false;
     }
 
     /**

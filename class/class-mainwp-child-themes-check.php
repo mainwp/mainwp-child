@@ -404,8 +404,7 @@ class MainWP_Child_Themes_Check {
                 continue;
             }
 
-            // Deserialize the response.
-            $obj = '' === $body ? false : maybe_unserialize( $body ); // phpcs:ignore -- to compatible with third party, it's safe.
+            $obj = $this->decode_wordpress_org_response( $body );
 
             // WordPress.org answered but could not date this theme (premium or unpublished).
             if ( ! is_object( $obj ) || ! property_exists( $obj, 'last_updated' ) ) {
@@ -456,13 +455,8 @@ class MainWP_Child_Themes_Check {
         // Get the WordPress current version to be polite in the API call.
         include_once ABSPATH . WPINC . '/version.php'; // NOSONAR - WP compatible.
 
-        $url      = 'http://api.wordpress.org/themes/info/1.0/';
-        $http_url = 'http://api.wordpress.org/themes/info/1.0/';
-        $ssl      = wp_http_supports( array( 'ssl' ) );
-
-        if ( $ssl ) {
-            $url = set_url_scheme( $url, 'https' );
-        }
+        // WordPress.org theme metadata must only be fetched over TLS.
+        $url = 'https://api.wordpress.org/themes/info/1.0/';
 
         $args = array(
             'slug'   => $theme,
@@ -487,18 +481,27 @@ class MainWP_Child_Themes_Check {
             return $body;
         }
 
-        // The above valid.
-        // If we previously tried an SSL version try without SSL.
-        if ( $ssl ) {
-            $raw_response = wp_remote_post( $http_url, $http_args );
-            $body         = $this->read_response_body( $raw_response, $answered );
-            if ( false !== $body ) {
-                return $body;
-            }
-        }
-
         // Everything above failed, bail!
         return $answered ? '' : false;
+    }
+
+    /**
+     * Decode a WordPress.org theme info response without instantiating arbitrary classes.
+     *
+     * The version 1.0 API returns a serialized stdClass object.
+     *
+     * @param string $body Serialized response body.
+     *
+     * @return \stdClass|false Decoded theme data, or false for an unexpected response.
+     */
+    private function decode_wordpress_org_response( $body ) {
+        if ( ! is_string( $body ) || ! is_serialized( $body ) ) {
+            return false;
+        }
+
+        $response = unserialize( $body, array( 'allowed_classes' => array( 'stdClass' ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize -- WordPress.org API v1.0 returns serialized data; restrict object creation to stdClass.
+
+        return $response instanceof \stdClass ? $response : false;
     }
 
     /**

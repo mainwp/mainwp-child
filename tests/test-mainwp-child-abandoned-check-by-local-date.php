@@ -10,6 +10,20 @@ namespace MainWP\Child;
 use WP_Error;
 use WP_UnitTestCase;
 
+class MainWP_Child_Unexpected_Unserialize_Test_Gadget {
+
+	/**
+	 * Whether object deserialization invoked the wakeup hook.
+	 *
+	 * @var bool
+	 */
+	public static $woke_up = false;
+
+	public function __wakeup() {
+		self::$woke_up = true;
+	}
+}
+
 class Test_MainWP_Child_Abandoned_Check_By_Local_Date extends WP_UnitTestCase {
 
 	const LOCAL_DATE_OPTION = 'mainwp_child_abandoned_check_by_local_date';
@@ -252,6 +266,22 @@ class Test_MainWP_Child_Abandoned_Check_By_Local_Date extends WP_UnitTestCase {
 	/**
 	 * @dataProvider kinds
 	 */
+	public function test_run_check_does_not_instantiate_unexpected_serialized_classes( $kind ) {
+		$slug = $this->install( $kind, 'unexpected-class', $this->days_ago( 400 ) );
+		$this->queue_batch( $kind, $slug );
+		MainWP_Child_Unexpected_Unserialize_Test_Gadget::$woke_up = false;
+		$body = serialize( new MainWP_Child_Unexpected_Unserialize_Test_Gadget() ); // phpcs:ignore -- simulates an untrusted WordPress.org response.
+		$this->stub_wordpress_org( $this->http_response( 200, $body ) );
+
+		$this->checker( $kind )->run_check();
+
+		$this->assertFalse( MainWP_Child_Unexpected_Unserialize_Test_Gadget::$woke_up );
+		$this->assertSame( array( $slug => 1 ), get_transient( self::TRANSIENTS[ $kind ]['no_date'] ) );
+	}
+
+	/**
+	 * @dataProvider kinds
+	 */
 	public function test_undated_list_survives_sync_disabling_checks_but_not_deactivation( $kind ) {
 		$this->set_no_date( $kind, array( 'some-slug' ) );
 
@@ -308,6 +338,7 @@ class Test_MainWP_Child_Abandoned_Check_By_Local_Date extends WP_UnitTestCase {
 			'pre_http_request',
 			function ( $preempt, $args, $url ) use ( $response ) {
 				$this->assertSame( 'api.wordpress.org', wp_parse_url( $url, PHP_URL_HOST ) );
+				$this->assertSame( 'https', wp_parse_url( $url, PHP_URL_SCHEME ) );
 				return $response;
 			},
 			10,
