@@ -46,7 +46,7 @@ class BackupErrorTest extends WP_UnitTestCase {
 		$this->assertSame( 'mainwp_restore_target_not_writable', MainWP_Backup_Error::ERR_RESTORE_TARGET_NOT_WRITABLE );
 		$this->assertContains( MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT, MainWP_Backup_Error::get_registered_codes() );
 		$this->assertContains( MainWP_Backup_Error::ERR_RESTORE_TARGET_NOT_WRITABLE, MainWP_Backup_Error::get_registered_codes() );
-		$this->assertSame( esc_html( "MainWP backups cannot run on this site yet. Its wp-content folder is stored outside the WordPress core folder. Some managed hosts, such as Pressable and WordPress.com, and Bedrock installs use this layout. No backup or restore was started and nothing on the site was changed. Use the backups your host provides for this site for now." ), MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT ) );
+		$this->assertSame( esc_html( "This file backup or restore cannot run on this site yet. Its wp-content or uploads folder is outside the WordPress core folder, either directly or through a symlink. Some managed hosts, such as Pressable and WordPress.com, and Bedrock installs use this layout. No backup or restore was started and nothing on the site was changed. Database-only backups and restores still work on this site. Use the backups your host provides for files for now." ), MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT ) );
 		$this->assertSame( esc_html( 'The restore stopped because a folder on the site is not writable. Files restored before that point may already have been replaced. Ask your host to give the web server write access to the site files, then run the restore again.' ), MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_TARGET_NOT_WRITABLE ) );
 	}
 
