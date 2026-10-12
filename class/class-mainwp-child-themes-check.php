@@ -452,29 +452,24 @@ class MainWP_Child_Themes_Check {
     private function try_get_response_body( $theme ) {
         $answered = false;
 
-        // Get the WordPress current version to be polite in the API call.
-        include_once ABSPATH . WPINC . '/version.php'; // NOSONAR - WP compatible.
-
-        // WordPress.org theme metadata must only be fetched over TLS.
-        $url = 'https://api.wordpress.org/themes/info/1.0/';
-
-        $args = array(
-            'slug'   => $theme,
-            'fields' => array(
-                'sections' => false,
-                'tags'     => false,
-            ),
-        );
-        $args = (object) $args;
-
-        $http_args = array(
-            'body' => array(
+        $url = add_query_arg(
+            array(
                 'action'  => 'theme_information',
-                'request' => serialize( $args ), // phpcs:ignore -- third party compatible.
+                'request' => array(
+                    'slug'   => $theme,
+                    'fields' => array(
+                        'description' => false,
+                        'ratings'     => false,
+                        'screenshots' => false,
+                        'sections'    => false,
+                        'tags'        => false,
+                    ),
+                ),
             ),
+            'https://api.wordpress.org/themes/info/1.2/'
         );
 
-        $raw_response = wp_remote_post( $url, $http_args );
+        $raw_response = wp_remote_get( $url );
 
         $body = $this->read_response_body( $raw_response, $answered );
         if ( false !== $body ) {
@@ -486,20 +481,18 @@ class MainWP_Child_Themes_Check {
     }
 
     /**
-     * Decode a WordPress.org theme info response without instantiating arbitrary classes.
+     * Decode a WordPress.org theme info response.
      *
-     * The version 1.0 API returns a serialized stdClass object.
-     *
-     * @param string $body Serialized response body.
+     * @param string $body JSON response body.
      *
      * @return \stdClass|false Decoded theme data, or false for an unexpected response.
      */
     private function decode_wordpress_org_response( $body ) {
-        if ( ! is_string( $body ) || ! is_serialized( $body ) ) {
+        if ( ! is_string( $body ) || '' === $body ) {
             return false;
         }
 
-        $response = unserialize( $body, array( 'allowed_classes' => array( 'stdClass' ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize -- WordPress.org API v1.0 returns serialized data; restrict object creation to stdClass.
+        $response = json_decode( $body );
 
         return $response instanceof \stdClass ? $response : false;
     }
@@ -509,7 +502,7 @@ class MainWP_Child_Themes_Check {
      *
      * A 404 or an empty 200 means WordPress.org has no data for the slug, which differs from a failed request.
      *
-     * @param array|\WP_Error $raw_response Response from wp_remote_post().
+     * @param array|\WP_Error $raw_response Response from wp_remote_get().
      * @param bool            $answered     Set to true when WordPress.org answered without theme data.
      *
      * @return string|false The body, or false when there is no usable body.
@@ -531,8 +524,7 @@ class MainWP_Child_Themes_Check {
 
         $body = wp_remote_retrieve_body( $raw_response );
 
-        // Make sure that it isn't empty and also not an empty serialized object.
-        if ( '' !== $body && 'N;' !== $body ) {
+        if ( '' !== $body ) {
             return $body;
         }
 

@@ -431,7 +431,7 @@ class MainWP_Child_Plugins_Check {
                 continue;
             }
             // Try to get the raw information for this plugin.
-            $body = $this->try_get_response_body( $slug, false );
+            $body = $this->try_get_response_body( $slug );
 
             // We couldn't reach WordPress.org, skip this plugin.
             if ( false === $body ) {
@@ -481,11 +481,9 @@ class MainWP_Child_Plugins_Check {
      * Try to get response body.
      *
      * @param string $plugin Plugin slug.
-     * @param bool   $second_pass Second pass check.
-     *
-     * @return bool|string The body of the response. Empty string when WordPress.org answered without plugin data (not found, empty or N;). False when no request got an answer.
+     * @return bool|string The body of the response. Empty string when WordPress.org answered without plugin data. False when no request got an answer.
      */
-    private function try_get_response_body( $plugin, $second_pass ) { //phpcs:ignore -- NOSONAR - complex.
+    private function try_get_response_body( $plugin ) {
         $answered = false;
 
         // Get the WordPress current version to be polite in the API call.
@@ -498,58 +496,55 @@ class MainWP_Child_Plugins_Check {
             'user-agent' => 'WordPress/' . $wp_ver . '; ' . get_bloginfo( 'url' ),
         );
 
-        // WordPress.org plugin metadata must only be fetched over TLS.
-        $url = 'https://api.wordpress.org/plugins/info/1.0/';
-
         $plugin_dir = $plugin;
         if ( strpos( $plugin, '/' ) !== false ) {
             $plugin_dir = dirname( $plugin );
         }
 
+        $url = add_query_arg(
+            array(
+                'action'  => 'plugin_information',
+                'request' => array(
+                    'slug'   => $plugin_dir,
+                    'fields' => array(
+                        'banners'           => false,
+                        'contributors'      => false,
+                        'description'       => false,
+                        'icons'             => false,
+                        'ratings'           => false,
+                        'sections'          => false,
+                        'short_description' => false,
+                        'versions'          => false,
+                    ),
+                ),
+            ),
+            'https://api.wordpress.org/plugins/info/1.2/'
+        );
+
         // Try to get the response.
-        $raw_response = wp_remote_get( $url . $plugin_dir, $options );
+        $raw_response = wp_remote_get( $url, $options );
 
         $body = $this->read_response_body( $raw_response, $answered );
         if ( false !== $body ) {
             return $body;
         }
 
-        // If we're on a second pass already then there's nothing left to do but bail.
-        if ( true === $second_pass ) {
-            return $answered ? '' : false;
-        }
-
-        // We're still on the first pass, try to get just the name of the directory of the plugin.
-        $parts = explode( '/', $plugin );
-
-        // Sanity check that we have two parts, a directory and a file name.
-        if ( 2 === count( $parts ) ) {
-            // Try this entire function using just the directory name.
-            $body = $this->try_get_response_body( $parts[0], true );
-            if ( false !== $body ) {
-                return $body;
-            }
-        }
-
-        // Everything above failed, bail!
         return $answered ? '' : false;
     }
 
     /**
-     * Decode a WordPress.org plugin info response without instantiating arbitrary classes.
+     * Decode a WordPress.org plugin info response.
      *
-     * The version 1.0 API returns a serialized stdClass object.
-     *
-     * @param string $body Serialized response body.
+     * @param string $body JSON response body.
      *
      * @return \stdClass|false Decoded plugin data, or false for an unexpected response.
      */
     private function decode_wordpress_org_response( $body ) {
-        if ( ! is_string( $body ) || ! is_serialized( $body ) ) {
+        if ( ! is_string( $body ) || '' === $body ) {
             return false;
         }
 
-        $response = unserialize( $body, array( 'allowed_classes' => array( 'stdClass' ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize -- WordPress.org API v1.0 returns serialized data; restrict object creation to stdClass.
+        $response = json_decode( $body );
 
         return $response instanceof \stdClass ? $response : false;
     }
@@ -581,8 +576,7 @@ class MainWP_Child_Plugins_Check {
 
         $body = wp_remote_retrieve_body( $raw_response );
 
-        // Make sure that it isn't empty and also not an empty serialized object.
-        if ( '' !== $body && 'N;' !== $body ) {
+        if ( '' !== $body ) {
             return $body;
         }
 

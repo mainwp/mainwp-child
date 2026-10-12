@@ -10,20 +10,6 @@ namespace MainWP\Child;
 use WP_Error;
 use WP_UnitTestCase;
 
-class MainWP_Child_Unexpected_Unserialize_Test_Gadget {
-
-	/**
-	 * Whether object deserialization invoked the wakeup hook.
-	 *
-	 * @var bool
-	 */
-	public static $woke_up = false;
-
-	public function __wakeup() {
-		self::$woke_up = true;
-	}
-}
-
 class Test_MainWP_Child_Abandoned_Check_By_Local_Date extends WP_UnitTestCase {
 
 	const LOCAL_DATE_OPTION = 'mainwp_child_abandoned_check_by_local_date';
@@ -80,10 +66,12 @@ class Test_MainWP_Child_Abandoned_Check_By_Local_Date extends WP_UnitTestCase {
 	public function wordpress_org_answers_without_a_date() {
 		$cases = array();
 		foreach ( array( 'plugin', 'theme' ) as $kind ) {
-			$cases[ "$kind not found" ]      = array( $kind, 404, '' );
-			$cases[ "$kind empty body" ]     = array( $kind, 200, '' );
-			$cases[ "$kind null body" ]      = array( $kind, 200, 'N;' );
-			$cases[ "$kind body lacks date" ] = array( $kind, 200, serialize( (object) array( 'name' => 'Premium' ) ) ); // phpcs:ignore -- matches the WordPress.org 1.0 API format.
+			$cases[ "$kind not found" ]              = array( $kind, 404, wp_json_encode( array( 'error' => ucfirst( $kind ) . ' not found.' ) ) );
+			$cases[ "$kind empty body" ]             = array( $kind, 200, '' );
+			$cases[ "$kind JSON null" ]              = array( $kind, 200, 'null' );
+			$cases[ "$kind invalid JSON" ]           = array( $kind, 200, '{' );
+			$cases[ "$kind body lacks date" ]        = array( $kind, 200, wp_json_encode( array( 'name' => 'Premium' ) ) );
+			$cases[ "$kind legacy serialized body" ] = array( $kind, 200, 'O:8:"stdClass":2:{s:7:"version";s:5:"1.2.3";s:12:"last_updated";s:19:"2026-01-01 00:00:00";}' );
 		}
 		return $cases;
 	}
@@ -254,7 +242,7 @@ class Test_MainWP_Child_Abandoned_Check_By_Local_Date extends WP_UnitTestCase {
 			'version'      => '1.2.3',
 			'last_updated' => gmdate( 'Y-m-d H:i:s', $this->days_ago( 10 ) ),
 		);
-		$this->stub_wordpress_org( $this->http_response( 200, serialize( $info ) ) ); // phpcs:ignore -- matches the WordPress.org 1.0 API format.
+		$this->stub_wordpress_org( $this->http_response( 200, wp_json_encode( $info ) ) );
 
 		$this->checker( $kind )->run_check();
 
@@ -266,17 +254,26 @@ class Test_MainWP_Child_Abandoned_Check_By_Local_Date extends WP_UnitTestCase {
 	/**
 	 * @dataProvider kinds
 	 */
-	public function test_run_check_does_not_instantiate_unexpected_serialized_classes( $kind ) {
-		$slug = $this->install( $kind, 'unexpected-class', $this->days_ago( 400 ) );
+	public function test_run_check_preserves_wordpress_org_abandoned_row_shape( $kind ) {
+		$slug = $this->install( $kind, 'wordpress-org', $this->days_ago( 10 ) );
 		$this->queue_batch( $kind, $slug );
-		MainWP_Child_Unexpected_Unserialize_Test_Gadget::$woke_up = false;
-		$body = serialize( new MainWP_Child_Unexpected_Unserialize_Test_Gadget() ); // phpcs:ignore -- simulates an untrusted WordPress.org response.
-		$this->stub_wordpress_org( $this->http_response( 200, $body ) );
+		$info = (object) array(
+			'version'      => '1.2.3',
+			'last_updated' => gmdate( 'Y-m-d H:i:s', $this->days_ago( 400 ) ),
+		);
+		$this->stub_wordpress_org( $this->http_response( 200, wp_json_encode( $info ) ) );
 
 		$this->checker( $kind )->run_check();
 
-		$this->assertFalse( MainWP_Child_Unexpected_Unserialize_Test_Gadget::$woke_up );
-		$this->assertSame( array( $slug => 1 ), get_transient( self::TRANSIENTS[ $kind ]['no_date'] ) );
+		$rows = get_transient( self::TRANSIENTS[ $kind ]['rows'] );
+		$this->assertArrayHasKey( $slug, $rows );
+		$this->assertSame( 'Queued', $rows[ $slug ]['Name'] );
+		$this->assertSame( '1.2.3', $rows[ $slug ]['Version'] );
+		$this->assertSame( strtotime( $info->last_updated ), $rows[ $slug ]['last_updated'] );
+		$this->assertArrayNotHasKey( 'detection', $rows[ $slug ] );
+		if ( 'plugin' === $kind ) {
+			$this->assertSame( '', $rows[ $slug ]['PluginURI'] );
+		}
 	}
 
 	/**
@@ -339,6 +336,15 @@ class Test_MainWP_Child_Abandoned_Check_By_Local_Date extends WP_UnitTestCase {
 			function ( $preempt, $args, $url ) use ( $response ) {
 				$this->assertSame( 'api.wordpress.org', wp_parse_url( $url, PHP_URL_HOST ) );
 				$this->assertSame( 'https', wp_parse_url( $url, PHP_URL_SCHEME ) );
+				$this->assertSame( 'GET', $args['method'] );
+
+				$path = wp_parse_url( $url, PHP_URL_PATH );
+				$this->assertContains( $path, array( '/plugins/info/1.2/', '/themes/info/1.2/' ) );
+
+				parse_str( wp_parse_url( $url, PHP_URL_QUERY ), $query_args );
+				$expected_action = '/plugins/info/1.2/' === $path ? 'plugin_information' : 'theme_information';
+				$this->assertSame( $expected_action, $query_args['action'] );
+				$this->assertNotEmpty( $query_args['request']['slug'] );
 				return $response;
 			},
 			10,
