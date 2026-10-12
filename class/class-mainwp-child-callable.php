@@ -1149,7 +1149,8 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         $file = isset( $_REQUEST['del'] ) ? wp_unslash( $_REQUEST['del'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- The archive-name check below rejects path components before filesystem access.
         // phpcs:enable
 
-        if ( $this->is_backup_archive_name( $file ) ) {
+        // realpath() follows links, so a linked name would delete whichever archive the link targets.
+        if ( $this->is_backup_archive_name( $file ) && ! is_link( $backupdir . $file ) ) {
             $resolved_dir  = realpath( $backupdir );
             $resolved_file = realpath( $backupdir . $file );
             if ( false !== $resolved_dir && false !== $resolved_file && is_file( $resolved_file ) && 0 === strpos( $resolved_file, $resolved_dir . DIRECTORY_SEPARATOR ) ) {

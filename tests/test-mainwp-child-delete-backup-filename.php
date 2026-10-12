@@ -150,6 +150,24 @@ class Test_MainWP_Child_Delete_Backup_Filename extends WP_UnitTestCase {
     }
 
     /**
+     * A link inside the directory resolves to a different archive than the one requested.
+     */
+    public function test_inside_symlink_is_refused() {
+        if ( ! function_exists( 'symlink' ) ) {
+            $this->markTestSkipped( 'symlink() is unavailable; inside-link handling cannot be exercised.' );
+        }
+        $target = $this->backupdir . 'original.zip';
+        $link   = $this->backupdir . 'linked.zip';
+        $this->create_fixture( $target );
+        $this->assertTrue( symlink( $target, $link ) );
+        $this->fixture_files[] = $link;
+
+        $this->assert_ok_reply( 'linked.zip' );
+        $this->assertFileExists( $target, 'A link deleted the archive it points to.' );
+        $this->assertTrue( is_link( $link ), 'An archive symlink must remain untouched.' );
+    }
+
+    /**
      * A missing archive must preserve neighbouring files and the legacy reply.
      */
     public function test_missing_file_returns_ok_without_deletion() {
