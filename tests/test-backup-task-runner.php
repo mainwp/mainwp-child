@@ -355,6 +355,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( 40, $budget->invoke( MainWP_Child_Backup_Task_Runner::instance() ) );
 
 		// Capture limits and responses because the real writer exits PHP.
+		// The copied bodies may only use MainWP_Helper:: unqualified and no private members beyond the copied methods; anything else breaks the eval.
 		if ( ! class_exists( 'MainWP\\Child\\Slice_Budget_Callable_Fixture', false ) ) {
 			$methods = '';
 			foreach ( array( 'backup_task_run', 'restore_task_run', 'load_restore_task_from_request' ) as $name ) {

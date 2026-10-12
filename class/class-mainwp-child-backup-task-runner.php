@@ -37,7 +37,9 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     const LEASE_OWNER_WATCHDOG = 'watchdog';
 
     /**
-     * Lease TTL in seconds (~2x one slice).
+     * Lease TTL in seconds. Several times the slice budget so engine work that
+     * overruns a deadline check keeps the lease; a slice that dies holds the
+     * task this long.
      */
     const LEASE_TTL_SECONDS = 180;
 
