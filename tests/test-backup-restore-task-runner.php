@@ -432,6 +432,47 @@ class Fake_Restore_Engine extends MainWP_Backup_Db_Restore_Engine {
 }
 
 /**
+ * Terminal cleanup fixtures keep recovery and maintenance effects observable.
+ */
+class Dump_Sweep_Restore_Engine extends Fake_Restore_Engine {
+	public $maintenance_file;
+	public $tmp_table;
+	public $old_table;
+	public $rollback_throw = false;
+
+	public function begin_maintenance() {
+		parent::begin_maintenance();
+		file_put_contents( $this->maintenance_file, 'offline' );
+	}
+
+	public function exit_maintenance() {
+		parent::exit_maintenance();
+		if ( is_file( $this->maintenance_file ) ) {
+			unlink( $this->maintenance_file );
+		}
+	}
+
+	public function cleanup_tmp_tables( $restore_id ) {
+		parent::cleanup_tmp_tables( $restore_id );
+		global $wpdb;
+		$wpdb->query( 'DROP TABLE IF EXISTS `' . $this->tmp_table . '`' );
+	}
+
+	public function drop_old_tables( $restore_id ) {
+		parent::drop_old_tables( $restore_id );
+		global $wpdb;
+		$wpdb->query( 'DROP TABLE IF EXISTS `' . $this->old_table . '`' );
+	}
+
+	public function rollback_aside_slice( $cursor, $config, $deadline, $unclean = false ) {
+		if ( $this->rollback_throw ) {
+			throw new MainWP_Exception( 'rollback exploded', null, MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED );
+		}
+		return parent::rollback_aside_slice( $cursor, $config, $deadline, $unclean );
+	}
+}
+
+/**
  * Restore runner with every environment dependency pinned.
  */
 class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
@@ -697,6 +738,32 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 			return (int) $this->fake_snapshot_bytes;
 		}
 		return parent::estimate_live_tables_bytes( $tables );
+	}
+}
+
+/**
+ * Pause real terminal paths before cleanup while another actor runs.
+ */
+class Dump_Sweep_Restore_Runner extends Testable_Restore_Task_Runner {
+	public $before_terminal_cleanup;
+	public $before_external_cleanup;
+
+	protected function terminal_cleanup( $task, $sub_state, $backup_dir, $owner = '' ) {
+		if ( null !== $this->before_terminal_cleanup ) {
+			$pause = $this->before_terminal_cleanup;
+			$this->before_terminal_cleanup = null;
+			$pause( $task );
+		}
+		return parent::terminal_cleanup( $task, $sub_state, $backup_dir, $owner );
+	}
+
+	public function cleanup_terminal_task( $task ) {
+		if ( null !== $this->before_external_cleanup ) {
+			$pause = $this->before_external_cleanup;
+			$this->before_external_cleanup = null;
+			$pause( $task );
+		}
+		parent::cleanup_terminal_task( $task );
 	}
 }
 
@@ -4490,6 +4557,297 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 
 		$this->assertNotContains( 'exit_maintenance', $this->runner->fake_engine->calls );
 		$this->assertNotContains( 'cleanup_tmp_tables', $this->runner->fake_engine->calls );
+	}
+
+	protected function dump_sweep_runner() {
+		$runner = new Dump_Sweep_Restore_Runner();
+		$runner->test_backup_dir = $this->dir;
+		$runner->test_site_root = $this->site;
+		$runner->test_content_roots = $this->runner->test_content_roots;
+		$engine = new Dump_Sweep_Restore_Engine();
+		$engine->maintenance_file = $this->site . '/.maintenance';
+		$engine->tmp_table = 'rt_dump_sweep_tmp';
+		$engine->old_table = 'rt_dump_sweep_old';
+		$runner->fake_engine = $engine;
+		$this->runner = $runner;
+		return $runner;
+	}
+
+	protected function dump_sweep_fixture( $phase = MainWP_Child_Backup_Task::PHASE_REPLAYING_DB ) {
+		$this->dump_sweep_runner();
+		$task_id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$task = $this->spine->get_task( $task_id );
+		$scratch = $this->runner->scratch_dir( $task_id, $this->dir );
+		mkdir( $scratch . 'aside', 0777, true );
+		file_put_contents( $scratch . 'aside/recovery.sql.php', 'recovery snapshot' );
+		file_put_contents( $this->dir . '/pre-snapshot.zip', 'pre-snapshot' );
+		file_put_contents( $this->dir . '/dbBackup-scratch.sql.php', 'scratch dump' );
+		$this->runner->fake_engine->begin_maintenance();
+		global $wpdb;
+		foreach ( array( 'rt_dump_sweep_tmp', 'rt_dump_sweep_old' ) as $table ) {
+			$wpdb->query( 'CREATE TABLE `' . $table . '` (id INT)' );
+			$wpdb->query( 'INSERT INTO `' . $table . '` VALUES (17)' );
+			$this->identity_fixture_tables[] = $table;
+		}
+		$state = $this->spine->read_sub_state( $task, $this->dir );
+		$state['db_replay'] = array( 'files' => array(), 'fk_path' => false, 'cursor' => array(), 'seen_resumes' => 0, 'source_prefix' => 'src_' );
+		$state['fk_snapshot'] = array( 'existing' => array( 'rt_items' ), 'files' => array( $scratch . 'aside/recovery.sql.php' ) );
+		$this->assertNotFalse( $this->spine->checkpoint( $task_id, (int) $task->version, array( 'phase' => $phase, 'sub_state' => $state ) ) );
+		$this->seed_dump_sweep_litter();
+		$this->runner->fake_engine->calls = array();
+		return $task_id;
+	}
+
+	protected function seed_dump_sweep_litter( $bytes = 'extracted dump' ) {
+		wp_mkdir_p( $this->site . '/wp-content/nested' );
+		foreach ( array( 'dbBackup-test.sql.php', 'dbBackup.sql', 'wp-content/dbBackup-test.sql.php', 'wp-content/dbBackup.sql' ) as $file ) {
+			file_put_contents( $this->site . '/' . $file, $bytes );
+		}
+		file_put_contents( $this->site . '/wp-content/nested/dbBackup-keep.sql.php', 'nested content' );
+		file_put_contents( $this->site . '/dbBackup-keep.txt', 'site content' );
+	}
+
+	protected function assert_dump_sweep_state( $task_id, $litter_kept, $maintenance_on, $scratch_kept, $tmp_kept = false ) {
+		global $wpdb;
+		clearstatcache();
+		foreach ( array( 'dbBackup-test.sql.php', 'dbBackup.sql', 'wp-content/dbBackup-test.sql.php', 'wp-content/dbBackup.sql' ) as $file ) {
+			$this->assertSame( $litter_kept, is_file( $this->site . '/' . $file ), $file );
+			if ( $litter_kept ) {
+				$this->assertSame( 'extracted dump', file_get_contents( $this->site . '/' . $file ) );
+			}
+		}
+		$this->assertSame( $maintenance_on, is_file( $this->site . '/.maintenance' ), 'Maintenance state.' );
+		$recovery = $this->runner->scratch_dir( $task_id, $this->dir ) . 'aside/recovery.sql.php';
+		$this->assertSame( $scratch_kept, is_file( $recovery ), 'Recovery snapshot.' );
+		if ( $scratch_kept ) {
+			$this->assertSame( 'recovery snapshot', file_get_contents( $recovery ) );
+		}
+		$this->assertSame( 'pre-snapshot', file_get_contents( $this->dir . '/pre-snapshot.zip' ) );
+		$this->assertSame( 'scratch dump', file_get_contents( $this->dir . '/dbBackup-scratch.sql.php' ) );
+		$this->assertSame( 'nested content', file_get_contents( $this->site . '/wp-content/nested/dbBackup-keep.sql.php' ) );
+		$this->assertSame( 'site content', file_get_contents( $this->site . '/dbBackup-keep.txt' ) );
+		$this->assertSame( '17', $wpdb->get_var( 'SELECT id FROM `rt_dump_sweep_old`' ), 'Aside table retained.' );
+		$prior = $wpdb->suppress_errors( true );
+		$tmp = $wpdb->get_var( 'SELECT id FROM `rt_dump_sweep_tmp`' );
+		$wpdb->suppress_errors( $prior );
+		$this->assertSame( $tmp_kept ? '17' : null, $tmp, 'Temporary table state.' );
+	}
+
+	public function test_block_c_a_leased_cancel_sweeps_dump_litter() {
+		$task_id = $this->dump_sweep_fixture();
+		$fences = array();
+		$observe = function ( $file ) use ( $task_id, &$fences ) {
+			if ( false !== strpos( $file, '/dbBackup' ) ) {
+				$task = $this->spine->get_task( $task_id );
+				$fences[] = array( $task->active_slot, $task->lease_owner, $task->phase );
+			}
+			return $file;
+		};
+		add_filter( 'wp_delete_file', $observe );
+		try {
+			$this->assertSame( 'ok', $this->runner->cancel_restore_task( $task_id )['result'] );
+		} finally {
+			remove_filter( 'wp_delete_file', $observe );
+		}
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_CANCELLED, $this->spine->status_payload( $this->spine->get_task( $task_id ), $this->dir )['error_code'] );
+		$this->assert_dump_sweep_state( $task_id, false, false, false );
+		$this->assertCount( 4, $fences );
+		foreach ( $fences as $fence ) {
+			$this->assertSame( '1', $fence[0], 'Sweep before the terminal write releases the slot.' );
+			$this->assertMatchesRegularExpression( '/^cancel:[a-f0-9-]{36}$/', $fence[1], 'Cleanup owns this cancellation invocation.' );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $fence[2] );
+		}
+	}
+
+	public function test_block_c_b_phase_exception_sweeps_dump_litter() {
+		$task_id = $this->dump_sweep_fixture();
+		$this->runner->fake_engine->replay_throw = true;
+		$task = $this->drive( $task_id );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $this->spine->status_payload( $task, $this->dir )['error_code'] );
+		$this->assert_dump_sweep_state( $task_id, false, false, false );
+	}
+
+	public function test_block_c_c_reconcile_abort_sweeps_dump_litter() {
+		$task_id = $this->dump_sweep_fixture( MainWP_Child_Backup_Task::PHASE_RESTORING_FILES );
+		$task = $this->spine->get_task( $task_id );
+		$state = $this->spine->read_sub_state( $task, $this->dir );
+		$manifest = $this->runner->scratch_dir( $task_id, $this->dir ) . 'bad-files.list';
+		file_put_contents( $manifest, "invalid\trow\t1\t1\n" );
+		$state['file_restore'] = array( 'op_index' => 0, 'part_cursor' => array(), 'dump_litter_swept' => true );
+		$state['params']['reconcile'] = array( 'manifest' => 'bad-files.list', 'walk' => array( 'excludes' => array(), 'excludenonwp' => 0, 'excludezip' => 0 ) );
+		$state['verified_manifests'] = array( 'bad-files.list' => hash_file( 'sha256', $manifest ) );
+		$this->spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => $state ) );
+		global $wpdb;
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET type = %s WHERE task_id = %s', 'restore_files', $task_id ) );
+		$task = $this->drive( $task_id );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_RECONCILE, $this->spine->status_payload( $task, $this->dir )['error_code'] );
+		$this->assert_dump_sweep_state( $task_id, false, false, false );
+	}
+
+	protected function with_dump_sweep_singleton( $callback ) {
+		$singleton = new ReflectionProperty( MainWP_Child_Restore_Task_Runner::class, 'restore_instance' );
+		$singleton->setAccessible( true );
+		$prior = $singleton->getValue();
+		$singleton->setValue( null, $this->runner );
+		try {
+			return $callback();
+		} finally {
+			$singleton->setValue( null, $prior );
+		}
+	}
+
+	public function test_block_c_d_external_timeout_sweeps_dump_litter() {
+		$task_id = $this->dump_sweep_fixture();
+		$this->force_deadline_past( $task_id );
+		$admission = null;
+		$observe = function ( $file ) use ( &$admission ) {
+			if ( null === $admission && false !== strpos( $file, '/dbBackup' ) ) {
+				try {
+					$admission = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+				} catch ( MainWP_Exception $e ) {
+					$admission = $e->get_message_error_code();
+				}
+			}
+			return $file;
+		};
+		add_filter( 'wp_delete_file', $observe );
+		try {
+			$this->assertTrue( $this->with_dump_sweep_singleton( function () use ( $task_id ) {
+				return $this->spine->enforce_wall_clock_deadline( $task_id );
+			} ) );
+		} finally {
+			remove_filter( 'wp_delete_file', $observe );
+		}
+		$this->assertSame( MainWP_Backup_Error::ERR_WALL_CLOCK, $this->spine->status_payload( $this->spine->get_task( $task_id ), $this->dir )['error_code'] );
+		$this->assert_dump_sweep_state( $task_id, false, false, false );
+		$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $admission, 'The terminal sweeper fences successor admission during deletion.' );
+	}
+
+	public function test_block_c_e_stale_slice_owner_cannot_sweep() {
+		$task_id = $this->dump_sweep_fixture();
+		$this->runner->fake_engine->replay_throw = true;
+		$ran_successor = false;
+		$this->runner->before_terminal_cleanup = function () use ( $task_id, &$ran_successor ) {
+			global $wpdb;
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $task_id ) );
+			$successor = clone $this->runner;
+			$successor->before_terminal_cleanup = null;
+			$successor->fake_engine = clone $this->runner->fake_engine;
+			$successor->fake_engine->replay_throw = false;
+			$successor->fake_engine->replay_yield_once = true;
+			$task = $successor->advance_one_slice( $this->spine->get_task( $task_id ), 'successor' );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $task->phase );
+			$ran_successor = true;
+		};
+		$task = $this->runner->advance_one_slice( $this->spine->get_task( $task_id ), 'stale' );
+		$this->assertTrue( $ran_successor );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $task->phase );
+		$this->assert_dump_sweep_state( $task_id, true, false, false );
+	}
+
+	public function test_block_c_f_successor_after_slot_release_keeps_fresh_dumps() {
+		$task_id = $this->dump_sweep_fixture();
+		$this->force_deadline_past( $task_id );
+		$successor_id = null;
+		$this->runner->before_external_cleanup = function () use ( &$successor_id ) {
+			$this->assertEmpty( $this->spine->get_active_tasks(), 'Pause after the terminal write releases the slot.' );
+			$successor = clone $this->runner;
+			$successor->before_external_cleanup = null;
+			$successor->fake_engine = clone $this->runner->fake_engine;
+			$successor->fake_engine->replay_yield_once = true;
+			$artifact = $this->make_full_archive_with_embedded_dump();
+			$successor_id = $successor->create_restore_task( 'full', array( 'restore_id' => 'sweep_successor', 'source_prefix' => 'bn_', 'artifacts' => array( $artifact ), 'has_foreign_keys' => null ) );
+			$task = $successor->advance_one_slice( $this->spine->get_task( $successor_id ), 'successor' );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $task->phase );
+			$this->assertFileExists( $this->site . '/wp-content/dbBackup-bn_items.sql.php' );
+			$this->seed_dump_sweep_litter();
+		};
+		$this->assertTrue( $this->with_dump_sweep_singleton( function () use ( $task_id ) {
+			return $this->spine->enforce_wall_clock_deadline( $task_id );
+		} ) );
+		$this->assertNotNull( $successor_id );
+		$this->assertFileExists( $this->site . '/wp-content/dbBackup-bn_items.sql.php' );
+		$this->assert_dump_sweep_state( $task_id, true, false, false );
+	}
+
+	public function test_block_c_g_completed_fk_rollback_sweeps_dump_litter() {
+		$task_id = $this->dump_sweep_fixture( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK );
+		$task = $this->drive( $task_id );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_ROLLED_BACK, $this->spine->status_payload( $task, $this->dir )['error_code'] );
+		$this->assert_dump_sweep_state( $task_id, false, false, false, true );
+	}
+
+	/** @dataProvider block_c_rollback_failures */
+	public function test_block_c_h_failed_fk_rollback_keeps_recovery( $failure ) {
+		$task_id = $this->dump_sweep_fixture( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK );
+		if ( 'error' === $failure ) {
+			$this->runner->fake_engine->rollback_error = 'rollback failed';
+			$task = $this->drive( $task_id );
+		} elseif ( 'exception' === $failure ) {
+			$this->runner->fake_engine->rollback_throw = true;
+			$task = $this->drive( $task_id );
+		} else {
+			$this->with_dump_sweep_singleton( function () use ( $task_id, $failure ) {
+				if ( 'deadline' === $failure ) {
+					$this->force_deadline_past( $task_id );
+					$this->assertTrue( $this->spine->enforce_wall_clock_deadline( $task_id ) );
+				} else {
+					global $wpdb;
+					$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET resume_count = max_resumes, last_progress_at = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE task_id = %s', $task_id ) );
+					\MainWP\Child\MainWP_Child_Backup_Watchdog::instance()->check_tasks( 1 );
+				}
+			} );
+			$task = $this->spine->get_task( $task_id );
+		}
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$expected_code = 'watchdog' === $failure ? MainWP_Backup_Error::ERR_STALLED : MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED;
+		$this->assertSame( $expected_code, $this->spine->status_payload( $task, $this->dir )['error_code'] );
+		$this->assert_dump_sweep_state( $task_id, true, true, true, true );
+	}
+
+	public static function block_c_rollback_failures() {
+		return array( 'error' => array( 'error' ), 'exception' => array( 'exception' ), 'deadline' => array( 'deadline' ), 'watchdog' => array( 'watchdog' ) );
+	}
+
+	public function test_block_c_h_cancel_reroute_keeps_recovery() {
+		$task_id = $this->dump_sweep_fixture();
+		$task = $this->spine->get_task( $task_id );
+		$state = $this->spine->read_sub_state( $task, $this->dir );
+		$state['db_replay']['fk_path'] = true;
+		$state['db_replay']['snapshot_done'] = true;
+		$this->spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => $state ) );
+		$this->assertSame( 'rolling_back', $this->runner->cancel_restore_task( $task_id )['result'] );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK, $this->spine->get_task( $task_id )->phase );
+		$this->assert_dump_sweep_state( $task_id, true, true, true, true );
+	}
+
+	/** @dataProvider block_c_sweep_failures */
+	public function test_block_c_i_sweep_failure_keeps_cancel_outcome( $throws ) {
+		$task_id = $this->dump_sweep_fixture();
+		$attempts = 0;
+		$prevent_delete = function ( $file ) use ( $throws, &$attempts ) {
+			if ( false !== strpos( $file, '/dbBackup' ) ) {
+				++$attempts;
+				if ( $throws ) {
+					throw new RuntimeException( 'deletion failed' );
+				}
+				return '';
+			}
+			return $file;
+		};
+		add_filter( 'wp_delete_file', $prevent_delete );
+		try {
+			$this->assertSame( 'ok', $this->runner->cancel_restore_task( $task_id )['result'] );
+		} finally {
+			remove_filter( 'wp_delete_file', $prevent_delete );
+		}
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_CANCELLED, $this->spine->status_payload( $this->spine->get_task( $task_id ), $this->dir )['error_code'] );
+		$this->assert_dump_sweep_state( $task_id, true, false, false );
+		$this->assertGreaterThan( 0, $attempts, 'The terminal path attempted the sweep.' );
+	}
+
+	public static function block_c_sweep_failures() {
+		return array( 'failed deletion' => array( false ), 'exception' => array( true ) );
 	}
 
 	/**

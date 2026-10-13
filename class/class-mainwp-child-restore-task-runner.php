@@ -529,8 +529,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             );
         }
 
+        $owner   = 'cancel:' . wp_generate_uuid4();
         $version = (int) $task->version;
-        if ( ! $spine->acquire_lease( $task_id, 'cancel', $version ) ) {
+        if ( ! $spine->acquire_lease( $task_id, $owner, $version ) ) {
             return array(
                 'result' => 'busy',
                 'phase'  => $task->phase,
@@ -556,7 +557,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         // now. Leave the row in place and let the rollback finish rather than
         // deleting its recovery source.
         if ( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK === $task->phase ) {
-            $spine->release_lease( $task_id, 'cancel', $version );
+            $spine->release_lease( $task_id, $owner, $version );
             return array(
                 'result' => 'rolling_back',
                 'phase'  => MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK,
@@ -593,7 +594,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 // Lost the compare-and-swap to another writer (the wall-clock
                 // enforcer is the only one that ignores leases); report what the
                 // row now holds instead of claiming a reroute that never landed.
-                $spine->release_lease( $task_id, 'cancel', $version );
+                $spine->release_lease( $task_id, $owner, $version );
                 $fresh = $spine->get_task( $task_id );
                 $phase = null !== $fresh ? $fresh->phase : '';
                 if ( MainWP_Child_Backup_Task::is_terminal_phase( $phase ) ) {
@@ -610,14 +611,14 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 
             // The aside dumps and cursor sidecar must survive for the rollback,
             // so neither terminal_cleanup() nor delete_sidecar() runs here.
-            $spine->release_lease( $task_id, 'cancel', $rolled_version );
+            $spine->release_lease( $task_id, $owner, $rolled_version );
             return array(
                 'result' => 'rolling_back',
                 'phase'  => MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK,
             );
         }
 
-        $this->terminal_cleanup( $task, $sub_state, $backup_dir );
+        $this->terminal_cleanup( $task, $sub_state, $backup_dir, $owner );
 
         $new_version = $spine->checkpoint(
             $task_id,
@@ -639,7 +640,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             // checkpoint (the wall-clock enforcer is the only writer that
             // ignores leases). Report what the row actually holds instead
             // of claiming a cancel that never landed.
-            $spine->release_lease( $task_id, 'cancel', $version );
+            $spine->release_lease( $task_id, $owner, $version );
             $fresh = $spine->get_task( $task_id );
             $phase = null !== $fresh ? $fresh->phase : '';
             if ( MainWP_Child_Backup_Task::is_terminal_phase( $phase ) ) {
@@ -655,7 +656,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         }
 
         $spine->delete_sidecar( $task_id, $backup_dir );
-        $spine->release_lease( $task_id, 'cancel', $new_version );
+        $spine->release_lease( $task_id, $owner, $new_version );
 
         return array(
             'result' => 'ok',
@@ -935,7 +936,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                     throw new MainWP_Exception( 'Unknown restore phase: ' . esc_html( $task->phase ), null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
             }
         } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - cleanup must run on any phase failure.
-            $this->terminal_cleanup( $task, $sub_state, $backup_dir );
+            if ( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK !== $task->phase ) {
+                $this->terminal_cleanup( $task, $sub_state, $backup_dir );
+            }
             throw $e;
         }
     }
@@ -2018,6 +2021,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         // The live database is back to its pre-restore state.
         $engine->exit_maintenance();
         $this->remove_scratch_dir( $task, $backup_dir );
+        $owner = $this->current_lease_owner;
+        $this->sweep_terminal_dump_litter(
+            $task,
+            function () use ( $task, $owner ) {
+                return $this->terminal_dump_lease_holds( $task->task_id, $owner );
+            }
+        );
         return $this->fail_terminal( $task, $version, $sub_state, $backup_dir, $fkr['original_error'], MainWP_Backup_Error::ERR_RESTORE_ROLLED_BACK );
     }
 
@@ -3261,11 +3271,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     /**
      * Remove database dump litter from the live site.
      *
-     * @param bool $require_deleted Fail before extraction if litter survives deletion.
+     * @param bool          $require_deleted Fail if litter survives deletion.
+     * @param callable|null $fence           Check terminal cleanup ownership before each delete.
      *
      * @throws MainWP_Exception When pre-extraction litter cannot be removed.
      */
-    protected function cleanup_dump_litter( $require_deleted = false ) {
+    protected function cleanup_dump_litter( $require_deleted = false, $fence = null ) {
         $roots = array(
             rtrim( $this->site_root(), '/' ),
             rtrim( $this->site_root(), '/' ) . '/wp-content',
@@ -3273,6 +3284,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         foreach ( $roots as $root ) {
             foreach ( array_merge( (array) glob( $root . '/dbBackup*.sql.php' ), (array) glob( $root . '/dbBackup*.sql' ) ) as $litter ) {
                 if ( is_file( $litter ) ) {
+                    if ( null !== $fence && ! $fence() ) {
+                        return;
+                    }
                     wp_delete_file( $litter );
                     clearstatcache( true, $litter );
                     if ( $require_deleted && file_exists( $litter ) ) {
@@ -3600,8 +3614,16 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @param object $task       Task row.
      * @param array  $sub_state  Cursor at failure time.
      * @param string $backup_dir Scratch root.
+     * @param string $owner      Cancellation lease token; slices use their invocation token.
      */
-    protected function terminal_cleanup( $task, $sub_state, $backup_dir ) {
+    protected function terminal_cleanup( $task, $sub_state, $backup_dir, $owner = '' ) {
+        $owner = '' !== $owner ? $owner : $this->current_lease_owner;
+        $fence = null;
+        if ( '' !== $owner ) {
+            $fence = function () use ( $task, $owner ) {
+                return $this->terminal_dump_lease_holds( $task->task_id, $owner );
+            };
+        }
         try {
             if ( isset( $sub_state['restored_mutex'] ) && is_string( $sub_state['restored_mutex'] ) && '' !== $sub_state['restored_mutex'] ) {
                 MainWP_Child_Backup_Mutex::clear_after_restore( $sub_state['restored_mutex'] );
@@ -3620,6 +3642,43 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             MainWP_Helper::log_debug(
                 '[MainWP Backup] Restore terminal cleanup failed for task ' .
                 ( isset( $task->task_id ) ? $task->task_id : '?' ) . ': ' .
+                MainWP_Backup_Error::scrub_db_credentials( $cleanup_error->getMessage() )
+            );
+        }
+        if ( null !== $fence ) {
+            $this->sweep_terminal_dump_litter( $task, $fence );
+        }
+    }
+
+    /**
+     * Renew the invocation's live lease before touching shared dump files.
+     *
+     * @param string $task_id Task id.
+     * @param string $owner   Lease token.
+     * @return bool Whether this invocation still owns cleanup.
+     */
+    protected function terminal_dump_lease_holds( $task_id, $owner ) {
+        if ( '' !== $owner && MainWP_Child_Backup_Task::instance()->renew_lease( $task_id, $owner, self::LEASE_TTL_SECONDS ) ) {
+            return true;
+        }
+        if ( $owner === $this->current_lease_owner ) {
+            $this->lease_lost = true;
+        }
+        return false;
+    }
+
+    /**
+     * Dump deletion is best-effort; preserve the original restore outcome.
+     *
+     * @param object   $task  Task row.
+     * @param callable $fence Cleanup ownership check.
+     */
+    protected function sweep_terminal_dump_litter( $task, $fence ) {
+        try {
+            $this->cleanup_dump_litter( true, $fence );
+        } catch ( \Throwable $cleanup_error ) {
+            MainWP_Helper::log_debug(
+                '[MainWP Backup] Warning: restore dump cleanup failed for task ' . $task->task_id . ': ' .
                 MainWP_Backup_Error::scrub_db_credentials( $cleanup_error->getMessage() )
             );
         }
@@ -3649,6 +3708,30 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $backup_dir = $this->backup_dir();
         $sub_state  = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $backup_dir );
         $this->terminal_cleanup( $task, is_array( $sub_state ) ? $sub_state : array(), $backup_dir );
+
+        // External writers already released the slot. Restore creation takes
+        // this mutex too, so the slot check and sweep cannot admit a successor.
+        $owner = 'restore-terminal-' . wp_generate_uuid4();
+        if ( true !== MainWP_Child_Backup_Mutex::acquire( 'native', $owner, 60 ) ) {
+            return;
+        }
+        try {
+            $fence = function () use ( $owner ) {
+                global $wpdb;
+                $holder = MainWP_Child_Backup_Mutex::holder();
+                if ( null === $holder || $holder['owner'] !== $owner || $holder['expires_at'] < time() || ! MainWP_Child_Backup_Mutex::refresh( $owner, 60 ) ) {
+                    return false;
+                }
+                $active = MainWP_Child_Backup_Task::instance()->get_active_tasks();
+                return empty( $active ) && '' === $wpdb->last_error;
+            };
+            if ( ! $fence() ) {
+                return;
+            }
+            $this->sweep_terminal_dump_litter( $task, $fence );
+        } finally {
+            MainWP_Child_Backup_Mutex::release( $owner );
+        }
     }
 
     /**
