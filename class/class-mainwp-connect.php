@@ -50,6 +50,25 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
     private $maxHistory = 5;
 
     /**
+     * Logged-in cookie issued by wp_set_auth_cookie() during this request.
+     *
+     * Empty until the one-click login sends a new cookie, and cleared at the
+     * start of each login() so an early return cannot reuse an older capture.
+     * wp_set_auth_cookie() does not write $_COOKIE, and wp_create_nonce()
+     * reads the session token from that cookie.
+     *
+     * @var string
+     */
+    private $fresh_logged_in_cookie = '';
+
+    /**
+     * Whether this request is already listening for set_logged_in_cookie.
+     *
+     * @var bool
+     */
+    private $listening_for_logged_in_cookie = false;
+
+    /**
      * Method get_class_name()
      *
      * Get class name.
@@ -1055,6 +1074,72 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
     }
 
     /**
+     * Method listen_for_fresh_logged_in_cookie()
+     *
+     * Remember the logged-in cookie from a login established in this request.
+     *
+     * The listener is registered once for this instance. login() clears any
+     * cookie captured by an earlier call before it runs.
+     *
+     * @return void
+     */
+    private function listen_for_fresh_logged_in_cookie() {
+        if ( $this->listening_for_logged_in_cookie ) {
+            return;
+        }
+
+        $this->listening_for_logged_in_cookie = true;
+        add_action(
+            'set_logged_in_cookie',
+            function ( $logged_in_cookie ) {
+                if ( is_string( $logged_in_cookie ) && '' !== $logged_in_cookie ) {
+                    $this->fresh_logged_in_cookie = $logged_in_cookie;
+                }
+            }
+        );
+    }
+
+    /**
+     * Method create_nonce_for_fresh_login()
+     *
+     * Create a nonce for the session token of the login just established.
+     *
+     * The cookie superglobal is restored before this returns so later hooks
+     * in the same request do not observe the new logged-in cookie.
+     *
+     * @param string|int $action Nonce action.
+     *
+     * @return string Nonce.
+     */
+    private function create_nonce_for_fresh_login( $action ) {
+        $swapped    = false;
+        $had_cookie = false;
+        $previous   = null;
+
+        if ( '' !== $this->fresh_logged_in_cookie && defined( 'LOGGED_IN_COOKIE' ) ) {
+            $had_cookie = array_key_exists( LOGGED_IN_COOKIE, $_COOKIE );
+            // Auth cookie is restored verbatim for this request. It is not displayed or stored.
+            $previous = $had_cookie ? $_COOKIE[ LOGGED_IN_COOKIE ] : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.MissingUnslash
+            if ( ! $had_cookie || $previous !== $this->fresh_logged_in_cookie ) {
+                $_COOKIE[ LOGGED_IN_COOKIE ] = $this->fresh_logged_in_cookie;
+                $swapped                     = true;
+            }
+        }
+
+        try {
+            return wp_create_nonce( $action );
+        } finally {
+            if ( $swapped ) {
+                if ( $had_cookie ) {
+                    $_COOKIE[ LOGGED_IN_COOKIE ] = $previous;
+                } else {
+                    unset( $_COOKIE[ LOGGED_IN_COOKIE ] );
+                }
+            }
+        }
+    }
+
+    /**
      * Method open_location_redirect()
      *
      * Jump to the wanted location (child site WP Admin page).
@@ -1065,7 +1150,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         $_vars = static::parse_query( $open_location );
         $_path = wp_parse_url( $open_location, PHP_URL_PATH );
         if ( isset( $_vars['_mwpNoneName'] ) && isset( $_vars['_mwpNoneValue'] ) ) {
-            $_vars[ $_vars['_mwpNoneName'] ] = wp_create_nonce( $_vars['_mwpNoneValue'] );
+            $_vars[ $_vars['_mwpNoneName'] ] = $this->create_nonce_for_fresh_login( $_vars['_mwpNoneValue'] );
             unset( $_vars['_mwpNoneName'] );
             unset( $_vars['_mwpNoneValue'] );
             $open_url = '';
@@ -1075,7 +1160,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             $open_url      = rtrim( $open_url, '&' );
             $open_location = '/wp-admin/' . $_path . '?' . $open_url;
         } elseif ( strpos( $open_location, 'nonce=child_temp_nonce' ) !== false ) {
-                $open_location = str_replace( 'nonce=child_temp_nonce', 'nonce=' . wp_create_nonce( 'wp-ajax' ), $open_location );
+            $open_location = str_replace( 'nonce=child_temp_nonce', 'nonce=' . $this->create_nonce_for_fresh_login( 'wp-ajax' ), $open_location );
         }
         wp_safe_redirect( site_url() . $open_location );
         exit();
@@ -1329,6 +1414,10 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      * @return bool true|false
      */
     public function login( $username, $doAction = false ) { // phpcs:ignore -- NOSONAR - multi return.
+
+        // A long-lived process can log in again without issuing a new cookie.
+        $this->fresh_logged_in_cookie = '';
+        $this->listen_for_fresh_logged_in_cookie();
 
         /**
          * Current user global.

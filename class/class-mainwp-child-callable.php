@@ -1146,14 +1146,34 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
         $backupdir = $dirs[0];
         // phpcs:disable WordPress.Security.NonceVerification
-        $file = isset( $_REQUEST['del'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['del'] ) ) : '';
+        $file = isset( $_REQUEST['del'] ) ? wp_unslash( $_REQUEST['del'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- The archive-name check below rejects path components before filesystem access.
         // phpcs:enable
 
-        if ( file_exists( $backupdir . $file ) ) {
-            wp_delete_file( $backupdir . $file );  // NOSONAR .
+        // realpath() follows links, so a linked name would delete whichever archive the link targets.
+        if ( $this->is_backup_archive_name( $file ) && ! is_link( $backupdir . $file ) ) {
+            $resolved_dir  = realpath( $backupdir );
+            $resolved_file = realpath( $backupdir . $file );
+            if ( false !== $resolved_dir && false !== $resolved_file && is_file( $resolved_file ) && 0 === strpos( $resolved_file, $resolved_dir . DIRECTORY_SEPARATOR ) ) {
+                wp_delete_file( $resolved_file ); // NOSONAR .
+            }
         }
 
         MainWP_Helper::write( array( 'result' => 'ok' ) );
+    }
+
+    /**
+     * Custom backup names have no fixed prefix, while control files share this directory.
+     *
+     * @param mixed $name Requested archive basename.
+     * @return bool
+     */
+    private function is_backup_archive_name( $name ) {
+        return is_string( $name ) && '' !== $name
+            && false === strpos( $name, '/' )
+            && false === strpos( $name, '\\' )
+            && false === strpos( $name, "\0" )
+            && false === strpos( $name, '..' )
+            && 1 === preg_match( '/\.(?:zip|tar|tar\.gz|tar\.bz2)\z/', $name );
     }
 
     /**
