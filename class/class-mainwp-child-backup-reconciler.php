@@ -24,6 +24,13 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
     private $uploads_relpath = null;
 
     /**
+     * Directory containment uses the same policy as extraction and tombstones.
+     *
+     * @var string|null
+     */
+    private $mu_plugins_relpath = null;
+
+    /**
      * Invalid coverage must never become a broader deletion scope.
      *
      * @param mixed $raw Wire options.
@@ -79,7 +86,8 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
      * @return array Cursor, outcome and completion flags.
      */
     public function reconcile_slice( $cursor, $config, $deadline ) {
-        $this->uploads_relpath = null;
+        $this->mu_plugins_relpath = isset( $config['root'] ) ? MainWP_Child_Backup_Mu_Plugins::relative_directory( $config['root'], isset( $config['mu_plugins_directory'] ) ? $config['mu_plugins_directory'] : null ) : null;
+        $this->uploads_relpath    = null;
         if ( isset( $config['task_type'] ) && 'restore_files' === $config['task_type'] ) {
             $uploads = wp_upload_dir( null, false );
             $root    = trailingslashit( wp_normalize_path( $config['root'] ) );
@@ -105,6 +113,9 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
                 'examined'        => 0,
                 'failed'          => 0,
                 'skipped_unsafe'  => 0,
+                'kept'            => 0,
+                'kept_by_reason'  => array(),
+                'kept_paths'      => array(),
             ),
             $cursor
         );
@@ -272,6 +283,8 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
 
     /**
      * Restore infrastructure must survive even an old or incomplete exclude list.
+     * object-cache.php is knowingly kept as a host-managed drop-in, even if stale or malicious.
+     * advanced-cache.php and db.php remain deletable: these plugin-written drop-ins can fatal without their plugins.
      *
      * @param string $path Site-relative path.
      * @return bool Whether deletion is forbidden.
@@ -335,6 +348,14 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
             $parent        = dirname( $parent );
             $parent_length = strlen( $parent );
         }
+        if ( MainWP_Child_Backup_Mu_Plugins::contains( $path, $this->mu_plugins_relpath ) ) {
+            ++$cursor['kept'];
+            $cursor['kept_by_reason']['mu_plugins'] = isset( $cursor['kept_by_reason']['mu_plugins'] ) ? $cursor['kept_by_reason']['mu_plugins'] + 1 : 1;
+            if ( count( $cursor['kept_paths'] ) < 20 ) {
+                $cursor['kept_paths'][] = $path;
+            }
+            return;
+        }
         if ( @unlink( $target ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.unlink_unlink -- count failures without corrupting the response with warnings.
             ++$cursor['removed'];
         } else {
@@ -360,6 +381,11 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
      * @return array Slice result.
      */
     private function result( $cursor, $outcome = null ) {
+        if ( null !== $outcome && ! empty( $cursor['kept'] ) ) {
+            $outcome['kept']           = $cursor['kept'];
+            $outcome['kept_by_reason'] = $cursor['kept_by_reason'];
+            $outcome['kept_paths']     = $cursor['kept_paths'];
+        }
         return array(
             'cursor'  => $cursor,
             'done'    => null !== $outcome,

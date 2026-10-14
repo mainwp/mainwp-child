@@ -231,7 +231,10 @@ class BackupRestoreLimitsTest extends WP_UnitTestCase {
 		copy( $part, $scratch . basename( $part ) );
 		$state = array( 'params' => array( 'artifacts' => array( array(
 			'role' => 'part', 'file' => basename( $part ), 'sha256' => hash_file( 'sha256', $part ),
-		) ) ) );
+		) ) ),
+			// Already captured, so this call starts extracting instead of yielding after the mu-plugins capture.
+			'mu_plugins_preserve' => array( 'directory' => null, 'mode' => 'set', 'paths' => array() ),
+		);
 		$method = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'run_restoring_files' );
 		$method->setAccessible( true );
 		$result = $method->invoke( $runner, $task, 1, $state, time() + 60, $this->dir );
@@ -288,7 +291,10 @@ class BackupRestoreLimitsTest extends WP_UnitTestCase {
 		copy( $part, $scratch . basename( $part ) );
 		$state = array( 'params' => array( 'artifacts' => array( array(
 			'role' => 'part', 'file' => basename( $part ), 'sha256' => hash_file( 'sha256', $part ),
-		) ) ) );
+		) ) ),
+			// Already captured, so this call starts extracting instead of yielding after the mu-plugins capture.
+			'mu_plugins_preserve' => array( 'directory' => null, 'mode' => 'set', 'paths' => array() ),
+		);
 		$method = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'run_restoring_files' );
 		$method->setAccessible( true );
 		$result = $method->invoke( $runner, $task, 1, $state, time() + 60, $this->dir );

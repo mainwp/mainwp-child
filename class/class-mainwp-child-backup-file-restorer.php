@@ -89,6 +89,13 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      */
     protected $preparation_limit_exceeded = false;
 
+    /**
+     * Live host bytes must survive every archive in an incremental chain.
+     *
+     * @var array
+     */
+    private $mu_plugins_preserve = array();
+
     const MAX_EXTRACT_ENTRIES        = 2000000;
     const MAX_EXPANDED_BYTES         = 68719476736;
     const MAX_COMPRESSION_RATIO      = 200;
@@ -166,11 +173,12 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             $this->temp_owner = $temp_owner;
         }
 
-        $this->checkpoint_cursor = isset( $config['checkpoint_cursor'] ) ? $config['checkpoint_cursor'] : null;
-        $parts                   = $config['parts'];
-        $extract_to              = $config['extract_to'];
-        $did_work                = false;
-        $part_count              = count( $parts );
+        $this->mu_plugins_preserve = isset( $config['mu_plugins_preserve'] ) ? $config['mu_plugins_preserve'] : array();
+        $this->checkpoint_cursor   = isset( $config['checkpoint_cursor'] ) ? $config['checkpoint_cursor'] : null;
+        $parts                     = $config['parts'];
+        $extract_to                = $config['extract_to'];
+        $did_work                  = false;
+        $part_count                = count( $parts );
 
         while ( $cursor['part_index'] < $part_count ) {
             $part = $parts[ $cursor['part_index'] ];
@@ -344,7 +352,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 continue;
             }
             $entry['name'] = static::map_entry_name( $entry['name'], $this->real_htaccess_entries );
-            if ( null === $entry['name'] ) {
+            if ( null === $entry['name'] || MainWP_Child_Backup_Mu_Plugins::preserves( $entry['name'], $this->mu_plugins_preserve ) ) {
                 ++$cursor['entry_index'];
                 $did_work = true;
                 continue;
@@ -767,10 +775,11 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      *
      * @param string $tombstones_file Path to tombstones.list.
      * @param string $extract_to      Extraction root.
+     * @param array  $mu_plugins_preserve Persisted host-file protection.
      *
      * @return array { deleted: int, error: string|null, error_code: string|null }
      */
-    public function apply_tombstones( $tombstones_file, $extract_to ) {
+    public function apply_tombstones( $tombstones_file, $extract_to, $mu_plugins_preserve = array() ) {
         $lines = file( $tombstones_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- local sidecar read.
         if ( false === $lines ) {
             return array(
@@ -797,7 +806,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 );
             }
 
-            if ( static::should_skip_entry( $relpath ) ) {
+            if ( static::should_skip_entry( $relpath ) || MainWP_Child_Backup_Mu_Plugins::preserves( $relpath, $mu_plugins_preserve ) ) {
                 continue;
             }
 
@@ -894,7 +903,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             $this->real_htaccess_entries[ $mapped ] = false !== $zip->locateName( $mapped );
         }
         $entry_name = static::map_entry_name( $name, $this->real_htaccess_entries );
-        if ( null === $entry_name ) {
+        if ( null === $entry_name || MainWP_Child_Backup_Mu_Plugins::preserves( $entry_name, $this->mu_plugins_preserve ) ) {
             return;
         }
         $stat = $zip->statIndex( $cursor['entry_index'] );

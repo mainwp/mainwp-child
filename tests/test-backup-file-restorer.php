@@ -614,6 +614,27 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $this->extract_to . '/mainwp-htaccess' );
 	}
 
+	/** @dataProvider data_read_only_target_formats */
+	public function test_mu_plugins_preservation_uses_destination_names( $format ) {
+		$directory = 'wp-content/mu-plugins';
+		$path = $directory . '/.htaccess';
+		mkdir( $this->extract_to . '/' . $directory, 0777, true );
+		file_put_contents( $this->extract_to . '/' . $path, 'live rules' );
+		$entries = array( $directory . '/mainwp-htaccess' => 'archived rules', $directory . '/snapshot.php' => 'snapshot bytes' );
+		$part = 'zip' === $format ? $this->make_zip( 'mu.zip', $entries ) : $this->make_tar( 'mu.tar', $entries );
+		$config = array(
+			'parts' => array( $part ),
+			'hashes' => array( basename( $part ) => hash_file( 'sha256', $part ) ),
+			'extract_to' => $this->extract_to,
+			'mu_plugins_preserve' => array( 'directory' => $directory, 'mode' => 'set', 'paths' => array( $path => true ) ),
+		);
+		$out = $this->restorer->restore_slice( array(), $config, time() + 60 );
+		$this->assertNull( $out['error'] );
+		$this->assertTrue( $out['done'] );
+		$this->assertSame( 'live rules', file_get_contents( $this->extract_to . '/' . $path ) );
+		$this->assertSame( 'snapshot bytes', file_get_contents( $this->extract_to . '/' . $directory . '/snapshot.php' ) );
+	}
+
 	public function test_htaccess_alias_remapping_rejects_traversal() {
 		$entries = array( '../mainwp-htaccess' => 'unsafe rules' );
 		$part = $this->make_zip( 'traversal.zip', $entries );

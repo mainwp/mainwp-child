@@ -1532,6 +1532,24 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
         }
 
+        if ( ! isset( $sub_state['mu_plugins_preserve'] ) ) {
+            $options                          = isset( $sub_state['params']['reconcile'] ) ? MainWP_Child_Backup_Reconciler::sanitize_options( $sub_state['params']['reconcile'] ) : array();
+            $name                             = isset( $options['manifest'] ) ? $options['manifest'] : '';
+            $verified                         = isset( $sub_state['verified_manifests'][ $name ] ) ? $sub_state['verified_manifests'][ $name ] : '';
+            $manifest                         = $scratch . $name;
+            $actual                           = is_file( $manifest ) && ! is_link( $manifest ) ? hash_file( 'sha256', $manifest ) : false;
+            $manifest                         = '' !== $verified && is_string( $actual ) && hash_equals( $verified, $actual ) ? $manifest : null;
+            $sub_state['mu_plugins_preserve'] = ( new MainWP_Child_Backup_Mu_Plugins() )->capture(
+                $this->site_root(),
+                $this->mu_plugins_directory(),
+                $manifest,
+                isset( $sub_state['file_restore'] ),
+                $this->mu_plugins_preserve_limit()
+            );
+            // A crash before this checkpoint must leave extraction entirely untouched.
+            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+        }
+
         $cursor = isset( $sub_state['file_restore'] ) ? $sub_state['file_restore'] : array(
             'op_index'    => 0,
             'part_cursor' => array(),
@@ -1560,7 +1578,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $path = $scratch . $op['file'];
 
             if ( 'tombstones' === $op['role'] ) {
-                $outcome = $restorer->apply_tombstones( $path, $this->site_root() );
+                $outcome = $restorer->apply_tombstones( $path, $this->site_root(), $sub_state['mu_plugins_preserve'] );
                 if ( null !== $outcome['error'] ) {
                     throw new MainWP_Exception( esc_html( $outcome['error'] ), null, $outcome['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
                 }
@@ -1572,11 +1590,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $outcome              = $restorer->restore_slice(
                 $cursor['part_cursor'],
                 array(
-                    'parts'             => array( $path ),
-                    'hashes'            => array( $op['file'] => isset( $hashes[ $op['file'] ] ) ? $hashes[ $op['file'] ] : '' ),
-                    'extract_to'        => $this->site_root(),
-                    'temp_owner'        => substr( hash( 'sha256', $task->task_id ), 0, 16 ),
-                    'checkpoint_cursor' => function ( $part_cursor ) use ( $task, &$version, &$sub_state, &$cursor, $backup_dir, &$checkpoint_abandoned ) {
+                    'parts'               => array( $path ),
+                    'hashes'              => array( $op['file'] => isset( $hashes[ $op['file'] ] ) ? $hashes[ $op['file'] ] : '' ),
+                    'extract_to'          => $this->site_root(),
+                    'mu_plugins_preserve' => $sub_state['mu_plugins_preserve'],
+                    'temp_owner'          => substr( hash( 'sha256', $task->task_id ), 0, 16 ),
+                    'checkpoint_cursor'   => function ( $part_cursor ) use ( $task, &$version, &$sub_state, &$cursor, $backup_dir, &$checkpoint_abandoned ) {
                         $cursor['part_cursor']     = $part_cursor;
                         $sub_state['file_restore'] = $cursor;
                         $checkpoint = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
@@ -1653,6 +1672,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 'status' => 'skipped',
                 'reason' => $reason,
             );
+            if ( ! empty( $sub_state['mu_plugins_preserve']['reason'] ) ) {
+                $sub_state['verification']['reconcile']['mu_plugins_reason'] = $sub_state['mu_plugins_preserve']['reason'];
+            }
             return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
         }
 
@@ -1663,16 +1685,17 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $outcome                = $this->reconciler()->reconcile_slice(
             isset( $sub_state['reconcile'] ) ? $sub_state['reconcile'] : array(),
             array(
-                'task_type'         => $task->type,
-                'manifest'          => $path,
-                'walk'              => $options['walk'],
-                'root'              => $this->site_root(),
-                'backup_dir'        => $backup_dir,
-                'scratch'           => $reconcile_dir,
-                'progress_callback' => function () use ( $task ) {
+                'task_type'            => $task->type,
+                'mu_plugins_directory' => $this->mu_plugins_directory(),
+                'manifest'             => $path,
+                'walk'                 => $options['walk'],
+                'root'                 => $this->site_root(),
+                'backup_dir'           => $backup_dir,
+                'scratch'              => $reconcile_dir,
+                'progress_callback'    => function () use ( $task ) {
                     MainWP_Child_Backup_Task::instance()->touch_progress( $task->task_id );
                 },
-                'checkpoint_cursor' => function ( $cursor ) use ( $task, &$version, &$sub_state, $backup_dir ) {
+                'checkpoint_cursor'    => function ( $cursor ) use ( $task, &$version, &$sub_state, $backup_dir ) {
                     $sub_state['reconcile'] = $cursor;
                     $checkpoint = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
                     $version = $checkpoint['version'];
@@ -1688,12 +1711,33 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         if ( ! $outcome['done'] ) {
             return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
         }
+        if ( ! empty( $sub_state['mu_plugins_preserve']['reason'] ) ) {
+            $outcome['outcome']['mu_plugins_reason'] = $sub_state['mu_plugins_preserve']['reason'];
+        }
         $sub_state['verification']['reconcile'] = $outcome['outcome'];
         if ( 'aborted' === $outcome['outcome']['status'] ) {
             $this->terminal_cleanup( $task, $sub_state, $backup_dir );
             return $this->fail_terminal( $task, $version, $sub_state, $backup_dir, MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_RECONCILE ), MainWP_Backup_Error::ERR_RESTORE_RECONCILE );
         }
         return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Use the configured host directory even on sites with custom content roots.
+     *
+     * @return string Absolute mu-plugins directory.
+     */
+    protected function mu_plugins_directory() {
+        return defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins';
+    }
+
+    /**
+     * Bound persisted live paths; larger installations keep the whole directory.
+     *
+     * @return int Preserve-set cap.
+     */
+    protected function mu_plugins_preserve_limit() {
+        return 500;
     }
 
     /**

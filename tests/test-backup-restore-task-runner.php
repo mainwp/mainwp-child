@@ -479,6 +479,35 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 
     public $test_reconciler;
 
+	public $test_file_restorer;
+	public $mu_plugins_cap = 500;
+	public $mu_plugins_checkpoint_crash = false;
+	public $legacy_file_checkpoints = false;
+
+	protected function mu_plugins_directory() {
+		return $this->test_site_root . '/wp-content/mu-plugins';
+	}
+
+	protected function mu_plugins_preserve_limit() {
+		return $this->mu_plugins_cap;
+	}
+
+	protected function file_restorer() {
+		return $this->test_file_restorer ? $this->test_file_restorer : parent::file_restorer();
+	}
+
+	protected function checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, $then_yield ) {
+		if ( $this->mu_plugins_checkpoint_crash && isset( $sub_state['mu_plugins_preserve'] ) ) {
+			$this->mu_plugins_checkpoint_crash = false;
+			return $this->slice_result( $version, true );
+		}
+		if ( $this->legacy_file_checkpoints && ! empty( $sub_state['file_restore']['part_cursor']['entry_index'] ) ) {
+			unset( $sub_state['mu_plugins_preserve'] );
+		}
+		return parent::checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, $then_yield );
+	}
+
+
     protected function reconciler() {
         return $this->test_reconciler ? $this->test_reconciler : parent::reconciler();
     }
@@ -1176,8 +1205,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->dir .= '/backups';
 		mkdir( $this->dir );
 		$this->runner->test_backup_dir = $this->dir;
-		mkdir( $this->site . '/wp-content/mu-plugins', 0777, true );
-		file_put_contents( $this->site . '/wp-content/mu-plugins/persist.php', 'extra' );
+		mkdir( $this->site . '/wp-content/plugins', 0777, true );
+		file_put_contents( $this->site . '/wp-content/plugins/persist.php', 'extra' );
 	}
 
 	protected function make_manifest_artifact( $paths ) {
@@ -1195,10 +1224,277 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		return array( 'reconcile' => array( 'manifest' => 's1-files.list', 'walk' => array( 'excludes' => $excludes, 'excludenonwp' => 0, 'excludezip' => 0 ) ) );
 	}
 
+	protected function prepare_mu_plugins_fixture() {
+		$this->prepare_reconcile_fixture();
+		unlink( $this->site . '/wp-content/plugins/persist.php' );
+		mkdir( $this->site . '/wp-content/mu-plugins' );
+	}
+
+	protected function mu_plugins_chain( $type = 'files' ) {
+		$path = 'wp-content/mu-plugins/host.php';
+		file_put_contents( $this->site . '/' . $path, 'live host bytes' );
+		$base = $this->make_named_zip_artifact( 'base.zip', array( $path => 'base bytes', 'snapshot.txt' => 'snapshot', 'wp-content/mu-plugins/snapshot.php' => 'base snapshot' ) );
+		$delta = $this->make_named_zip_artifact( 'delta.zip', array( 'snapshot.txt' => 'leaf bytes', 'wp-content/mu-plugins/snapshot.php' => 'leaf snapshot' ) );
+		$tombstones = $this->make_named_tombstones_artifact( 'leaf-tombstones.list', $path . "\n" );
+		$artifacts = array( $base, $tombstones, $delta, $this->make_manifest_artifact( array( 'snapshot.txt', 'wp-content/mu-plugins/snapshot.php' ) ) );
+		if ( 'full' === $type ) {
+			$artifacts[] = $this->make_db_artifact();
+		}
+		return $this->make_task( $type, $artifacts, $this->reconcile_options() );
+	}
+
+	protected function advance_until( $task_id, $predicate ) {
+		$task = $this->spine->get_task( $task_id );
+		for ( $i = 0; $i < 25; ++$i ) {
+			$task = $this->runner->advance_one_slice( $task, 'dashboard' );
+			$sub = $this->spine->read_sub_state( $task, $this->dir );
+			if ( $predicate( $sub, $task ) ) {
+				return array( $task, $sub );
+			}
+			if ( MainWP_Child_Backup_Task::is_terminal_phase( $task->phase ) ) {
+				break;
+			}
+		}
+		$this->fail( 'The requested restore checkpoint was not reached.' );
+	}
+
+	protected function slice_one_file_at_a_time() {
+		$this->runner->test_file_restorer = new class extends \MainWP\Child\MainWP_Child_Backup_File_Restorer {
+			public function restore_slice( $cursor, $config, $deadline ) {
+				return parent::restore_slice( $cursor, $config, microtime( true ) - 1 );
+			}
+		};
+	}
+
+	public function test_mu_plugins_full_restore_keeps_old_live_file_and_lists_it() {
+		$this->prepare_mu_plugins_fixture();
+		$path = 'wp-content/mu-plugins/Host..php';
+		file_put_contents( $this->site . '/' . $path, 'old live bytes' );
+		touch( $this->site . '/' . $path, 1 );
+		$task = $this->drive( $this->make_task( 'full', array( $this->make_part_artifact(), $this->make_db_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options() ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertFileExists( $this->site . '/' . $path );
+		$this->assertSame( 'old live bytes', file_get_contents( $this->site . '/' . $path ) );
+		$this->assertSame( 1, $sub['verification']['reconcile']['kept'] );
+		$this->assertSame( array( 'mu_plugins' => 1 ), $sub['verification']['reconcile']['kept_by_reason'] );
+		$this->assertSame( array( $path ), $sub['verification']['reconcile']['kept_paths'] );
+	}
+
+	public static function data_mu_plugins_restore_types() {
+		return array( 'files' => array( 'files' ), 'full' => array( 'full' ) );
+	}
+
+	/** @dataProvider data_mu_plugins_restore_types */
+	public function test_mu_plugins_incremental_recreation_keeps_live_bytes( $type ) {
+		$this->prepare_mu_plugins_fixture();
+		$task = $this->drive( $this->mu_plugins_chain( $type ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertFileExists( $this->site . '/wp-content/mu-plugins/host.php' );
+		$this->assertSame( 'live host bytes', file_get_contents( $this->site . '/wp-content/mu-plugins/host.php' ) );
+		$this->assertSame( 'leaf bytes', file_get_contents( $this->site . '/snapshot.txt' ) );
+		$this->assertSame( 'leaf snapshot', file_get_contents( $this->site . '/wp-content/mu-plugins/snapshot.php' ) );
+	}
+
+	public function test_mu_plugins_leaf_manifest_restores_snapshot_and_sibling_is_deleted() {
+		$this->prepare_mu_plugins_fixture();
+		$path = 'wp-content/mu-plugins/snapshot.php';
+		file_put_contents( $this->site . '/' . $path, 'live edit' );
+		mkdir( $this->site . '/wp-content/mu-plugins-old' );
+		file_put_contents( $this->site . '/wp-content/mu-plugins-old/extra.php', 'delete' );
+		$task = $this->drive( $this->make_task( 'files', array( $this->make_named_zip_artifact( 'snapshot.zip', array( $path => 'snapshot bytes' ) ), $this->make_manifest_artifact( array( $path ) ) ), $this->reconcile_options() ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 'snapshot bytes', file_get_contents( $this->site . '/' . $path ) );
+		$this->assertFileDoesNotExist( $this->site . '/wp-content/mu-plugins-old/extra.php' );
+		foreach ( array( 'kept', 'kept_by_reason', 'kept_paths' ) as $key ) {
+			$this->assertArrayNotHasKey( $key, $sub['verification']['reconcile'] );
+		}
+	}
+
+	public function test_mu_plugins_directory_containment_and_symlinks() {
+		$helper = '\\MainWP\\Child\\MainWP_Child_Backup_Mu_Plugins';
+		$this->assertSame( 'custom/mu', $helper::relative_directory( $this->site, $this->site . '/custom/./mu/' ) );
+		$this->assertNull( $helper::relative_directory( $this->site, $this->site . '-other/mu' ) );
+		$this->assertNull( $helper::relative_directory( $this->site, $this->site . '/../outside' ) );
+		$this->assertSame( $helper::relative_directory( $this->site, defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins' ), $helper::relative_directory( $this->site ) );
+		mkdir( $this->site . '/custom' );
+		file_put_contents( $this->site . '/custom/host.php', 'symlink target' );
+		symlink( $this->site . '/custom', $this->site . '/linked-mu' );
+		try {
+			$this->assertNull( $helper::relative_directory( $this->site, $this->site . '/linked-mu' ) );
+			$manifest = $this->make_manifest_artifact( array( 'snapshot.txt' ) );
+			symlink( $this->site . '/custom/host.php', $this->site . '/custom/linked.php' );
+			symlink( $this->site, $this->site . '/custom/linked-dir' );
+			try {
+				$policy = new $helper();
+				$set = $policy->capture( $this->site, $this->site . '/custom', $this->dir . '/' . $manifest['file'], false, 500 );
+				$this->assertSame( array( 'custom/host.php' => true ), $set['paths'] );
+				$this->assertTrue( $helper::preserves( 'custom/host.php', $set ) );
+				$this->assertFalse( $helper::preserves( 'custom-old/host.php', $set ) );
+				$this->assertSame( array(), $policy->capture( $this->site, $this->site . '/linked-mu', $this->dir . '/' . $manifest['file'], false, 500 )['paths'] );
+			} finally {
+				unlink( $this->site . '/custom/linked.php' );
+				unlink( $this->site . '/custom/linked-dir' );
+			}
+		} finally {
+			unlink( $this->site . '/linked-mu' );
+		}
+	}
+
+	public function test_mu_plugins_cap_preserves_absent_entries_but_restores_leaf_entries() {
+		$this->prepare_mu_plugins_fixture();
+		$this->runner->mu_plugins_cap = 1;
+		$task_id = $this->mu_plugins_chain();
+		file_put_contents( $this->site . '/wp-content/mu-plugins/second.php', 'second live' );
+		$task = $this->drive( $task_id );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertFileExists( $this->site . '/wp-content/mu-plugins/host.php' );
+		$this->assertSame( 'live host bytes', file_get_contents( $this->site . '/wp-content/mu-plugins/host.php' ) );
+		$this->assertSame( 'second live', file_get_contents( $this->site . '/wp-content/mu-plugins/second.php' ) );
+		$this->assertSame( 'whole_dir', $sub['mu_plugins_preserve']['mode'] );
+		$this->assertArrayNotHasKey( 'paths', $sub['mu_plugins_preserve'] );
+		$this->assertSame( 'mu_plugins_cap', $sub['verification']['reconcile']['mu_plugins_reason'] );
+		$this->assertSame( 2, $sub['verification']['reconcile']['kept'] );
+		$this->assertSame( 'leaf snapshot', file_get_contents( $this->site . '/wp-content/mu-plugins/snapshot.php' ) );
+	}
+
+	public function test_mu_plugins_uploads_are_not_counted_as_kept() {
+		$this->prepare_mu_plugins_fixture();
+		mkdir( $this->site . '/wp-content/uploads' );
+		file_put_contents( $this->site . '/wp-content/uploads/live.jpg', 'upload' );
+		$filter = function ( $uploads ) {
+			$uploads['basedir'] = $this->site . '/wp-content/uploads';
+			return $uploads;
+		};
+		add_filter( 'upload_dir', $filter );
+		try {
+			$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options() ) );
+			$sub = $this->spine->read_sub_state( $task, $this->dir );
+			$this->assertFileExists( $this->site . '/wp-content/uploads/live.jpg' );
+			foreach ( array( 'kept', 'kept_by_reason', 'kept_paths' ) as $key ) {
+				$this->assertArrayNotHasKey( $key, $sub['verification']['reconcile'] );
+			}
+		} finally {
+			remove_filter( 'upload_dir', $filter );
+		}
+	}
+
+	public function test_mu_plugins_preserve_set_is_durable_before_extraction_and_recomputed_after_crash() {
+		$this->prepare_mu_plugins_fixture();
+		$task_id = $this->mu_plugins_chain();
+		$this->runner->mu_plugins_checkpoint_crash = true;
+		list( $task, $sub ) = $this->advance_until( $task_id, function () { return ! $this->runner->mu_plugins_checkpoint_crash; } );
+		$this->assertArrayNotHasKey( 'mu_plugins_preserve', $sub );
+		$this->assertFileDoesNotExist( $this->site . '/snapshot.txt' );
+		file_put_contents( $this->site . '/wp-content/mu-plugins/between.php', 'added after crash' );
+		$task = $this->runner->advance_one_slice( $task, 'dashboard' );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertArrayHasKey( 'wp-content/mu-plugins/between.php', $sub['mu_plugins_preserve']['paths'] );
+		$this->assertFileDoesNotExist( $this->site . '/snapshot.txt' );
+		$task = $this->drive( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+	}
+
+	public function test_mu_plugins_resume_mid_extraction_reuses_set_and_missing_set_falls_back() {
+		$this->prepare_mu_plugins_fixture();
+		$this->slice_one_file_at_a_time();
+		$this->runner->legacy_file_checkpoints = true;
+		$task_id = $this->mu_plugins_chain();
+		list( $task, $sub ) = $this->advance_until( $task_id, static function ( $sub ) { return ! empty( $sub['file_restore']['part_cursor']['entry_index'] ); } );
+		$this->assertArrayNotHasKey( 'mu_plugins_preserve', $sub );
+		$this->assertSame( 'live host bytes', file_get_contents( $this->site . '/wp-content/mu-plugins/host.php' ) );
+		$this->runner->legacy_file_checkpoints = false;
+		$this->runner->test_file_restorer = null;
+		$task = $this->drive( $task_id );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertFileExists( $this->site . '/wp-content/mu-plugins/host.php' );
+		$this->assertSame( 'live host bytes', file_get_contents( $this->site . '/wp-content/mu-plugins/host.php' ) );
+		$this->assertSame( 'mu_plugins_set_missing', $sub['verification']['reconcile']['mu_plugins_reason'] );
+	}
+
+	public function test_mu_plugins_resume_reuses_set_and_reconcile_counts_without_duplicates() {
+		$this->prepare_mu_plugins_fixture();
+		$this->slice_one_file_at_a_time();
+		$task_id = $this->mu_plugins_chain();
+		list( $task, $sub ) = $this->advance_until( $task_id, static function ( $sub ) { return ! empty( $sub['file_restore']['part_cursor']['entry_index'] ); } );
+		$preserve = $sub['mu_plugins_preserve'];
+		file_put_contents( $this->site . '/wp-content/mu-plugins/late.php', 'created during restore' );
+		$this->runner->test_file_restorer = null;
+		$this->runner->test_reconciler = new class extends MainWP_Child_Backup_Reconciler {
+			public $checks = 0;
+			public function reconcile_slice( $cursor, $config, $deadline ) {
+				$this->checks = 0;
+				return parent::reconcile_slice( $cursor, $config, $deadline );
+			}
+			protected function budget_exhausted( $deadline ) {
+				return ++$this->checks > 3;
+			}
+		};
+		list( $task, $sub ) = $this->advance_until( $task_id, static function ( $sub ) { return isset( $sub['reconcile']['kept'] ) && 1 === $sub['reconcile']['kept']; } );
+		$this->assertSame( $preserve, $sub['mu_plugins_preserve'] );
+		$this->assertSame( array( 'wp-content/mu-plugins/host.php' ), $sub['reconcile']['kept_paths'] );
+		$this->runner->test_reconciler = null;
+		$task = $this->drive( $task_id );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 2, $sub['verification']['reconcile']['kept'] );
+		$this->assertSame( array( 'mu_plugins' => 2 ), $sub['verification']['reconcile']['kept_by_reason'] );
+		$this->assertSame( array( 'wp-content/mu-plugins/host.php', 'wp-content/mu-plugins/late.php' ), $sub['verification']['reconcile']['kept_paths'] );
+		$scratch = $this->dir . '/comparison/';
+		mkdir( $scratch );
+		$config = array(
+			'manifest' => $this->dir . '/s1-files.list',
+			'walk' => $this->reconcile_options()['reconcile']['walk'],
+			'root' => $this->site,
+			'backup_dir' => $this->dir,
+			'scratch' => $scratch,
+			'mu_plugins_directory' => $this->site . '/wp-content/mu-plugins',
+			'progress_callback' => static function () {},
+			'checkpoint_cursor' => static function () { return true; },
+		);
+		$engine = new MainWP_Child_Backup_Reconciler();
+		$walk = $engine->reconcile_slice( array(), $config, time() + 60 );
+		$uninterrupted = $engine->reconcile_slice( $walk['cursor'], $config, time() + 60 );
+		$this->assertSame( $uninterrupted['outcome'], $sub['verification']['reconcile'] );
+		$this->assertSame( 'live host bytes', file_get_contents( $this->site . '/wp-content/mu-plugins/host.php' ) );
+	}
+
+	public function test_mu_plugins_rollback_without_manifest_remains_overlay_only() {
+		$this->prepare_mu_plugins_fixture();
+		$path = 'wp-content/mu-plugins/host.php';
+		file_put_contents( $this->site . '/' . $path, 'live bytes' );
+		$artifacts = array( $this->make_named_zip_artifact( 'rollback.zip', array( $path => 'rollback bytes' ) ), $this->make_db_artifact() );
+		foreach ( $artifacts as &$artifact ) {
+			$artifact['adopt_only'] = true;
+		}
+		unset( $artifact );
+		$task = $this->drive( $this->make_task( 'full', $artifacts, array( 'file_rollback' => true ) ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 'rollback bytes', file_get_contents( $this->site . '/' . $path ) );
+		$this->assertSame( array( 'status' => 'skipped', 'reason' => 'no_manifest' ), $sub['verification']['reconcile'] );
+	}
+
+	public function test_mu_plugins_kept_sample_is_limited_to_twenty() {
+		$this->prepare_mu_plugins_fixture();
+		$paths = array();
+		for ( $i = 0; $i < 25; ++$i ) {
+			$path = sprintf( 'wp-content/mu-plugins/host-%02d.php', $i );
+			$paths[] = $path;
+			file_put_contents( $this->site . '/' . $path, 'live bytes' );
+		}
+		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options() ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( 25, $sub['verification']['reconcile']['kept'] );
+		$this->assertSame( array_slice( $paths, 0, 20 ), $sub['verification']['reconcile']['kept_paths'] );
+	}
+
 	public static function data_reconcile_safe_relpaths() {
 		return array(
 			'embedded dots' => array( 'a..b.php', true ),
-			'live mu-plugin' => array( 'wp-content/mu-plugins/persist..php', true ),
+			'live plugin' => array( 'wp-content/plugins/persist..php', true ),
 			'directory dots' => array( 'dir..x/file.php', true ),
 			'three leading dots' => array( '...hidden', true ),
 			'segment starts with dots' => array( 'x/..y', true ),
@@ -1237,7 +1533,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->prepare_reconcile_fixture();
 		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options() ) );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
-		$this->assertFileDoesNotExist( $this->site . '/wp-content/mu-plugins/persist.php' );
+		$this->assertFileDoesNotExist( $this->site . '/wp-content/plugins/persist.php' );
 		$this->assertFileExists( $this->site . '/wp-content/uploads/restored.txt' );
 		$sub = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertSame( array( 'status' => 'done', 'removed' => 1, 'examined' => 2 ), $sub['verification']['reconcile'] );
@@ -1251,7 +1547,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
 		$this->assertSame( 1, $sub['verification']['reconcile']['removed'] );
 		$this->assertSame( 'done', $sub['verification']['reconcile']['status'] );
-		$this->assertFileDoesNotExist( $this->site . '/wp-content/mu-plugins/persist.php' );
+		$this->assertFileDoesNotExist( $this->site . '/wp-content/plugins/persist.php' );
 	}
 
 	public static function data_reconcile_upload_exemptions() {
@@ -1290,7 +1586,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
 			$this->assertSame( $keep, file_exists( $upload_dir . '/post-backup.jpg' ) );
 			$this->assertFileDoesNotExist( $upload_dir . '-extra/post-backup.jpg' );
-			$this->assertFileDoesNotExist( $this->site . '/wp-content/mu-plugins/persist.php' );
+			$this->assertFileDoesNotExist( $this->site . '/wp-content/plugins/persist.php' );
 		} finally {
 			remove_filter( 'upload_dir', $filter );
 			if ( is_dir( $external ) ) {
@@ -1350,7 +1646,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$task = $this->drive( $task_id );
 		$sub = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertSame( array( 'status' => 'skipped', 'reason' => 'manifest_unverified' ), $sub['verification']['reconcile'] );
-		$this->assertFileExists( $this->site . '/wp-content/mu-plugins/persist.php' );
+		$this->assertFileExists( $this->site . '/wp-content/plugins/persist.php' );
 	}
 
 	/**
@@ -1382,16 +1678,16 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $options ) );
 		$sub = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertSame( array( 'status' => 'skipped', 'reason' => 'no_walk_params' ), $sub['verification']['reconcile'] );
-		$this->assertFileExists( $this->site . '/wp-content/mu-plugins/persist.php' );
+		$this->assertFileExists( $this->site . '/wp-content/plugins/persist.php' );
 	}
 
 	public function test_reconcile_keeps_recorded_user_exclude() {
 		$this->prepare_reconcile_fixture();
-		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options( array( 'wp-content/mu-plugins' ) ) ) );
+		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options( array( 'wp-content/plugins' ) ) ) );
 		$sub = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
 		$this->assertSame( 0, $sub['verification']['reconcile']['removed'] );
-		$this->assertFileExists( $this->site . '/wp-content/mu-plugins/persist.php' );
+		$this->assertFileExists( $this->site . '/wp-content/plugins/persist.php' );
 	}
 
 	/**
@@ -1438,7 +1734,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact() ) ) );
 		$sub = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertSame( array( 'status' => 'skipped', 'reason' => 'no_manifest' ), $sub['verification']['reconcile'] );
-		$this->assertFileExists( $this->site . '/wp-content/mu-plugins/persist.php' );
+		$this->assertFileExists( $this->site . '/wp-content/plugins/persist.php' );
 	}
 
 	public function test_reconcile_empty_manifest_skips_and_keeps_extra_file() {
@@ -1446,7 +1742,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array() ) ), $this->reconcile_options() ) );
 		$sub = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertSame( array( 'status' => 'skipped', 'reason' => 'empty_manifest' ), $sub['verification']['reconcile'] );
-		$this->assertFileExists( $this->site . '/wp-content/mu-plugins/persist.php' );
+		$this->assertFileExists( $this->site . '/wp-content/plugins/persist.php' );
 	}
 
 	public function test_reconcile_malformed_manifest_aborts_before_deletion() {
@@ -1456,7 +1752,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_RECONCILE, $sub['error']['code'] );
 		$this->assertSame( 'aborted', $sub['verification']['reconcile']['status'] );
-		$this->assertFileExists( $this->site . '/wp-content/mu-plugins/persist.php' );
+		$this->assertFileExists( $this->site . '/wp-content/plugins/persist.php' );
 	}
 
 	public function test_restore_db_never_reconciles() {
@@ -1465,12 +1761,13 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$sub = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
 		$this->assertArrayNotHasKey( 'reconcile', $sub['verification'] );
-		$this->assertFileExists( $this->site . '/wp-content/mu-plugins/persist.php' );
+		$this->assertArrayNotHasKey( 'mu_plugins_preserve', $sub );
+		$this->assertFileExists( $this->site . '/wp-content/plugins/persist.php' );
 	}
 
 	public function test_reconcile_resumes_with_total_removed_count() {
 		$this->prepare_reconcile_fixture();
-		file_put_contents( $this->site . '/wp-content/mu-plugins/second.php', 'extra' );
+		file_put_contents( $this->site . '/wp-content/plugins/second.php', 'extra' );
 		$this->runner->test_reconciler = new class extends \MainWP\Child\MainWP_Child_Backup_Reconciler {
 			public $checks = 0;
 			protected function budget_exhausted( $deadline ) {
@@ -1487,7 +1784,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			}
 		}
 		$this->assertSame( 1, $sub['reconcile']['removed'] );
-		$this->assertSame( 'wp-content/mu-plugins/persist.php', $sub['reconcile']['last'] );
+		$this->assertSame( 'wp-content/plugins/persist.php', $sub['reconcile']['last'] );
 		$this->runner->test_reconciler = null;
 		$task = $this->drive( $task_id );
 		$sub = $this->spine->read_sub_state( $task, $this->dir );
@@ -1596,8 +1893,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 
 	public function test_reconcile_dot_names_and_malformed_manifest() {
 		$this->prepare_reconcile_fixture();
-		$path = 'wp-content/mu-plugins/persist..php';
-		$manifest_path = 'wp-content/mu-plugins/jquery.min..js';
+		$path = 'wp-content/plugins/persist..php';
+		$manifest_path = 'wp-content/plugins/jquery.min..js';
 		file_put_contents( $this->site . '/' . $path, 'live-only file' );
 		file_put_contents( $this->site . '/' . $manifest_path, 'keep manifest file' );
 		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( $manifest_path, 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options() ) );
@@ -1606,7 +1903,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( array( 'status' => 'done', 'removed' => 2, 'examined' => 4 ), $sub['verification']['reconcile'] );
 		$this->assertFileDoesNotExist( $this->site . '/' . $path );
 		$this->assertSame( 'keep manifest file', file_get_contents( $this->site . '/' . $manifest_path ) );
-		$this->assertFileDoesNotExist( $this->site . '/wp-content/mu-plugins/persist.php' );
+		$this->assertFileDoesNotExist( $this->site . '/wp-content/plugins/persist.php' );
 		file_put_contents( $this->site . '/' . $path, 'keep after malformed manifest' );
 		file_put_contents( $this->dir . '/s1-files.list', "unparseable manifest line\n" );
 		$engine = new \MainWP\Child\MainWP_Child_Backup_Reconciler();
@@ -1623,7 +1920,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact() ), $this->reconcile_options() ) );
 		$sub = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertSame( array( 'status' => 'skipped', 'reason' => 'manifest_unverified' ), $sub['verification']['reconcile'] );
-		$this->assertFileExists( $this->site . '/wp-content/mu-plugins/persist.php' );
+		$this->assertFileExists( $this->site . '/wp-content/plugins/persist.php' );
 	}
 
 	public function test_restore_create_mutex_insert_failure_with_holder_has_write_failed_error_code() {
@@ -4775,7 +5072,10 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			$successor->fake_engine->replay_yield_once = true;
 			$artifact = $this->make_full_archive_with_embedded_dump();
 			$successor_id = $successor->create_restore_task( 'full', array( 'restore_id' => 'sweep_successor', 'source_prefix' => 'bn_', 'artifacts' => array( $artifact ), 'has_foreign_keys' => null ) );
-			$task = $successor->advance_one_slice( $this->spine->get_task( $successor_id ), 'successor' );
+			$task = $this->spine->get_task( $successor_id );
+			for ( $i = 0; $i < 3 && MainWP_Child_Backup_Task::PHASE_REPLAYING_DB !== $task->phase; ++$i ) {
+				$task = $successor->advance_one_slice( $task, 'successor' );
+			}
 			$this->assertSame( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $task->phase );
 			$this->assertFileExists( $this->site . '/wp-content/dbBackup-bn_items.sql.php' );
 			$this->seed_dump_sweep_litter();
