@@ -2896,6 +2896,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         $current = $config->get_option( 'vulns_settings' );
         // nosemgrep: AIK_unserialize-use -- The local WPTC option is decoded with allowed_classes false, so no classes are instantiated.
         $current = unserialize( $current, array( 'allowed_classes' => false ) ); // phpcs:ignore -- WPTC option vulns_settings, restricted unserialize.
+        // nosemgrep: AIK_unserialize-use -- The signed Dashboard payload is decoded with allowed_classes false, so no classes are instantiated.
         $new     = unserialize( $data['vulns_settings'], array( 'allowed_classes' => false ) ); // phpcs:ignore -- dashboard payload vulns_settings, restricted unserialize. // NOSONARR .
 
         $current['status']            = $new['status'];
