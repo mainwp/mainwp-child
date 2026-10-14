@@ -626,6 +626,8 @@ class Tar_Archiver {
      * @param array      $ancestors Directories on the current descent chain.
      * @param array|null $bases Containment bases retained through linked-directory descent.
      *
+     * @throws MainWP_Exception When traversal exceeds the directory depth limit.
+     *
      * @uses \MainWP\Child\Tar_Archiver::add_empty_dir() Add empty directory to the backup archive file.
      * @uses \MainWP\Child\Tar_Archiver::add_file() Add file to the backup archive file.
      * @uses \MainWP\Child\MainWP_Helper::in_excludes()
@@ -649,6 +651,10 @@ class Tar_Archiver {
             return;
         }
 
+        if ( count( $ancestors ) > MainWP_Backup::MAX_DIRECTORY_DEPTH + 1 ) {
+            $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+        }
+
         $ancestors[] = $path;
 
         $this->add_empty_dir( $path, str_replace( ABSPATH, '', $path ) );
@@ -666,7 +672,10 @@ class Tar_Archiver {
             $descent_chain  = $ancestors;
             $iterator_depth = $iterator->getDepth();
             for ( $depth = 0; $depth <= $iterator_depth; ++$depth ) {
-                $descent_chain[] = $iterator->getSubIterator( $depth )->getPath();
+                $ancestor = $iterator->getSubIterator( $depth )->getPath();
+                if ( rtrim( $ancestor, '/\\' ) !== rtrim( end( $descent_chain ), '/\\' ) ) {
+                    $descent_chain[] = $ancestor;
+                }
             }
             if ( ! MainWP_Backup::is_safe_backup_path( $name, $bases, $descent_chain ) ) {
                 MainWP_Backup::record_skipped_path( $name );
@@ -676,6 +685,9 @@ class Tar_Archiver {
 
             if ( ! MainWP_Backup::excluded_by_path_or_target( $excludes, $name ) ) {
                 $addedEntryCount = $this->addedEntryCount;
+                if ( $path->isDir() && count( $descent_chain ) > MainWP_Backup::MAX_DIRECTORY_DEPTH + 1 ) {
+                    $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+                }
                 if ( $path->isLink() && $path->isDir() ) {
                     // RecursiveDirectoryIterator does not follow linked directories.
                     $this->add_dir( $name, $excludes, $descent_chain, $bases );

@@ -27,6 +27,9 @@ class MainWP_Backup {
     /** Maximum directory depth for the backup readiness inventory. */
     const MAX_INVENTORY_DEPTH = 64;
 
+    /** Maximum directory depth when archiving or copying backup content. */
+    const MAX_DIRECTORY_DEPTH = 64;
+
     /** Pid admission must allow for the legacy heartbeat interval. */
     const PID_LOCK_FRESH_SECONDS = 160;
 
@@ -2000,7 +2003,7 @@ class MainWP_Backup {
      * @param bool       $excludenonwp Whether or not to exclude any wp core files.
      * @param array|bool $ancestors    Descent chain; legacy root flags start at ABSPATH.
      *
-     * @throws MainWP_Exception When disk space runs out during the copy.
+     * @throws MainWP_Exception When the copy fails or exceeds the directory depth limit.
      *
      * @uses \MainWP\Child\MainWP_Helper::starts_with() Check if the String 1 starts with the String 2.
      * @uses \MainWP\Child\MainWP_Helper::in_excludes() Check if the value is in the excludes list.
@@ -2030,6 +2033,9 @@ class MainWP_Backup {
 
             if ( ! static::excluded_by_path_or_target( $excludes, $node ) ) {
                 if ( is_dir( $node ) ) {
+                    if ( count( $ancestors ) > self::MAX_DIRECTORY_DEPTH + 1 ) {
+                        throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_TOO_MANY_SKIPPED ) ), null, MainWP_Backup_Error::ERR_TOO_MANY_SKIPPED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message and constant code.
+                    }
                     $target_dir = str_replace( ABSPATH, $backupfolder, $node );
                     if ( ! file_exists( $target_dir ) && ! @mkdir( $target_dir ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged,WordPress.WP.AlternativeFunctions.file_system_operations_mkdir -- failure converted to a coded exception below.
                         throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_PERMISSIONS ) ), null, MainWP_Backup_Error::ERR_PERMISSIONS ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.

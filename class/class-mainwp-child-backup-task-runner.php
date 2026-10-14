@@ -566,6 +566,12 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                         MainWP_Child_Backup_Mutex::release( $task_id );
                     }
                 }
+            } else {
+                $abandoned = true;
+            }
+        } finally {
+            if ( $is_backup && ( $this->lease_lost || $abandoned ) ) {
+                MainWP_Child_Backup_Mutex::release( $task_id );
             }
         }
 

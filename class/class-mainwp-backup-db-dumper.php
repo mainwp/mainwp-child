@@ -794,8 +794,9 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         if ( null !== $cursor['pk_col'] ) {
             $sql = sprintf(
                 'SELECT %s FROM %s%s ORDER BY %s ASC LIMIT %d',
+                // nosemgrep: AIK_tainted-sql-string -- Select expressions contain backtick-quoted schema identifiers and the fixed ST_AsWKB function.
                 implode( ', ', $select_list ),
-                // nosec: identifier from SHOW FULL TABLES or the task's table list, backtick-quoted by quote_ident(); MySQL cannot bind identifiers.
+                // nosemgrep: AIK_tainted-sql-string -- Table and primary-key identifiers are backtick-quoted, and cursor values are integers.
                 $this->quote_ident( $table ),
                 null === $cursor['last_id'] ? '' : ' WHERE ' . $this->quote_ident( $cursor['pk_col'] ) . ' > ' . (int) $cursor['last_id'],
                 $this->quote_ident( $cursor['pk_col'] ),

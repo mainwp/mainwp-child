@@ -2724,6 +2724,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $postmeta = $prefix . 'postmeta';
 
         // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- raw reads by live prefix into a scratch file.
+        // nosemgrep: AIK_tainted-sql-string -- The table name is the live wpdb prefix plus the fixed postmeta suffix.
         $managed = $wpdb->get_col( 'SELECT post_id FROM `' . $postmeta . "` WHERE meta_key = '_manage_stock' AND meta_value = 'yes'" );
         $managed = is_array( $managed ) ? array_map( 'intval', $managed ) : array();
         if ( empty( $managed ) ) {
@@ -2731,6 +2732,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         }
         $in   = implode( ',', $managed );
         $rows = $wpdb->get_results(
+            // nosemgrep: AIK_tainted-sql-string -- The table uses the live wpdb prefix plus a fixed suffix, and product IDs pass through intval.
             'SELECT post_id, meta_key, meta_value FROM `' . $postmeta . '`'
             . ' WHERE post_id IN (' . $in . ") AND meta_key IN ('_stock','_stock_status','_manage_stock')",
             ARRAY_A
@@ -2748,6 +2750,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 
         $lookup = $prefix . 'wc_product_meta_lookup';
         if ( $this->table_exists( $lookup ) ) {
+            // nosemgrep: AIK_tainted-sql-string -- The table uses the live wpdb prefix plus a fixed suffix, and product IDs pass through intval.
             $lrows = $wpdb->get_results( 'SELECT product_id, stock_quantity, stock_status FROM `' . $lookup . '` WHERE product_id IN (' . $in . ')', ARRAY_A );
             foreach ( (array) $lrows as $lr ) {
                 $pid = (int) $lr['product_id'];

@@ -160,6 +160,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
 
         //phpcs:disable WordPress.DB -- direct paging reads over restored tables; names come from the restore config, not user input.
         $rows = $wpdb->get_results(
+            // nosemgrep: AIK_tainted-sql-string -- Table and primary-key identifiers are backtick-quoted, and paging offsets are integers.
             'SELECT * FROM ' . $this->quote_ident( $table ) . $order_sql . ' LIMIT ' . (int) $offset . ', ' . (int) $this->page_size(),
             ARRAY_A
         );
@@ -201,6 +202,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
             foreach ( $pk_columns as $column ) {
                 $values[] = $last[ $column ];
             }
+            // nosemgrep: AIK_tainted-sql-string -- Table and primary-key identifiers are backtick-quoted, and primary-key values use placeholders.
             $sql = 'SELECT COUNT(*) FROM ' . $this->quote_ident( $table ) . ' WHERE (' . $columns . ') <= (';
             $end = $wpdb->get_var( $wpdb->prepare( str_replace( '%', '%%', $sql ) . $placeholders . ')', $values ) ); // phpcs:ignore WordPress.DB -- count the surviving rows through the page boundary.
             if ( null === $end ) {
@@ -365,6 +367,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
                 return $serialised ? serialize( $data ) : $data; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- preserve values beyond the safe traversal depth.
             }
             if ( is_string( $data ) && is_serialized( $data ) && ! is_serialized_string( $data ) ) {
+                // nosemgrep: AIK_unserialize-use -- Restored row values are decoded with allowed_classes false, so no classes are instantiated.
                 $unserialized = unserialize( $data, array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- restricted unserialize, no classes instantiated.
                 if ( false !== $unserialized || 'b:0;' === $data ) {
                     return $this->recursive_replace( $from, $to, $unserialized, true, $depth + 1 );
@@ -381,6 +384,7 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
             } elseif ( is_object( $data ) ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement -- incomplete-class stubs re-serialize byte-identical; properties deliberately untouched.
                 return $serialised ? serialize( $data ) : $data; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- re-serializing an untouched stub.
             } elseif ( is_serialized_string( $data ) ) {
+                // nosemgrep: AIK_unserialize-use -- Serialized strings are decoded with allowed_classes false, so no classes are instantiated.
                 $inner = unserialize( $data, array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- restricted unserialize of a plain string.
                 if ( false !== $inner ) {
                     $data = serialize( str_replace( $from, $to, $inner ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- re-serializing a plain string.

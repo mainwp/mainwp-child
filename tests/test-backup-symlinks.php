@@ -519,6 +519,79 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 		$this->assert_excluded_link_absent( $entries );
 	}
 
+	public static function traversal_depths() {
+		return array(
+			'ordinary at limit' => array( 64, false, false ),
+			'ordinary beyond limit' => array( 65, false, true ),
+			'linked at limit' => array( 64, true, false ),
+			'linked beyond limit' => array( 65, true, true ),
+		);
+	}
+
+	private function deep_directory_tree( $depth, $linked ) {
+		$tree = $this->scratch . '/deep-tree';
+		mkdir( $tree );
+		$dir = $tree;
+		if ( $linked ) {
+			$dir = $this->scratch . '/deep-target';
+			mkdir( $dir );
+			$this->assertTrue( symlink( $dir, $tree . '/d' ) );
+			--$depth;
+		}
+		for ( $i = 0; $i < $depth; ++$i ) {
+			$dir .= '/d';
+			mkdir( $dir );
+		}
+		file_put_contents( $dir . '/leaf.txt', 'deep bytes' );
+		return $tree;
+	}
+
+	/** @dataProvider traversal_depths */
+	public function test_tar_directory_depth_bound_fails_closed( $depth, $linked, $refused ) {
+		$tree = $this->deep_directory_tree( $depth, $linked );
+		$archive = $this->external . '/deep.tar';
+		$tar = new Tar_Archiver( $this->backup(), 'tar' );
+		$tar->create( $archive );
+		$error = null;
+		try {
+			$tar->add_dir( $tree, array() );
+		} catch ( \MainWP\Child\MainWP_Exception $e ) {
+			$error = $e;
+		} finally {
+			$tar->close();
+		}
+		if ( $refused ) {
+			$this->assertInstanceOf( \MainWP\Child\MainWP_Exception::class, $error, 'Over-depth input must abort the archive.' );
+			$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_TAR_WRITE_FAILED, $error->get_message_error_code() );
+			$this->assertStringNotContainsString( 'deep bytes', file_get_contents( $archive ) );
+		} else {
+			$this->assertNull( $error );
+			$this->assertStringContainsString( 'deep bytes', file_get_contents( $archive ) );
+		}
+	}
+
+	/** @dataProvider traversal_depths */
+	public function test_copy_directory_depth_bound_fails_closed( $depth, $linked, $refused ) {
+		$tree = $this->deep_directory_tree( $depth, $linked );
+		$out = $this->external . '/deep-copy/';
+		$copied = $out . str_replace( ABSPATH, '', $tree );
+		mkdir( dirname( $copied ), 0755, true );
+		$error = null;
+		try {
+			$this->backup()->copy_dir( array( $tree ), array(), $out, false );
+		} catch ( \MainWP\Child\MainWP_Exception $e ) {
+			$error = $e;
+		}
+		if ( $refused ) {
+			$this->assertInstanceOf( \MainWP\Child\MainWP_Exception::class, $error, 'Over-depth input must abort the copy.' );
+			$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_TOO_MANY_SKIPPED, $error->get_message_error_code() );
+			$this->assertFileDoesNotExist( $copied . str_repeat( '/d', $depth ) . '/leaf.txt' );
+		} else {
+			$this->assertNull( $error );
+			$this->assertSame( 'deep bytes', file_get_contents( $copied . str_repeat( '/d', $depth ) . '/leaf.txt' ) );
+		}
+	}
+
 	public function test_walker_descends_links_and_records_refusals_after_resume() {
 		$tree = $this->link_tree();
 		$out = $this->external . '/sidecars';

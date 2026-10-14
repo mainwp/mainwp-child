@@ -809,8 +809,62 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( 'successor', $task->lease_owner );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_DUMPING_DB, $task->phase );
 		$this->assertSame( 'successor bytes', file_get_contents( $this->backup_dir . '/files.list.staged' ) );
-		$this->assertSame( $task_id, MainWP_Child_Backup_Mutex::holder()['owner'] );
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder(), 'Lease loss must release the abandoned backup mutex.' );
 		$this->assertNotContains( 'archive_db_artifact', $this->runner->seam_names() );
+	}
+
+	public static function abandoned_mutex_cases() {
+		return array(
+			'lease loss, own mutex' => array( 'lease', false ),
+			'lease loss, foreign mutex' => array( 'lease', true ),
+			'checkpoint loss, own mutex' => array( 'checkpoint', false ),
+			'checkpoint loss, foreign mutex' => array( 'checkpoint', true ),
+			'failure checkpoint loss, own mutex' => array( 'failure', false ),
+			'failure checkpoint loss, foreign mutex' => array( 'failure', true ),
+		);
+	}
+
+	/** @dataProvider abandoned_mutex_cases */
+	public function test_abandoned_slice_releases_only_its_mutex( $exit, $foreign_mutex ) {
+		global $wpdb;
+		$spine = MainWP_Child_Backup_Task::instance();
+		$task_id = $this->create_task( 'db' );
+		$successor = null;
+		$foreign_value = null;
+		$this->runner->stubs['dump_tier1'] = function () use ( $wpdb, $spine, $task_id, $exit, $foreign_mutex, &$successor, &$foreign_value ) {
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET lease_owner = %s, version = version + 1 WHERE task_id = %s', 'successor', $task_id ) );
+			$successor = $spine->get_task( $task_id );
+			file_put_contents( $this->backup_dir . '/files.list.staged', 'successor bytes' );
+			if ( $foreign_mutex ) {
+				MainWP_Child_Backup_Mutex::release( $task_id );
+				$this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'successor-task', 3600 ) );
+				$foreign_value = MainWP_Child_Backup_Mutex::raw_value();
+			}
+			if ( 'lease' === $exit ) {
+				$method = new ReflectionMethod( MainWP_Child_Backup_Task_Runner::class, 'dump_heartbeat' );
+				$method->setAccessible( true );
+				$heartbeat = $method->invoke( $this->runner );
+				$heartbeat();
+				$this->fail( 'Lease loss must interrupt the dump.' );
+			}
+			if ( 'failure' === $exit ) {
+				throw new MainWP_Exception( 'dump failed', null, 'mainwp_backup_db_query_failed' );
+			}
+			return array( 'f.sql.php' );
+		};
+
+		$task = $this->advance( $task_id );
+		$this->assertNotNull( $successor );
+		$this->assertSame( $successor->version, $task->version );
+		$this->assertSame( $successor->sub_state, $task->sub_state );
+		$this->assertSame( 'successor', $task->lease_owner );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_DUMPING_DB, $task->phase );
+		$this->assertSame( 'successor bytes', file_get_contents( $this->backup_dir . '/files.list.staged' ) );
+		if ( $foreign_mutex ) {
+			$this->assertSame( $foreign_value, MainWP_Child_Backup_Mutex::raw_value(), 'A successor mutex must survive unchanged.' );
+		} else {
+			$this->assertNull( MainWP_Child_Backup_Mutex::holder(), 'An abandoned slice must release its own mutex.' );
+		}
 	}
 
 	public function test_dump_callbacks_refresh_progress_throttle_and_fail_after_takeover() {
