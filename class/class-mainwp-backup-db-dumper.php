@@ -924,17 +924,18 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
      *
      * @return array<int,array{name:string,type:string,bit_width:int,generated:bool}>
      *
-     * @throws MainWP_Exception On an unsafe table name.
+     * @throws MainWP_Exception On a table name containing NUL.
      */
     protected function get_column_map( $query_runner, $table ) {
-        if ( false !== strpos( $table, '\\' ) || false !== strpos( $table, "\0" ) ) {
+        // NUL cannot appear in a MySQL identifier; backslashes and quotes can, so the name is bound below.
+        if ( false !== strpos( $table, "\0" ) ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DB_QUERY_FAILED ) ), null, MainWP_Backup_Error::ERR_DB_QUERY_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message.
         }
 
+        global $wpdb;
         $rows = call_user_func(
             $query_runner,
-            // nosemgrep: AIK_tainted-sql-string -- Table names reject backslash and NUL and escape single quotes before this query.
-            "SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" . str_replace( "'", "''", $table ) . "' ORDER BY ORDINAL_POSITION"
+            $wpdb->prepare( 'SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s ORDER BY ORDINAL_POSITION', $table )
         );
         $columns = array();
         foreach ( (array) $rows as $row ) {
