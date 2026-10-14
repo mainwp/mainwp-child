@@ -4745,6 +4745,24 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assert_dump_sweep_state( $task_id, true, false, false );
 	}
 
+	/**
+	 * A slice that overran its lease and then threw still owns the row when
+	 * nobody took it over, so the sweep is skipped but the failure lands.
+	 */
+	public function test_block_c_e_expired_untaken_lease_still_fails_the_task() {
+		$task_id = $this->dump_sweep_fixture();
+		$this->runner->fake_engine->replay_throw = true;
+		$this->runner->before_terminal_cleanup = function () use ( $task_id ) {
+			global $wpdb;
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $task_id ) );
+		};
+		$task = $this->runner->advance_one_slice( $this->spine->get_task( $task_id ), 'overran' );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $this->spine->status_payload( $task, $this->dir )['error_code'] );
+		$this->assertNull( $task->active_slot );
+		$this->assert_dump_sweep_state( $task_id, true, false, false );
+	}
+
 	public function test_block_c_f_successor_after_slot_release_keeps_fresh_dumps() {
 		$task_id = $this->dump_sweep_fixture();
 		$this->force_deadline_past( $task_id );

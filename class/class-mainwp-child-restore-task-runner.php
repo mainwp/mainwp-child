@@ -3658,13 +3658,10 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @return bool Whether this invocation still owns cleanup.
      */
     protected function terminal_dump_lease_holds( $task_id, $owner ) {
-        if ( '' !== $owner && MainWP_Child_Backup_Task::instance()->renew_lease( $task_id, $owner, self::LEASE_TTL_SECONDS ) ) {
-            return true;
-        }
-        if ( $owner === $this->current_lease_owner ) {
-            $this->lease_lost = true;
-        }
-        return false;
+        // A failed renewal only skips the sweep. Setting lease_lost here would
+        // make advance_one_slice() skip the failure write of a slice whose lease
+        // expired but was never taken over, leaving the task stuck mid-phase.
+        return '' !== $owner && MainWP_Child_Backup_Task::instance()->renew_lease( $task_id, $owner, self::LEASE_TTL_SECONDS );
     }
 
     /**
