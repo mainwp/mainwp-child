@@ -115,6 +115,12 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 
 == Changelog ==
 
+= 6.3-beta4 - 10-14-2026 =
+
+* Fixed: A cancelled, failed or timed-out restore removes the database dump files it extracted. If restoring the previous database fails, they stay with the recovery files.
+* Fixed: A restore step that timed out and was not picked up again still records its failure instead of leaving the restore stuck.
+* Fixed: Backups refuse table names containing a NUL character and directory trees nested deeper than 64 levels.
+
 = 6.3-beta1 - 10-8-2026 =
 
 * Added: Native Backups (beta): a resumable backup engine that archives files and the database in slices, so backups complete on hosts with short request limits.
