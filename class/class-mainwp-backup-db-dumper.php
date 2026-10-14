@@ -922,10 +922,17 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
      * @param string   $table        Table name.
      *
      * @return array<int,array{name:string,type:string,bit_width:int,generated:bool}>
+     *
+     * @throws MainWP_Exception On an unsafe table name.
      */
     protected function get_column_map( $query_runner, $table ) {
-        $rows    = call_user_func(
+        if ( false !== strpos( $table, '\\' ) || false !== strpos( $table, "\0" ) ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DB_QUERY_FAILED ) ), null, MainWP_Backup_Error::ERR_DB_QUERY_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message.
+        }
+
+        $rows = call_user_func(
             $query_runner,
+            // nosemgrep: AIK_tainted-sql-string -- Table names reject backslash and NUL and escape single quotes before this query.
             "SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" . str_replace( "'", "''", $table ) . "' ORDER BY ORDINAL_POSITION"
         );
         $columns = array();

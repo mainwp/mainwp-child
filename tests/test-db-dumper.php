@@ -262,6 +262,30 @@ class DbDumperTest extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( DB_USER, $result['reason'] );
 	}
 
+	public function test_column_map_rejects_backslash_and_nul_before_query() {
+		$dumper = MainWP_Backup_Db_Dumper::instance();
+		$method = new ReflectionMethod( $dumper, 'get_column_map' );
+		$method->setAccessible( true );
+		$queries = array();
+		$query_runner = function ( $sql ) use ( &$queries ) {
+			$queries[] = $sql;
+			return array();
+		};
+
+		foreach ( array( "wp_bad\\' OR 1=1 -- ", "wp_bad\0table" ) as $table ) {
+			try {
+				$method->invoke( $dumper, $query_runner, $table );
+				$this->fail( 'Unsafe table names must fail before the column-map query.' );
+			} catch ( \MainWP\Child\MainWP_Exception $e ) {
+				$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_DB_QUERY_FAILED, $e->get_message_error_code() );
+			}
+		}
+		$this->assertSame( array(), $queries, 'Rejected table names must never reach the query runner.' );
+		$this->assertSame( array(), $method->invoke( $dumper, $query_runner, "wp_quote'`table" ) );
+		$this->assertCount( 1, $queries );
+		$this->assertStringContainsString( "TABLE_NAME = 'wp_quote''`table'", $queries[0] );
+	}
+
 	/**
 	 * The Tier-1 dump produces guarded per-table .sql.php files with the
 	 * legacy naming, a metadata banner, and explicit column lists.

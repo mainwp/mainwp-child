@@ -1079,16 +1079,16 @@ class MainWP_Custom_Post_Type {
                 }
 
                 if ( is_string( $meta_value ) && is_serialized( $meta_value ) ) {
-                    // nosec: allowed_classes => false instantiates no objects, and value_contains_object() drops any payload that still carries one.
                     $serialized_meta_value = trim( $meta_value );
-                    $meta_value            = @unserialize( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions, WordPress.PHP.NoSilencedErrors -- restricted decode; suppress malformed-value warnings as WordPress core does.
+                    // nosemgrep: AIK_unserialize-use -- Restricted decode uses allowed_classes false and max_depth 32; object values are rejected before storage.
+                    $meta_value = @unserialize( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions, WordPress.PHP.NoSilencedErrors -- restricted decode; suppress malformed-value warnings as WordPress core does.
                         $serialized_meta_value,
                         array(
                             'allowed_classes' => false,
                             'max_depth'       => 32,
                         )
                     );
-                    $visits                = 0;
+                    $visits     = 0;
                     if ( ( false === $meta_value && 'b:0;' !== $serialized_meta_value ) || $this->value_contains_object( $meta_value, 0, $visits ) ) {
                         continue; // Refuse failed decodes and unsafe values before WordPress re-serializes them.
                     }
