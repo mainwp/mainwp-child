@@ -109,41 +109,46 @@ class MainWP_Child_Backup_Mu_Plugins extends MainWP_Child_Backup_Incremental_Dif
      * @param string|null $manifest Verified leaf manifest; null when unavailable.
      * @param bool        $started An older restore already entered extraction.
      * @param int         $limit Maximum number of live absent paths to persist.
+     * @param bool        $without_manifest Protect live files when the plan has no leaf membership.
      * @throws \RuntimeException When the manifest or live directory cannot be read.
      * @throws MainWP_Exception When the manifest holds a malformed row.
      * @return array Persistable preservation policy.
      */
-    public function capture( $root, $directory, $manifest, $started, $limit ) {
+    public function capture( $root, $directory, $manifest, $started, $limit, $without_manifest = false ) {
         $relative = self::relative_directory( $root, $directory );
         $state    = array(
             'directory' => null,
             'mode'      => 'set',
             'paths'     => array(),
         );
-        if ( null === $relative || null === $manifest ) {
+        if ( null === $relative || ( null === $manifest && ! $without_manifest ) ) {
             return $state;
         }
-        $handle = fopen( $manifest, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- verified local sidecar.
-        if ( false === $handle ) {
-            throw new \RuntimeException( 'Could not read the leaf manifest.' );
-        }
         $leaf = array();
-        try {
-            while ( false !== ( $line = fgets( $handle ) ) ) {
-                $row = $this->parse_list_line( rtrim( $line, "\r\n" ) );
-                if ( null === $row ) {
-                    // Reconcile would abort on this row after extraction; fail before any file changes instead.
-                    throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_RECONCILE ) ), null, MainWP_Backup_Error::ERR_RESTORE_RECONCILE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
-                }
-                if ( self::contains( $row[0], $relative ) ) {
-                    $leaf[ $row[0] ] = true;
-                }
-            }
-            if ( ! feof( $handle ) ) {
+        if ( null !== $manifest ) {
+            $handle = fopen( $manifest, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- verified local sidecar.
+            if ( false === $handle ) {
                 throw new \RuntimeException( 'Could not read the leaf manifest.' );
             }
-        } finally {
-            fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- local sidecar.
+            try {
+                while ( false !== ( $line = fgets( $handle ) ) ) {
+                    $row = $this->parse_list_line( rtrim( $line, "\r\n" ) );
+                    if ( null === $row ) {
+                        // Reconcile would abort on this row after extraction; fail before any file changes instead.
+                        throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_RECONCILE ) ), null, MainWP_Backup_Error::ERR_RESTORE_RECONCILE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+                    }
+                    if ( self::contains( $row[0], $relative ) ) {
+                        $leaf[ $row[0] ] = true;
+                    }
+                }
+                if ( ! feof( $handle ) ) {
+                    throw new \RuntimeException( 'Could not read the leaf manifest.' );
+                }
+            } finally {
+                fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- local sidecar.
+            }
+        } else {
+            $state['reason'] = 'mu_plugins_no_manifest';
         }
         $state['directory'] = $relative;
         if ( ! $started && is_dir( $directory ) ) {

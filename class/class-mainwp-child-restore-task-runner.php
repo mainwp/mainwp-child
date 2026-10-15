@@ -1505,6 +1505,11 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
         }
 
+        $options = isset( $params['reconcile'] ) ? MainWP_Child_Backup_Reconciler::sanitize_options( $params['reconcile'] ) : array();
+        if ( ! empty( $options['manifest'] ) && empty( $sub_state['verified_manifests'][ $options['manifest'] ] ) ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_RECONCILE ) ), null, MainWP_Backup_Error::ERR_RESTORE_RECONCILE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+
         return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
     }
 
@@ -1523,28 +1528,42 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @return array Slice result.
      */
     protected function run_restoring_files( $task, $version, $sub_state, $deadline, $backup_dir ) {
-        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
-        $hashes  = $this->expected_hashes( $sub_state );
-        $ops     = array();
+        $scratch        = $this->scratch_dir( $task->task_id, $backup_dir );
+        $hashes         = $this->expected_hashes( $sub_state );
+        $ops            = array();
+        $archive_count  = 0;
+        $has_tombstones = false;
         foreach ( (array) $sub_state['params']['artifacts'] as $artifact ) {
             if ( in_array( $artifact['role'], array( 'full', 'part', 'tombstones' ), true ) ) {
                 $ops[] = $artifact;
+                if ( 'tombstones' === $artifact['role'] ) {
+                    $has_tombstones = true;
+                } else {
+                    ++$archive_count;
+                }
             }
         }
 
         if ( ! isset( $sub_state['mu_plugins_preserve'] ) ) {
-            $options                          = isset( $sub_state['params']['reconcile'] ) ? MainWP_Child_Backup_Reconciler::sanitize_options( $sub_state['params']['reconcile'] ) : array();
-            $name                             = isset( $options['manifest'] ) ? $options['manifest'] : '';
-            $verified                         = isset( $sub_state['verified_manifests'][ $name ] ) ? $sub_state['verified_manifests'][ $name ] : '';
-            $manifest                         = $scratch . $name;
-            $actual                           = is_file( $manifest ) && ! is_link( $manifest ) ? hash_file( 'sha256', $manifest ) : false;
-            $manifest                         = '' !== $verified && is_string( $actual ) && hash_equals( $verified, $actual ) ? $manifest : null;
+            $options  = isset( $sub_state['params']['reconcile'] ) ? MainWP_Child_Backup_Reconciler::sanitize_options( $sub_state['params']['reconcile'] ) : array();
+            $name     = isset( $options['manifest'] ) ? $options['manifest'] : '';
+            $verified = isset( $sub_state['verified_manifests'][ $name ] ) ? $sub_state['verified_manifests'][ $name ] : '';
+            $manifest = $scratch . $name;
+            $actual   = is_file( $manifest ) && ! is_link( $manifest ) ? hash_file( 'sha256', $manifest ) : false;
+            $manifest = '' !== $verified && is_string( $actual ) && hash_equals( $verified, $actual ) ? $manifest : null;
+            if ( '' !== $name && null === $manifest ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_RECONCILE ) ), null, MainWP_Backup_Error::ERR_RESTORE_RECONCILE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
+            // Archives carry no snapshot identity, so a missing manifest requires protection across every archive.
+            $without_manifest = ! array_key_exists( 'reconcile', $sub_state['params'] ) && ( $archive_count > 1 || $has_tombstones );
+
             $sub_state['mu_plugins_preserve'] = ( new MainWP_Child_Backup_Mu_Plugins() )->capture(
                 $this->site_root(),
                 $this->mu_plugins_directory(),
                 $manifest,
                 isset( $sub_state['file_restore'] ),
-                $this->mu_plugins_preserve_limit()
+                $this->mu_plugins_preserve_limit(),
+                $without_manifest
             );
             // A crash before this checkpoint must leave extraction entirely untouched.
             return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
