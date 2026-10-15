@@ -27,7 +27,8 @@ class MainWP_Child_Backup_Mu_Plugins extends MainWP_Child_Backup_Incremental_Dif
         $directory = null === $directory ? ( defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins' ) : $directory;
         $root      = self::normalize_directory( $root );
         $directory = self::normalize_directory( $directory );
-        if ( $directory !== $root && 0 !== strpos( $directory, trailingslashit( $root ) ) ) {
+        // A directory equal to the root would exempt the whole site from reconcile.
+        if ( $directory === $root || 0 !== strpos( $directory, trailingslashit( $root ) ) ) {
             return null;
         }
         $parent = $directory;
@@ -82,7 +83,7 @@ class MainWP_Child_Backup_Mu_Plugins extends MainWP_Child_Backup_Incremental_Dif
      */
     public static function contains( $path, $directory ) {
         $path = self::path_key( $path );
-        return null !== $directory && null !== $path && ( '' === $directory || $path === $directory || 0 === strpos( $path, $directory . '/' ) );
+        return null !== $directory && '' !== $directory && null !== $path && ( $path === $directory || 0 === strpos( $path, $directory . '/' ) );
     }
 
     /**
@@ -108,7 +109,8 @@ class MainWP_Child_Backup_Mu_Plugins extends MainWP_Child_Backup_Incremental_Dif
      * @param string|null $manifest Verified leaf manifest; null when unavailable.
      * @param bool        $started An older restore already entered extraction.
      * @param int         $limit Maximum number of live absent paths to persist.
-     * @throws \RuntimeException When a manifest or live directory cannot be read.
+     * @throws \RuntimeException When the manifest or live directory cannot be read.
+     * @throws MainWP_Exception When the manifest holds a malformed row.
      * @return array Persistable preservation policy.
      */
     public function capture( $root, $directory, $manifest, $started, $limit ) {
@@ -130,8 +132,8 @@ class MainWP_Child_Backup_Mu_Plugins extends MainWP_Child_Backup_Incremental_Dif
             while ( false !== ( $line = fgets( $handle ) ) ) {
                 $row = $this->parse_list_line( rtrim( $line, "\r\n" ) );
                 if ( null === $row ) {
-                    // Reconcile reports malformed manifests through its existing failure path.
-                    return $state;
+                    // Reconcile would abort on this row after extraction; fail before any file changes instead.
+                    throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_RECONCILE ) ), null, MainWP_Backup_Error::ERR_RESTORE_RECONCILE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
                 }
                 if ( self::contains( $row[0], $relative ) ) {
                     $leaf[ $row[0] ] = true;

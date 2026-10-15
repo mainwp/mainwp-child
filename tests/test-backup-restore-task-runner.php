@@ -1233,9 +1233,9 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	protected function mu_plugins_chain( $type = 'files' ) {
 		$path = 'wp-content/mu-plugins/host.php';
 		file_put_contents( $this->site . '/' . $path, 'live host bytes' );
-		$base = $this->make_named_zip_artifact( 'base.zip', array( $path => 'base bytes', 'snapshot.txt' => 'snapshot', 'wp-content/mu-plugins/snapshot.php' => 'base snapshot' ) );
+		$base = $this->make_named_zip_artifact( 'base.zip', array( $path => 'base bytes', 'snapshot.txt' => 'snapshot', 'wp-content/mu-plugins/snapshot.php' => 'base snapshot', 'wp-content/mu-plugins/stale.php' => 'stale base bytes' ) );
 		$delta = $this->make_named_zip_artifact( 'delta.zip', array( 'snapshot.txt' => 'leaf bytes', 'wp-content/mu-plugins/snapshot.php' => 'leaf snapshot' ) );
-		$tombstones = $this->make_named_tombstones_artifact( 'leaf-tombstones.list', $path . "\n" );
+		$tombstones = $this->make_named_tombstones_artifact( 'leaf-tombstones.list', $path . "\nwp-content/mu-plugins/stale.php\n" );
 		$artifacts = array( $base, $tombstones, $delta, $this->make_manifest_artifact( array( 'snapshot.txt', 'wp-content/mu-plugins/snapshot.php' ) ) );
 		if ( 'full' === $type ) {
 			$artifacts[] = $this->make_db_artifact();
@@ -1317,6 +1317,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( 'custom/mu', $helper::relative_directory( $this->site, $this->site . '/custom/./mu/' ) );
 		$this->assertNull( $helper::relative_directory( $this->site, $this->site . '-other/mu' ) );
 		$this->assertNull( $helper::relative_directory( $this->site, $this->site . '/../outside' ) );
+		$this->assertNull( $helper::relative_directory( $this->site, $this->site . '/./' ) );
+		$this->assertFalse( $helper::contains( 'wp-content/plugins/extra.php', '' ) );
 		$this->assertSame( $helper::relative_directory( $this->site, defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins' ), $helper::relative_directory( $this->site ) );
 		mkdir( $this->site . '/custom' );
 		file_put_contents( $this->site . '/custom/host.php', 'symlink target' );
@@ -1421,7 +1423,6 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		list( $task, $sub ) = $this->advance_until( $task_id, static function ( $sub ) { return ! empty( $sub['file_restore']['part_cursor']['entry_index'] ); } );
 		$preserve = $sub['mu_plugins_preserve'];
 		file_put_contents( $this->site . '/wp-content/mu-plugins/late.php', 'created during restore' );
-		$this->runner->test_file_restorer = null;
 		$this->runner->test_reconciler = new class extends MainWP_Child_Backup_Reconciler {
 			public $checks = 0;
 			public function reconcile_slice( $cursor, $config, $deadline ) {
@@ -1459,6 +1460,22 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$uninterrupted = $engine->reconcile_slice( $walk['cursor'], $config, time() + 60 );
 		$this->assertSame( $uninterrupted['outcome'], $sub['verification']['reconcile'] );
 		$this->assertSame( 'live host bytes', file_get_contents( $this->site . '/wp-content/mu-plugins/host.php' ) );
+		// A set recomputed after base extraction would capture stale.php and keep it past its tombstone.
+		$this->assertFileDoesNotExist( $this->site . '/wp-content/mu-plugins/stale.php' );
+	}
+
+	public function test_mu_plugins_malformed_leaf_manifest_fails_before_extraction() {
+		$this->prepare_mu_plugins_fixture();
+		$path = 'wp-content/mu-plugins/host.php';
+		file_put_contents( $this->site . '/' . $path, 'live host bytes' );
+		$base = $this->make_named_zip_artifact( 'base.zip', array( $path => 'base bytes', 'snapshot.txt' => 'snapshot' ) );
+		$tombstones = $this->make_named_tombstones_artifact( 'leaf-tombstones.list', $path . "\n" );
+		$task = $this->drive( $this->make_task( 'files', array( $base, $tombstones, $this->make_manifest_artifact( array( 'snapshot.txt', "bad\tentry" ) ) ), $this->reconcile_options() ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_RECONCILE, $sub['error']['code'] );
+		$this->assertSame( 'live host bytes', file_get_contents( $this->site . '/' . $path ) );
+		$this->assertFileDoesNotExist( $this->site . '/snapshot.txt' );
 	}
 
 	public function test_mu_plugins_rollback_without_manifest_remains_overlay_only() {
@@ -1751,7 +1768,9 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$sub = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_RECONCILE, $sub['error']['code'] );
-		$this->assertSame( 'aborted', $sub['verification']['reconcile']['status'] );
+		// The preserve-set capture reads the same manifest and stops the restore before extraction.
+		$this->assertArrayNotHasKey( 'reconcile', isset( $sub['verification'] ) ? $sub['verification'] : array() );
+		$this->assertFileDoesNotExist( $this->site . '/wp-content/uploads/restored.txt' );
 		$this->assertFileExists( $this->site . '/wp-content/plugins/persist.php' );
 	}
 
@@ -4973,6 +4992,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$state['file_restore'] = array( 'op_index' => 0, 'part_cursor' => array(), 'dump_litter_swept' => true );
 		$state['params']['reconcile'] = array( 'manifest' => 'bad-files.list', 'walk' => array( 'excludes' => array(), 'excludenonwp' => 0, 'excludezip' => 0 ) );
 		$state['verified_manifests'] = array( 'bad-files.list' => hash_file( 'sha256', $manifest ) );
+		// A persisted preserve set skips the capture, so the malformed manifest reaches reconcile.
+		$state['mu_plugins_preserve'] = array( 'directory' => null, 'mode' => 'set', 'paths' => array() );
 		$this->spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => $state ) );
 		global $wpdb;
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET type = %s WHERE task_id = %s', 'restore_files', $task_id ) );
