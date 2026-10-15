@@ -560,6 +560,38 @@ class DbDumperTest extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_tier2_generated_primary_key_finishes_without_duplicate_rows() {
+		global $wpdb;
+		$wpdb->query( "DROP TABLE `{$this->fixture_table}`" );
+		$this->assertNotFalse( $wpdb->query( "CREATE TABLE `{$this->fixture_table}` (row_id INT NOT NULL, id INT GENERATED ALWAYS AS (row_id) STORED, name VARCHAR(190), PRIMARY KEY (id))" ), $wpdb->last_error );
+		$expected = array();
+		for ( $id = 1; $id <= 103; ++$id ) {
+			$expected[] = 'row-' . $id;
+			$this->assertSame( 1, $wpdb->insert( $this->fixture_table, array( 'row_id' => $id, 'name' => 'row-' . $id ) ), $wpdb->last_error );
+		}
+		$filter = function ( $sql ) {
+			return false !== stripos( $sql, 'AVG_ROW_LENGTH' ) ? 'SELECT 8388608' : $sql;
+		};
+		add_filter( 'query', $filter );
+		try {
+			$dumper = MainWP_Backup_Db_Dumper::instance();
+			$prefix = $this->scratch . '/generated-pk';
+			$cursor = array();
+			$slices = 0;
+			do {
+				$result = $dumper->dump_tables_tier2_slice( array( $this->fixture_table ), $prefix, $cursor, 0 );
+				$cursor = $result['cursor'];
+				++$slices;
+			} while ( ! $result['done'] && $slices < 4 );
+			$this->assertTrue( $result['done'], 'A generated primary key must not repeat the first chunk forever.' );
+			$this->assertLessThanOrEqual( 3, $slices, 'The header and two row chunks must finish the table.' );
+			$this->replay_tier2_fixture( $result['files'][0] );
+			$this->assertSame( $expected, $wpdb->get_col( "SELECT name FROM `{$this->fixture_table}` ORDER BY id" ) );
+		} finally {
+			remove_filter( 'query', $filter );
+		}
+	}
+
 	public function test_tier2_cursor_without_chunk_size_resumes() {
 		$dumper = MainWP_Backup_Db_Dumper::instance();
 		$prefix = $this->scratch . '/legacy-cursor';

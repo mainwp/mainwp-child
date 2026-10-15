@@ -1090,6 +1090,9 @@ class MainWP_Custom_Post_Type {
                     );
                     $visits     = 0;
                     if ( ( false === $meta_value && 'b:0;' !== $serialized_meta_value ) || $this->value_contains_object( $meta_value, 0, $visits ) ) {
+                        if ( is_array( $v2_failed_stages ) ) {
+                            $v2_failed_stages[] = 'postmeta';
+                        }
                         continue; // Refuse failed decodes and unsafe values before WordPress re-serializes them.
                     }
                 }

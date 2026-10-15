@@ -7129,6 +7129,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			'https://169.254.169.254/latest/meta-data/'         => 'AWS/Azure metadata IP',
 			'https://metadata.google.internal/computeMetadata/' => 'GCP metadata hostname',
 			'https://[::1]/object'                              => 'IPv6 loopback literal',
+			'https://[::ffff:169.254.169.254]/'                  => 'IPv4-mapped IPv6 metadata IP',
+			'https://[::ffff:a9fe:a9fe]/'                        => 'Hex IPv4-mapped IPv6 metadata IP',
 		);
 
 		foreach ( array( '', '1' ) as $override ) {

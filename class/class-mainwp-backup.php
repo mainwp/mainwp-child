@@ -2539,6 +2539,8 @@ class MainWP_Backup {
      *
      * @return string The artifact path (verify with file_exists - on archive
      *                failure the file is absent, matching legacy behavior).
+     *
+     * @throws \Throwable After discarding an unusable partial archive.
      */
     public function archive_db_files( $db_files, $filepath_prefix, $archiveExt ) {
         $archivefilePath = $filepath_prefix . '.sql.' . $archiveExt;
@@ -2549,7 +2551,16 @@ class MainWP_Backup {
             $this->archiver = new Tar_Archiver( $this, $archiveExt );
         }
 
-        if ( $this->zip_file( $db_files, $archivefilePath ) && file_exists( $archivefilePath ) ) {
+        try {
+            $archived = $this->zip_file( $db_files, $archivefilePath );
+        } catch ( \Throwable $e ) {
+            if ( file_exists( $archivefilePath ) ) {
+                wp_delete_file( $archivefilePath );
+            }
+            throw $e;
+        }
+
+        if ( $archived && file_exists( $archivefilePath ) ) {
             foreach ( $db_files as $db_file ) {
                 wp_delete_file( $db_file );
             }

@@ -448,6 +448,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             if ( false === $packed || 16 !== strlen( $packed ) ) {
                 return false;
             }
+            if ( str_repeat( "\x00", 10 ) . "\xff\xff" === substr( $packed, 0, 12 ) ) {
+                return static::ip_is_metadata_or_link_local( inet_ntop( substr( $packed, 12, 4 ) ) );
+            }
             if ( inet_pton( '::1' ) === $packed ) {
                 return true;
             }

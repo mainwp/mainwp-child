@@ -890,6 +890,9 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 	public function test_real_replay_and_swap_round_trip() {
 		global $wpdb;
 
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+
 		$this->real_tables = array( 'tmpr34l01_items', 'rdst77_items', 'oldr34l01_items' );
 
 		$nasty = "a:1:{s:3:\"url\";s:14:\"http://x;y'z/w\";}";

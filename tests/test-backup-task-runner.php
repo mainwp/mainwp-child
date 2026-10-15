@@ -1373,6 +1373,9 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 			} catch ( MainWP_Exception $e ) {
 				$this->assertSame( $code, $e->get_message_error_code() );
 			}
+			if ( 'db' === $kind ) {
+				$this->assertFileDoesNotExist( $this->backup_dir . '/required.sql.' . $ext );
+			}
 		} finally {
 			$backup->set_prepared_db_files( null );
 			if ( null !== $tar && $tar->is_open() ) { $tar->close(); }

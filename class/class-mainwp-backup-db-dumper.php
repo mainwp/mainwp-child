@@ -714,8 +714,9 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         fclose( $fh );
         $cursor['first'] = false;
 
-        // Pagination strategy: single integer PK gets deterministic PK-seek;
-        // anything else falls back to LIMIT/OFFSET.
+        // Pagination strategy: a single non-generated integer PK gets deterministic
+        // PK-seek; anything else falls back to LIMIT/OFFSET. A generated PK is left
+        // out of the dumped values, so it could never advance the seek cursor.
         $pk_columns = array();
         $keys       = $wpdb->get_results( 'SHOW KEYS FROM ' . $this->quote_ident( $table ) . " WHERE Key_name = 'PRIMARY'", ARRAY_A ); // phpcs:ignore -- schema read.
         foreach ( (array) $keys as $key_row ) {
@@ -727,7 +728,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         if ( 1 === count( $pk_columns ) ) {
             $pk_col   = reset( $pk_columns );
             $col_info = $wpdb->get_row( $wpdb->prepare( 'SHOW COLUMNS FROM ' . $this->quote_ident( $table ) . ' WHERE Field = %s', $pk_col ), ARRAY_A ); // phpcs:ignore -- schema read.
-            if ( $col_info && preg_match( '/int|bigint|mediumint|smallint|tinyint/i', $col_info['Type'] ) ) {
+            if ( $col_info && preg_match( '/int|bigint|mediumint|smallint|tinyint/i', $col_info['Type'] ) && false === stripos( (string) $col_info['Extra'], 'GENERATED' ) ) {
                 $cursor['pk_col'] = $pk_col;
             }
         }
@@ -933,7 +934,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         }
 
         global $wpdb;
-        $rows = call_user_func(
+        $rows    = call_user_func(
             $query_runner,
             $wpdb->prepare( 'SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s ORDER BY ORDINAL_POSITION', $table )
         );

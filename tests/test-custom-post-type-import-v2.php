@@ -356,4 +356,26 @@ class Test_Custom_Post_Type_Import_V2 extends WP_UnitTestCase {
 		$this->assertSame( $value, get_post_meta( $result['post_id'], 'spaced_serialized', true ) );
 	}
 
+	/** @dataProvider rejected_serialized_meta_values */
+	public function test_rejected_serialized_meta_reports_partial_postmeta( $value ) {
+		$payload = $this->payload();
+		$payload['postmeta'] = array( array( 'meta_key' => 'rejected_serialized', 'meta_value' => $value ) );
+		$_POST = array( 'data' => wp_slash( wp_json_encode( $payload ) ) );
+		$method = new ReflectionMethod( MainWP_Custom_Post_Type::class, 'import_custom_post_v2' );
+		$method->setAccessible( true );
+		$result = $method->invoke( MainWP_Custom_Post_Type::instance() );
+		$this->assertSame( 'partial', $result['outcome'] );
+		$this->assertSame( 'partial', $result['content_status'] );
+		$this->assertSame( 'postmeta', $result['partial_stage'] );
+		$this->assertGreaterThan( 0, $result['post_id'] );
+		$this->assertFalse( metadata_exists( 'post', $result['post_id'], 'rejected_serialized' ) );
+	}
+
+	public static function rejected_serialized_meta_values() {
+		return array(
+			'length mismatch' => array( 's:5:"ab";' ),
+			'object' => array( 'O:8:"stdClass":0:{}' ),
+		);
+	}
+
 }
