@@ -115,6 +115,17 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 
 == Changelog ==
 
+= 6.3-beta5 - 10-15-2026 =
+
+* Fixed: A restore no longer deletes or overwrites mu-plugins files that are not in the backup, such as host security plugins and the files they load.
+* Added: Backups record the files they could not read, and a restore keeps those files instead of deleting them.
+* Fixed: A file that could not be backed up and whose name ends in * no longer hides other files that start with the same name.
+* Added: After a files or full restore, or a rollback, the page cache is purged when Cache Control auto-purge is turned on. A failed purge does not fail the restore.
+* Fixed: A restore whose file list fails verification stops before changing any file, and an incremental restore without a file list keeps the site's current mu-plugins files.
+* Fixed: A backup whose database dump cannot be added to the archive now fails instead of finishing without its database.
+* Fixed: A restore stops when it cannot read the WooCommerce customer data it preserves.
+* Fixed: Files with two consecutive dots in their name, such as report..pdf, restore normally.
+
 = 6.3-beta4 - 10-14-2026 =
 
 * Fixed: A cancelled, failed or timed-out restore removes the database dump files it extracted. If restoring the previous database fails, they stay with the recovery files.
