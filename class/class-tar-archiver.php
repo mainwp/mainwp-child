@@ -462,6 +462,7 @@ class Tar_Archiver {
 
             foreach ( $nodes as $node ) {
                 if ( MainWP_Backup::is_file_link( $node ) ) {
+                    $this->consume_archived_file_if_next( str_replace( ABSPATH, '', $node ) );
                     MainWP_Backup::record_skipped_path( $node );
                     continue;
                 }
@@ -686,7 +687,13 @@ class Tar_Archiver {
                     $descent_chain[] = $ancestor;
                 }
             }
-            if ( MainWP_Backup::is_file_link( $name ) || ! MainWP_Backup::is_safe_backup_path( $name, $bases, $descent_chain ) ) {
+            if ( MainWP_Backup::is_file_link( $name ) ) {
+                $this->consume_archived_file_if_next( str_replace( ABSPATH, '', $name ) );
+                MainWP_Backup::record_skipped_path( $name );
+                $this->log( 'Skipping unsafe path ' . $name );
+                continue;
+            }
+            if ( ! MainWP_Backup::is_safe_backup_path( $name, $bases, $descent_chain ) ) {
                 MainWP_Backup::record_skipped_path( $name );
                 $this->log( 'Skipping unsafe path ' . $name );
                 continue;
@@ -980,7 +987,13 @@ class Tar_Archiver {
 
         // Walk-time metadata may predate a replaced file or link.
         clearstatcache( true, $path );
-        if ( MainWP_Backup::is_file_link( $path ) || ! MainWP_Backup::is_safe_backup_path( $path, $bases ) ) {
+        if ( MainWP_Backup::is_file_link( $path ) ) {
+            $this->consume_archived_file_if_next( $entryName );
+            MainWP_Backup::record_skipped_path( $path );
+            $this->log( 'Skipping unsafe path ' . $path );
+            return false;
+        }
+        if ( ! MainWP_Backup::is_safe_backup_path( $path, $bases ) ) {
             MainWP_Backup::record_skipped_path( $path );
             $this->log( 'Skipping unsafe path ' . $path );
             return false;
@@ -999,18 +1012,8 @@ class Tar_Archiver {
         // hard kill) must be skipped again, not matched against the next entry.
         $fp = @fopen( $path, 'rb' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- unreadable files are recorded below without exposing their paths.
         if ( ! $fp ) {
-            if ( self::APPEND === $this->mode ) {
-                // A source that became unreadable may already have a complete archived copy.
-                $startOffset = ftell( $this->archive );
-                try {
-                    $rslt = $this->is_next_file( $entryName );
-                } catch ( \Exception $e ) {
-                    $rslt = false;
-                }
-                if ( true === $rslt ) {
-                    return true;
-                }
-                fseek( $this->archive, $startOffset );
+            if ( $this->consume_archived_file_if_next( $entryName ) ) {
+                return true;
             }
             if ( $this->backup instanceof MainWP_Backup ) {
                 $this->backup->record_failed_add( $path );
@@ -1294,6 +1297,29 @@ class Tar_Archiver {
 
         ++$this->addedEntryCount;
         return true;
+    }
+
+    /**
+     * A skipped source must not strand an existing member before the next file.
+     *
+     * @param string $entryName Entry name supplied by the traversal.
+     * @return bool Whether a complete matching member was consumed.
+     */
+    private function consume_archived_file_if_next( $entryName ) {
+        if ( self::APPEND !== $this->mode ) {
+            return false;
+        }
+        $startOffset = ftell( $this->archive );
+        try {
+            $rslt = $this->is_next_file( $entryName );
+        } catch ( \Exception $e ) {
+            $rslt = false;
+        }
+        if ( true === $rslt ) {
+            return true;
+        }
+        fseek( $this->archive, $startOffset );
+        return false;
     }
 
     /**

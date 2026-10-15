@@ -2150,6 +2150,44 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 	}
 
 	/** @dataProvider file_symlink_formats */
+	public function test_file_symlink_mu_plugins_whole_dir_preserve_survives_host_replacement( $format ) {
+		$path = 'wp-content/mu-plugins/host.php';
+		$target = $this->extract_to . '/' . $path;
+		mkdir( dirname( $target ), 0777, true );
+		$this->file_link( 'missing', $target );
+		$this->restorer = new class( $target ) extends MainWP_Child_Backup_File_Restorer {
+			private $host_path;
+			public function __construct( $host_path ) {
+				$this->host_path = $host_path;
+			}
+			protected function entry_temp_path( $target ) {
+				if ( $target === $this->host_path && is_link( $target ) ) {
+					unlink( $target );
+					file_put_contents( $target, 'host deployment' );
+					clearstatcache( true, $target );
+				}
+				return parent::entry_temp_path( $target );
+			}
+		};
+		$preserve = array( 'directory' => 'wp-content/mu-plugins', 'mode' => 'whole_dir', 'leaf_paths' => array() );
+		$entries = array( $path => 'archive', 'zz-after.txt' => 'after' );
+		$part = 'zip' === $format ? $this->make_zip( 'mu-replaced.zip', $entries ) : $this->make_tar( 'mu-replaced.tar', $entries );
+		$out = $this->run_all( $this->config( array( $part ), array( 'mu_plugins_preserve' => $preserve ) ) );
+		$this->assertNull( $out['error'] );
+		$this->assertTrue( $out['done'] );
+		$this->assertSame( 'host deployment', file_get_contents( $target ) );
+		$this->assertFalse( is_link( $target ) );
+		$this->assertSame( 12, $out['cursor']['expanded_bytes'] );
+		$this->assertSame( 1, $out['cursor']['part_index'] );
+		$this->assertSame( 0, $out['cursor']['entry_index'] );
+		$this->assertSame( 'after', file_get_contents( $this->extract_to . '/zz-after.txt' ) );
+		$this->assertSame( array(), glob( dirname( $target ) . '/.mainwp-restore-*.tmp' ) );
+		$this->assertSame( array(), glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) );
+		$this->assertSame( 0, $out['cursor']['kept_symlinks'] ?? 0 );
+		$this->assertSame( array(), $out['cursor']['kept_symlink_paths'] ?? array() );
+	}
+
+	/** @dataProvider file_symlink_formats */
 	public function test_file_symlink_entries_still_enforce_expanded_byte_limit( $format ) {
 		$this->file_link( 'missing', $this->extract_to . '/link.txt' );
 		$part = 'zip' === $format ? $this->make_zip( 'limit.zip', array( 'link.txt' => 'archive' ) ) : $this->make_tar( 'limit.tar', array( 'link.txt' => 'archive' ) );

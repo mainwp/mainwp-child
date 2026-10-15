@@ -347,6 +347,192 @@ class TarArchiverIntegrityTest extends WP_UnitTestCase {
 		}
 	}
 
+	private function file_link( $target, $path ) {
+		if ( ! function_exists( 'symlink' ) || ! @symlink( $target, $path ) ) {
+			$this->markTestSkipped( 'Filesystem does not support symlinks.' );
+		}
+	}
+
+	public static function file_link_archived_slices() {
+		$cases = array();
+		foreach ( self::unreadable_archived_slices() as $name => $args ) {
+			foreach ( array( 'root', 'iterator' ) as $site ) {
+				$cases[ $name . ', ' . $site ] = array_merge( $args, array( $site ) );
+			}
+		}
+		return $cases;
+	}
+
+	/** @dataProvider file_link_archived_slices */
+	public function test_resume_keeps_file_link_since_an_archived_slice( $type, $yield_after_link, $site ) {
+		if ( 'tar' === $type ) {
+			$this->archive_path = substr( $this->archive_path, 0, -3 );
+		}
+		$backup = new class extends MainWP_Backup {
+			public function extend_archive_mutex_lease() {}
+			public function get_or_create_db_dump_files( $filepath_prefix, &$archiver = null ) { return array(); }
+		};
+		MainWP_Backup::reset_skipped_paths();
+		$files = array();
+		$expected = array();
+		$prefix = 'mwp-s18-' . uniqid() . '-';
+		foreach ( $this->contents as $name => $content ) {
+			$path = 'root' === $site ? ABSPATH . $prefix . $name : $this->fixture_dir . '/' . $name;
+			$entry = str_replace( ABSPATH, '', $path );
+			$files[ $entry ] = $path;
+			$expected[ $entry ] = $content;
+		}
+		$archiver = new Tar_Archiver( $backup, $type );
+		try {
+			if ( 'root' === $site ) {
+				foreach ( $files as $entry => $path ) { file_put_contents( $path, $expected[ $entry ] ); }
+			}
+			$excludes = array( '.htaccess' );
+			foreach ( glob( ABSPATH . '*' ) as $node ) {
+				if ( ! in_array( $node, $files, true ) ) { $excludes[] = str_replace( ABSPATH, '', $node ); }
+			}
+			$archiver->set_budget_deadline( time() );
+			try {
+				if ( 'root' === $site ) {
+					$archiver->create_full_backup( $this->archive_path, $excludes, false, true, false, false );
+				} else {
+					$archiver->create( $this->archive_path );
+					$archiver->add_dir( $this->fixture_dir, array() );
+				}
+				$this->fail( 'Slice one must yield after archiving the first file.' );
+			} catch ( MainWP_Backup_Budget_Exception $e ) {
+				$this->assertSame( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED, $e->get_message_error_code() );
+			} finally {
+				$archiver->close();
+			}
+			$partial = file_get_contents( $this->archive_path );
+			if ( 'tar.gz' === $type ) { $partial = gzdecode( $partial ); }
+			$offset = 'root' === $site ? 0 : 512;
+			$entry = rtrim( substr( $partial, $offset, 100 ), "\0 " );
+			$this->assertArrayHasKey( $entry, $files );
+			$this->assertSame( $offset + 512 + (int) ( ceil( strlen( $expected[ $entry ] ) / 512 ) * 512 ), strlen( $partial ) );
+			$link = $files[ $entry ];
+			$targets = array_values( array_diff( $files, array( $link ) ) );
+			unlink( $link );
+			$this->file_link( $targets[0], $link );
+			$last_slice = $yield_after_link ? 3 : 2;
+			for ( $slice = 2; $slice <= $last_slice; ++$slice ) {
+				$backup->reset_failed_adds();
+				MainWP_Backup::reset_skipped_paths();
+				$archiver = new Tar_Archiver( $backup, $type );
+				$should_yield = $slice < $last_slice;
+				$archiver->set_budget_deadline( $should_yield ? time() : null );
+				$yielded = false;
+				$error = null;
+				try {
+					if ( 'root' === $site ) {
+						$this->assertTrue( $archiver->create_full_backup( $this->archive_path, $excludes, false, true, false, false, true ) );
+					} else {
+						$mode = new ReflectionProperty( Tar_Archiver::class, 'mode' );
+						$mode->setAccessible( true );
+						$mode->setValue( $archiver, Tar_Archiver::APPEND );
+						$archive_path = new ReflectionProperty( Tar_Archiver::class, 'archivePath' );
+						$archive_path->setAccessible( true );
+						$archive_path->setValue( $archiver, $this->archive_path );
+						$archiver->prepare_append( $this->archive_path );
+						$archiver->add_dir( $this->fixture_dir, array() );
+						$this->invoke_private( $archiver, 'add_data', str_repeat( "\0", 1024 ) );
+					}
+				} catch ( MainWP_Backup_Budget_Exception $e ) {
+					$yielded = true;
+				} catch ( MainWP_Exception $e ) {
+					$error = $e->get_message_error_code();
+				} finally {
+					$archiver->close();
+				}
+				$this->assertNull( $error, 'A skipped link must not leave a stale archive member before the next file.' );
+				$this->assertSame( $should_yield, $yielded );
+				$this->assertContains( $link, MainWP_Backup::get_skipped_paths() );
+				$this->assertSame( array(), $backup->get_failed_add_paths() );
+				$this->assertSame( 0, $backup->get_failed_add_count() );
+				$this->assertFalse( $backup->is_failed_add_skipped( $link ) );
+			}
+			$stream = 'tar.gz' === $type ? gzopen( $this->archive_path, 'rb' ) : fopen( $this->archive_path, 'rb' );
+			$finished = stream_get_contents( $stream );
+			if ( 'tar.gz' === $type ) { gzclose( $stream ); } else { fclose( $stream ); }
+			$this->assertSame( 'root' === $site ? 5632 : 6144, strlen( $finished ) );
+			$this->assertSame( $partial, substr( $finished, 0, strlen( $partial ) ) );
+			$this->assertSame( str_repeat( "\0", 1024 ), substr( $finished, -1024 ) );
+			$archiver->read( $this->archive_path );
+			foreach ( $expected as $entry => $content ) {
+				$this->assertSame( $content, $archiver->get_from_name( $entry ), 'Extracted bytes for ' . $entry );
+			}
+		} finally {
+			$archiver->close();
+			if ( 'root' === $site ) {
+				foreach ( $files as $path ) {
+					if ( is_link( $path ) || file_exists( $path ) ) { unlink( $path ); }
+				}
+			}
+			$backup->reset_failed_adds();
+			MainWP_Backup::reset_skipped_paths();
+		}
+	}
+
+	public static function file_link_append_members() {
+		return array(
+			'tar, matching' => array( 'tar', true ),
+			'tar.gz, matching' => array( 'tar.gz', true ),
+			'tar, next member differs' => array( 'tar', false ),
+			'tar.gz, next member differs' => array( 'tar.gz', false ),
+		);
+	}
+
+	/** @dataProvider file_link_append_members */
+	public function test_resume_add_file_link_consumes_only_a_matching_archived_member( $type, $archived_link ) {
+		if ( 'tar' === $type ) { $this->archive_path = substr( $this->archive_path, 0, -3 ); }
+		$backup = MainWP_Backup::get();
+		$backup->reset_failed_adds();
+		MainWP_Backup::reset_skipped_paths();
+		$archiver = new Tar_Archiver( $backup, $type );
+		$link = $this->fixture_dir . '/file-0.txt';
+		try {
+			$archiver->create( $this->archive_path );
+			if ( $archived_link ) {
+				$this->assertTrue( $this->invoke_private( $archiver, 'add_file', $link, 'a.txt' ) );
+			}
+			$this->assertTrue( $this->invoke_private( $archiver, 'add_file', $this->fixture_dir . '/file-1.txt', 'b.txt' ) );
+			$archiver->close();
+			unlink( $link );
+			$this->file_link( 'file-1.txt', $link );
+			$archiver = new Tar_Archiver( $backup, $type );
+			foreach ( array( 'mode' => Tar_Archiver::APPEND, 'archivePath' => $this->archive_path ) as $name => $value ) {
+				$property = new ReflectionProperty( Tar_Archiver::class, $name );
+				$property->setAccessible( true );
+				$property->setValue( $archiver, $value );
+			}
+			$archiver->prepare_append( $this->archive_path );
+			$this->assertFalse( $this->invoke_private( $archiver, 'add_file', $link, 'a.txt' ) );
+			$error = null;
+			try {
+				$this->assertTrue( $this->invoke_private( $archiver, 'add_file', $this->fixture_dir . '/file-1.txt', 'b.txt' ) );
+				$this->assertTrue( $this->invoke_private( $archiver, 'add_file', $this->fixture_dir . '/file-2.txt', 'c.txt' ) );
+				$this->invoke_private( $archiver, 'add_data', str_repeat( "\0", 1024 ) );
+			} catch ( MainWP_Exception $e ) {
+				$error = $e->get_message_error_code();
+			}
+			$this->assertNull( $error, 'Link skips must consume a matching member and rewind a mismatched peek.' );
+			$archiver->close();
+			$this->assertContains( $link, MainWP_Backup::get_skipped_paths() );
+			$this->assertSame( array(), $backup->get_failed_add_paths() );
+			$this->assertSame( 0, $backup->get_failed_add_count() );
+			$this->assertFalse( $backup->is_failed_add_skipped( $link ) );
+			$archiver->read( $this->archive_path );
+			$this->assertSame( $archived_link ? $this->contents['file-0.txt'] : false, $archiver->get_from_name( 'a.txt' ) );
+			$this->assertSame( $this->contents['file-1.txt'], $archiver->get_from_name( 'b.txt' ) );
+			$this->assertSame( $this->contents['file-2.txt'], $archiver->get_from_name( 'c.txt' ) );
+		} finally {
+			$archiver->close();
+			$backup->reset_failed_adds();
+			MainWP_Backup::reset_skipped_paths();
+		}
+	}
+
 	/** @dataProvider truncated_entries */
 	public function test_resume_rejects_prepared_dump_unreadable_since_an_uncheckpointed_slice( $type ) {
 		if ( 'tar' === $type ) {
