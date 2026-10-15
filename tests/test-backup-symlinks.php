@@ -10,7 +10,7 @@ use MainWP\Child\Tar_Archiver;
 use MainWP\Child\MainWP_Child_Backup_File_Walker;
 
 /**
- * Linked content must retain its archive path without escaping the allowed bases.
+ * Host-managed file links can depend on their target directory.
  */
 class BackupSymlinksTest extends WP_UnitTestCase {
 
@@ -133,6 +133,9 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 	}
 
 	private function link_tree() {
+		if ( ! function_exists( 'symlink' ) ) {
+			$this->markTestSkipped( 'Filesystem does not support symlinks.' );
+		}
 		$tree = $this->scratch . '/tree';
 		mkdir( $tree . '/dir', 0755, true );
 		mkdir( $tree . '/a' );
@@ -142,19 +145,32 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 		file_put_contents( $tree . '/dir/.mainwp-restore-nothex.tmp', 'ordinary dotfile' );
 		// Marks an engine that can see dotfiles at all; copy_dir() walks with glob(), which cannot.
 		file_put_contents( $tree . '/dir/.htaccess-sentinel', 'dotfile sentinel' );
-		symlink( $tree . '/dir/.mainwp-restore-abc123.tmp', $tree . '/temp-alias.txt' );
+		$this->file_link( $tree . '/dir/.mainwp-restore-abc123.tmp', $tree . '/temp-alias.txt' );
 		file_put_contents( $tree . '/dir/inner.txt', 'directory bytes' );
 		file_put_contents( $this->external . '/uploads/photo.txt', 'upload bytes' );
 		file_put_contents( $this->external . '/outside.txt', 'outside bytes' );
-		symlink( 'real.txt', $tree . '/linked.txt' );
-		symlink( 'dir', $tree . '/linked-dir' );
-		symlink( $this->external . '/uploads', $tree . '/uploads' );
-		symlink( $this->external . '/outside.txt', $tree . '/outside.txt' );
-		symlink( $this->external, $tree . '/outside-dir' );
-		symlink( 'missing', $tree . '/dangling' );
-		symlink( '..', $tree . '/dir/loop' );
-		symlink( '../b', $tree . '/a/to-b' );
-		symlink( '../a', $tree . '/b/to-a' );
+		$this->file_link( 'real.txt', $tree . '/linked.txt' );
+		$this->file_link( 'dir', $tree . '/linked-dir' );
+		$this->file_link( $this->external . '/uploads', $tree . '/uploads' );
+		$this->file_link( $this->external . '/outside.txt', $tree . '/outside.txt' );
+		$this->file_link( $this->external, $tree . '/outside-dir' );
+		$this->file_link( 'missing', $tree . '/dangling' );
+		$this->file_link( '..', $tree . '/dir/loop' );
+		$this->file_link( '../b', $tree . '/a/to-b' );
+		$this->file_link( '../a', $tree . '/b/to-a' );
+		return $tree;
+	}
+
+	private function file_link( $target, $path ) {
+		if ( ! function_exists( 'symlink' ) || ! @symlink( $target, $path ) ) {
+			$this->markTestSkipped( 'Filesystem does not support symlinks.' );
+		}
+	}
+
+	private function option_b_tree() {
+		$tree = $this->link_tree();
+		$this->file_link( $tree . '/real.txt', $tree . '/absolute.txt' );
+		$this->file_link( '../real.txt', $tree . '/dir/file-link.txt' );
 		return $tree;
 	}
 
@@ -344,7 +360,22 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 	}
 
 	private function assert_link_entries( $entries, $tree ) {
-		$this->assertSame( 'target bytes', isset( $entries['linked.txt'] ) ? $entries['linked.txt'] : null );
+		$out = $this->external . '/agreement-sidecars';
+		if ( ! is_dir( $out ) ) { mkdir( $out ); }
+		( new MainWP_Child_Backup_File_Walker( $tree ) )->emit_sidecars( $out );
+		$walked = array();
+		foreach ( file( $out . '/files.list.staged', FILE_IGNORE_NEW_LINES ) as $line ) {
+			$walked[] = explode( "\t", $line )[0];
+		}
+		$this->assertContains( 'real.txt', $walked );
+		foreach ( array( 'linked.txt', 'absolute.txt', 'dir/file-link.txt', 'linked-dir/file-link.txt', 'outside.txt', 'dangling' ) as $link ) {
+			$this->assertNotContains( $link, $walked );
+		}
+		$this->assertSame( 'target bytes', $entries['real.txt'] ?? null );
+		foreach ( array( 'linked.txt', 'absolute.txt', 'dir/file-link.txt', 'linked-dir/file-link.txt' ) as $link ) {
+			$this->assertArrayNotHasKey( $link, $entries );
+			$this->assertContains( $tree . '/' . $link, MainWP_Backup::get_skipped_paths() );
+		}
 		$this->assertArrayNotHasKey( 'dir/.mainwp-restore-abc123.tmp', $entries );
 		$this->assertArrayNotHasKey( 'linked-dir/.mainwp-restore-abc123.tmp', $entries );
 		$this->assertArrayNotHasKey( 'temp-alias.txt', $entries );
@@ -454,7 +485,7 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 		if ( ! class_exists( 'ZipArchive' ) ) {
 			$this->markTestSkipped( 'ZipArchive unavailable.' );
 		}
-		$tree = $this->link_tree();
+		$tree = $this->option_b_tree();
 		$excludes = $this->excluded_link_tree( $tree );
 		$backup = $this->backup();
 		$zip = new ZipArchive();
@@ -477,7 +508,7 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 	}
 
 	public function test_tar_descends_links_and_records_refusals() {
-		$tree = $this->link_tree();
+		$tree = $this->option_b_tree();
 		$excludes = $this->excluded_link_tree( $tree );
 		$archive = $this->external . '/test.tar';
 		$tar = new Tar_Archiver( $this->backup(), 'tar' );
@@ -502,7 +533,7 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 	}
 
 	public function test_copy_descends_links_and_records_refusals() {
-		$tree = $this->link_tree();
+		$tree = $this->option_b_tree();
 		$excludes = $this->excluded_link_tree( $tree );
 		$out = $this->external . '/copy';
 		$copied = $out . '/' . str_replace( ABSPATH, '', $tree );
@@ -593,7 +624,7 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 	}
 
 	public function test_walker_descends_links_and_records_refusals_after_resume() {
-		$tree = $this->link_tree();
+		$tree = $this->option_b_tree();
 		$out = $this->external . '/sidecars';
 		mkdir( $out );
 		$cursor = null;
@@ -616,5 +647,147 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 			$entries[ $row[0] ] = file_get_contents( $tree . '/' . $row[0] );
 		}
 		$this->assert_link_entries( $entries, $tree );
+		$paths = file_get_contents( $out . "/paths.cache.staged" );
+		foreach ( array( "linked.txt", "absolute.txt", "dir/file-link.txt", "linked-dir/file-link.txt", "outside.txt", "dangling" ) as $link ) {
+			$this->assertStringNotContainsString( "\t" . $link . "\n", $paths );
+		}
 	}
+	/** @dataProvider full_engines */
+	public function test_file_symlinks_at_root_stay_skipped_after_full_archive_resume( $format ) {
+		if ( 'zip' === $format && ! class_exists( 'ZipArchive' ) ) {
+			$this->markTestSkipped( 'ZipArchive unavailable.' );
+		}
+		$prefix = 'mwp-root-' . uniqid();
+		$keep = ABSPATH . $prefix . '-target.txt';
+		file_put_contents( $keep, 'root target bytes' );
+		$after = ABSPATH . $prefix . '-zz-after.txt';
+		file_put_contents( $after, 'after resume' );
+		$links = array(
+			ABSPATH . $prefix . '-relative.txt' => basename( $keep ),
+			ABSPATH . $prefix . '-absolute.txt' => $keep,
+			ABSPATH . $prefix . '-dangling.txt' => 'missing-' . $prefix,
+			ABSPATH . $prefix . '-outside.txt' => $this->external . '/outside.txt',
+		);
+		file_put_contents( $this->external . '/outside.txt', 'outside bytes' );
+		try {
+			foreach ( $links as $path => $target ) {
+				$this->file_link( $target, $path );
+			}
+			$excludes = array();
+			foreach ( glob( ABSPATH . '*' ) as $node ) {
+				if ( $node !== $keep && $node !== $after && ! isset( $links[ $node ] ) ) {
+					$excludes[] = str_replace( ABSPATH, '', $node );
+				}
+			}
+			$backup = new class extends MainWP_Backup {
+				public function extend_archive_mutex_lease() {}
+				public function get_or_create_db_dump_files( $filepath_prefix, &$archiver = null ) { return array(); }
+			};
+			$archive = $this->external . '/resumed.' . $format;
+			for ( $slice = 0; $slice < 2; ++$slice ) {
+				MainWP_Backup::reset_skipped_paths();
+				if ( 'zip' === $format ) {
+					$append = new ReflectionProperty( MainWP_Backup::class, 'zip_append' );
+					$append->setAccessible( true );
+					$append->setValue( $backup, $slice > 0 );
+					$backup->set_slice_deadline( 0 === $slice ? time() - 1 : null );
+					$yielded = false;
+					try {
+						$this->assertTrue( $backup->create_zip_full_backup( $archive, $excludes, false, true, false, false ) );
+					} catch ( \MainWP\Child\MainWP_Backup_Budget_Exception $e ) {
+						$yielded = true;
+					}
+					$this->assertSame( 0 === $slice, $yielded );
+					$zip = new ZipArchive();
+					$this->assertTrue( $zip->open( $archive ) );
+					foreach ( $links as $path => $target ) {
+						$this->assertFalse( $zip->locateName( basename( $path ) ), $path );
+					}
+					$this->assertSame( 'root target bytes', $zip->getFromName( basename( $keep ) ) );
+					$this->assertSame( 0 === $slice ? false : 'after resume', $zip->getFromName( basename( $after ) ) );
+					$zip->close();
+				} else {
+					$tar = new Tar_Archiver( $backup, 'tar' );
+					$tar->set_budget_deadline( 0 === $slice ? time() - 1 : null );
+					$yielded = false;
+					try {
+						$this->assertTrue( $tar->create_full_backup( $archive, $excludes, false, true, false, false, $slice > 0 ) );
+					} catch ( \MainWP\Child\MainWP_Backup_Budget_Exception $e ) {
+						$yielded = true;
+					}
+					$this->assertSame( 0 === $slice, $yielded );
+					$entries = array();
+					$handle = fopen( $archive, 'rb' );
+					while ( 512 === strlen( $header = fread( $handle, 512 ) ) && trim( $header, "\0" ) !== '' ) {
+						$name = rtrim( substr( $header, 0, 100 ), "\0" );
+						$size = octdec( trim( substr( $header, 124, 12 ), " \0" ) );
+						$entries[ $name ] = $size > 0 ? fread( $handle, $size ) : '';
+						if ( $size % 512 ) { fseek( $handle, 512 - $size % 512, SEEK_CUR ); }
+					}
+					fclose( $handle );
+					foreach ( $links as $path => $target ) {
+						$this->assertArrayNotHasKey( basename( $path ), $entries );
+					}
+					$this->assertSame( 'root target bytes', $entries[ basename( $keep ) ] ?? null );
+					$this->assertSame( 0 === $slice ? null : 'after resume', $entries[ basename( $after ) ] ?? null );
+				}
+				foreach ( $links as $path => $target ) {
+					$this->assertContains( $path, MainWP_Backup::get_skipped_paths() );
+				}
+				$this->assertSame( 0, $backup->get_failed_add_count() );
+			}
+		} finally {
+			foreach ( array_merge( array_keys( $links ), array( $keep, $after ) ) as $path ) {
+				if ( is_link( $path ) || file_exists( $path ) ) { unlink( $path ); }
+			}
+		}
+	}
+
+	public static function file_link_engines() {
+		return array( 'zip' => array( 'zip' ), 'tar' => array( 'tar' ), 'copy' => array( 'copy' ) );
+	}
+
+	/** @dataProvider file_link_engines */
+	public function test_file_symlink_skips_never_enter_failed_adds_or_unarchived( $engine ) {
+		$tree = $this->option_b_tree();
+		$backup = $this->backup();
+		if ( 'zip' === $engine ) {
+			if ( ! class_exists( 'ZipArchive' ) ) { $this->markTestSkipped( 'ZipArchive unavailable.' ); }
+			$archive = new ZipArchive();
+			$this->assertTrue( $archive->open( $this->external . '/direct.zip', ZipArchive::CREATE ) );
+			$slot = new ReflectionProperty( MainWP_Backup::class, 'zip' );
+			$slot->setAccessible( true );
+			$slot->setValue( $backup, $archive );
+		} elseif ( 'tar' === $engine ) {
+			$archive = new Tar_Archiver( $backup, 'tar' );
+			$archive->create( $this->external . '/direct.tar' );
+			$tar_add = new ReflectionMethod( Tar_Archiver::class, 'add_file' );
+			$tar_add->setAccessible( true );
+		}
+		for ( $i = 0; $i <= MainWP_Backup::MAX_FAILED_ADDS; ++$i ) {
+			foreach ( array( 'linked.txt', 'absolute.txt', 'outside.txt', 'dangling' ) as $name ) {
+				$path = $tree . '/' . $name;
+				if ( 'zip' === $engine ) {
+					$backup->add_file_to_zipp( $path, $name );
+				} elseif ( 'tar' === $engine ) {
+					$tar_add->invoke( $archive, $path, $name );
+				} else {
+					$backup->copy_dir( array( $path ), array(), $this->external . '/', false );
+				}
+				$this->assertFalse( $backup->is_failed_add_skipped( $path ) );
+			}
+		}
+		if ( 'copy' !== $engine ) { $archive->close(); }
+		$this->assertSame( 0, $backup->get_failed_add_count() );
+		$this->assertSame( array(), $backup->get_failed_add_paths() );
+		foreach ( array( 'linked.txt', 'absolute.txt', 'outside.txt', 'dangling' ) as $name ) {
+			$this->assertContains( $tree . '/' . $name, MainWP_Backup::get_skipped_paths() );
+		}
+		$method = new ReflectionMethod( \MainWP\Child\MainWP_Child_Backup_Task_Runner::class, 'manifest_walk_params' );
+		$method->setAccessible( true );
+		$walk = $method->invoke( new \MainWP\Child\MainWP_Child_Backup_Task_Runner(), array(), $backup->get_failed_add_paths() );
+		$this->assertArrayNotHasKey( 'unarchived', $walk );
+		$this->assertArrayNotHasKey( 'unarchived_overflow', $walk );
+	}
+
 }

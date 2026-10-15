@@ -461,6 +461,11 @@ class Tar_Archiver {
             }
 
             foreach ( $nodes as $node ) {
+                if ( MainWP_Backup::is_file_link( $node ) ) {
+                    MainWP_Backup::record_skipped_path( $node );
+                    continue;
+                }
+
                 $this->assert_within_budget();
 
                 if ( $excludenonwp && is_dir( $node ) ) {
@@ -649,7 +654,7 @@ class Tar_Archiver {
         if ( empty( $ancestors ) ) {
             $ancestors = array( dirname( rtrim( $path, '/' ) ) );
         }
-        if ( ! MainWP_Backup::is_safe_backup_path( $path, $bases, $ancestors ) ) {
+        if ( MainWP_Backup::is_file_link( $path ) || ! MainWP_Backup::is_safe_backup_path( $path, $bases, $ancestors ) ) {
             MainWP_Backup::record_skipped_path( $path );
             $this->log( 'Skipping unsafe path ' . $path );
             return;
@@ -681,7 +686,7 @@ class Tar_Archiver {
                     $descent_chain[] = $ancestor;
                 }
             }
-            if ( ! MainWP_Backup::is_safe_backup_path( $name, $bases, $descent_chain ) ) {
+            if ( MainWP_Backup::is_file_link( $name ) || ! MainWP_Backup::is_safe_backup_path( $name, $bases, $descent_chain ) ) {
                 MainWP_Backup::record_skipped_path( $name );
                 $this->log( 'Skipping unsafe path ' . $name );
                 continue;
@@ -975,7 +980,7 @@ class Tar_Archiver {
 
         // Walk-time metadata may predate a replaced file or link.
         clearstatcache( true, $path );
-        if ( ! MainWP_Backup::is_safe_backup_path( $path, $bases ) ) {
+        if ( MainWP_Backup::is_file_link( $path ) || ! MainWP_Backup::is_safe_backup_path( $path, $bases ) ) {
             MainWP_Backup::record_skipped_path( $path );
             $this->log( 'Skipping unsafe path ' . $path );
             return false;

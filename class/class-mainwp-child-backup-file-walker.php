@@ -122,6 +122,13 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
     protected $skip_paths = array();
 
     /**
+     * Reconciliation must see the leaf links that backup manifests omit.
+     *
+     * @var bool
+     */
+    protected $include_file_links = false;
+
+    /**
      * Whether .zip files are skipped, matching the archive walk.
      *
      * @var bool
@@ -662,7 +669,7 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
                 'is_root'  => false,
                 'children' => $this->enumerate_children( $node, false ),
             );
-        } elseif ( is_file( $node ) ) {
+        } elseif ( is_file( $node ) || ( $this->include_file_links && is_link( $node ) ) ) {
             $this->record_file( $node, $relpath );
         }
     }
@@ -682,6 +689,13 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
             return false;
         }
         if ( MainWP_Helper::excluded_from_backup( $this->excludes, substr( $node, strlen( $this->root ) ) ) ) {
+            return false;
+        }
+        if ( MainWP_Backup::is_file_link( $node ) ) {
+            if ( $this->include_file_links ) {
+                return true;
+            }
+            MainWP_Backup::record_skipped_path( $node );
             return false;
         }
         if ( ! MainWP_Backup::is_safe_backup_path( $node, array_merge( MainWP_Backup::default_backup_bases(), array( $this->root ) ), array_column( $this->stack, 'dir' ) ) ) {
@@ -722,8 +736,8 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
             return;
         }
 
-        $size  = @filesize( $node ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- a file deleted mid-walk is skipped, not fatal.
-        $mtime = @filemtime( $node ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- a file deleted mid-walk is skipped, not fatal.
+        $size  = $this->include_file_links && is_link( $node ) ? 0 : @filesize( $node ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- a file deleted mid-walk is skipped, not fatal.
+        $mtime = $this->include_file_links && is_link( $node ) ? 0 : @filemtime( $node ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- a file deleted mid-walk is skipped, not fatal.
         if ( false === $size || false === $mtime ) {
             return;
         }

@@ -1364,6 +1364,20 @@ class MainWP_Backup {
     }
 
     /**
+     * Whether a path is a symlink to a file, or a dangling one.
+     *
+     * Hosts such as GridPane link mu-plugins to plugin files. Archiving the
+     * target's bytes at the link path turns the link into a copy on restore,
+     * so its __DIR__ requires break. Directory links are still followed.
+     *
+     * @param string $path Absolute path.
+     * @return bool
+     */
+    public static function is_file_link( $path ) {
+        return is_link( rtrim( $path, '/' ) ) && ! is_dir( $path );
+    }
+
+    /**
      * Record a path skipped by the traversal guards, for the backup report.
      *
      * @param string $path Skipped path.
@@ -1855,7 +1869,7 @@ class MainWP_Backup {
             }
 
             foreach ( $nodes as $node ) {
-                if ( ! static::is_safe_backup_path( $node, $this->allowed_backup_bases, array( ABSPATH ) ) ) {
+                if ( static::is_file_link( $node ) || ! static::is_safe_backup_path( $node, $this->allowed_backup_bases, array( ABSPATH ) ) ) {
                     static::record_skipped_path( $node );
                     continue;
                 }
@@ -2058,7 +2072,7 @@ class MainWP_Backup {
                 continue;
             }
             $this->heartbeat();
-            if ( ! static::is_safe_backup_path( $node, $this->allowed_backup_bases, $ancestors ) ) {
+            if ( static::is_file_link( $node ) || ! static::is_safe_backup_path( $node, $this->allowed_backup_bases, $ancestors ) ) {
                 static::record_skipped_path( $node );
                 continue;
             }
@@ -2242,7 +2256,7 @@ class MainWP_Backup {
             $this->allowed_backup_bases = array_merge( null === $this->allowed_backup_bases ? static::default_backup_bases() : $this->allowed_backup_bases, array( $path ) );
             $ancestors                  = array( dirname( rtrim( $path, '/' ) ) );
         }
-        if ( ! static::is_safe_backup_path( $path, $this->allowed_backup_bases, $ancestors ) ) {
+        if ( static::is_file_link( $path ) || ! static::is_safe_backup_path( $path, $this->allowed_backup_bases, $ancestors ) ) {
             static::record_skipped_path( $path );
             return;
         }
@@ -2283,7 +2297,7 @@ class MainWP_Backup {
             }
 
             $descent_chain = $ancestors;
-            if ( ! static::is_safe_backup_path( $name, $this->allowed_backup_bases, $descent_chain ) ) {
+            if ( static::is_file_link( $name ) || ! static::is_safe_backup_path( $name, $this->allowed_backup_bases, $descent_chain ) ) {
                 static::record_skipped_path( $name );
                 continue;
             }
@@ -2390,7 +2404,7 @@ class MainWP_Backup {
 
         // Walk-time metadata may predate a replaced file or link.
         clearstatcache( true, $path );
-        if ( ! static::is_safe_backup_path( $path, $this->allowed_backup_bases ) ) {
+        if ( static::is_file_link( $path ) || ! static::is_safe_backup_path( $path, $this->allowed_backup_bases ) ) {
             static::record_skipped_path( $path );
             return false;
         }

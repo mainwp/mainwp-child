@@ -391,18 +391,18 @@ class BackupFileWalkerTest extends WP_UnitTestCase {
 		$this->assertSame( 'wp-content', $components['wp-content/cache/page.html'] );
 	}
 
-	/**
-	 * Inside-resolving links must appear under their own relative paths.
-	 *
-	 * @return void
-	 */
-	public function test_inside_symlink_included() {
-		symlink( $this->root . '/wp-content/uploads/photo.jpg', $this->root . '/wp-content/uploads/link.jpg' );
-
+	public function test_inside_symlink_skipped_and_recorded() {
+		$link = $this->root . '/wp-content/uploads/link.jpg';
+		if ( ! function_exists( 'symlink' ) || ! @symlink( $this->root . '/wp-content/uploads/photo.jpg', $link ) ) {
+			$this->markTestSkipped( 'Filesystem does not support symlinks.' );
+		}
+		\MainWP\Child\MainWP_Backup::reset_skipped_paths();
 		$this->walker()->emit_sidecars( $this->backup_dir );
-
 		$relpaths = array_column( $this->parse_sidecar( $this->backup_dir . '/files.list.staged' ), 0 );
-		$this->assertContains( 'wp-content/uploads/link.jpg', $relpaths );
+		$this->assertNotContains( 'wp-content/uploads/link.jpg', $relpaths );
+		$this->assertContains( 'wp-content/uploads/photo.jpg', $relpaths );
+		$this->assertNotContains( 'wp-content/uploads/link.jpg', array_column( $this->parse_sidecar( $this->backup_dir . '/paths.cache.staged' ), 1 ) );
+		$this->assertContains( $link, \MainWP\Child\MainWP_Backup::get_skipped_paths() );
 	}
 
 	public function test_user_exclude_applies_through_resolved_root() {

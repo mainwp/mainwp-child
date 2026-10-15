@@ -1612,7 +1612,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $path = $scratch . $op['file'];
 
             if ( 'tombstones' === $op['role'] ) {
-                $outcome = $restorer->apply_tombstones( $path, $this->site_root(), $sub_state['mu_plugins_preserve'] );
+                $outcome = $restorer->apply_tombstones( $path, $this->site_root(), $sub_state['mu_plugins_preserve'], $cursor['part_cursor'] );
                 if ( null !== $outcome['error'] ) {
                     throw new MainWP_Exception( esc_html( $outcome['error'] ), null, $outcome['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
                 }
@@ -1704,9 +1704,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
         }
         if ( null !== $reason ) {
-            $sub_state['verification']['reconcile'] = array(
-                'status' => 'skipped',
-                'reason' => $reason,
+            $sub_state['verification']['reconcile'] = $this->merge_kept_symlinks(
+                array(
+                    'status' => 'skipped',
+                    'reason' => $reason,
+                ),
+                $sub_state['file_restore']['part_cursor'] ?? array()
             );
             if ( ! empty( $sub_state['mu_plugins_preserve']['reason'] ) ) {
                 $sub_state['verification']['reconcile']['mu_plugins_reason'] = $sub_state['mu_plugins_preserve']['reason'];
@@ -1728,6 +1731,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 'root'                 => $this->site_root(),
                 'backup_dir'           => $backup_dir,
                 'scratch'              => $reconcile_dir,
+                'kept_symlink_seen'    => $sub_state['file_restore']['part_cursor']['kept_symlink_seen'] ?? array(),
                 'progress_callback'    => function () use ( $task ) {
                     MainWP_Child_Backup_Task::instance()->touch_progress( $task->task_id );
                 },
@@ -1750,12 +1754,29 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         if ( ! empty( $sub_state['mu_plugins_preserve']['reason'] ) ) {
             $outcome['outcome']['mu_plugins_reason'] = $sub_state['mu_plugins_preserve']['reason'];
         }
-        $sub_state['verification']['reconcile'] = $outcome['outcome'];
+        $sub_state['verification']['reconcile'] = $this->merge_kept_symlinks( $outcome['outcome'], $sub_state['file_restore']['part_cursor'] ?? array() );
         if ( 'aborted' === $outcome['outcome']['status'] ) {
             $this->terminal_cleanup( $task, $sub_state, $backup_dir );
             return $this->fail_terminal( $task, $version, $sub_state, $backup_dir, MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_RECONCILE ), MainWP_Backup_Error::ERR_RESTORE_RECONCILE );
         }
         return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Extraction and tombstones can keep links even when reconciliation is withheld.
+     *
+     * @param array $outcome Reconciliation result.
+     * @param array $cursor  Persisted extraction counts.
+     * @return array Combined kept-file result.
+     */
+    private function merge_kept_symlinks( $outcome, $cursor ) {
+        if ( empty( $cursor['kept_symlinks'] ) ) {
+            return $outcome;
+        }
+        $outcome['kept']                      = ( $outcome['kept'] ?? 0 ) + $cursor['kept_symlinks'];
+        $outcome['kept_by_reason']['symlink'] = ( $outcome['kept_by_reason']['symlink'] ?? 0 ) + $cursor['kept_symlinks'];
+        $outcome['kept_paths']                = array_slice( array_values( array_unique( array_merge( $cursor['kept_symlink_paths'], $outcome['kept_paths'] ?? array() ) ) ), 0, 20 );
+        return $outcome;
     }
 
     /**

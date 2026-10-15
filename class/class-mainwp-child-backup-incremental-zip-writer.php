@@ -248,7 +248,7 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
 
         // A source can be replaced between the walk and this pack slice.
         clearstatcache( true, $abs_path );
-        if ( ! MainWP_Backup::is_safe_backup_path( $abs_path, $this->allowed_backup_bases ) ) {
+        if ( MainWP_Backup::is_file_link( $abs_path ) || ! MainWP_Backup::is_safe_backup_path( $abs_path, $this->allowed_backup_bases ) ) {
             MainWP_Backup::record_skipped_path( $abs_path );
             $result['skipped'] = true;
             return $result;

@@ -676,16 +676,14 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A pre-existing leaf symlink at the target path is not followed:
-	 * extraction replaces it with a regular file and never writes through
-	 * it to a location outside the extraction root.
+	 * Host-managed file links must retain their location-dependent PHP includes.
 	 */
 	public function test_extraction_does_not_follow_leaf_symlink() {
 		$outside = $this->dir . '/outside-secret.txt';
 		file_put_contents( $outside, 'SECRET' );
 
 		mkdir( $this->extract_to . '/wp-content', 0777, true );
-		if ( true !== @symlink( $outside, $this->extract_to . '/wp-content/evil.txt' ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors -- probe symlink support.
+		if ( ! function_exists( 'symlink' ) || ! @symlink( $outside, $this->extract_to . '/wp-content/evil.txt' ) ) {
 			$this->markTestSkipped( 'Filesystem does not support symlinks.' );
 		}
 
@@ -694,8 +692,12 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 
 		$this->assertNull( $result['error'] );
 		$this->assertSame( 'SECRET', file_get_contents( $outside ), 'The symlink target outside the root must be untouched.' );
-		$this->assertFalse( is_link( $this->extract_to . '/wp-content/evil.txt' ), 'The leaf symlink must be replaced by a regular file.' );
-		$this->assertSame( 'ARCHIVE', file_get_contents( $this->extract_to . '/wp-content/evil.txt' ) );
+		$this->assertTrue( is_link( $this->extract_to . '/wp-content/evil.txt' ) );
+		$this->assertSame( 'SECRET', file_get_contents( $this->extract_to . '/wp-content/evil.txt' ) );
+		$this->assertSame( 1, $result['cursor']['kept_symlinks'] ?? null );
+		$this->assertSame( array( 'wp-content/evil.txt' ), $result['cursor']['kept_symlink_paths'] ?? null );
+		$this->assertSame( 7, $result['cursor']['expanded_bytes'] );
+		$this->assertSame( array(), glob( $this->extract_to . '/wp-content/.mainwp-restore-*.tmp' ) );
 	}
 
 	/**
@@ -706,7 +708,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		file_put_contents( $outside, 'SECRET' );
 
 		mkdir( $this->extract_to . '/wp-content', 0777, true );
-		if ( true !== @symlink( $outside, $this->extract_to . '/wp-content/evil.txt' ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors -- probe symlink support.
+		if ( ! function_exists( 'symlink' ) || ! @symlink( $outside, $this->extract_to . '/wp-content/evil.txt' ) ) {
 			$this->markTestSkipped( 'Filesystem does not support symlinks.' );
 		}
 
@@ -715,8 +717,12 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 
 		$this->assertNull( $result['error'] );
 		$this->assertSame( 'SECRET', file_get_contents( $outside ), 'The symlink target outside the root must be untouched.' );
-		$this->assertFalse( is_link( $this->extract_to . '/wp-content/evil.txt' ) );
-		$this->assertSame( 'ARCHIVE', file_get_contents( $this->extract_to . '/wp-content/evil.txt' ) );
+		$this->assertTrue( is_link( $this->extract_to . '/wp-content/evil.txt' ) );
+		$this->assertSame( 'SECRET', file_get_contents( $this->extract_to . '/wp-content/evil.txt' ) );
+		$this->assertSame( 1, $result['cursor']['kept_symlinks'] ?? null );
+		$this->assertSame( array( 'wp-content/evil.txt' ), $result['cursor']['kept_symlink_paths'] ?? null );
+		$this->assertSame( 7, $result['cursor']['expanded_bytes'] );
+		$this->assertSame( array(), glob( $this->extract_to . '/wp-content/.mainwp-restore-*.tmp' ) );
 	}
 
 	/**
@@ -2082,4 +2088,136 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertNotNull( $result['error'] );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
 	}
+	private function file_link( $target, $path ) {
+		if ( ! function_exists( 'symlink' ) || ! @symlink( $target, $path ) ) {
+			$this->markTestSkipped( 'Filesystem does not support symlinks.' );
+		}
+	}
+
+	public static function file_symlink_formats() {
+		return array( 'zip' => array( 'zip' ), 'tar' => array( 'tar' ) );
+	}
+
+	/** @dataProvider file_symlink_formats */
+	public function test_file_symlinks_keep_dangling_leaves_consume_bytes_and_resume( $format ) {
+		$entries = array();
+		for ( $i = 0; $i < 23; ++$i ) {
+			$path = sprintf( 'link-%02d.txt', $i );
+			$this->file_link( 'missing-target', $this->extract_to . '/' . $path );
+			$entries[ $path ] = 'archive';
+		}
+		$entries['zz-normal.txt'] = 'last';
+		$part = 'zip' === $format ? $this->make_zip( 'links.zip', $entries ) : $this->make_tar( 'links.tar', $entries );
+		$config = $this->config( array( $part, $part ) );
+		$cursor = array();
+		for ( $slice = 0; $slice < 60; ++$slice ) {
+			$out = ( new MainWP_Child_Backup_File_Restorer() )->restore_slice( $cursor, $config, 0 );
+			$this->assertNull( $out['error'] );
+			$cursor = json_decode( json_encode( $out['cursor'] ), true );
+			if ( $out['done'] ) { break; }
+		}
+		$this->assertTrue( $out['done'] );
+		$this->assertSame( 23, $cursor['kept_symlinks'] ?? null );
+		$this->assertSame( array_slice( array_keys( $entries ), 0, 20 ), $cursor['kept_symlink_paths'] ?? null );
+		$this->assertSame( 330, $cursor['expanded_bytes'] );
+		$this->assertSame( 48, $cursor['entries'] );
+		$this->assertSame( 'last', file_get_contents( $this->extract_to . '/zz-normal.txt' ) );
+		foreach ( array_keys( $entries ) as $path ) {
+			if ( 'zz-normal.txt' !== $path ) { $this->assertTrue( is_link( $this->extract_to . '/' . $path ), $path ); }
+		}
+		$this->assertSame( array(), glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) );
+		$this->assertFileDoesNotExist( $this->extract_to . '/missing-target' );
+	}
+
+	/** @dataProvider file_symlink_formats */
+	public function test_file_symlink_mu_plugins_whole_dir_preserve_still_consumes_and_reports( $format ) {
+		$path = 'wp-content/mu-plugins/host.php';
+		mkdir( dirname( $this->extract_to . '/' . $path ), 0777, true );
+		$this->file_link( 'missing', $this->extract_to . '/' . $path );
+		$preserve = array( 'directory' => 'wp-content/mu-plugins', 'mode' => 'whole_dir', 'leaf_paths' => array() );
+		$part = 'zip' === $format ? $this->make_zip( 'mu-links.zip', array( $path => 'archive' ) ) : $this->make_tar( 'mu-links.tar', array( $path => 'archive' ) );
+		$out = $this->run_all( $this->config( array( $part ), array( 'mu_plugins_preserve' => $preserve ) ) );
+		$this->assertNull( $out['error'] );
+		$this->assertTrue( is_link( $this->extract_to . '/' . $path ) );
+		$this->assertSame( 7, $out['cursor']['expanded_bytes'] );
+		$this->assertSame( 1, $out['cursor']['kept_symlinks'] ?? null );
+		$tomb = $this->dir . '/mu-links.list';
+		file_put_contents( $tomb, $path . "\n" );
+		$result = $this->restorer->apply_tombstones( $tomb, $this->extract_to, $preserve, $out['cursor'] );
+		$this->assertNull( $result['error'] );
+		$this->assertSame( 1, $out['cursor']['kept_symlinks'] ?? null );
+		$this->assertSame( array( $path ), $out['cursor']['kept_symlink_paths'] ?? null );
+	}
+
+	/** @dataProvider file_symlink_formats */
+	public function test_file_symlink_entries_still_enforce_expanded_byte_limit( $format ) {
+		$this->file_link( 'missing', $this->extract_to . '/link.txt' );
+		$part = 'zip' === $format ? $this->make_zip( 'limit.zip', array( 'link.txt' => 'archive' ) ) : $this->make_tar( 'limit.tar', array( 'link.txt' => 'archive' ) );
+		$restorer = new class extends MainWP_Child_Backup_File_Restorer {
+			protected function extraction_limits() {
+				$limits = parent::extraction_limits();
+				$limits['expanded_bytes'] = 6;
+				return $limits;
+			}
+		};
+		$out = $restorer->restore_slice( array(), $this->config( array( $part ) ), PHP_INT_MAX );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $out['error_code'] );
+		$this->assertTrue( is_link( $this->extract_to . '/link.txt' ) );
+		$this->assertSame( array(), glob( $this->extract_to . '/.mainwp-restore-*.tmp' ) );
+	}
+
+	/** @dataProvider file_symlink_formats */
+	public function test_file_entry_onto_directory_link_is_kept_and_reported_without_error( $format ) {
+		$path = 'wp-content/mu-plugins/dir-link';
+		mkdir( $this->extract_to . '/wp-content/mu-plugins', 0777, true );
+		mkdir( $this->dir . '/directory' );
+		file_put_contents( $this->dir . '/directory/host.txt', 'host directory bytes' );
+		$this->file_link( $this->dir . '/directory', $this->extract_to . '/' . $path );
+		$entries = array( $path => 'file', 'zz-after.txt' => 'after' );
+		$part = 'zip' === $format ? $this->make_zip( 'dir-link.zip', $entries ) : $this->make_tar( 'dir-link.tar', $entries );
+		$preserve = array( 'directory' => 'wp-content/mu-plugins', 'mode' => 'whole_dir', 'leaf_paths' => array() );
+		foreach ( array( array(), $preserve ) as $policy ) {
+			$out = $this->run_all( $this->config( array( $part ), array( 'mu_plugins_preserve' => $policy ) ) );
+			$this->assertNull( $out['error'] );
+			$this->assertNull( $out['error_code'] );
+			$this->assertTrue( $out['done'] );
+			$this->assertTrue( is_link( $this->extract_to . '/' . $path ) );
+			$this->assertSame( $this->dir . '/directory', readlink( $this->extract_to . '/' . $path ) );
+			$this->assertSame( 'host directory bytes', file_get_contents( $this->dir . '/directory/host.txt' ) );
+			$this->assertSame( 'after', file_get_contents( $this->extract_to . '/zz-after.txt' ) );
+			$this->assertSame( 9, $out['cursor']['expanded_bytes'] );
+			$this->assertSame( 1, $out['cursor']['kept_symlinks'] ?? null );
+			$this->assertSame( array( $path ), $out['cursor']['kept_symlink_paths'] ?? null );
+			$this->assertSame( array(), glob( $this->extract_to . '/wp-content/mu-plugins/.mainwp-restore-*.tmp' ) );
+		}
+		$tombstones = $this->dir . '/dir-link.list';
+		file_put_contents( $tombstones, $path . "\n" );
+		$cursor = array();
+		$result = $this->restorer->apply_tombstones( $tombstones, $this->extract_to, array(), $cursor );
+		$this->assertNull( $result['error'] );
+		$this->assertSame( 0, $result['deleted'] );
+		$this->assertTrue( is_link( $this->extract_to . '/' . $path ) );
+		$this->assertSame( 0, $cursor['kept_symlinks'] ?? 0 );
+	}
+
+	public function test_file_symlink_tombstones_keep_live_and_dangling_links_once() {
+		file_put_contents( $this->dir . '/outside.txt', 'secret' );
+		$this->file_link( $this->dir . '/outside.txt', $this->extract_to . '/live.txt' );
+		$this->file_link( 'missing', $this->extract_to . '/dangling.txt' );
+		$tombstones = $this->dir . '/links.list';
+		file_put_contents( $tombstones, "live.txt\ndangling.txt\nlive.txt\n" );
+		$cursor = array();
+		foreach ( array( 1, 2 ) as $slice ) {
+			$out = ( new MainWP_Child_Backup_File_Restorer() )->apply_tombstones( $tombstones, $this->extract_to, array(), $cursor );
+			$cursor = json_decode( json_encode( $cursor ), true );
+			$this->assertNull( $out['error'] );
+			$this->assertSame( 0, $out['deleted'] );
+			$this->assertTrue( is_link( $this->extract_to . '/live.txt' ) );
+			$this->assertTrue( is_link( $this->extract_to . '/dangling.txt' ) );
+			$this->assertSame( 'secret', file_get_contents( $this->dir . '/outside.txt' ) );
+			$this->assertSame( 2, $cursor['kept_symlinks'] ?? null );
+			$this->assertSame( array( 'live.txt', 'dangling.txt' ), $cursor['kept_symlink_paths'] ?? null );
+		}
+	}
+
 }

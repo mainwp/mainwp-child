@@ -157,10 +157,13 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         }
         $cursor = array_merge(
             array(
-                'part_index'     => 0,
-                'entry_index'    => 0,
-                'entries'        => 0,
-                'expanded_bytes' => 0,
+                'part_index'         => 0,
+                'entry_index'        => 0,
+                'entries'            => 0,
+                'expanded_bytes'     => 0,
+                'kept_symlinks'      => 0,
+                'kept_symlink_paths' => array(),
+                'kept_symlink_seen'  => array(),
             ),
             is_array( $cursor ) ? $cursor : array()
         );
@@ -352,7 +355,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 continue;
             }
             $entry['name'] = static::map_entry_name( $entry['name'], $this->real_htaccess_entries );
-            if ( null === $entry['name'] || MainWP_Child_Backup_Mu_Plugins::preserves( $entry['name'], $this->mu_plugins_preserve ) ) {
+            if ( null === $entry['name'] || $this->preserves_mu_plugin( $entry['name'], $extract_to, $this->mu_plugins_preserve ) ) {
                 ++$cursor['entry_index'];
                 $did_work = true;
                 continue;
@@ -776,10 +779,11 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @param string $tombstones_file Path to tombstones.list.
      * @param string $extract_to      Extraction root.
      * @param array  $mu_plugins_preserve Persisted host-file protection.
+     * @param array  $cursor             Cumulative kept-link counts and paths.
      *
      * @return array { deleted: int, error: string|null, error_code: string|null }
      */
-    public function apply_tombstones( $tombstones_file, $extract_to, $mu_plugins_preserve = array() ) {
+    public function apply_tombstones( $tombstones_file, $extract_to, $mu_plugins_preserve = array(), &$cursor = array() ) {
         $lines = file( $tombstones_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- local sidecar read.
         if ( false === $lines ) {
             return array(
@@ -806,12 +810,13 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 );
             }
 
-            if ( static::should_skip_entry( $relpath ) || MainWP_Child_Backup_Mu_Plugins::preserves( $relpath, $mu_plugins_preserve ) ) {
+            if ( static::should_skip_entry( $relpath ) || $this->preserves_mu_plugin( $relpath, $extract_to, $mu_plugins_preserve ) ) {
                 continue;
             }
 
             $target = rtrim( $extract_to, '/' ) . '/' . $relpath;
-            if ( ! is_file( $target ) ) {
+            clearstatcache( true, $target );
+            if ( is_dir( $target ) || ( ! is_link( rtrim( $target, '/' ) ) && ! is_file( $target ) ) ) {
                 continue;
             }
 
@@ -822,6 +827,11 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                     'error'      => sprintf( 'Tombstone entry resolves outside the site root: %s. Deletion aborted.', esc_html( $relpath ) ),
                     'error_code' => MainWP_Backup_Error::ERR_RESTORE_EXTRACT,
                 );
+            }
+
+            if ( is_link( rtrim( $target, '/' ) ) ) {
+                $this->record_kept_symlink( $relpath, $cursor );
+                continue;
             }
 
             if ( ! @unlink( $target ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- failure is returned through the restore error registry.
@@ -903,7 +913,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             $this->real_htaccess_entries[ $mapped ] = false !== $zip->locateName( $mapped );
         }
         $entry_name = static::map_entry_name( $name, $this->real_htaccess_entries );
-        if ( null === $entry_name || MainWP_Child_Backup_Mu_Plugins::preserves( $entry_name, $this->mu_plugins_preserve ) ) {
+        if ( null === $entry_name || $this->preserves_mu_plugin( $entry_name, $extract_to, $this->mu_plugins_preserve ) ) {
             return;
         }
         $stat = $zip->statIndex( $cursor['entry_index'] );
@@ -974,6 +984,17 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             if ( ! $closed ) {
                 throw new \Exception( sprintf( 'Could not finish writing extracted file: %s.', esc_html( $entry_name ) ) );
             }
+            // Old archives contain target bytes at host-managed link paths.
+            clearstatcache( true, $target );
+            if ( is_link( rtrim( $target, '/' ) ) ) {
+                wp_delete_file( $temp );
+                clearstatcache( true, $temp );
+                if ( file_exists( $temp ) ) {
+                    throw new \Exception( sprintf( 'Could not discard extracted file: %s.', esc_html( $entry_name ) ) );
+                }
+                $this->record_kept_symlink( substr( $target, strlen( rtrim( $extract_to, '/' ) ) + 1 ), $cursor );
+                return;
+            }
             $this->promote_entry_temp( $temp, $target, $mode, $entry_name );
             // Only promoted dump members belong to the replay set, including across slices.
             $dump_root = rtrim( $extract_to, '/' );
@@ -996,6 +1017,41 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             }
             wp_delete_file( $temp );
             throw $e;
+        }
+    }
+
+    /**
+     * A whole-directory fallback must still account for entries at live links.
+     *
+     * @param string $relpath  Archive or tombstone path.
+     * @param string $root     Extraction root.
+     * @param array  $preserve Persisted host-file protection.
+     * @return bool Whether mu-plugin preservation handles this entry.
+     */
+    private function preserves_mu_plugin( $relpath, $root, $preserve ) {
+        if ( ! MainWP_Child_Backup_Mu_Plugins::preserves( $relpath, $preserve ) ) {
+            return false;
+        }
+        $target = rtrim( $root, '/' ) . '/' . $relpath;
+        return ! is_link( rtrim( $target, '/' ) );
+    }
+
+    /**
+     * Deduplicate across archives and tombstones without expanding the path sample.
+     *
+     * @param string $relpath Validated site-relative path.
+     * @param array  $cursor  Persisted extraction cursor.
+     */
+    private function record_kept_symlink( $relpath, &$cursor ) {
+        $relpath = implode( '/', array_diff( explode( '/', $relpath ), array( '', '.' ) ) );
+        $key     = hash( 'sha256', $relpath );
+        if ( isset( $cursor['kept_symlink_seen'][ $key ] ) ) {
+            return;
+        }
+        $cursor['kept_symlink_seen'][ $key ] = true;
+        $cursor['kept_symlinks']             = ( $cursor['kept_symlinks'] ?? 0 ) + 1;
+        if ( count( $cursor['kept_symlink_paths'] ?? array() ) < 20 ) {
+            $cursor['kept_symlink_paths'][] = $relpath;
         }
     }
 

@@ -209,7 +209,14 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
             }
             if ( ! $cursor['walk_done'] ) {
                 $walk   = $config['walk'];
-                $walker = new MainWP_Child_Backup_File_Walker( $config['root'], $walk['excludes'], $walk['excludezip'], $walk['excludenonwp'], array( $config['backup_dir'] ) );
+                $walker = new class( $config['root'], $walk['excludes'], $walk['excludezip'], $walk['excludenonwp'], array( $config['backup_dir'] ) ) extends MainWP_Child_Backup_File_Walker {
+                    /**
+                     * Retain link leaves in the reconciliation input only.
+                     *
+                     * @var bool
+                     */
+                    protected $include_file_links = true;
+                };
                 $walker->set_progress_callback( $config['progress_callback'] );
                 $out                   = $walker->emit_sidecars_slice( $config['scratch'], isset( $cursor['walk_cursor'] ) ? $cursor['walk_cursor'] : null, $deadline );
                 $cursor['walk_cursor'] = $out['cursor'];
@@ -255,7 +262,7 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
                 if ( ! self::safe_relpath( $row[0] ) ) {
                     ++$cursor['skipped_unsafe'];
                 } elseif ( null === $expected || $expected[0] !== $row[0] ) {
-                    $this->remove_candidate( $row[0], $config['root'], $cursor );
+                    $this->remove_candidate( $row[0], $config['root'], $cursor, $config['kept_symlink_seen'] ?? array() );
                 }
                 ++$cursor['examined'];
                 $cursor['last']            = $row[0];
@@ -365,9 +372,10 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
      * @param string $path Site-relative candidate.
      * @param string $root Site root.
      * @param array  $cursor Running counts.
+     * @param array  $kept_symlink_seen Links already counted during extraction or tombstones.
      * @throws \RuntimeException On an unsafe deletion path.
      */
-    private function remove_candidate( $path, $root, &$cursor ) {
+    private function remove_candidate( $path, $root, &$cursor, $kept_symlink_seen = array() ) {
         if ( $this->exempt( $path ) ) {
             return;
         }
@@ -376,7 +384,7 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
         }
         $target = trailingslashit( $root ) . $path;
         clearstatcache( true, $target );
-        if ( is_link( $target ) || ! is_file( $target ) ) {
+        if ( ! is_link( $target ) && ! is_file( $target ) ) {
             return;
         }
         $real_root   = realpath( $root );
@@ -394,9 +402,14 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
             $parent        = dirname( $parent );
             $parent_length = strlen( $parent );
         }
-        // Mu-plugins takes precedence so overlapping protections count the file once.
+        // Leaf links take precedence; linked ancestor directories stay silent.
         $reason = null;
-        if ( MainWP_Child_Backup_Mu_Plugins::contains( $path, $this->mu_plugins_relpath ) ) {
+        if ( is_link( $target ) ) {
+            if ( isset( $kept_symlink_seen[ hash( 'sha256', $path ) ] ) ) {
+                return;
+            }
+            $reason = 'symlink';
+        } elseif ( MainWP_Child_Backup_Mu_Plugins::contains( $path, $this->mu_plugins_relpath ) ) {
             $reason = 'mu_plugins';
         } elseif ( isset( $this->unarchived_paths[ $path ] ) ) {
             $reason = 'unarchived';

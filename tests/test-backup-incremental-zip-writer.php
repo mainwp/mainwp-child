@@ -323,18 +323,53 @@ class BackupIncrementalZipWriterTest extends WP_UnitTestCase {
 		$this->assertSame( 1, $record['entries'] );
 		$this->assertSame( array( 'a.php' ), $this->part_entries( 'core.part001.zip' ) );
 	}
-	public function test_inside_link_packs_target_bytes_under_link_relpath() {
+	public function test_inside_link_skipped_and_recorded() {
 		$link = $this->src . '/linked.php';
-		symlink( $this->src . '/a.php', $link );
+		if ( ! function_exists( 'symlink' ) || ! @symlink( $this->src . '/a.php', $link ) ) {
+			$this->markTestSkipped( 'Filesystem does not support symlinks.' );
+		}
+		MainWP_Backup::reset_skipped_paths();
 		$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
 		$writer->open_new_part( 1 );
 		$result = $writer->add_file( $link, 'linked.php' );
+		$writer->add_file( $this->src . '/a.php', 'a.php' );
 		$part = $writer->close_part();
-		$this->assertFalse( $result['skipped'] );
-		$zip = new ZipArchive();
-		$this->assertTrue( $zip->open( $this->dir . '/' . $part['file'] ) );
-		$this->assertSame( str_repeat( 'a', 100 ), $zip->getFromName( 'linked.php' ) );
-		$zip->close();
+		$this->assertTrue( $result['skipped'] );
+		$this->assertContains( $link, MainWP_Backup::get_skipped_paths() );
+		$this->assertSame( array( 'a.php' ), $this->part_entries( $part['file'] ) );
+		MainWP_Backup::reset_skipped_paths();
+	}
+
+	public function test_file_symlinks_in_stale_paths_cache_stay_skipped_after_resume() {
+		$links = array( 'relative.php' => 'a.php', 'absolute.php' => $this->src . '/a.php', 'outside.php' => $this->dir . '/outside.php', 'dangling.php' => 'missing.php' );
+		file_put_contents( $this->dir . '/outside.php', 'outside bytes' );
+		foreach ( $links as $path => $target ) {
+			if ( ! function_exists( 'symlink' ) || ! @symlink( $target, $this->src . '/' . $path ) ) {
+				$this->markTestSkipped( 'Filesystem does not support symlinks.' );
+			}
+		}
+		file_put_contents( $this->dir . '/paths.cache', "core\trelative.php\ncore\tabsolute.php\ncore\toutside.php\ncore\tdangling.php\n" );
+		MainWP_Backup::reset_skipped_paths();
+		$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
+		$writer->open_new_part( 1 );
+		$writer->add_file( $this->src . '/a.php', 'a.php' );
+		foreach ( array( false, true ) as $resume ) {
+			if ( $resume ) {
+				$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
+				$this->assertTrue( $writer->open_for_append( 1, 1 ) );
+			}
+			foreach ( file( $this->dir . '/paths.cache', FILE_IGNORE_NEW_LINES ) as $line ) {
+				list( , $path ) = explode( "\t", $line );
+				$result = $writer->add_file( $this->src . '/' . $path, $path );
+				$this->assertTrue( $result['skipped'], $path );
+				$this->assertFalse( $result['rotated'] );
+				$this->assertContains( $this->src . '/' . $path, MainWP_Backup::get_skipped_paths() );
+			}
+			$part = $writer->close_part();
+			$this->assertSame( 1, $part['entries'] );
+			$this->assertSame( array( 'a.php' ), $this->part_entries( $part['file'] ) );
+		}
+		MainWP_Backup::reset_skipped_paths();
 	}
 
 	public function test_pack_time_outside_link_swap_is_skipped_and_recorded() {
