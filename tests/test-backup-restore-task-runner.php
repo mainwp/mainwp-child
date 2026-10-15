@@ -502,7 +502,11 @@ class Restore_Test_Cache_Purger extends \MainWP\Child\MainWP_Child_Cache_Purge {
 	public function wprocket_auto_cache_purge() {
 		++$this->provider_calls;
 		echo $this->output;
-		return $this->purge_result( 'Private /srv/site/file.php token=fixture', 'provider' === $this->failure ? 'ERROR' : 'SUCCESS', 'attempted' );
+		// The dispatcher's real WP Rocket outcomes: dispatched on success, provider_missing on failure.
+		if ( 'provider' === $this->failure ) {
+			return $this->purge_result( 'Private /srv/site/file.php token=fixture', 'ERROR', 'provider_missing' );
+		}
+		return $this->purge_result( 'Private /srv/site/file.php token=fixture', 'SUCCESS', 'dispatched_unverified' );
 	}
 
 	public function cloudflair_auto_purge_cache() {
@@ -1879,9 +1883,10 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$purger = $this->configure_restore_cache_purger();
 		$this->runner->late_verify_once = true;
 		$task_id = $this->make_task( 'files', array( $this->make_files_archive_artifact() ) );
-		list( $task ) = $this->advance_until( $task_id, function ( $sub ) { return ! empty( $sub['cache_purge_ready'] ); } );
+		list( $task ) = $this->advance_until( $task_id, function ( $sub ) { return isset( $sub['verify_strict'] ); } );
 		$this->assertFalse( $this->runner->late_verify_once, 'The first verification entry followed other work near its deadline.' );
 		$this->assertSame( array(), $purger->calls );
+		$this->runner->fake_engine->calls = array();
 		$purger->on_purge = function () {
 			$this->assertSame( array( MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY ), $this->runner->slice_phases );
 			usleep( 1100000 );
@@ -1912,18 +1917,23 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	public static function restore_page_cache_option_changes() {
-		return array( 'cache log inserted' => array( false ), 'unrelated row removed' => array( true ) );
+		return array( 'provider rows added' => array( false ), 'restored row missing' => array( true ) );
 	}
 
 	/** @dataProvider restore_page_cache_option_changes */
-	public function test_mwp1908_page_cache_option_writes_preserve_strict_verification( $remove_unrelated ) {
+	public function test_mwp1908_page_cache_option_writes_preserve_strict_verification( $remove_restored ) {
 		global $wpdb;
 		$purger = $this->configure_restore_cache_purger();
 		$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'active_plugins', 'option_value' => 'a:0:{}' ) ) );
-		$purger->on_purge = function () use ( $wpdb, $remove_unrelated ) {
-			$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'mainwp_cache_control_log', 'option_value' => '{}' ) ) );
-			if ( $remove_unrelated ) {
-				$this->assertSame( 1, $wpdb->delete( 'rt_options', array( 'option_name' => 'active_plugins' ) ) );
+		if ( $remove_restored ) {
+			$this->assertSame( 1, $wpdb->delete( 'rt_options', array( 'option_name' => 'active_plugins' ) ) );
+		}
+		// WP Rocket's purge sets a transient (two rows) besides the dispatcher's own log row.
+		$engine_calls_at_purge = null;
+		$purger->on_purge = function () use ( $wpdb, &$engine_calls_at_purge ) {
+			$engine_calls_at_purge = $this->runner->fake_engine->calls;
+			foreach ( array( 'mainwp_cache_control_log', '_transient_timeout_rocket_clear_cache', '_transient_rocket_clear_cache' ) as $name ) {
+				$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => $name, 'option_value' => '1' ) ) );
 			}
 		};
 		$task_id = $this->make_task( 'full', array( $this->make_part_artifact(), $this->make_db_artifact() ) );
@@ -1933,8 +1943,41 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->spine->checkpoint( $task_id, (int) $task->version, array( 'phase' => MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY, 'sub_state' => $sub ) );
 		$this->runner->fake_engine->verify_real_counts = true;
 		$task = $this->drive( $task_id );
-		$this->assertSame( $remove_unrelated ? MainWP_Child_Backup_Task::PHASE_FAILED : MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
-		$this->assertSame( 2, $this->runner->fake_engine->last_verify_expected['options'] );
+		$this->assertSame( $remove_restored ? MainWP_Child_Backup_Task::PHASE_FAILED : MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 1, $this->runner->fake_engine->last_verify_expected['options'] );
+		$this->assertCount( $remove_restored ? 0 : 1, $purger->calls );
+		if ( ! $remove_restored ) {
+			$this->assertContains( 'verify_row_counts', $engine_calls_at_purge, 'Strict checks must run before provider code.' );
+		}
+	}
+
+	public function test_mwp1908_page_cache_start_is_recorded_before_provider_code() {
+		$purger = $this->configure_restore_cache_purger();
+		$task_id = $this->make_task( 'files', array( $this->make_files_archive_artifact() ) );
+		$persisted = null;
+		$purger->on_purge = function () use ( $task_id, &$persisted ) {
+			$persisted = $this->spine->read_sub_state( $this->spine->get_task( $task_id ), $this->dir );
+		};
+		$task = $this->drive( $task_id );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertTrue( $persisted['cache_purge_started'] ?? false );
+		$this->assertArrayNotHasKey( 'cache_purge_started', $sub );
+		$this->assertSame( array( 'attempted' => true, 'solution' => 'WP Rocket' ), $sub['verification']['cache_purge'] );
+	}
+
+	public function test_mwp1908_page_cache_interrupted_purge_is_not_repeated() {
+		$purger = $this->configure_restore_cache_purger();
+		$task_id = $this->make_task( 'files', array( $this->make_files_archive_artifact() ) );
+		list( $task, $sub ) = $this->advance_until( $task_id, function ( $sub ) { return isset( $sub['verify_strict'] ); } );
+		// Models a purge request killed by a time or memory limit after the start marker landed.
+		$sub['cache_purge_started'] = true;
+		$this->spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => $sub ) );
+		$task = $this->drive( $task_id );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( array(), $purger->calls );
+		$this->assertSame( array( 'attempted' => true, 'error' => 'Cache purge did not complete.' ), $sub['verification']['cache_purge'] );
 	}
 
 	public static function restore_page_cache_rollback_cases() {
