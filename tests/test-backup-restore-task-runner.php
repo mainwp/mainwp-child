@@ -1787,9 +1787,10 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		if ( in_array( $type, array( 'full', 'fk' ), true ) ) {
 			$artifacts[] = $this->make_db_artifact( 'fk' === $type );
 		}
-		$purger->on_purge = function () {
-			$this->assertFileExists( $this->site . '/wp-content/uploads/restored.txt' );
-			$this->assertFileDoesNotExist( $this->site . '/wp-content/plugins/persist.php' );
+		// The purge's Throwable catch would swallow an assertion here; capture and assert afterwards.
+		$files_at_purge = null;
+		$purger->on_purge = function () use ( &$files_at_purge ) {
+			$files_at_purge = array( file_exists( $this->site . '/wp-content/uploads/restored.txt' ), file_exists( $this->site . '/wp-content/plugins/persist.php' ) );
 		};
 		$probe_counts = array();
 		$this->runner->before_loopback = function () use ( $purger, &$probe_counts ) {
@@ -1804,6 +1805,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase, wp_json_encode( $sub['error'] ?? array() ) );
 		$this->assertSame( array( array() ), $purger->calls, 'Call with zero arguments, including no force flag.' );
 		$this->assertSame( array( 1 ), $probe_counts, 'Purge must precede the loopback.' );
+		$this->assertSame( array( true, false ), $files_at_purge, 'Purge must follow the file phase and reconcile.' );
 		$this->assertSame( array( 'attempted' => true, 'solution' => 'WP Rocket' ), $sub['verification']['cache_purge'] );
 		$this->assertSame( 1, $sub['verification']['reconcile']['removed'] );
 	}
@@ -1871,6 +1873,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$replacement = new Testable_Restore_Task_Runner();
 		$replacement->test_backup_dir = $this->dir;
 		$replacement->test_site_root = $this->site;
+		$replacement->test_content_roots = $this->runner->test_content_roots;
 		$replacement->fake_engine = $this->runner->fake_engine;
 		$replacement->test_cache_purger = $purger;
 		$this->runner = $replacement;
@@ -1887,15 +1890,17 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertFalse( $this->runner->late_verify_once, 'The first verification entry followed other work near its deadline.' );
 		$this->assertSame( array(), $purger->calls );
 		$this->runner->fake_engine->calls = array();
-		$purger->on_purge = function () {
-			$this->assertSame( array( MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY ), $this->runner->slice_phases );
+		$phases_at_purge = null;
+		$purger->on_purge = function () use ( &$phases_at_purge ) {
+			$phases_at_purge = $this->runner->slice_phases;
 			usleep( 1100000 );
 		};
 		$this->runner->test_slice_budget = 1;
 		$task = $this->runner->advance_one_slice( $task, 'dashboard' );
 		$sub = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY, $task->phase );
-		$this->assertTrue( $sub['verification']['cache_purge']['attempted'] );
+		$this->assertSame( array( 'attempted' => true, 'solution' => 'WP Rocket' ), $sub['verification']['cache_purge'] );
+		$this->assertSame( array( MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY ), $phases_at_purge );
 		$this->assertNotContains( 'verify_row_counts', $this->runner->fake_engine->calls );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $this->drive( $task_id )->phase );
 		$this->assertCount( 1, $purger->calls );
@@ -1930,10 +1935,11 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		}
 		// WP Rocket's purge sets a transient (two rows) besides the dispatcher's own log row.
 		$engine_calls_at_purge = null;
-		$purger->on_purge = function () use ( $wpdb, &$engine_calls_at_purge ) {
+		$inserted = array();
+		$purger->on_purge = function () use ( $wpdb, &$engine_calls_at_purge, &$inserted ) {
 			$engine_calls_at_purge = $this->runner->fake_engine->calls;
 			foreach ( array( 'mainwp_cache_control_log', '_transient_timeout_rocket_clear_cache', '_transient_rocket_clear_cache' ) as $name ) {
-				$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => $name, 'option_value' => '1' ) ) );
+				$inserted[] = $wpdb->insert( 'rt_options', array( 'option_name' => $name, 'option_value' => '1' ) );
 			}
 		};
 		$task_id = $this->make_task( 'full', array( $this->make_part_artifact(), $this->make_db_artifact() ) );
@@ -1948,6 +1954,9 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertCount( $remove_restored ? 0 : 1, $purger->calls );
 		if ( ! $remove_restored ) {
 			$this->assertContains( 'verify_row_counts', $engine_calls_at_purge, 'Strict checks must run before provider code.' );
+			$this->assertSame( array( 1, 1, 1 ), $inserted );
+			$sub = $this->spine->read_sub_state( $task, $this->dir );
+			$this->assertSame( array( 'attempted' => true, 'solution' => 'WP Rocket' ), $sub['verification']['cache_purge'] );
 		}
 	}
 
