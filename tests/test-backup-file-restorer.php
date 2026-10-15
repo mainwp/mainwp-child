@@ -2365,4 +2365,17 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertSame( 'mounted', file_get_contents( $this->dir . '/mount/file.txt' ) );
 	}
 
+
+	/**
+	 * A filesystem-root extraction must not loop forever looking for linked ancestors.
+	 */
+	public function test_linked_ancestor_check_terminates_at_the_filesystem_root() {
+		$method = new \ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'has_linked_ancestor' );
+		$method->setAccessible( true );
+		$restorer = new MainWP_Child_Backup_File_Restorer();
+		$this->assertFalse( $method->invoke( $restorer, '/root-level.txt', '/' ) );
+		$this->assertFalse( $method->invoke( $restorer, '/a/b/leaf.txt', '/' ) );
+		$this->assertFalse( $method->invoke( $restorer, $this->extract_to . '/a/leaf.txt', $this->extract_to . '/' ) );
+	}
+
 }

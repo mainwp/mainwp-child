@@ -1066,7 +1066,12 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             if ( is_link( $parent ) ) {
                 return true;
             }
-            $parent = dirname( $parent );
+            $next = dirname( $parent );
+            // dirname( '/' ) is '/', so a filesystem-root extraction would never end.
+            if ( $next === $parent ) {
+                break;
+            }
+            $parent = $next;
         }
         return false;
     }
