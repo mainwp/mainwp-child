@@ -1233,7 +1233,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	protected function mu_plugins_chain( $type = 'files' ) {
 		$path = 'wp-content/mu-plugins/host.php';
 		file_put_contents( $this->site . '/' . $path, 'live host bytes' );
-		$base = $this->make_named_zip_artifact( 'base.zip', array( $path => 'base bytes', 'snapshot.txt' => 'snapshot', 'wp-content/mu-plugins/snapshot.php' => 'base snapshot', 'wp-content/mu-plugins/stale.php' => 'stale base bytes' ) );
+		// stale.php goes first so it is live across later one-entry slices, where a recomputed set would capture it.
+		$base = $this->make_named_zip_artifact( 'base.zip', array( 'wp-content/mu-plugins/stale.php' => 'stale base bytes', $path => 'base bytes', 'snapshot.txt' => 'snapshot', 'wp-content/mu-plugins/snapshot.php' => 'base snapshot' ) );
 		$delta = $this->make_named_zip_artifact( 'delta.zip', array( 'snapshot.txt' => 'leaf bytes', 'wp-content/mu-plugins/snapshot.php' => 'leaf snapshot' ) );
 		$tombstones = $this->make_named_tombstones_artifact( 'leaf-tombstones.list', $path . "\nwp-content/mu-plugins/stale.php\n" );
 		$artifacts = array( $base, $tombstones, $delta, $this->make_manifest_artifact( array( 'snapshot.txt', 'wp-content/mu-plugins/snapshot.php' ) ) );
