@@ -25,30 +25,31 @@ require_once __DIR__ . '/class-mainwp-child-system-monitor-loader.php';
 MainWP_Child_System_Monitor_Loader::init();
 
 
+// phpcs:disable WordPress.WP.CronInterval.CronSchedulesInterval -- the system monitor cron scanner is built around a one-minute tick.
+add_filter(
+    'cron_schedules',
+    function ( $schedules ) {
+        if ( ! isset( $schedules['minute'] ) ) {
+            $schedules['minute'] = array(
+                'interval' => MINUTE_IN_SECONDS,
+                'display'  => __( 'Every Minute', 'mainwp-child' ),
+            );
+        }
+
+        return $schedules;
+    }
+);
+// phpcs:enable WordPress.WP.CronInterval.CronSchedulesInterval
+
 /**
  * Bootstrap System Monitor module.
  *
  * @return void
  */
 function bootstrap() {
-
     // Initialize the system monitor core.
     MainWP_Child_System_Monitor::init();
 
-    // phpcs:disable WordPress.WP.CronInterval.CronSchedulesInterval -- the system monitor cron scanner is built around a one-minute tick.
-    add_filter(
-        'cron_schedules',
-        function ( $schedules ) {
-            if ( ! isset( $schedules['minute'] ) ) {
-                $schedules['minute'] = array(
-                    'interval' => MINUTE_IN_SECONDS,
-                    'display'  => __( 'Every Minute', 'mainwp-child' ),
-                );
-            }
-            return $schedules;
-        }
-    );
-    // phpcs:enable WordPress.WP.CronInterval.CronSchedulesInterval
 }
 
 /**
