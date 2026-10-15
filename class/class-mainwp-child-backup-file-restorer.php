@@ -992,14 +992,16 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             // Old archives contain target bytes at host-managed link paths.
             clearstatcache( true, $target );
             $is_link = is_link( rtrim( $target, '/' ) );
-            if ( $is_link || MainWP_Child_Backup_Mu_Plugins::preserves( $entry_name, $this->mu_plugins_preserve ) ) {
+            // ZIP callers pass the raw entry name; preservation is keyed on the mapped destination.
+            $relpath = substr( $target, strlen( rtrim( $extract_to, '/' ) ) + 1 );
+            if ( $is_link || MainWP_Child_Backup_Mu_Plugins::preserves( $relpath, $this->mu_plugins_preserve ) ) {
                 wp_delete_file( $temp );
                 clearstatcache( true, $temp );
                 if ( file_exists( $temp ) ) {
                     throw new \Exception( sprintf( 'Could not discard extracted file: %s.', esc_html( $entry_name ) ) );
                 }
                 if ( $is_link ) {
-                    $this->record_kept_symlink( substr( $target, strlen( rtrim( $extract_to, '/' ) ) + 1 ), $cursor );
+                    $this->record_kept_symlink( $relpath, $cursor );
                 }
                 return;
             }

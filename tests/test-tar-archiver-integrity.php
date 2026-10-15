@@ -476,28 +476,42 @@ class TarArchiverIntegrityTest extends WP_UnitTestCase {
 
 	public static function file_link_append_members() {
 		return array(
-			'tar, matching' => array( 'tar', true ),
-			'tar.gz, matching' => array( 'tar.gz', true ),
-			'tar, next member differs' => array( 'tar', false ),
-			'tar.gz, next member differs' => array( 'tar.gz', false ),
+			'tar, archived link member' => array( 'tar', 'complete' ),
+			'tar.gz, archived link member' => array( 'tar.gz', 'complete' ),
+			'tar, no link member' => array( 'tar', 'absent' ),
+			'tar.gz, no link member' => array( 'tar.gz', 'absent' ),
+			'tar, truncated link member' => array( 'tar', 'truncated' ),
 		);
 	}
 
 	/** @dataProvider file_link_append_members */
-	public function test_resume_add_file_link_consumes_only_a_matching_archived_member( $type, $archived_link ) {
+	public function test_resume_steps_over_an_archived_member_that_became_a_file_link( $type, $member ) {
 		if ( 'tar' === $type ) { $this->archive_path = substr( $this->archive_path, 0, -3 ); }
 		$backup = MainWP_Backup::get();
 		$backup->reset_failed_adds();
 		MainWP_Backup::reset_skipped_paths();
 		$archiver = new Tar_Archiver( $backup, $type );
 		$link = $this->fixture_dir . '/file-0.txt';
+		$entry = function ( $path ) {
+			return str_replace( ABSPATH, '', $path );
+		};
+		$b = $this->fixture_dir . '/file-1.txt';
+		$c = $this->fixture_dir . '/file-2.txt';
 		try {
 			$archiver->create( $this->archive_path );
-			if ( $archived_link ) {
-				$this->assertTrue( $this->invoke_private( $archiver, 'add_file', $link, 'a.txt' ) );
+			if ( 'absent' !== $member ) {
+				$this->assertTrue( $this->invoke_private( $archiver, 'add_file', $link, $entry( $link ) ) );
 			}
-			$this->assertTrue( $this->invoke_private( $archiver, 'add_file', $this->fixture_dir . '/file-1.txt', 'b.txt' ) );
+			if ( 'truncated' !== $member ) {
+				$this->assertTrue( $this->invoke_private( $archiver, 'add_file', $b, $entry( $b ) ) );
+			}
 			$archiver->close();
+			if ( 'truncated' === $member ) {
+				// Header plus part of the body, as a slice killed mid-write leaves it.
+				$handle = fopen( $this->archive_path, 'r+b' );
+				ftruncate( $handle, 512 + 100 );
+				fclose( $handle );
+			}
 			unlink( $link );
 			$this->file_link( 'file-1.txt', $link );
 			$archiver = new Tar_Archiver( $backup, $type );
@@ -507,29 +521,63 @@ class TarArchiverIntegrityTest extends WP_UnitTestCase {
 				$property->setValue( $archiver, $value );
 			}
 			$archiver->prepare_append( $this->archive_path );
-			$this->assertFalse( $this->invoke_private( $archiver, 'add_file', $link, 'a.txt' ) );
+			$this->assertFalse( $this->invoke_private( $archiver, 'add_file', $link, $entry( $link ) ) );
 			$error = null;
 			try {
-				$this->assertTrue( $this->invoke_private( $archiver, 'add_file', $this->fixture_dir . '/file-1.txt', 'b.txt' ) );
-				$this->assertTrue( $this->invoke_private( $archiver, 'add_file', $this->fixture_dir . '/file-2.txt', 'c.txt' ) );
+				$this->assertTrue( $this->invoke_private( $archiver, 'add_file', $b, $entry( $b ) ) );
+				$this->assertTrue( $this->invoke_private( $archiver, 'add_file', $c, $entry( $c ) ) );
 				$this->invoke_private( $archiver, 'add_data', str_repeat( "\0", 1024 ) );
 			} catch ( MainWP_Exception $e ) {
 				$error = $e->get_message_error_code();
 			}
-			$this->assertNull( $error, 'Link skips must consume a matching member and rewind a mismatched peek.' );
 			$archiver->close();
 			$this->assertContains( $link, MainWP_Backup::get_skipped_paths() );
 			$this->assertSame( array(), $backup->get_failed_add_paths() );
 			$this->assertSame( 0, $backup->get_failed_add_count() );
 			$this->assertFalse( $backup->is_failed_add_skipped( $link ) );
+			if ( 'truncated' === $member ) {
+				$this->assertSame( MainWP_Backup_Error::ERR_FILE_CORRUPT, $error, 'A truncated member must stay corrupt, as for a regular file.' );
+				return;
+			}
+			$this->assertNull( $error, 'A member whose source became a file link must be stepped over on resume.' );
 			$archiver->read( $this->archive_path );
-			$this->assertSame( $archived_link ? $this->contents['file-0.txt'] : false, $archiver->get_from_name( 'a.txt' ) );
-			$this->assertSame( $this->contents['file-1.txt'], $archiver->get_from_name( 'b.txt' ) );
-			$this->assertSame( $this->contents['file-2.txt'], $archiver->get_from_name( 'c.txt' ) );
+			$this->assertSame( 'complete' === $member ? $this->contents['file-0.txt'] : false, $archiver->get_from_name( $entry( $link ) ) );
+			$this->assertSame( $this->contents['file-1.txt'], $archiver->get_from_name( $entry( $b ) ) );
+			$this->assertSame( $this->contents['file-2.txt'], $archiver->get_from_name( $entry( $c ) ) );
 		} finally {
 			$archiver->close();
 			$backup->reset_failed_adds();
 			MainWP_Backup::reset_skipped_paths();
+		}
+	}
+
+	public function test_resume_still_refuses_a_stray_member_whose_source_is_not_a_link() {
+		$this->archive_path = substr( $this->archive_path, 0, -3 );
+		$backup   = MainWP_Backup::get();
+		$archiver = new Tar_Archiver( $backup, 'tar' );
+		$a = $this->fixture_dir . '/file-0.txt';
+		$b = $this->fixture_dir . '/file-1.txt';
+		try {
+			$archiver->create( $this->archive_path );
+			$this->assertTrue( $this->invoke_private( $archiver, 'add_file', $a, str_replace( ABSPATH, '', $a ) ) );
+			$archiver->close();
+			$archiver = new Tar_Archiver( $backup, 'tar' );
+			foreach ( array( 'mode' => Tar_Archiver::APPEND, 'archivePath' => $this->archive_path ) as $name => $value ) {
+				$property = new ReflectionProperty( Tar_Archiver::class, $name );
+				$property->setAccessible( true );
+				$property->setValue( $archiver, $value );
+			}
+			$archiver->prepare_append( $this->archive_path );
+			$error = null;
+			try {
+				$this->invoke_private( $archiver, 'add_file', $b, str_replace( ABSPATH, '', $b ) );
+			} catch ( MainWP_Exception $e ) {
+				$error = $e->get_message_error_code();
+			}
+			$this->assertSame( MainWP_Backup_Error::ERR_FILE_CORRUPT, $error );
+		} finally {
+			$archiver->close();
+			$backup->reset_failed_adds();
 		}
 	}
 

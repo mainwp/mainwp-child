@@ -2145,8 +2145,46 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		file_put_contents( $tomb, $path . "\n" );
 		$result = $this->restorer->apply_tombstones( $tomb, $this->extract_to, $preserve, $out['cursor'] );
 		$this->assertNull( $result['error'] );
+		$this->assertSame( 0, $result['deleted'] );
+		$this->assertTrue( is_link( $this->extract_to . '/' . $path ) );
 		$this->assertSame( 1, $out['cursor']['kept_symlinks'] ?? null );
 		$this->assertSame( array( $path ), $out['cursor']['kept_symlink_paths'] ?? null );
+	}
+
+	/** @dataProvider file_symlink_formats */
+	public function test_mu_plugins_preserve_final_check_uses_the_mapped_htaccess_destination( $format ) {
+		$alias  = 'wp-content/mu-plugins/mainwp-htaccess';
+		$path   = 'wp-content/mu-plugins/.htaccess';
+		$target = $this->extract_to . '/' . $path;
+		mkdir( dirname( $target ), 0777, true );
+		$leaf = array( 'directory' => 'wp-content/mu-plugins', 'mode' => 'whole_dir', 'leaf_paths' => array( $path => true ) );
+		$part = 'zip' === $format ? $this->make_zip( 'mu-alias-leaf.zip', array( $alias => 'archive rules' ) ) : $this->make_tar( 'mu-alias-leaf.tar', array( $alias => 'archive rules' ) );
+		$out  = $this->run_all( $this->config( array( $part ), array( 'mu_plugins_preserve' => $leaf ) ) );
+		$this->assertNull( $out['error'] );
+		$this->assertSame( 'archive rules', file_get_contents( $target ), 'A leaf of the backup must be restored through its mapped name.' );
+
+		unlink( $target );
+		$this->file_link( 'missing', $target );
+		$this->restorer = new class( $target ) extends MainWP_Child_Backup_File_Restorer {
+			private $host_path;
+			public function __construct( $host_path ) {
+				$this->host_path = $host_path;
+			}
+			protected function entry_temp_path( $target ) {
+				if ( $target === $this->host_path && is_link( $target ) ) {
+					unlink( $target );
+					file_put_contents( $target, 'host rules' );
+					clearstatcache( true, $target );
+				}
+				return parent::entry_temp_path( $target );
+			}
+		};
+		$set  = array( 'directory' => 'wp-content/mu-plugins', 'mode' => 'set', 'paths' => array( $path => true ) );
+		$part = 'zip' === $format ? $this->make_zip( 'mu-alias-set.zip', array( $alias => 'archive rules' ) ) : $this->make_tar( 'mu-alias-set.tar', array( $alias => 'archive rules' ) );
+		$out  = $this->run_all( $this->config( array( $part ), array( 'mu_plugins_preserve' => $set ) ) );
+		$this->assertNull( $out['error'] );
+		$this->assertSame( 'host rules', file_get_contents( $target ), 'A protected destination must survive its link being replaced mid-entry.' );
+		$this->assertSame( 0, $out['cursor']['kept_symlinks'] ?? 0 );
 	}
 
 	/** @dataProvider file_symlink_formats */
