@@ -395,7 +395,8 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		$attempt = 0;
 		$this->runner->stubs['run_file_archiver'] = function () use ( $backup, &$attempt ) {
 			$backup->add_file_to_zipp( $this->site . '/First..txt', 'First..txt' );
-			if ( ++$attempt > 1 ) {
+			// Only the middle slice fails second.txt, so the final list proves the union.
+			if ( 2 === ++$attempt ) {
 				$backup->add_file_to_zipp( $this->site . '/second.txt', 'second.txt' );
 			}
 			if ( $attempt < 3 ) {
@@ -418,6 +419,46 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 			$zip->close();
 			$backup->reset_failed_adds();
 			\MainWP\Child\MainWP_Backup::reset_skipped_paths();
+		}
+	}
+
+	public static function data_unlisted_failed_adds() {
+		return array(
+			'invalid UTF-8, one slice' => array( false, false ),
+			'invalid UTF-8, resumed slice' => array( false, true ),
+			'outside the site root' => array( true, false ),
+		);
+	}
+
+	/** @dataProvider data_unlisted_failed_adds */
+	public function test_unlisted_failed_add_sets_overflow_instead_of_a_list( $outside_root, $yield_first ) {
+		$root = ABSPATH . 'unarchived-tree/';
+		$this->runner->test_site_root = $root;
+		$backup = \MainWP\Child\MainWP_Backup::get();
+		$attempt = 0;
+		$this->runner->stubs['run_file_archiver'] = function () use ( $backup, $root, $outside_root, $yield_first, &$attempt ) {
+			$backup->record_failed_add( $root . 'wp-content/listed.php' );
+			if ( 0 === $attempt++ ) {
+				$backup->record_failed_add( $outside_root ? '/elsewhere/wp-content/unlisted.php' : $root . "wp-content/caf\xE9.txt" );
+				if ( $yield_first ) {
+					throw new \MainWP\Child\MainWP_Backup_Budget_Exception( 'Forced archive yield.' );
+				}
+			}
+			return array( 'file' => 'backup-artifact.tar', 'filesize' => 2048 );
+		};
+		try {
+			$task_id = $this->create_task( 'full', array( 'emit_manifest' => true ) );
+			for ( $slice = 0; $slice < 3; ++$slice ) {
+				$backup->reset_failed_adds();
+				$task = $this->advance( $task_id );
+				if ( MainWP_Child_Backup_Task::PHASE_COMPLETED === $task->phase ) { break; }
+			}
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+			$walk = $this->artifacts_by_role( MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir ) )['manifest']['walk'];
+			$this->assertSame( true, $walk['unarchived_overflow'] ?? null );
+			$this->assertArrayNotHasKey( 'unarchived', $walk );
+		} finally {
+			$backup->reset_failed_adds();
 		}
 	}
 
@@ -492,6 +533,7 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $full->phase, 'A skipped file must not corrupt resume alignment.' );
 			$full_payload = MainWP_Child_Backup_Task::instance()->status_payload( $full, $this->backup_dir );
 			$full_roles = $this->artifacts_by_role( $full_payload );
+			$this->assertSame( array( basename( $this->site ) . '/missed.txt' ), $full_roles['manifest']['walk']['unarchived'] ?? null, 'The engine path and the walker relpath must agree.' );
 			$base = $this->backup_dir . '/' . $full_roles['full']['file'];
 			$parent = file_get_contents( $this->backup_dir . '/files.list' );
 			chmod( $missed, 0644 );

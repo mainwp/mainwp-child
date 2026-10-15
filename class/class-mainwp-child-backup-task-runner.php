@@ -833,8 +833,17 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 unset( $e );
                 $archive_yielded = true;
             } finally {
+                $fresh_failures = MainWP_Backup::get()->get_failed_add_paths();
+                $root           = $this->site_root();
+                foreach ( $fresh_failures as $path ) {
+                    // The JSON checkpoint rewrites invalid UTF-8, and a path outside the root
+                    // has no relpath; checked before persisting, neither can be listed exactly.
+                    if ( 0 !== strpos( $path, $root ) || 1 !== preg_match( '//u', $path ) ) {
+                        $sub_state['unarchived_unlisted'] = true;
+                    }
+                }
                 // The manifest may resume in another request after the archive closes.
-                $sub_state['failed_add_paths'] = array_values( array_unique( array_merge( $sub_state['failed_add_paths'] ?? array(), MainWP_Backup::get()->get_failed_add_paths() ) ) );
+                $sub_state['failed_add_paths'] = array_values( array_unique( array_merge( $sub_state['failed_add_paths'] ?? array(), $fresh_failures ) ) );
             }
             if ( $archive_yielded ) {
                 return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
@@ -898,7 +907,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                     'size'   => (int) $sub_state['manifest']['size'],
                     'role'   => 'manifest',
                     'sha256' => $sub_state['manifest']['sha256'] ?? '',
-                    'walk'   => $this->manifest_walk_params( $params, $sub_state['failed_add_paths'] ?? array() ),
+                    'walk'   => $this->manifest_walk_params( $params, $sub_state['failed_add_paths'] ?? array(), ! empty( $sub_state['unarchived_unlisted'] ) ),
                 ),
             );
         }
@@ -1008,7 +1017,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             'size'   => (int) $sub_state['manifest']['size'],
             'role'   => 'manifest',
             'sha256' => $sub_state['manifest']['sha256'] ?? '',
-            'walk'   => $this->manifest_walk_params( $params, $sub_state['failed_add_paths'] ?? array() ),
+            'walk'   => $this->manifest_walk_params( $params, $sub_state['failed_add_paths'] ?? array(), ! empty( $sub_state['unarchived_unlisted'] ) ),
         );
 
         $tombstones_path = $dir . MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST;
@@ -1832,9 +1841,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      *
      * @param array $params Backup parameters.
      * @param array $failed_add_paths Persisted absolute paths with no archived bytes.
+     * @param bool  $unlisted         Whether a failed path could not be recorded exactly.
      * @return array Manifest coverage.
      */
-    protected function manifest_walk_params( $params, $failed_add_paths = array() ) {
+    protected function manifest_walk_params( $params, $failed_add_paths = array(), $unlisted = false ) {
         $walk       = array(
             'excludes'     => isset( $params['excludes'] ) && is_array( $params['excludes'] ) ? array_values( array_filter( array_map( 'strval', $params['excludes'] ), 'strlen' ) ) : array(),
             'excludenonwp' => empty( $params['excludenonwp'] ) ? 0 : 1,
@@ -1849,7 +1859,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
         $unarchived = array_values( array_unique( $unarchived ) );
         // A partial list would authorize deleting omitted files with no snapshot bytes.
-        if ( count( $unarchived ) > 1000 ) {
+        // Overflow doubles as "not listable" so the Dashboard gate keeps one refusal key.
+        if ( $unlisted || count( $unarchived ) > 1000 ) {
             $walk['unarchived_overflow'] = true;
         } elseif ( ! empty( $unarchived ) ) {
             $walk['unarchived'] = $unarchived;
