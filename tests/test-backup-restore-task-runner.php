@@ -1621,20 +1621,6 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( array( 'status' => 'skipped', 'reason' => 'no_manifest', 'mu_plugins_reason' => 'mu_plugins_no_manifest' ), $sub['verification']['reconcile'] );
 	}
 
-	public function test_mu_plugins_withheld_reconcile_uses_the_verified_leaf_manifest() {
-		$this->prepare_mu_plugins_fixture();
-		$task_id = $this->mu_plugins_chain( 'files', true, false );
-		file_put_contents( $this->site . '/wp-content/mu-plugins/snapshot.php', 'live snapshot bytes' );
-		$task = $this->drive( $task_id );
-		$sub = $this->spine->read_sub_state( $task, $this->dir );
-		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
-		$this->assertSame( array( 'wp-content/mu-plugins/host.php' => true ), $sub['mu_plugins_preserve']['paths'] );
-		$this->assertSame( 'live host bytes', file_get_contents( $this->site . '/wp-content/mu-plugins/host.php' ) );
-		$this->assertSame( 'leaf snapshot', file_get_contents( $this->site . '/wp-content/mu-plugins/snapshot.php' ) );
-		$this->assertFileDoesNotExist( $this->site . '/wp-content/mu-plugins/stale.php' );
-		$this->assertSame( array( 'status' => 'skipped', 'reason' => 'no_manifest' ), $sub['verification']['reconcile'] );
-	}
-
 	public function test_mu_plugins_withheld_reconcile_with_unverified_manifest_keeps_live_bytes() {
 		$this->prepare_mu_plugins_fixture();
 		$task_id = $this->mu_plugins_chain( 'files', true, false );
@@ -1655,18 +1641,71 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( 'mu_plugins_no_manifest', $sub['verification']['reconcile']['mu_plugins_reason'] );
 	}
 
-	public function test_mu_plugins_empty_reconcile_block_keeps_live_bytes() {
+	/**
+	 * Every input shape the capture policy accepts. A named manifest that fails verification refuses
+	 * (data_mu_plugins_unverified_manifests); an unnamed sole manifest that fails falls back to the
+	 * no-manifest policy (test_mu_plugins_withheld_reconcile_with_unverified_manifest_keeps_live_bytes).
+	 */
+	public static function data_mu_plugins_capture_policy() {
+		return array(
+			'chain, named verified manifest'              => array( 'chain', 'named', 1, 'r1' ),
+			'chain, no block, sole verified manifest'     => array( 'chain', 'absent', 1, 'r1' ),
+			'chain, empty block, sole verified manifest'  => array( 'chain', 'empty', 1, 'r1' ),
+			'chain, no block, no manifest'                => array( 'chain', 'absent', 0, 'no_manifest' ),
+			'chain, empty block, no manifest'             => array( 'chain', 'empty', 0, 'no_manifest' ),
+			'chain, no block, two manifests'              => array( 'chain', 'absent', 2, 'no_manifest' ),
+			'single, named verified manifest'             => array( 'single', 'named', 1, 'r1' ),
+			'single, no block, sole verified manifest'    => array( 'single', 'absent', 1, 'overlay' ),
+			'single, empty block, sole verified manifest' => array( 'single', 'empty', 1, 'overlay' ),
+			'single, no block, no manifest'               => array( 'single', 'absent', 0, 'overlay' ),
+			'single, empty block, no manifest'            => array( 'single', 'empty', 0, 'overlay' ),
+		);
+	}
+
+	/** @dataProvider data_mu_plugins_capture_policy */
+	public function test_mu_plugins_capture_policy_matrix( $shape, $block, $manifests, $expected ) {
 		$this->prepare_mu_plugins_fixture();
-		$task_id = $this->mu_plugins_chain( 'files', false );
-		$task = $this->spine->get_task( $task_id );
-		$sub = $this->spine->read_sub_state( $task, $this->dir );
-		$sub['params']['reconcile'] = array();
-		$this->assertNotFalse( $this->spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => $sub ) ) );
-		$task = $this->drive( $task_id );
+		$mu = 'wp-content/mu-plugins/';
+		file_put_contents( $this->site . '/' . $mu . 'host.php', 'live host bytes' );
+		file_put_contents( $this->site . '/' . $mu . 'snapshot.php', 'live snapshot bytes' );
+		if ( 'chain' === $shape ) {
+			$artifacts = array(
+				$this->make_named_zip_artifact( 'base.zip', array( $mu . 'host.php' => 'snapshot host', $mu . 'snapshot.php' => 'base snapshot' ) ),
+				$this->make_named_tombstones_artifact( 'leaf-tombstones.list', $mu . "host.php\n" ),
+				$this->make_named_zip_artifact( 'delta.zip', array( $mu . 'snapshot.php' => 'leaf snapshot' ) ),
+			);
+		} else {
+			$artifacts = array( $this->make_named_zip_artifact( 'snapshot.zip', array( $mu . 'host.php' => 'snapshot host', $mu . 'snapshot.php' => 'leaf snapshot' ), 'full' ) );
+		}
+		if ( $manifests > 0 ) {
+			$artifacts[] = $this->make_manifest_artifact( array( $mu . 'snapshot.php' ) );
+		}
+		if ( $manifests > 1 ) {
+			copy( $this->dir . '/s1-files.list', $this->dir . '/s0-files.list' );
+			$artifacts[] = array( 'role' => 'manifest', 'file' => 's0-files.list', 'size' => filesize( $this->dir . '/s0-files.list' ), 'sha256' => hash_file( 'sha256', $this->dir . '/s0-files.list' ), 'adopt_only' => false );
+		}
+		$blocks = array(
+			'named'  => $this->reconcile_options(),
+			'absent' => array(),
+			'empty'  => array( 'reconcile' => array() ),
+		);
+		$task = $this->drive( $this->make_task( 'files', $artifacts, $blocks[ $block ] ) );
 		$sub = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
-		$this->assertSame( 'live host bytes', file_get_contents( $this->site . '/wp-content/mu-plugins/host.php' ) );
-		$this->assertSame( array( 'status' => 'skipped', 'reason' => 'manifest_unverified', 'mu_plugins_reason' => 'mu_plugins_no_manifest' ), $sub['verification']['reconcile'] );
+		$policies = array(
+			'r1'          => array( 'directory' => 'wp-content/mu-plugins', 'mode' => 'set', 'paths' => array( $mu . 'host.php' => true ) ),
+			'no_manifest' => array( 'directory' => 'wp-content/mu-plugins', 'mode' => 'set', 'paths' => array( $mu . 'host.php' => true, $mu . 'snapshot.php' => true ), 'reason' => 'mu_plugins_no_manifest' ),
+			'overlay'     => array( 'directory' => null, 'mode' => 'set', 'paths' => array() ),
+		);
+		$bytes = array(
+			'r1'          => array( 'live host bytes', 'leaf snapshot' ),
+			'no_manifest' => array( 'live host bytes', 'live snapshot bytes' ),
+			'overlay'     => array( 'snapshot host', 'leaf snapshot' ),
+		);
+		// Directory iteration order decides the order of captured paths, so compare as sets.
+		$this->assertEquals( $policies[ $expected ], $sub['mu_plugins_preserve'] );
+		$this->assertSame( $bytes[ $expected ], array( file_get_contents( $this->site . '/' . $mu . 'host.php' ), file_get_contents( $this->site . '/' . $mu . 'snapshot.php' ) ) );
+		$this->assertSame( 'no_manifest' === $expected, isset( $sub['verification']['reconcile']['mu_plugins_reason'] ) );
 	}
 
 	public function test_mu_plugins_no_manifest_non_live_paths_follow_archives_and_tombstones() {

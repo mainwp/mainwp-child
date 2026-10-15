@@ -1551,8 +1551,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         if ( ! isset( $sub_state['mu_plugins_preserve'] ) ) {
             $options = isset( $sub_state['params']['reconcile'] ) ? MainWP_Child_Backup_Reconciler::sanitize_options( $sub_state['params']['reconcile'] ) : array();
             $named   = ! empty( $options['manifest'] );
-            // A withheld reconcile block still ships the manifest, and a plan only ever carries the leaf's.
-            $name     = $named ? $options['manifest'] : ( 1 === count( $manifests ) ? $manifests[0] : '' );
+            $chain   = $archive_count > 1 || $has_tombstones;
+            // Only a chain needs leaf membership. A withheld reconcile block still ships the manifest, and a plan only ever carries the leaf's.
+            $name     = $named ? $options['manifest'] : ( $chain && 1 === count( $manifests ) ? $manifests[0] : '' );
             $verified = isset( $sub_state['verified_manifests'][ $name ] ) ? $sub_state['verified_manifests'][ $name ] : '';
             $manifest = $scratch . $name;
             $actual   = is_file( $manifest ) && ! is_link( $manifest ) ? hash_file( 'sha256', $manifest ) : false;
@@ -1560,8 +1561,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             if ( $named && null === $manifest ) {
                 throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_RECONCILE ) ), null, MainWP_Backup_Error::ERR_RESTORE_RECONCILE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
             }
-            // Archives carry no snapshot identity, so a missing manifest requires protection across every archive.
-            $without_manifest = null === $manifest && ( $archive_count > 1 || $has_tombstones );
+            // Archives carry no snapshot identity, so a chain with no usable manifest protects live files from every archive.
+            $without_manifest = null === $manifest && $chain;
 
             $sub_state['mu_plugins_preserve'] = ( new MainWP_Child_Backup_Mu_Plugins() )->capture(
                 $this->site_root(),
