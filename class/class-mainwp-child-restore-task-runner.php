@@ -371,7 +371,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * Whether a pull URL is safe to fetch.
      *
      * Requires https. Cloud-metadata and link-local targets (169.254.0.0/16,
-     * the metadata hostnames, IPv6 ::1 and fe80::/10) are rejected
+     * the metadata hostnames, IPv6 ::1, fd00:ec2::254 and fe80::/10) are rejected
      * unconditionally. Other private/loopback hosts (RFC1918, 127.0.0.0/8,
      * fc00::/7) are rejected unless an operator opts in with the
      * MAINWP_BACKUP_ALLOW_PRIVATE_PULL constant or the
@@ -411,6 +411,14 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $ips = static::resolve_host_ips( $host );
         }
 
+        // PHP before 8.3 does not apply private-range flags to IPv4-mapped IPv6.
+        foreach ( $ips as $index => $ip ) {
+            $packed = inet_pton( $ip );
+            if ( false !== $packed && 16 === strlen( $packed ) && str_repeat( "\x00", 10 ) . "\xff\xff" === substr( $packed, 0, 12 ) ) {
+                $ips[ $index ] = inet_ntop( substr( $packed, 12, 4 ) );
+            }
+        }
+
         foreach ( $ips as $ip ) {
             if ( static::ip_is_metadata_or_link_local( $ip ) ) {
                 return false;
@@ -436,7 +444,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 
     /**
      * Whether an IP is a cloud-metadata / link-local address that no
-     * override may reach: IPv4 169.254.0.0/16, IPv6 ::1 and fe80::/10.
+     * override may reach: IPv4 169.254.0.0/16, IPv6 ::1, fd00:ec2::254 and fe80::/10.
      *
      * @param string $ip Validated IP literal.
      *
@@ -448,10 +456,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             if ( false === $packed || 16 !== strlen( $packed ) ) {
                 return false;
             }
-            if ( str_repeat( "\x00", 10 ) . "\xff\xff" === substr( $packed, 0, 12 ) ) {
-                return static::ip_is_metadata_or_link_local( inet_ntop( substr( $packed, 12, 4 ) ) );
-            }
-            if ( inet_pton( '::1' ) === $packed ) {
+            if ( inet_pton( '::1' ) === $packed || inet_pton( 'fd00:ec2::254' ) === $packed ) {
                 return true;
             }
             // fe80::/10 -> first 10 bits 1111111010.

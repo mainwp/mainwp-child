@@ -7129,6 +7129,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			'https://169.254.169.254/latest/meta-data/'         => 'AWS/Azure metadata IP',
 			'https://metadata.google.internal/computeMetadata/' => 'GCP metadata hostname',
 			'https://[::1]/object'                              => 'IPv6 loopback literal',
+			'https://[fd00:ec2::254]/'                           => 'AWS IPv6 metadata IP',
 			'https://[::ffff:169.254.169.254]/'                  => 'IPv4-mapped IPv6 metadata IP',
 			'https://[::ffff:a9fe:a9fe]/'                        => 'Hex IPv4-mapped IPv6 metadata IP',
 		);
@@ -7168,17 +7169,23 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			),
 		);
 
-		delete_option( 'mainwp_backup_allow_private_pull' );
-		$this->assertNull(
-			MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest( $manifest, $artifacts ),
-			'A private/loopback pull URL must be denied by default.'
-		);
+		try {
+			foreach ( array( $manifest['artifacts'][0]['url'], 'https://[::ffff:10.0.0.1]/db.zip', 'https://[::ffff:127.0.0.1]/db.zip' ) as $url ) {
+				$manifest['artifacts'][0]['url'] = $url;
+				delete_option( 'mainwp_backup_allow_private_pull' );
+				$this->assertNull(
+					MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest( $manifest, $artifacts ),
+					$url . ' must be denied by default.'
+				);
 
-		update_option( 'mainwp_backup_allow_private_pull', '1' );
-		$clean = MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest( $manifest, $artifacts );
-		$this->assertNotNull( $clean, 'The override option must allow a configured private endpoint.' );
-		$this->assertSame( 'db.zip', $clean['artifacts'][0]['file'] );
-		delete_option( 'mainwp_backup_allow_private_pull' );
+				update_option( 'mainwp_backup_allow_private_pull', '1' );
+				$clean = MainWP_Child_Restore_Task_Runner::sanitize_pull_manifest( $manifest, $artifacts );
+				$this->assertNotNull( $clean, $url . ' must be allowed with the private-pull override.' );
+				$this->assertSame( 'db.zip', $clean['artifacts'][0]['file'] );
+			}
+		} finally {
+			delete_option( 'mainwp_backup_allow_private_pull' );
+		}
 	}
 
 	/**

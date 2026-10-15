@@ -2554,8 +2554,28 @@ class MainWP_Backup {
         try {
             $archived = $this->zip_file( $db_files, $archivefilePath );
         } catch ( \Throwable $e ) {
-            if ( file_exists( $archivefilePath ) ) {
-                wp_delete_file( $archivefilePath );
+            try {
+                if ( 'zip' === $archiveExt && $this->zip instanceof \ZipArchive ) {
+                    // PHP 7.4 warns on a handle m_zip_file() already closed; PHP 8 throws ValueError.
+                    if ( true === @$this->zip->unchangeAll() ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- see above.
+                        @$this->zip->close(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- see above.
+                    }
+                } elseif ( null !== $this->archiver && $this->archiver->is_open() ) {
+                    $this->archiver->close();
+                }
+            } catch ( \Throwable $cleanup_error ) {
+                // Cleanup must preserve the failure that interrupted the archive.
+            } finally {
+                // ZipArchive's destructor can write pending entries, so release it before unlinking.
+                $this->zip      = null;
+                $this->archiver = null;
+            }
+            try {
+                if ( file_exists( $archivefilePath ) ) {
+                    wp_delete_file( $archivefilePath );
+                }
+            } catch ( \Throwable $cleanup_error ) {
+                // A deletion failure must not replace the original archive error.
             }
             throw $e;
         }

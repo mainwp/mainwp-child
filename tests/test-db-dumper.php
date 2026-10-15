@@ -560,8 +560,50 @@ class DbDumperTest extends WP_UnitTestCase {
 		}
 	}
 
+	public static function default_timestamp_dump_tiers() {
+		return array(
+			'snapshot' => array( 1 ),
+			'paginated' => array( 2 ),
+		);
+	}
+
+	/** @dataProvider default_timestamp_dump_tiers */
+	public function test_dump_default_generated_timestamps_round_trip( $tier ) {
+		global $wpdb;
+		$wpdb->query( "DROP TABLE `{$this->fixture_table}`" );
+		$this->assertNotFalse( $wpdb->query( "CREATE TABLE `{$this->fixture_table}` (id INT NOT NULL PRIMARY KEY, created TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, updated DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)" ), $wpdb->last_error );
+		$expected = array( 'id' => '1', 'created' => '2001-02-03 04:05:06', 'updated' => '2002-03-04 05:06:07' );
+		$this->assertSame( 1, $wpdb->insert( $this->fixture_table, $expected ), $wpdb->last_error );
+		// The snapshot connection cannot see uncommitted fixture values.
+		$wpdb->query( 'COMMIT' );
+
+		$dumper = MainWP_Backup_Db_Dumper::instance();
+		$prefix = $this->scratch . '/default-timestamps';
+		if ( 1 === $tier ) {
+			$result = $dumper->dump_to_files( $prefix );
+		} else {
+			$cursor = array();
+			for ( $slice = 0; $slice < 4; ++$slice ) {
+				$result = $dumper->dump_tables_tier2_slice( array( $this->fixture_table ), $prefix, $cursor, 0 );
+				$cursor = $result['cursor'];
+				if ( $result['done'] ) {
+					break;
+				}
+			}
+			$this->assertTrue( $result['done'] );
+		}
+		$this->assertSame( $tier, $result['tier'] );
+		$file = $prefix . '-' . $this->fixture_table . '.sql.php';
+		$this->assertContains( $file, $result['files'] );
+		$this->replay_tier2_fixture( $file );
+		$this->assertSame( $expected, $wpdb->get_row( "SELECT id, created, updated FROM `{$this->fixture_table}`", ARRAY_A ) );
+	}
+
 	public function test_tier2_generated_primary_key_finishes_without_duplicate_rows() {
 		global $wpdb;
+		if ( false !== stripos( $wpdb->db_server_info(), 'MariaDB' ) ) {
+			$this->markTestSkipped( 'MariaDB forbids a primary key on a generated column, so this seek-cursor bug cannot occur.' );
+		}
 		$wpdb->query( "DROP TABLE `{$this->fixture_table}`" );
 		$this->assertNotFalse( $wpdb->query( "CREATE TABLE `{$this->fixture_table}` (row_id INT NOT NULL, id INT GENERATED ALWAYS AS (row_id) STORED, name VARCHAR(190), PRIMARY KEY (id))" ), $wpdb->last_error );
 		$expected = array();

@@ -728,7 +728,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         if ( 1 === count( $pk_columns ) ) {
             $pk_col   = reset( $pk_columns );
             $col_info = $wpdb->get_row( $wpdb->prepare( 'SHOW COLUMNS FROM ' . $this->quote_ident( $table ) . ' WHERE Field = %s', $pk_col ), ARRAY_A ); // phpcs:ignore -- schema read.
-            if ( $col_info && preg_match( '/int|bigint|mediumint|smallint|tinyint/i', $col_info['Type'] ) && false === stripos( (string) $col_info['Extra'], 'GENERATED' ) ) {
+            if ( $col_info && preg_match( '/int|bigint|mediumint|smallint|tinyint/i', $col_info['Type'] ) && ! self::is_generated_column( $col_info['Extra'] ) ) {
                 $cursor['pk_col'] = $pk_col;
             }
         }
@@ -918,6 +918,17 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
     }
 
     /**
+     * DEFAULT_GENERATED marks a default expression, so its values must still be dumped.
+     *
+     * @param string $extra Column EXTRA metadata.
+     *
+     * @return bool
+     */
+    private static function is_generated_column( $extra ) {
+        return 1 === preg_match( '/\bGENERATED\b/i', (string) $extra );
+    }
+
+    /**
      * Read the column map for a table: name, data type, bit width, generated flag.
      *
      * @param callable $query_runner Callable executing SQL and returning assoc rows.
@@ -949,7 +960,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 'name'      => $row['COLUMN_NAME'],
                 'type'      => strtolower( $row['DATA_TYPE'] ),
                 'bit_width' => $bit_width,
-                'generated' => false !== stripos( (string) $row['EXTRA'], 'GENERATED' ),
+                'generated' => self::is_generated_column( $row['EXTRA'] ),
             );
         }
         return $columns;

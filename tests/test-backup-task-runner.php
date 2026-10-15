@@ -1384,6 +1384,68 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		}
 	}
 
+	public static function interrupted_db_archive_formats() {
+		return array(
+			'zip' => array( 'zip' ),
+			'tar' => array( 'tar' ),
+		);
+	}
+
+	/** @dataProvider interrupted_db_archive_formats */
+	public function test_db_archive_heartbeat_failure_releases_archive( $ext ) {
+		if ( 'zip' === $ext && ! class_exists( '\\ZipArchive' ) ) {
+			$this->markTestSkipped( 'ZipArchive is required to exercise deferred archive writes.' );
+		}
+		$uploads = wp_upload_dir();
+		$source = $uploads['basedir'] . '/heartbeat-' . wp_generate_uuid4();
+		$files = array( $source . '-first.sql.php', $source . '-second.sql.php' );
+		$backup = new class() extends MainWP_Backup {
+			public $heartbeat_error;
+			public $failed_archiver;
+			private $heartbeats = 0;
+			public function heartbeat() {
+				if ( 2 === ++$this->heartbeats ) {
+					$this->failed_archiver = $this->archiver;
+					throw $this->heartbeat_error;
+				}
+			}
+		};
+		$error = new MainWP_Exception( 'heartbeat lost ownership', null, MainWP_Backup_Error::ERR_ALREADY_RUNNING );
+		$backup->heartbeat_error = $error;
+		$prefix = $this->backup_dir . '/heartbeat';
+		$archive = $prefix . '.sql.' . $ext;
+		try {
+			foreach ( $files as $file ) {
+				$this->assertNotFalse( file_put_contents( $file, 'prepared dump bytes' ) );
+			}
+			if ( 'tar' === $ext ) {
+				// Tar throttles heartbeats for 40 seconds, so fail its first call with an open archive.
+				$backup->heartbeat();
+			}
+			try {
+				$backup->archive_db_files( $files, $prefix, $ext );
+				$this->fail( 'The second heartbeat must interrupt database archiving.' );
+			} catch ( MainWP_Exception $e ) {
+				$this->assertSame( $error, $e );
+			}
+			$this->assertFileDoesNotExist( $archive );
+			if ( 'tar' === $ext ) {
+				$this->assertFalse( $backup->failed_archiver->is_open(), 'A failed database archive must release its tar stream.' );
+			}
+			unset( $backup );
+			gc_collect_cycles();
+			clearstatcache( true, $archive );
+			$this->assertFileDoesNotExist( $archive, 'Releasing the backup must not recreate a partial archive.' );
+		} finally {
+			unset( $backup );
+			gc_collect_cycles();
+			foreach ( $files as $file ) {
+				if ( file_exists( $file ) ) { unlink( $file ); }
+			}
+			MainWP_Backup::reset_skipped_paths();
+		}
+	}
+
 	/**
 	 * The full-backup engine consumes prepared dump files instead of
 	 * dumping again - the dump-once seam.
