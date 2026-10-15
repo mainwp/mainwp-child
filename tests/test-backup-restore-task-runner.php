@@ -1539,15 +1539,25 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( $clean, MainWP_Child_Backup_Reconciler::sanitize_options( $clean ) );
 	}
 
+	public function test_unarchived_empty_object_on_wire_is_invalid() {
+		$raw = json_decode( '{"manifest":"s1-files.list","walk":{"excludes":[],"excludenonwp":0,"excludezip":0,"unarchived":{}}}', true );
+		$clean = MainWP_Child_Backup_Reconciler::sanitize_options( $raw );
+		$this->assertSame( 'unarchived_invalid', $clean['skip_reason'] ?? null );
+	}
+
 	public static function data_unarchived_invalid_metadata() {
 		$invalid = array(
 			'parent segment' => array( 'a/../b' ),
+			'dot segment' => array( 'wp-content/plugins/./persist.php' ),
+			'empty segment' => array( 'wp-content//plugins/persist.php' ),
+			'trailing slash' => array( 'wp-content/plugins/persist.php/' ),
 			'absolute' => array( '/absolute.php' ),
 			'windows drive' => array( 'C:/file.php' ),
 			'backslash' => array( 'a\\b' ),
 			'NUL' => array( "a\0b" ),
 			'non-string entry' => array( 123 ),
 			'empty entry' => array( '' ),
+			'empty list' => array(),
 			'trimmed entry' => array( ' path.php ' ),
 			'HTML entry' => array( '<b>path.php</b>' ),
 			'percent entry' => array( 'path%20name.php' ),

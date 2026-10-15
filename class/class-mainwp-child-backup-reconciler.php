@@ -69,12 +69,17 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
         }
         if ( array_key_exists( 'unarchived', $walk ) ) {
             $paths = $walk['unarchived'];
-            if ( ! is_array( $paths ) || array_values( $paths ) !== $paths ) {
+            if ( ! is_array( $paths ) || empty( $paths ) || array_values( $paths ) !== $paths ) {
                 $clean['skip_reason'] = 'unarchived_invalid';
                 return $clean;
             }
             foreach ( $paths as $path ) {
                 if ( ! is_string( $path ) || ! self::safe_relpath( $path ) || sanitize_text_field( $path ) !== $path ) {
+                    $clean['skip_reason'] = 'unarchived_invalid';
+                    return $clean;
+                }
+                $segments = explode( '/', $path );
+                if ( in_array( '.', $segments, true ) || in_array( '', $segments, true ) ) {
                     $clean['skip_reason'] = 'unarchived_invalid';
                     return $clean;
                 }

@@ -835,6 +835,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             } finally {
                 $fresh_failures = MainWP_Backup::get()->get_failed_add_paths();
                 $root           = $this->site_root();
+                // A list persisted by an older Child was never checked and may hold rewritten names.
+                if ( ! empty( $sub_state['failed_add_paths'] ) && empty( $sub_state['failed_add_checked'] ) ) {
+                    $sub_state['unarchived_unlisted'] = true;
+                }
                 foreach ( $fresh_failures as $path ) {
                     // The JSON checkpoint rewrites invalid UTF-8, and a path outside the root
                     // has no relpath; checked before persisting, neither can be listed exactly.
@@ -843,7 +847,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                     }
                 }
                 // The manifest may resume in another request after the archive closes.
-                $sub_state['failed_add_paths'] = array_values( array_unique( array_merge( $sub_state['failed_add_paths'] ?? array(), $fresh_failures ) ) );
+                $sub_state['failed_add_paths']   = array_values( array_unique( array_merge( $sub_state['failed_add_paths'] ?? array(), $fresh_failures ) ) );
+                $sub_state['failed_add_checked'] = true;
             }
             if ( $archive_yielded ) {
                 return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
@@ -893,6 +898,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
             }
 
+            $unlisted = ! empty( $sub_state['unarchived_unlisted'] ) || ( ! empty( $sub_state['failed_add_paths'] ) && empty( $sub_state['failed_add_checked'] ) );
+
             unset( $sub_state['walk_cursor'] );
             $sub_state['walk_done'] = true;
             $sub_state['manifest']  = $this->manifest_from_walk( $walk );
@@ -907,7 +914,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                     'size'   => (int) $sub_state['manifest']['size'],
                     'role'   => 'manifest',
                     'sha256' => $sub_state['manifest']['sha256'] ?? '',
-                    'walk'   => $this->manifest_walk_params( $params, $sub_state['failed_add_paths'] ?? array(), ! empty( $sub_state['unarchived_unlisted'] ) ),
+                    'walk'   => $this->manifest_walk_params( $params, $sub_state['failed_add_paths'] ?? array(), $unlisted ),
                 ),
             );
         }
@@ -1011,13 +1018,15 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
         }
 
+        $unlisted = ! empty( $sub_state['unarchived_unlisted'] ) || ( ! empty( $sub_state['failed_add_paths'] ) && empty( $sub_state['failed_add_checked'] ) );
+
         $artifacts   = array();
         $artifacts[] = array(
             'file'   => $sub_state['manifest']['file'],
             'size'   => (int) $sub_state['manifest']['size'],
             'role'   => 'manifest',
             'sha256' => $sub_state['manifest']['sha256'] ?? '',
-            'walk'   => $this->manifest_walk_params( $params, $sub_state['failed_add_paths'] ?? array(), ! empty( $sub_state['unarchived_unlisted'] ) ),
+            'walk'   => $this->manifest_walk_params( $params, $sub_state['failed_add_paths'] ?? array(), $unlisted ),
         );
 
         $tombstones_path = $dir . MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST;
