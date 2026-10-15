@@ -67,6 +67,13 @@ class BackupPreflightTest extends WP_UnitTestCase {
 		$this->assertSame( 16, strlen( $report['backup_dir_hash'] ) );
 	}
 
+	public function test_unarchived_readiness_advertises_reconcile_support() {
+		foreach ( array( true, false ) as $capabilities_only ) {
+			$report = MainWP_Backup::get()->check_backup_readiness( $capabilities_only );
+			$this->assertSame( true, $report['reconcile_unarchived_support'] ?? null );
+		}
+	}
+
 	/**
 	 * The report advertises the capabilities this child supports so the
 	 * Dashboard can gate features per site: the resumable task machine,

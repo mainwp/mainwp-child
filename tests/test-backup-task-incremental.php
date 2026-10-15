@@ -329,6 +329,98 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 
 	// ---- incremental run fixtures -----------------------------------------
 
+	public static function data_unarchived_artifact_metadata() {
+		return array(
+			'full' => array( 'full', 2 ),
+			'incremental' => array( 'incremental', 2 ),
+			'full at cap' => array( 'full', 1000 ),
+			'incremental at cap' => array( 'incremental', 1000 ),
+			'full overflow' => array( 'full', 1001 ),
+			'incremental overflow' => array( 'incremental', 1001 ),
+		);
+	}
+
+	/** @dataProvider data_unarchived_artifact_metadata */
+	public function test_unarchived_artifact_metadata_uses_persisted_failures( $type, $count ) {
+		$root = ABSPATH . 'unarchived-tree/';
+		$this->runner->test_site_root = $root;
+		$paths = array();
+		for ( $i = 0; $i < $count; ++$i ) {
+			$paths[] = 'wp-content/Host File..' . $i . '.php';
+		}
+		$task_id = $this->create_task( $type, array( 'emit_manifest' => true, 'excludes' => array( 'private' ), 'parent_manifest_b64' => base64_encode( "snapshot.txt\t1\t1\n" ) ) );
+		$spine = MainWP_Child_Backup_Task::instance();
+		$task = $spine->get_task( $task_id );
+		$state = $spine->read_sub_state( $task, $this->backup_dir );
+		$state['failed_add_paths'] = array_map( static function ( $path ) use ( $root ) { return $root . $path; }, $paths );
+		$state['failed_add_paths'][] = $root . $paths[0];
+		$this->assertSame( 1, $spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => $state ) ) );
+		$this->runner->stubs['run_incremental_diff'] = array( 'changes' => 0, 'tombstones' => 0, 'force_full' => false );
+		file_put_contents( $this->backup_dir . '/changes.list', '' );
+		for ( $slice = 0; $slice < 4; ++$slice ) {
+			$task = $this->advance( $task_id );
+			if ( MainWP_Child_Backup_Task::PHASE_COMPLETED === $task->phase ) { break; }
+		}
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$roles = $this->artifacts_by_role( $spine->status_payload( $task, $this->backup_dir ) );
+		$walk = $roles['manifest']['walk'];
+		$this->assertSame( array( 'private' ), $walk['excludes'] );
+		if ( $count > 1000 ) {
+			$this->assertSame( true, $walk['unarchived_overflow'] ?? null );
+			$this->assertArrayNotHasKey( 'unarchived', $walk );
+		} else {
+			$this->assertSame( $paths, $walk['unarchived'] ?? null );
+			$this->assertArrayNotHasKey( 'unarchived_overflow', $walk );
+		}
+	}
+
+	public function test_unarchived_ziparchive_failures_union_across_requests() {
+		$this->site = ABSPATH . 'mainwp-unarchived-' . uniqid();
+		mkdir( $this->site );
+		file_put_contents( $this->site . '/First..txt', 'first live bytes' );
+		file_put_contents( $this->site . '/second.txt', 'second live bytes' );
+		$this->runner->test_site_root = $this->site . '/';
+		$backup = \MainWP\Child\MainWP_Backup::get();
+		$zip_property = new ReflectionProperty( $backup, 'zip' );
+		$zip_property->setAccessible( true );
+		$previous_zip = $zip_property->getValue( $backup );
+		$zip = new class extends ZipArchive {
+			public function addFile( $filename, $entryname = '', $start = 0, $length = 0, $flags = 0 ): bool {
+				return false;
+			}
+		};
+		$this->assertTrue( $zip->open( $this->backup_dir . '/failed-add.zip', ZipArchive::CREATE ) );
+		$zip->addFromString( 'snapshot.txt', 'snapshot' );
+		$zip_property->setValue( $backup, $zip );
+		$attempt = 0;
+		$this->runner->stubs['run_file_archiver'] = function () use ( $backup, &$attempt ) {
+			$backup->add_file_to_zipp( $this->site . '/First..txt', 'First..txt' );
+			if ( ++$attempt > 1 ) {
+				$backup->add_file_to_zipp( $this->site . '/second.txt', 'second.txt' );
+			}
+			if ( $attempt < 3 ) {
+				throw new \MainWP\Child\MainWP_Backup_Budget_Exception( 'Forced archive yield.' );
+			}
+			return array( 'file' => 'backup-artifact.tar', 'filesize' => 2048 );
+		};
+		try {
+			$task_id = $this->create_task( 'full', array( 'ext' => 'zip', 'emit_manifest' => true ) );
+			for ( $slice = 0; $slice < 3; ++$slice ) {
+				$backup->reset_failed_adds();
+				$task = $this->advance( $task_id );
+				if ( $slice < 2 ) { $this->assertSame( MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES, $task->phase ); }
+			}
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+			$roles = $this->artifacts_by_role( MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir ) );
+			$this->assertSame( array( 'First..txt', 'second.txt' ), $roles['manifest']['walk']['unarchived'] ?? null );
+		} finally {
+			$zip_property->setValue( $backup, $previous_zip );
+			$zip->close();
+			$backup->reset_failed_adds();
+			\MainWP\Child\MainWP_Backup::reset_skipped_paths();
+		}
+	}
+
 	public static function tar_failed_add_slices() {
 		return array( 'single slice' => array( false ), 'resumed slice' => array( true ) );
 	}

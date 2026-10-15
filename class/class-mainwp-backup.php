@@ -1710,6 +1710,8 @@ class MainWP_Backup {
             'restore_multisite'          => is_multisite() ? 1 : 0,
         );
 
+        $report['reconcile_unarchived_support'] = true;
+
         if ( $capabilities_only ) {
             return $report;
         }

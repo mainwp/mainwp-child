@@ -31,20 +31,55 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
     private $mu_plugins_relpath = null;
 
     /**
+     * Exact manifest keys whose snapshot has no archived bytes.
+     *
+     * @var array
+     */
+    private $unarchived_paths = array();
+
+    /**
      * Invalid coverage must never become a broader deletion scope.
      *
      * @param mixed $raw Wire options.
-     * @return array Valid options, or an empty array.
+     * @return array Valid options, a skip reason, or an empty array.
      */
     public static function sanitize_options( $raw ) {
         if ( ! is_array( $raw ) || ! isset( $raw['manifest'] ) || ! is_string( $raw['manifest'] ) || '' === $raw['manifest'] || MainWP_Helper::sanitize_filename( $raw['manifest'] ) !== $raw['manifest'] ) {
             return array();
         }
         $clean = array( 'manifest' => $raw['manifest'] );
+        // The callable and restore slices sanitize separately; a refusal must survive both.
+        if ( isset( $raw['skip_reason'] ) && in_array( $raw['skip_reason'], array( 'unarchived_invalid', 'unarchived_overflow' ), true ) ) {
+            $clean['skip_reason'] = $raw['skip_reason'];
+            return $clean;
+        }
         if ( ! isset( $raw['walk'] ) || ! is_array( $raw['walk'] ) ) {
             return $clean;
         }
         $walk = $raw['walk'];
+        if ( array_key_exists( 'unarchived_overflow', $walk ) ) {
+            if ( ! is_bool( $walk['unarchived_overflow'] ) ) {
+                $clean['skip_reason'] = 'unarchived_invalid';
+                return $clean;
+            }
+            if ( $walk['unarchived_overflow'] ) {
+                $clean['skip_reason'] = 'unarchived_overflow';
+                return $clean;
+            }
+        }
+        if ( array_key_exists( 'unarchived', $walk ) ) {
+            $paths = $walk['unarchived'];
+            if ( ! is_array( $paths ) || array_values( $paths ) !== $paths ) {
+                $clean['skip_reason'] = 'unarchived_invalid';
+                return $clean;
+            }
+            foreach ( $paths as $path ) {
+                if ( ! is_string( $path ) || ! self::safe_relpath( $path ) || sanitize_text_field( $path ) !== $path ) {
+                    $clean['skip_reason'] = 'unarchived_invalid';
+                    return $clean;
+                }
+            }
+        }
         if ( ! isset( $walk['excludes'], $walk['excludenonwp'], $walk['excludezip'] ) || ! is_array( $walk['excludes'] ) ) {
             return $clean;
         }
@@ -73,6 +108,11 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
             'excludenonwp' => (int) $walk['excludenonwp'],
             'excludezip'   => (int) $walk['excludezip'],
         );
+        foreach ( array( 'unarchived', 'unarchived_overflow' ) as $key ) {
+            if ( array_key_exists( $key, $walk ) ) {
+                $clean['walk'][ $key ] = $walk[ $key ];
+            }
+        }
         return $clean;
     }
 
@@ -86,6 +126,7 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
      * @return array Cursor, outcome and completion flags.
      */
     public function reconcile_slice( $cursor, $config, $deadline ) {
+        $this->unarchived_paths   = array_fill_keys( $config['walk']['unarchived'] ?? array(), true );
         $this->mu_plugins_relpath = isset( $config['root'] ) ? MainWP_Child_Backup_Mu_Plugins::relative_directory( $config['root'], isset( $config['mu_plugins_directory'] ) ? $config['mu_plugins_directory'] : null ) : null;
         $this->uploads_relpath    = null;
         if ( isset( $config['task_type'] ) && 'restore_files' === $config['task_type'] ) {
@@ -94,7 +135,7 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
             $basedir = wp_normalize_path( $uploads['basedir'] );
             if ( 0 === strpos( $basedir, $root ) ) {
                 $relative = rtrim( substr( $basedir, strlen( $root ) ), '/' );
-                if ( $this->safe_relpath( $relative ) ) {
+                if ( self::safe_relpath( $relative ) ) {
                     $this->uploads_relpath = $relative;
                 }
             }
@@ -206,7 +247,7 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
                 if ( '' !== $cursor['last'] && strcmp( $cursor['last'], $row[0] ) >= 0 ) {
                     throw new \RuntimeException( 'The live file list is not strictly sorted.' );
                 }
-                if ( ! $this->safe_relpath( $row[0] ) ) {
+                if ( ! self::safe_relpath( $row[0] ) ) {
                     ++$cursor['skipped_unsafe'];
                 } elseif ( null === $expected || $expected[0] !== $row[0] ) {
                     $this->remove_candidate( $row[0], $config['root'], $cursor );
@@ -271,7 +312,7 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
      * @param string $path Site-relative path.
      * @return bool Whether the path is safe.
      */
-    private function safe_relpath( $path ) {
+    private static function safe_relpath( $path ) {
         if ( '' === $path || '/' === $path[0] || false !== strpos( $path, '\\' ) ) {
             return false;
         }
@@ -325,7 +366,7 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
         if ( $this->exempt( $path ) ) {
             return;
         }
-        if ( ! $this->safe_relpath( $path ) ) {
+        if ( ! self::safe_relpath( $path ) ) {
             throw new \RuntimeException( 'Unsafe reconciliation path.' );
         }
         $target = trailingslashit( $root ) . $path;
@@ -348,9 +389,16 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
             $parent        = dirname( $parent );
             $parent_length = strlen( $parent );
         }
+        // Mu-plugins takes precedence so overlapping protections count the file once.
+        $reason = null;
         if ( MainWP_Child_Backup_Mu_Plugins::contains( $path, $this->mu_plugins_relpath ) ) {
+            $reason = 'mu_plugins';
+        } elseif ( isset( $this->unarchived_paths[ $path ] ) ) {
+            $reason = 'unarchived';
+        }
+        if ( null !== $reason ) {
             ++$cursor['kept'];
-            $cursor['kept_by_reason']['mu_plugins'] = isset( $cursor['kept_by_reason']['mu_plugins'] ) ? $cursor['kept_by_reason']['mu_plugins'] + 1 : 1;
+            $cursor['kept_by_reason'][ $reason ] = isset( $cursor['kept_by_reason'][ $reason ] ) ? $cursor['kept_by_reason'][ $reason ] + 1 : 1;
             if ( count( $cursor['kept_paths'] ) < 20 ) {
                 $cursor['kept_paths'][] = $path;
             }

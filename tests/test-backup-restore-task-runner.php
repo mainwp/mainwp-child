@@ -1509,6 +1509,121 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( array_slice( $paths, 0, 20 ), $sub['verification']['reconcile']['kept_paths'] );
 	}
 
+	public function test_unarchived_full_restore_keeps_exact_live_file() {
+		$this->prepare_reconcile_fixture();
+		$path = 'wp-content/plugins/Host File..php';
+		file_put_contents( $this->site . '/' . $path, 'live unarchived bytes' );
+		file_put_contents( $this->site . '/' . $path . '.extra', 'delete sibling' );
+		$options = $this->reconcile_options();
+		$options['reconcile']['walk']['unarchived'] = array( $path, $path );
+		$options['reconcile'] = MainWP_Child_Backup_Reconciler::sanitize_options( $options['reconcile'] );
+		$task = $this->drive( $this->make_task( 'full', array( $this->make_part_artifact(), $this->make_db_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $options ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertFileExists( $this->site . '/' . $path );
+		$this->assertSame( 'live unarchived bytes', file_get_contents( $this->site . '/' . $path ) );
+		$this->assertFileDoesNotExist( $this->site . '/' . $path . '.extra' );
+		$this->assertFileDoesNotExist( $this->site . '/wp-content/plugins/persist.php' );
+		$this->assertSame( 2, $sub['verification']['reconcile']['removed'] );
+		$this->assertSame( 1, $sub['verification']['reconcile']['kept'] );
+		$this->assertSame( array( 'unarchived' => 1 ), $sub['verification']['reconcile']['kept_by_reason'] );
+		$this->assertSame( array( $path ), $sub['verification']['reconcile']['kept_paths'] );
+	}
+
+	public function test_unarchived_sanitization_preserves_valid_list_and_is_idempotent() {
+		$raw = $this->reconcile_options()['reconcile'];
+		$raw['walk']['unarchived'] = array( 'wp-content/Host File..php', '.htaccess', 'wp-content/Host File..php' );
+		$raw['walk']['unarchived_overflow'] = false;
+		$clean = MainWP_Child_Backup_Reconciler::sanitize_options( $raw );
+		$this->assertSame( $raw, $clean );
+		$this->assertSame( $clean, MainWP_Child_Backup_Reconciler::sanitize_options( $clean ) );
+	}
+
+	public static function data_unarchived_invalid_metadata() {
+		$invalid = array(
+			'parent segment' => array( 'a/../b' ),
+			'absolute' => array( '/absolute.php' ),
+			'windows drive' => array( 'C:/file.php' ),
+			'backslash' => array( 'a\\b' ),
+			'NUL' => array( "a\0b" ),
+			'non-string entry' => array( 123 ),
+			'empty entry' => array( '' ),
+			'trimmed entry' => array( ' path.php ' ),
+			'HTML entry' => array( '<b>path.php</b>' ),
+			'percent entry' => array( 'path%20name.php' ),
+			'newline' => array( "a\nb" ),
+			'object' => (object) array( 'file' => 'path.php' ),
+			'map' => array( 'file' => 'path.php' ),
+			'sparse list' => array( 1 => 'path.php' ),
+			'scalar' => 'path.php',
+			'null' => null,
+		);
+		$cases = array();
+		foreach ( $invalid as $name => $value ) {
+			$cases[ $name ] = array( array( 'unarchived' => $value ), 'unarchived_invalid' );
+		}
+		foreach ( array( 1, 0, 'true', 'false', null, array() ) as $i => $value ) {
+			$cases[ 'invalid overflow ' . $i ] = array( array( 'unarchived_overflow' => $value ), 'unarchived_invalid' );
+		}
+		$cases['overflow'] = array( array( 'unarchived_overflow' => true ), 'unarchived_overflow' );
+		$cases['overflow with list'] = array( array( 'unarchived_overflow' => true, 'unarchived' => array( 'wp-content/plugins/persist.php' ) ), 'unarchived_overflow' );
+		$cases['invalid after valid'] = array( array( 'unarchived' => array( 'wp-content/plugins/persist.php', '../invalid' ) ), 'unarchived_invalid' );
+		return $cases;
+	}
+
+	/** @dataProvider data_unarchived_invalid_metadata */
+	public function test_unarchived_invalid_metadata_skips_without_deleting( $metadata, $reason ) {
+		$this->prepare_reconcile_fixture();
+		$options = $this->reconcile_options();
+		$options['reconcile']['walk'] = array_merge( $options['reconcile']['walk'], $metadata );
+		$clean = MainWP_Child_Backup_Reconciler::sanitize_options( $options['reconcile'] );
+		$this->assertSame( $clean, MainWP_Child_Backup_Reconciler::sanitize_options( $clean ) );
+		$options['reconcile'] = $clean;
+		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $options ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( array( 'status' => 'skipped', 'reason' => $reason ), $sub['verification']['reconcile'] );
+		$this->assertSame( 'extra', file_get_contents( $this->site . '/wp-content/plugins/persist.php' ) );
+	}
+
+	public function test_unarchived_resume_kept_counts_and_sample_are_not_duplicated() {
+		$this->prepare_mu_plugins_fixture();
+		$paths = array();
+		for ( $i = 0; $i < 25; ++$i ) {
+			$path = sprintf( 'wp-content/plugins/host-%02d.php', $i );
+			$paths[] = $path;
+			file_put_contents( $this->site . '/' . $path, 'live bytes' );
+		}
+		$mu_path = 'wp-content/mu-plugins/host.php';
+		file_put_contents( $this->site . '/' . $mu_path, 'host live bytes' );
+		$options = $this->reconcile_options();
+		$options['reconcile']['walk']['unarchived'] = array_merge( array( $mu_path ), $paths );
+		$this->runner->test_reconciler = new class extends MainWP_Child_Backup_Reconciler {
+			public $checks = 0;
+			public function reconcile_slice( $cursor, $config, $deadline ) {
+				$this->checks = 0;
+				return parent::reconcile_slice( $cursor, $config, $deadline );
+			}
+			protected function budget_exhausted( $deadline ) {
+				return ++$this->checks > 2;
+			}
+		};
+		$task_id = $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $options );
+		list( $task, $sub ) = $this->advance_until( $task_id, static function ( $sub ) { return ! empty( $sub['reconcile']['kept_by_reason']['unarchived'] ); } );
+		$this->assertSame( 2, $sub['reconcile']['kept'] );
+		$this->assertSame( array( $mu_path, $paths[0] ), $sub['reconcile']['kept_paths'] );
+		$this->runner->test_reconciler = null;
+		$task = $this->drive( $task_id );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 26, $sub['verification']['reconcile']['kept'] );
+		$this->assertSame( array( 'mu_plugins' => 1, 'unarchived' => 25 ), $sub['verification']['reconcile']['kept_by_reason'] );
+		$this->assertSame( array_slice( array_merge( array( $mu_path ), $paths ), 0, 20 ), $sub['verification']['reconcile']['kept_paths'] );
+		foreach ( array_merge( array( $mu_path ), $paths ) as $path ) {
+			$this->assertFileExists( $this->site . '/' . $path );
+		}
+	}
+
 	public static function data_reconcile_safe_relpaths() {
 		return array(
 			'embedded dots' => array( 'a..b.php', true ),

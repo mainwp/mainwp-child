@@ -898,7 +898,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                     'size'   => (int) $sub_state['manifest']['size'],
                     'role'   => 'manifest',
                     'sha256' => $sub_state['manifest']['sha256'] ?? '',
-                    'walk'   => $this->manifest_walk_params( $params ),
+                    'walk'   => $this->manifest_walk_params( $params, $sub_state['failed_add_paths'] ?? array() ),
                 ),
             );
         }
@@ -1008,7 +1008,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             'size'   => (int) $sub_state['manifest']['size'],
             'role'   => 'manifest',
             'sha256' => $sub_state['manifest']['sha256'] ?? '',
-            'walk'   => $this->manifest_walk_params( $params ),
+            'walk'   => $this->manifest_walk_params( $params, $sub_state['failed_add_paths'] ?? array() ),
         );
 
         $tombstones_path = $dir . MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST;
@@ -1831,14 +1831,30 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * Record requested coverage before make_walker() adds failed-path exclusions.
      *
      * @param array $params Backup parameters.
+     * @param array $failed_add_paths Persisted absolute paths with no archived bytes.
      * @return array Manifest coverage.
      */
-    protected function manifest_walk_params( $params ) {
-        return array(
+    protected function manifest_walk_params( $params, $failed_add_paths = array() ) {
+        $walk       = array(
             'excludes'     => isset( $params['excludes'] ) && is_array( $params['excludes'] ) ? array_values( array_filter( array_map( 'strval', $params['excludes'] ), 'strlen' ) ) : array(),
             'excludenonwp' => empty( $params['excludenonwp'] ) ? 0 : 1,
             'excludezip'   => empty( $params['excludezip'] ) ? 0 : 1,
         );
+        $root       = $this->site_root();
+        $unarchived = array();
+        foreach ( $failed_add_paths as $path ) {
+            if ( 0 === strpos( $path, $root ) ) {
+                $unarchived[] = substr( $path, strlen( $root ) );
+            }
+        }
+        $unarchived = array_values( array_unique( $unarchived ) );
+        // A partial list would authorize deleting omitted files with no snapshot bytes.
+        if ( count( $unarchived ) > 1000 ) {
+            $walk['unarchived_overflow'] = true;
+        } elseif ( ! empty( $unarchived ) ) {
+            $walk['unarchived'] = $unarchived;
+        }
+        return $walk;
     }
 
     /**

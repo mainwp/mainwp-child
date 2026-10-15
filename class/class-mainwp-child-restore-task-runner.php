@@ -1654,6 +1654,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $reason = 'no_manifest';
         } elseif ( empty( $options['manifest'] ) ) {
             $reason = 'manifest_unverified';
+        } elseif ( isset( $options['skip_reason'] ) ) {
+            $reason = $options['skip_reason'];
         } elseif ( ! isset( $options['walk'] ) ) {
             $reason = 'no_walk_params';
         }
