@@ -473,9 +473,75 @@ class Dump_Sweep_Restore_Engine extends Fake_Restore_Engine {
 }
 
 /**
+ * Keep option gating and result logging real while replacing provider calls.
+ */
+class Restore_Test_Cache_Purger extends \MainWP\Child\MainWP_Child_Cache_Purge {
+
+	public $calls = array();
+	public $provider_calls = 0;
+	public $failure = '';
+	public $on_purge;
+	public $output = '';
+
+	public function __construct() {}
+
+	public function auto_purge_cache( $bulk = '' ) {
+		$this->calls[] = func_get_args();
+		if ( null !== $this->on_purge ) {
+			call_user_func( $this->on_purge );
+		}
+		if ( 'exception' === $this->failure ) {
+			throw new RuntimeException( str_repeat( 'Private /srv/site/file.php token=fixture ', 40 ) );
+		}
+		if ( 'error' === $this->failure ) {
+			throw new TypeError( 'Private /srv/site/file.php token=fixture' );
+		}
+		return parent::auto_purge_cache( $bulk );
+	}
+
+	public function wprocket_auto_cache_purge() {
+		++$this->provider_calls;
+		echo $this->output;
+		return $this->purge_result( 'Private /srv/site/file.php token=fixture', 'provider' === $this->failure ? 'ERROR' : 'SUCCESS', 'attempted' );
+	}
+
+	public function cloudflair_auto_purge_cache() {
+		return $this->purge_result( 'Private /srv/site/file.php token=fixture', 'ERROR', 'attempt_failed' );
+	}
+}
+
+/**
  * Restore runner with every environment dependency pinned.
  */
 class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
+
+	public $test_cache_purger;
+	public $slice_phases = array();
+	public $before_loopback;
+	public $test_slice_budget = 40;
+	public $late_verify_once = false;
+
+	protected function cache_purger() {
+		return $this->test_cache_purger ? $this->test_cache_purger : parent::cache_purger();
+	}
+
+	public function advance_one_slice( $task, $owner, $lease_pre_held = false ) {
+		$this->slice_phases = array();
+		return parent::advance_one_slice( $task, $owner, $lease_pre_held );
+	}
+
+	protected function slice_budget() {
+		return $this->test_slice_budget;
+	}
+
+	protected function run_phase( $task, $version, $sub_state, $deadline, $backup_dir ) {
+		$this->slice_phases[] = $task->phase;
+		if ( $this->late_verify_once && MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY === $task->phase && count( $this->slice_phases ) > 1 ) {
+			$this->late_verify_once = false;
+			$deadline = time() - 1;
+		}
+		return parent::run_phase( $task, $version, $sub_state, $deadline, $backup_dir );
+	}
 
     public $test_reconciler;
 
@@ -674,6 +740,9 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 	 * @return int
 	 */
 	protected function loopback_status() {
+		if ( null !== $this->before_loopback ) {
+			call_user_func( $this->before_loopback );
+		}
 		return 200;
 	}
 
@@ -1691,6 +1760,206 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( 1, $sub['verification']['reconcile']['removed'] );
 		$this->assertSame( 'done', $sub['verification']['reconcile']['status'] );
 		$this->assertFileDoesNotExist( $this->site . '/wp-content/plugins/persist.php' );
+	}
+
+	protected function configure_restore_cache_purger() {
+		update_option( 'mainwp_child_auto_purge_cache', '1' );
+		update_option( 'mainwp_cache_control_cache_solution', 'WP Rocket' );
+		update_option( 'mainwp_child_cloud_flair_enabled', '0' );
+		delete_option( 'mainwp_cache_control_log' );
+		$this->runner->test_cache_purger = new Restore_Test_Cache_Purger();
+		return $this->runner->test_cache_purger;
+	}
+
+	public static function restore_page_cache_types() {
+		return array( 'full' => array( 'full' ), 'files' => array( 'files' ), 'embedded' => array( 'embedded' ), 'foreign keys' => array( 'fk' ) );
+	}
+
+	/** @dataProvider restore_page_cache_types */
+	public function test_mwp1908_page_cache_purge_once_after_reconcile_before_probe( $type ) {
+		$this->prepare_reconcile_fixture();
+		$purger = $this->configure_restore_cache_purger();
+		$artifacts = array( 'embedded' === $type ? $this->make_full_archive_with_embedded_dump() : $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) );
+		if ( in_array( $type, array( 'full', 'fk' ), true ) ) {
+			$artifacts[] = $this->make_db_artifact( 'fk' === $type );
+		}
+		$purger->on_purge = function () {
+			$this->assertFileExists( $this->site . '/wp-content/uploads/restored.txt' );
+			$this->assertFileDoesNotExist( $this->site . '/wp-content/plugins/persist.php' );
+		};
+		$probe_counts = array();
+		$this->runner->before_loopback = function () use ( $purger, &$probe_counts ) {
+			$probe_counts[] = count( $purger->calls );
+		};
+		$options = $this->reconcile_options();
+		if ( 'fk' === $type ) {
+			$options['source_prefix'] = 'rt_';
+		}
+		$task = $this->drive( $this->make_task( 'files' === $type ? 'files' : 'full', $artifacts, $options ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase, wp_json_encode( $sub['error'] ?? array() ) );
+		$this->assertSame( array( array() ), $purger->calls, 'Call with zero arguments, including no force flag.' );
+		$this->assertSame( array( 1 ), $probe_counts, 'Purge must precede the loopback.' );
+		$this->assertSame( array( 'attempted' => true, 'solution' => 'WP Rocket' ), $sub['verification']['cache_purge'] );
+		$this->assertSame( 1, $sub['verification']['reconcile']['removed'] );
+	}
+
+	public function test_mwp1908_page_cache_db_only_never_calls_purger() {
+		$purger = $this->configure_restore_cache_purger();
+		$task = $this->drive( $this->make_task( 'db', array( $this->make_db_artifact() ) ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( array(), $purger->calls );
+		$this->assertArrayNotHasKey( 'cache_purge', $sub['verification'] );
+	}
+
+	public static function restore_page_cache_failures() {
+		return array( 'exception' => array( 'exception' ), 'throwable' => array( 'error' ), 'provider result' => array( 'provider' ), 'cloudflare result' => array( 'cloudflare' ) );
+	}
+
+	/** @dataProvider restore_page_cache_failures */
+	public function test_mwp1908_page_cache_failure_is_advisory( $failure ) {
+		$purger = $this->configure_restore_cache_purger();
+		$purger->failure = $failure;
+		if ( 'cloudflare' === $failure ) {
+			update_option( 'mainwp_child_cloud_flair_enabled', '1' );
+		}
+		$task = $this->drive( $this->make_task( 'full', array( $this->make_part_artifact(), $this->make_db_artifact() ) ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertCount( 1, $purger->calls );
+		$this->assertTrue( $sub['verification']['cache_purge']['attempted'] );
+		$this->assertNotEmpty( $sub['verification']['cache_purge']['error'] );
+		$this->assertLessThanOrEqual( 200, strlen( $sub['verification']['cache_purge']['error'] ) );
+		$this->assertStringNotContainsString( '/srv/', wp_json_encode( $sub['verification']['cache_purge'] ) );
+		$this->assertStringNotContainsString( 'token=', wp_json_encode( $sub['verification']['cache_purge'] ) );
+	}
+
+	public function test_mwp1908_page_cache_disabled_uses_provider_option_gate() {
+		$purger = $this->configure_restore_cache_purger();
+		update_option( 'mainwp_child_auto_purge_cache', '0' );
+		$task = $this->drive( $this->make_task( 'files', array( $this->make_files_archive_artifact() ) ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( array( array() ), $purger->calls );
+		$this->assertSame( 0, $purger->provider_calls );
+		$this->assertArrayHasKey( 'cache_purge', $sub['verification'] );
+		$this->assertSame( array( 'attempted' => false ), $sub['verification']['cache_purge'] );
+	}
+
+	public function test_mwp1908_page_cache_missing_provider_is_not_attempted() {
+		$purger = $this->configure_restore_cache_purger();
+		update_option( 'mainwp_cache_control_cache_solution', 'Plugin Not Found' );
+		$task = $this->drive( $this->make_task( 'files', array( $this->make_files_archive_artifact() ) ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 0, $purger->provider_calls );
+		$this->assertArrayHasKey( 'cache_purge', $sub['verification'] );
+		$this->assertSame( array( 'attempted' => false ), $sub['verification']['cache_purge'] );
+	}
+
+	public function test_mwp1908_page_cache_record_survives_resume_without_repurging() {
+		$purger = $this->configure_restore_cache_purger();
+		$task_id = $this->make_task( 'files', array( $this->make_files_archive_artifact() ) );
+		list( $task, $sub ) = $this->advance_until( $task_id, function ( $sub ) { return isset( $sub['cache_purge'] ); } );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY, $task->phase );
+		$this->assertSame( $sub['cache_purge'], $sub['verification']['cache_purge'] );
+		$replacement = new Testable_Restore_Task_Runner();
+		$replacement->test_backup_dir = $this->dir;
+		$replacement->test_site_root = $this->site;
+		$replacement->fake_engine = $this->runner->fake_engine;
+		$replacement->test_cache_purger = $purger;
+		$this->runner = $replacement;
+		$task = $this->drive( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertCount( 1, $purger->calls );
+	}
+
+	public function test_mwp1908_page_cache_slow_provider_has_its_own_slice() {
+		$purger = $this->configure_restore_cache_purger();
+		$this->runner->late_verify_once = true;
+		$task_id = $this->make_task( 'files', array( $this->make_files_archive_artifact() ) );
+		list( $task ) = $this->advance_until( $task_id, function ( $sub ) { return ! empty( $sub['cache_purge_ready'] ); } );
+		$this->assertFalse( $this->runner->late_verify_once, 'The first verification entry followed other work near its deadline.' );
+		$this->assertSame( array(), $purger->calls );
+		$purger->on_purge = function () {
+			$this->assertSame( array( MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY ), $this->runner->slice_phases );
+			usleep( 1100000 );
+		};
+		$this->runner->test_slice_budget = 1;
+		$task = $this->runner->advance_one_slice( $task, 'dashboard' );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY, $task->phase );
+		$this->assertTrue( $sub['verification']['cache_purge']['attempted'] );
+		$this->assertNotContains( 'verify_row_counts', $this->runner->fake_engine->calls );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $this->drive( $task_id )->phase );
+		$this->assertCount( 1, $purger->calls );
+	}
+
+	public function test_mwp1908_page_cache_provider_output_is_discarded() {
+		$purger = $this->configure_restore_cache_purger();
+		$purger->output = 'provider debug output';
+		ob_start();
+		try {
+			$task = $this->drive( $this->make_task( 'files', array( $this->make_files_archive_artifact() ) ) );
+			$output = ob_get_contents();
+		} finally {
+			ob_end_clean();
+		}
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( array( array() ), $purger->calls );
+		$this->assertSame( '', $output );
+	}
+
+	public static function restore_page_cache_option_changes() {
+		return array( 'cache log inserted' => array( false ), 'unrelated row removed' => array( true ) );
+	}
+
+	/** @dataProvider restore_page_cache_option_changes */
+	public function test_mwp1908_page_cache_option_writes_preserve_strict_verification( $remove_unrelated ) {
+		global $wpdb;
+		$purger = $this->configure_restore_cache_purger();
+		$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'active_plugins', 'option_value' => 'a:0:{}' ) ) );
+		$purger->on_purge = function () use ( $wpdb, $remove_unrelated ) {
+			$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'mainwp_cache_control_log', 'option_value' => '{}' ) ) );
+			if ( $remove_unrelated ) {
+				$this->assertSame( 1, $wpdb->delete( 'rt_options', array( 'option_name' => 'active_plugins' ) ) );
+			}
+		};
+		$task_id = $this->make_task( 'full', array( $this->make_part_artifact(), $this->make_db_artifact() ) );
+		$task = $this->spine->get_task( $task_id );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$sub['db_replay']['cursor']['tables'] = array( 'options' => array( 'status' => 'ok', 'rows' => 1 ) );
+		$this->spine->checkpoint( $task_id, (int) $task->version, array( 'phase' => MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY, 'sub_state' => $sub ) );
+		$this->runner->fake_engine->verify_real_counts = true;
+		$task = $this->drive( $task_id );
+		$this->assertSame( $remove_unrelated ? MainWP_Child_Backup_Task::PHASE_FAILED : MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 2, $this->runner->fake_engine->last_verify_expected['options'] );
+	}
+
+	public static function restore_page_cache_rollback_cases() {
+		return array( 'success' => array( '' ), 'exception' => array( 'exception' ), 'throwable' => array( 'error' ), 'provider result' => array( 'provider' ) );
+	}
+
+	/** @dataProvider restore_page_cache_rollback_cases */
+	public function test_mwp1908_page_cache_rollback_purges_and_keeps_failures_advisory( $failure ) {
+		$purger = $this->configure_restore_cache_purger();
+		$purger->failure = $failure;
+		$artifact = $this->make_full_archive_with_embedded_dump();
+		$artifact['role'] = 'full';
+		$artifact['adopt_only'] = true;
+		$artifact['sha256'] = '';
+		$task_id = $this->make_task( 'full', array( $artifact ), array( 'source_prefix' => '', 'has_foreign_keys' => false ) );
+		$task = $this->drive( $task_id );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 'restored-content', file_get_contents( $this->site . '/wp-content/uploads/restored.txt' ) );
+		$this->assertSame( array( array() ), $purger->calls );
+		$this->assertTrue( $sub['verification']['cache_purge']['attempted'] );
+		$this->assertSame( 'no_manifest', $sub['verification']['reconcile']['reason'] );
+		if ( '' !== $purger->failure ) {
+			$this->assertNotEmpty( $sub['verification']['cache_purge']['error'] );
+		}
 	}
 
 	public static function data_reconcile_upload_exemptions() {

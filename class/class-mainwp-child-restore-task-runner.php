@@ -2951,6 +2951,106 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     }
 
     /**
+     * Give remote cache providers a fresh slice with all restore work saved.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param string $backup_dir Scratch root.
+     *
+     * @return array Slice result.
+     */
+    protected function run_page_cache_purge( $task, $version, $sub_state, $backup_dir ) {
+        if ( empty( $sub_state['cache_purge_ready'] ) ) {
+            // Provider HTTP calls can exceed the 40-second budget; yield before starting any.
+            $sub_state['cache_purge_ready'] = true;
+            if ( isset( $sub_state['db_replay']['cursor']['tables']['options'] ) ) {
+                $sub_state['cache_purge_option_count'] = $this->cache_purge_option_count();
+            }
+            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+        }
+
+        // A crash after purging but before this checkpoint can repeat the purge harmlessly.
+        $sub_state['cache_purge']                 = $this->purge_page_cache();
+        $sub_state['verification']['cache_purge'] = $sub_state['cache_purge'];
+        unset( $sub_state['cache_purge_ready'] );
+        return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+    }
+
+    /**
+     * Keep provider failures and output out of the restore response.
+     *
+     * @return array Advisory purge outcome.
+     */
+    protected function purge_page_cache() {
+        $advisory     = array( 'attempted' => true );
+        $buffer_level = ob_get_level();
+        ob_start();
+        try {
+            $this->cache_purger()->auto_purge_cache();
+
+            // The no-argument API returns nothing and saves its result in this option.
+            $result = json_decode( (string) get_option( 'mainwp_cache_control_log', '' ), true );
+            if ( ! is_array( $result ) || ! isset( $result['action'] ) ) {
+                $advisory['error'] = 'Cache purge outcome unavailable.';
+            } elseif ( isset( $result['result_basis'] ) && 'not_attempted' === $result['result_basis'] ) {
+                $advisory = array( 'attempted' => false );
+            } else {
+                $advisory['attempted'] = ! isset( $result['result_basis'] ) || 'provider_missing' !== $result['result_basis'] || ! empty( $result['cloudflare'] );
+                if ( $advisory['attempted'] && ! empty( $result['Cache Solution'] ) && is_string( $result['Cache Solution'] ) ) {
+                    $advisory['solution'] = substr( sanitize_text_field( $result['Cache Solution'] ), 0, 80 );
+                }
+                if ( 'ERROR' === $result['action'] || ( isset( $result['cloudflare']['action'] ) && 'ERROR' === $result['cloudflare']['action'] ) ) {
+                    $advisory['error'] = 'Cache purge attempt failed.';
+                }
+            }
+        } catch ( \Throwable $e ) {
+            // Provider messages may contain credentials or paths; expose only the advisory failure.
+            $advisory['error'] = 'Cache purge attempt failed.';
+        } finally {
+            while ( ob_get_level() > $buffer_level ) {
+                ob_end_clean();
+            }
+        }
+        return $advisory;
+    }
+
+    /**
+     * Resolve the cache dispatcher used by the restore.
+     *
+     * @return MainWP_Child_Cache_Purge Cache provider dispatcher.
+     */
+    protected function cache_purger() {
+        return MainWP_Child_Cache_Purge::instance();
+    }
+
+    /**
+     * Count only the log and timestamps the cache dispatcher can create.
+     *
+     * @return int|null Row count, or null when the query fails.
+     */
+    protected function cache_purge_option_count() {
+        global $wpdb;
+        $suppressed = $wpdb->suppress_errors( true );
+        try {
+            // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.NotPrepared -- validated table identifier; fixed option names use placeholders.
+            $count = $wpdb->get_var(
+                $wpdb->prepare(
+                    'SELECT COUNT(*) FROM ' . $this->prepare_table_ident( $this->target_prefix() . 'options' ) . ' WHERE option_name IN (%s, %s, %s, %s)',
+                    'mainwp_cache_control_log',
+                    'mainwp_cache_control_last_purged',
+                    'flush-obj-cache-time-stamp',
+                    'edge-cache-purge-time-stamp'
+                )
+            );
+            // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.NotPrepared
+            return '' === $wpdb->last_error && null !== $count ? (int) $count : null;
+        } finally {
+            $wpdb->suppress_errors( $suppressed );
+        }
+    }
+
+    /**
      * Verification phase: row counts, a sentinel write/read on the live
      * options table, and an advisory loopback. Only a pass retires the
      * old aside tables and the scratch directory.
@@ -2965,6 +3065,11 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @return array Slice result.
      */
     protected function run_post_restore_verify( $task, $version, $sub_state, $backup_dir ) {
+        // Every files/full path, including adopted rollback archives and Woo merges, converges here.
+        if ( 'restore_db' !== $task->type && ! isset( $sub_state['cache_purge'] ) ) {
+            return $this->run_page_cache_purge( $task, $version, $sub_state, $backup_dir );
+        }
+
         $engine        = $this->restore_engine();
         $target_prefix = $this->target_prefix();
 
@@ -2982,6 +3087,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             // The request ledger grows after identity write-back; verification runs in a later request.
             $identity_verify_delta = self::identity_count( $target_prefix . 'options' ) - (int) $sub_state['identity_dump_count'];
             $expected['options']  += $identity_verify_delta;
+        }
+        if ( isset( $expected['options'], $sub_state['cache_purge_option_count'] ) ) {
+            // A new purge log or timestamp is expected; unrelated option rows remain under strict verification.
+            $cache_option_count = $this->cache_purge_option_count();
+            if ( null !== $cache_option_count ) {
+                $expected['options'] += $cache_option_count - (int) $sub_state['cache_purge_option_count'];
+            }
         }
 
         foreach ( $sub_state['url_rewrite_renamed_over'] ?? array() as $table => $count ) {
@@ -3065,6 +3177,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 
         if ( null !== $reconcile ) {
             $sub_state['verification']['reconcile'] = $reconcile;
+        }
+        if ( isset( $sub_state['cache_purge'] ) ) {
+            $sub_state['verification']['cache_purge'] = $sub_state['cache_purge'];
         }
 
         // A preserve restore keeps the live orders in place; surface how many
