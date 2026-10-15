@@ -1231,6 +1231,13 @@ class MainWP_Backup {
     protected $failed_add_paths = array();
 
     /**
+     * Exact failed sources omitted while resuming one archive slice.
+     *
+     * @var array
+     */
+    protected $failed_add_skips = array();
+
+    /**
      * Abort threshold for failed file adds - past this the archive is
      * considered too incomplete to be a trustworthy backup.
      */
@@ -1429,6 +1436,25 @@ class MainWP_Backup {
     public function reset_failed_adds() {
         $this->failed_add_count = 0;
         $this->failed_add_paths = array();
+    }
+
+    /**
+     * Preserve append alignment even if a failed source becomes readable.
+     *
+     * @param string[] $paths Absolute paths skipped for this slice.
+     */
+    public function set_failed_add_skips( $paths ) {
+        $this->failed_add_skips = array_fill_keys( $paths, true );
+    }
+
+    /**
+     * Failed sources must never acquire user-exclude wildcard semantics.
+     *
+     * @param string $path Absolute source path.
+     * @return bool Whether this exact source was skipped in an earlier slice.
+     */
+    public function is_failed_add_skipped( $path ) {
+        return isset( $this->failed_add_skips[ $path ] );
     }
 
     /**
@@ -2021,6 +2047,9 @@ class MainWP_Backup {
         }
 
         foreach ( $nodes as $node ) {
+            if ( $this->is_failed_add_skipped( $node ) ) {
+                continue;
+            }
             $this->heartbeat();
             if ( ! static::is_safe_backup_path( $node, $this->allowed_backup_bases, $ancestors ) ) {
                 static::record_skipped_path( $node );
@@ -2340,6 +2369,9 @@ class MainWP_Backup {
      * @uses \MainWP\Child\MainWP_Helper::ends_with()
      */
     public function add_file_to_zipp( $path, $zipEntryName ) {
+        if ( $this->is_failed_add_skipped( $path ) ) {
+            return false;
+        }
         if ( time() - $this->lastRun > 20 ) {
             set_time_limit( (int) $this->timeout ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
             $this->lastRun = time();

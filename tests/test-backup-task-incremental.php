@@ -82,6 +82,8 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 	 */
 	protected $site;
 
+	private $r2b_restore_dirs = array();
+
 	/**
 	 * Drop spine rows and the scratch dirs.
 	 */
@@ -95,6 +97,9 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		$this->rrmdir( $this->backup_dir );
 		if ( null !== $this->site ) {
 			$this->rrmdir( $this->site );
+		}
+		foreach ( $this->r2b_restore_dirs as $dir ) {
+			$this->rrmdir( $dir );
 		}
 		parent::tear_down();
 	}
@@ -530,6 +535,282 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 			}
 		} finally {
 			$backup->reset_failed_adds();
+		}
+	}
+
+	public static function r2b_archive_cases() {
+		return array(
+			'tar single' => array( 'tar.gz', false, false ),
+			'tar resumed unreadable' => array( 'tar.gz', true, false ),
+			'tar resumed readable' => array( 'tar.gz', true, true ),
+			'zip single' => array( 'zip', false, false ),
+			'zip resumed unreadable' => array( 'zip', true, false ),
+			'zip resumed readable' => array( 'zip', true, true ),
+		);
+	}
+
+	/** @dataProvider r2b_archive_cases */
+	public function test_r2b_failed_paths_preserve_manifest_and_incremental_recovery( $ext, $sliced, $readable ) {
+		$this->run_r2b_case( $ext, $sliced, $readable, false );
+	}
+
+	/** @dataProvider r2b_archive_cases */
+	public function test_r2b_restore_keeps_archived_prefix_siblings( $ext, $sliced, $readable ) {
+		$this->run_r2b_case( $ext, $sliced, $readable, true );
+	}
+
+	private function run_r2b_case( $ext, $sliced, $readable, $restore_only ) {
+		$this->site = ABSPATH . 'mainwp-r2b-' . uniqid();
+		mkdir( $this->site );
+		$prefix = basename( $this->site ) . '/';
+		$failed = array( 'report*', 'mid*name.txt', 'query?.txt' );
+		$siblings = array( 'before.txt', 'report.pdf', 'reports/2026.csv', 'midXname.txt', 'queryA.txt', 'z-after.txt' );
+		$excluded = array( 'private.txt', 'private-dir/secret.txt' );
+		foreach ( array_merge( $failed, $siblings, $excluded ) as $name ) {
+			wp_mkdir_p( dirname( $this->site . '/' . $name ) );
+			file_put_contents( $this->site . '/' . $name, 'snapshot bytes: ' . $name );
+		}
+		$expected_rows = array();
+		$failed_rows = array();
+		foreach ( $failed as $name ) {
+			$path = $this->site . '/' . $name;
+			$failed_rows[] = $prefix . $name . "\t" . filesize( $path ) . "\t" . filemtime( $path ) . "\n";
+		}
+		foreach ( $siblings as $name ) {
+			$path = $this->site . '/' . $name;
+			$expected_rows[] = $prefix . $name . "\t" . filesize( $path ) . "\t" . filemtime( $path ) . "\n";
+		}
+		sort( $expected_rows, SORT_STRING );
+		foreach ( $failed as $name ) {
+			chmod( $this->site . '/' . $name, 0000 );
+			clearstatcache( true, $this->site . '/' . $name );
+		}
+		$excludes = array( '.htaccess', $prefix . 'private*' );
+		foreach ( glob( ABSPATH . '*' ) as $node ) {
+			if ( $node !== $this->site ) {
+				$excludes[] = str_replace( ABSPATH, '', $node );
+			}
+		}
+		$slot = new ReflectionProperty( \MainWP\Child\MainWP_Backup::class, 'instance' );
+		$slot->setAccessible( true );
+		$previous = $slot->getValue();
+		$backup = new class() extends \MainWP\Child\MainWP_Backup {
+			public $yield_zip = false;
+			private $added_names = array();
+			public function add_file_to_zipp( $path, $name ) {
+				$zip = $this->zip;
+				if ( ! is_readable( $path ) ) {
+					// This libzip defers read errors until close; exercise its immediate add-failure contract.
+					$this->zip = new class() {
+						public function add_file( $path, $name ) { return false; }
+					};
+				}
+				try {
+					$added = parent::add_file_to_zipp( $path, $name );
+				} finally {
+					$this->zip = $zip;
+				}
+				if ( $added ) {
+					$this->added_names[] = basename( $name );
+				}
+				if ( $this->yield_zip && 3 === count( $this->get_failed_add_paths() ) && in_array( 'report.pdf', $this->added_names, true ) ) {
+					$this->close_zip_archive();
+					throw new \MainWP\Child\MainWP_Backup_Budget_Exception( 'Forced yield after failed sources and an archived prefix sibling.' );
+				}
+				return $added;
+			}
+			public function set_test_zip_append( $append ) {
+				$property = new ReflectionProperty( \MainWP\Child\MainWP_Backup::class, 'zip_append' );
+				$property->setAccessible( true );
+				$property->setValue( $this, $append );
+			}
+		};
+		$slot->setValue( null, $backup );
+		try {
+			foreach ( $failed as $name ) {
+				if ( is_readable( $this->site . '/' . $name ) ) {
+					$this->markTestSkipped( 'The test user can read a chmod 0000 file.' );
+				}
+			}
+			$this->runner = new class() extends Testable_Task_Runner {
+				protected function walk_manifest_slice( $params, $backup_dir, $cursor, $deadline ) {
+					return \MainWP\Child\MainWP_Child_Backup_Task_Runner::walk_manifest_slice( $params, $backup_dir, $cursor, $deadline );
+				}
+			};
+			$this->runner->test_backup_dir = $this->backup_dir;
+			$this->runner->test_site_root = ABSPATH;
+			$this->runner->stubs = array(
+				'tier1_available' => true,
+				'dump_tier1' => array( $this->backup_dir . '/dbBackup-table1.sql.php' ),
+				'archive_db_artifact' => $this->backup_dir . '/backup-artifact.tar',
+				'promote_manifest_sidecars' => static function ( $dir ) {
+					return \MainWP\Child\MainWP_Child_Backup_File_Walker::promote_sidecars( $dir );
+				},
+			);
+			$attempt = 0;
+			$this->runner->stubs['run_file_archiver'] = function ( $params, $archive, $append ) use ( $backup, $ext, $sliced, &$attempt ) {
+				$path = $this->backup_dir . '/' . $archive;
+				$first = 0 === $attempt++;
+				$backup->set_prepared_db_files( array() );
+				try {
+					if ( 'zip' === $ext ) {
+						$backup->yield_zip = $sliced && $first;
+						$backup->set_test_zip_append( $append );
+						@$backup->create_zip_full_backup( $path, $params['excludes'], false, true, false, false );
+					} else {
+						$archiver = new \MainWP\Child\Tar_Archiver( $backup, $ext );
+						$added = new ReflectionProperty( $archiver, 'addedFileCount' );
+						$added->setAccessible( true );
+						if ( $sliced && $first ) {
+							$archiver->set_progress_callback( static function () use ( $backup, $archiver, $added ) {
+								if ( 3 === count( $backup->get_failed_add_paths() ) && $added->getValue( $archiver ) >= 5 ) {
+									throw new \MainWP\Child\MainWP_Backup_Budget_Exception( 'Forced yield after failed sources and archived siblings.' );
+								}
+							} );
+						}
+						try {
+							@$archiver->create_full_backup( $path, $params['excludes'], false, true, false, false, $append );
+						} finally {
+							$handle = new ReflectionProperty( $archiver, 'archive' );
+							$handle->setAccessible( true );
+							if ( is_resource( $handle->getValue( $archiver ) ) ) {
+								$archiver->close();
+							}
+						}
+					}
+				} finally {
+					$backup->set_prepared_db_files( null );
+				}
+				if ( $sliced && $first ) {
+					throw new \MainWP\Child\MainWP_Backup_Budget_Exception( 'Forced checkpoint after the first archive pass.' );
+				}
+				clearstatcache( true, $path );
+				return array( 'file' => $archive, 'filesize' => filesize( $path ) );
+			};
+			$full_id = $this->create_task( 'full', array( 'ext' => $ext, 'excludes' => $excludes, 'emit_manifest' => true ) );
+			$full = $this->advance( $full_id );
+			if ( $sliced ) {
+				$this->assertSame( MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES, $full->phase );
+				$state = MainWP_Child_Backup_Task::instance()->read_sub_state( $full, $this->backup_dir );
+				$this->assertCount( 3, $state['failed_add_paths'] );
+				$backup->reset_failed_adds();
+				if ( $readable ) {
+					foreach ( $failed as $name ) {
+						chmod( $this->site . '/' . $name, 0644 );
+						clearstatcache( true, $this->site . '/' . $name );
+					}
+				}
+				$full = $this->advance( $full_id );
+			}
+			$payload = MainWP_Child_Backup_Task::instance()->status_payload( $full, $this->backup_dir );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $full->phase, wp_json_encode( $payload ) );
+			$roles = $this->artifacts_by_role( $payload );
+			$base = $this->backup_dir . '/' . $roles['full']['file'];
+			$parent = file_get_contents( $this->backup_dir . '/files.list' );
+			$walk = $roles['manifest']['walk'];
+			if ( $restore_only ) {
+				$this->r2b_assert_restore( array( $base ), $walk, $failed, $siblings, $excluded, false );
+				return;
+			}
+			$this->assertSame( implode( '', $expected_rows ), $parent, 'Failed filenames must not hide readable prefix siblings from the manifest.' );
+			$unarchived = $walk['unarchived'];
+			sort( $unarchived, SORT_STRING );
+			$expected_failed = array_map( static function ( $name ) use ( $prefix ) { return $prefix . $name; }, $failed );
+			sort( $expected_failed, SORT_STRING );
+			$this->assertSame( $expected_failed, $unarchived );
+			$this->r2b_assert_restore( array( $base ), $walk, $failed, $siblings, $excluded, false );
+			foreach ( $failed as $name ) {
+				chmod( $this->site . '/' . $name, 0644 );
+			}
+			$incremental_id = $this->create_task( 'incremental', array( 'excludes' => $excludes, 'parent_manifest_b64' => base64_encode( $parent ) ) );
+			$incremental = $this->advance( $incremental_id );
+			for ( $i = 0; $i < 4 && MainWP_Child_Backup_Task::PHASE_COMPLETED !== $incremental->phase; ++$i ) {
+				$incremental = $this->advance( $incremental_id );
+			}
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $incremental->phase );
+			$payload = MainWP_Child_Backup_Task::instance()->status_payload( $incremental, $this->backup_dir );
+			$this->assertSame( $expected_failed, $this->packed_entries( $payload ), 'The next incremental must retry exactly the omitted files.' );
+			$roles = $this->artifacts_by_role( $payload );
+			$this->assertArrayNotHasKey( 'unarchived', $roles['manifest']['walk'] );
+			$leaf_rows = array_merge( $expected_rows, $failed_rows );
+			sort( $leaf_rows, SORT_STRING );
+			$this->assertSame( implode( '', $leaf_rows ), file_get_contents( $this->backup_dir . '/files.list' ), 'The leaf manifest must recover the failed paths with unchanged size and mtime.' );
+			$parts = array( $base );
+			foreach ( $roles['part'] as $part ) {
+				$parts[] = $this->backup_dir . '/' . $part['file'];
+			}
+			$this->r2b_assert_restore( $parts, $roles['manifest']['walk'], $failed, $siblings, $excluded, true );
+		} finally {
+			foreach ( $failed as $name ) {
+				chmod( $this->site . '/' . $name, 0644 );
+			}
+			$slot->setValue( null, $previous );
+			\MainWP\Child\MainWP_Backup::reset_skipped_paths();
+		}
+	}
+
+	private function r2b_assert_restore( $parts, $walk, $failed, $siblings, $excluded, $incremental ) {
+		$target = $this->backup_dir . '-restored-' . uniqid();
+		$this->r2b_restore_dirs[] = $target;
+		mkdir( $target );
+		$prefix = basename( $this->site ) . '/';
+		$hashes = array();
+		foreach ( $parts as $part ) {
+			$hashes[ basename( $part ) ] = hash_file( 'sha256', $part );
+		}
+		$out = ( new \MainWP\Child\MainWP_Child_Backup_File_Restorer() )->restore_slice( array(), array( 'parts' => $parts, 'hashes' => $hashes, 'extract_to' => $target ), PHP_INT_MAX );
+		$this->assertNull( $out['error'] );
+		$this->assertTrue( $out['done'] );
+		$entries = array();
+		$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $target, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::SELF_FIRST );
+		foreach ( $iterator as $entry ) {
+			$entries[] = substr( $entry->getPathname(), strlen( $target ) + 1 ) . ( $entry->isDir() ? '/' : '' );
+		}
+		$expected = array_map( static function ( $name ) use ( $prefix ) { return $prefix . $name; }, array_merge( $siblings, $incremental ? $failed : array() ) );
+		$expected[] = $prefix;
+		$expected[] = $prefix . 'reports/';
+		sort( $expected, SORT_STRING );
+		sort( $entries, SORT_STRING );
+		$this->assertSame( $expected, $entries, 'Extraction must contain every expected entry and no failed or excluded full-backup file.' );
+		foreach ( array_merge( $failed, $excluded ) as $name ) {
+			wp_mkdir_p( dirname( $target . '/' . $prefix . $name ) );
+			if ( ! file_exists( $target . '/' . $prefix . $name ) ) {
+				file_put_contents( $target . '/' . $prefix . $name, 'live bytes: ' . $name );
+			}
+		}
+		file_put_contents( $target . '/' . $prefix . 'new-covered.txt', 'post-snapshot bytes' );
+		$scratch = $this->backup_dir . '/reconcile-' . uniqid() . '/';
+		mkdir( $scratch );
+		$options = \MainWP\Child\MainWP_Child_Backup_Reconciler::sanitize_options( array( 'manifest' => 'files.list', 'walk' => $walk ) );
+		$this->assertArrayHasKey( 'walk', $options );
+		$config = array(
+			'manifest' => $this->backup_dir . '/files.list',
+			'walk' => $options['walk'],
+			'root' => $target,
+			'backup_dir' => $this->backup_dir,
+			'scratch' => $scratch,
+			'progress_callback' => null,
+			'checkpoint_cursor' => static function () { return true; },
+		);
+		$reconciler = new \MainWP\Child\MainWP_Child_Backup_Reconciler();
+		$cursor = array();
+		for ( $i = 0; $i < 4; ++$i ) {
+			$out = $reconciler->reconcile_slice( $cursor, $config, PHP_INT_MAX );
+			$cursor = $out['cursor'];
+			if ( $out['done'] ) {
+				break;
+			}
+		}
+		$this->assertTrue( $out['done'] );
+		$this->assertSame( 'done', $out['outcome']['status'] );
+		$this->assertSame( 1, $out['outcome']['removed'], 'Only the new covered file may be deleted.' );
+		$this->assertFileDoesNotExist( $target . '/' . $prefix . 'new-covered.txt' );
+		$this->assertSame( $incremental ? 0 : 3, $cursor['kept_by_reason']['unarchived'] ?? 0 );
+		foreach ( array_merge( $siblings, $failed, $excluded ) as $name ) {
+			$path = $target . '/' . $prefix . $name;
+			$this->assertFileExists( $path, $name . ' must survive reconcile.' );
+			$bytes = in_array( $name, $excluded, true ) || ( ! $incremental && in_array( $name, $failed, true ) ) ? 'live bytes: ' : 'snapshot bytes: ';
+			$this->assertSame( $bytes . $name, file_get_contents( $path ) );
 		}
 	}
 

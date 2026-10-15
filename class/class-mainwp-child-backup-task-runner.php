@@ -804,22 +804,15 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             $version = $result['version'];
 
             $archive_yielded = false;
+            $backup          = MainWP_Backup::get();
             if ( ! $append ) {
-                MainWP_Backup::get()->reset_failed_adds();
+                $backup->reset_failed_adds();
             }
-            $archive_params = $params;
-            if ( $append ) {
-                $root                       = $this->site_root();
-                $archive_params['excludes'] = isset( $params['excludes'] ) && is_array( $params['excludes'] ) ? $params['excludes'] : array();
-                foreach ( $sub_state['failed_add_paths'] ?? array() as $path ) {
-                    if ( 0 === strpos( $path, $root ) ) {
-                        $archive_params['excludes'][] = substr( $path, strlen( $root ) );
-                    }
-                }
-            }
+            // A newly readable failed source would break tar's match against the next archived entry.
+            $backup->set_failed_add_skips( $append ? ( $sub_state['failed_add_paths'] ?? array() ) : array() );
             try {
                 $res = $this->run_file_archiver(
-                    $archive_params,
+                    $params,
                     $sub_state['archive_file'],
                     $append,
                     $deadline,
@@ -833,7 +826,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 unset( $e );
                 $archive_yielded = true;
             } finally {
-                $fresh_failures = MainWP_Backup::get()->get_failed_add_paths();
+                $backup->set_failed_add_skips( array() );
+                $fresh_failures = $backup->get_failed_add_paths();
                 $root           = $this->site_root();
                 if ( $this->failed_adds_unlisted( $sub_state ) ) {
                     $sub_state['unarchived_unlisted'] = true;
@@ -1821,13 +1815,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @return MainWP_Child_Backup_File_Walker The walker.
      */
     protected function make_walker( $params, $backup_dir ) {
-        $walk = $this->manifest_walk_params( $params );
-        $root = $this->site_root();
-        foreach ( $params['failed_add_paths'] ?? array() as $path ) {
-            if ( 0 === strpos( $path, $root ) ) {
-                $walk['excludes'][] = substr( $path, strlen( $root ) );
-            }
-        }
+        $walk   = $this->manifest_walk_params( $params );
         $walker = new MainWP_Child_Backup_File_Walker(
             null,
             $walk['excludes'],
@@ -1835,6 +1823,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             $walk['excludenonwp'],
             array( $backup_dir )
         );
+        // Failed filenames may contain '*'; user excludes interpret it as a prefix wildcard.
+        $walker->set_skip_paths( $params['failed_add_paths'] ?? array() );
 
         $task_id = $this->current_task_id;
         if ( '' !== $task_id ) {
@@ -1858,7 +1848,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
-     * Record requested coverage before make_walker() adds failed-path exclusions.
+     * Failed adds remain covered so reconcile can protect files without snapshot bytes.
      *
      * @param array $params Backup parameters.
      * @param array $failed_add_paths Persisted absolute paths with no archived bytes.

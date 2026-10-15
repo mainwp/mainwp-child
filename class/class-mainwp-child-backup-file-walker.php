@@ -115,6 +115,13 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
     protected $excludes;
 
     /**
+     * Exact absolute paths omitted from the archive.
+     *
+     * @var array
+     */
+    protected $skip_paths = array();
+
+    /**
      * Whether .zip files are skipped, matching the archive walk.
      *
      * @var bool
@@ -238,6 +245,15 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
      */
     public function set_progress_callback( $callback ) {
         $this->progress_callback = is_callable( $callback ) ? $callback : null;
+    }
+
+    /**
+     * Keep literal failed filenames out of the pattern-aware user excludes.
+     *
+     * @param string[] $paths Absolute paths without archived bytes.
+     */
+    public function set_skip_paths( $paths ) {
+        $this->skip_paths = array_fill_keys( $paths, true );
     }
 
     /**
@@ -659,6 +675,9 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
      * @return bool True when the node may be walked.
      */
     protected function is_walkable( $node ) {
+        if ( isset( $this->skip_paths[ $node ] ) ) {
+            return false;
+        }
         if ( MainWP_Child_Backup_File_Restorer::is_reserved_temp_name( basename( $node ) ) ) {
             return false;
         }

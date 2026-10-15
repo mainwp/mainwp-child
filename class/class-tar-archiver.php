@@ -956,6 +956,9 @@ class Tar_Archiver {
      * @uses    \MainWP\Child\MainWP_Helper::ends_with()
      */
     private function add_file( $path, $entryName, $bases = null ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+        if ( $this->backup instanceof MainWP_Backup && $this->backup->is_failed_add_skipped( $path ) ) {
+            return false;
+        }
         if ( ( '.' === basename( $path ) ) || ( '..' === basename( $path ) ) ) {
             return false;
         }
