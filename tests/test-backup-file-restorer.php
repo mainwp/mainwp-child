@@ -2296,4 +2296,73 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		}
 	}
 
+
+	/**
+	 * A link leaf is never deleted, so where its parent resolves cannot matter (b39).
+	 */
+	public function test_tombstoned_links_under_an_outward_directory_link_are_kept() {
+		mkdir( $this->dir . '/mount' );
+		file_put_contents( $this->dir . '/mount/target.txt', 'mounted' );
+		$this->file_link( $this->dir . '/mount', $this->extract_to . '/uploads' );
+		$this->file_link( 'missing', $this->dir . '/mount/dangling.txt' );
+		$this->file_link( $this->dir . '/mount/target.txt', $this->dir . '/mount/live.txt' );
+		$tombstones = $this->dir . '/outward-links.list';
+		file_put_contents( $tombstones, "uploads/dangling.txt\nuploads/live.txt\n" );
+		$cursor = array();
+		foreach ( array( 1, 2 ) as $slice ) {
+			$out    = ( new MainWP_Child_Backup_File_Restorer() )->apply_tombstones( $tombstones, $this->extract_to, array(), $cursor );
+			$cursor = json_decode( json_encode( $cursor ), true );
+			$this->assertNull( $out['error'] );
+			$this->assertSame( 0, $out['deleted'] );
+			$this->assertTrue( is_link( $this->dir . '/mount/dangling.txt' ) );
+			$this->assertTrue( is_link( $this->dir . '/mount/live.txt' ) );
+			$this->assertSame( 'mounted', file_get_contents( $this->dir . '/mount/target.txt' ) );
+			$this->assertSame( 2, $cursor['kept_symlinks'] ?? null );
+			$this->assertSame( array( 'uploads/dangling.txt', 'uploads/live.txt' ), $cursor['kept_symlink_paths'] ?? null );
+		}
+	}
+
+	/**
+	 * A file reached through an in-root directory link is skipped like the reconciler does (b35).
+	 *
+	 * @dataProvider linked_ancestor_paths
+	 */
+	public function test_tombstones_never_delete_through_an_in_root_directory_link( $link, $real, $relpath ) {
+		mkdir( $this->extract_to . '/' . dirname( $real ), 0777, true );
+		file_put_contents( $this->extract_to . '/' . $real, 'real bytes' );
+		$this->file_link( $this->extract_to . '/' . explode( '/', $real )[0], $this->extract_to . '/' . $link );
+		file_put_contents( $this->extract_to . '/plain.txt', 'tombstoned' );
+		$tombstones = $this->dir . '/alias.list';
+		file_put_contents( $tombstones, $relpath . "\nplain.txt\n" );
+		$cursor = array();
+		$out    = ( new MainWP_Child_Backup_File_Restorer() )->apply_tombstones( $tombstones, $this->extract_to, array(), $cursor );
+		$this->assertNull( $out['error'] );
+		$this->assertSame( 1, $out['deleted'] );
+		$this->assertSame( 'real bytes', file_get_contents( $this->extract_to . '/' . $real ) );
+		$this->assertFileDoesNotExist( $this->extract_to . '/plain.txt' );
+		$this->assertSame( 0, $cursor['kept_symlinks'] ?? 0 );
+	}
+
+	public static function linked_ancestor_paths() {
+		return array(
+			'parent link'      => array( 'alias', 'real-dir/leaf.php', 'alias/leaf.php' ),
+			'grandparent link' => array( 'alias', 'real-dir/sub/leaf.php', 'alias/sub/leaf.php' ),
+		);
+	}
+
+	/**
+	 * A regular file whose parent resolves outside the root still aborts, as before.
+	 */
+	public function test_tombstoned_file_under_an_outward_directory_link_still_aborts() {
+		mkdir( $this->dir . '/mount' );
+		file_put_contents( $this->dir . '/mount/file.txt', 'mounted' );
+		$this->file_link( $this->dir . '/mount', $this->extract_to . '/uploads' );
+		$tombstones = $this->dir . '/outward-file.list';
+		file_put_contents( $tombstones, "uploads/file.txt\n" );
+		$cursor = array();
+		$out    = ( new MainWP_Child_Backup_File_Restorer() )->apply_tombstones( $tombstones, $this->extract_to, array(), $cursor );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $out['error_code'] );
+		$this->assertSame( 'mounted', file_get_contents( $this->dir . '/mount/file.txt' ) );
+	}
+
 }

@@ -820,6 +820,12 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 continue;
             }
 
+            // A link is never deleted, so where its parent resolves cannot matter.
+            if ( is_link( rtrim( $target, '/' ) ) ) {
+                $this->record_kept_symlink( $relpath, $cursor );
+                continue;
+            }
+
             $real_parent = realpath( dirname( $target ) );
             if ( false === $real_root || false === $real_parent || strpos( $real_parent . '/', $real_root . '/' ) !== 0 ) {
                 return array(
@@ -829,8 +835,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 );
             }
 
-            if ( is_link( rtrim( $target, '/' ) ) ) {
-                $this->record_kept_symlink( $relpath, $cursor );
+            // Same rule as the reconciler: never delete through a linked directory.
+            if ( $this->has_linked_ancestor( $target, $extract_to ) ) {
                 continue;
             }
 
@@ -1044,6 +1050,25 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         }
         $target = rtrim( $root, '/' ) . '/' . $relpath;
         return ! is_link( rtrim( $target, '/' ) );
+    }
+
+    /**
+     * Whether a directory between the target and the extraction root is a link.
+     *
+     * @param string $target Absolute target path.
+     * @param string $root   Extraction root.
+     * @return bool
+     */
+    private function has_linked_ancestor( $target, $root ) {
+        $root_length = strlen( rtrim( $root, '/' ) );
+        $parent      = dirname( $target );
+        while ( strlen( $parent ) > $root_length ) {
+            if ( is_link( $parent ) ) {
+                return true;
+            }
+            $parent = dirname( $parent );
+        }
+        return false;
     }
 
     /**
