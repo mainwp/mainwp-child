@@ -354,7 +354,7 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		$state = $spine->read_sub_state( $task, $this->backup_dir );
 		$state['failed_add_paths'] = array_map( static function ( $path ) use ( $root ) { return $root . $path; }, $paths );
 		$state['failed_add_paths'][] = $root . $paths[0];
-		$state['failed_add_checked'] = true;
+		$state['failed_add_checked'] = count( $state['failed_add_paths'] );
 		$this->assertSame( 1, $spine->checkpoint( $task_id, (int) $task->version, array( 'sub_state' => $state ) ) );
 		$this->runner->stubs['run_incremental_diff'] = array( 'changes' => 0, 'tombstones' => 0, 'force_full' => false );
 		file_put_contents( $this->backup_dir . '/changes.list', '' );
@@ -463,41 +463,71 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		}
 	}
 
-	public static function data_unchecked_persisted_failed_adds() {
+	public static function data_failed_add_provenance() {
+		$listed = array( 'wp-content/listed.php' );
+		$both = array( 'wp-content/listed.php', 'wp-content/caf?.txt' );
 		return array(
-			'archive done' => array( true ),
-			'mid archive' => array( false ),
+			'unstamped, archive done' => array( 'full', $both, null, true, null ),
+			'unstamped, mid archive' => array( 'full', $both, null, false, null ),
+			'stamped, archive done' => array( 'full', $listed, 1, true, $listed ),
+			'stamped, mid archive' => array( 'full', $listed, 1, false, $listed ),
+			'appended after stamp, archive done' => array( 'full', $both, 1, true, null ),
+			'appended after stamp, mid archive' => array( 'full', $both, 1, false, null ),
+			'unstamped, incremental' => array( 'incremental', $both, null, false, null ),
+			'stamped, incremental' => array( 'incremental', $listed, 1, false, $listed ),
+			'appended after stamp, incremental' => array( 'incremental', $both, 1, false, null ),
 		);
 	}
 
-	/** @dataProvider data_unchecked_persisted_failed_adds */
-	public function test_unchecked_persisted_failed_add_sets_overflow_instead_of_a_list( $archive_done ) {
+	/**
+	 * An older Child appends failed paths without checking them, so only a list
+	 * whose count matches the checked count may be published as exact.
+	 *
+	 * @dataProvider data_failed_add_provenance
+	 */
+	public function test_failed_add_provenance_decides_list_or_overflow( $type, $relpaths, $stamp, $archive_done, $expected ) {
 		$root = ABSPATH . 'unarchived-tree/';
 		$this->runner->test_site_root = $root;
-		$task_id = $this->create_task( 'full', array( 'emit_manifest' => true ) );
+		$task_id = $this->create_task( $type, array( 'emit_manifest' => true, 'parent_manifest_b64' => base64_encode( "snapshot.txt\t1\t1\n" ) ) );
 		$spine = MainWP_Child_Backup_Task::instance();
 		$task = $spine->get_task( $task_id );
 		$state = $spine->read_sub_state( $task, $this->backup_dir );
-		$state['failed_add_paths'] = array( $root . 'wp-content/caf?.txt' );
-		$state['archive_file'] = 'backup-artifact.tar';
-		$state['archive_started'] = true;
-		if ( $archive_done ) {
-			$state['archive_done'] = true;
-			$state['artifact'] = array( 'file' => 'backup-artifact.tar', 'size' => 2048 );
+		$state['failed_add_paths'] = array_map( static function ( $path ) use ( $root ) { return $root . $path; }, $relpaths );
+		if ( null !== $stamp ) {
+			$state['failed_add_checked'] = $stamp;
 		}
-		$this->assertSame( 1, $spine->checkpoint( $task_id, (int) $task->version, array( 'phase' => MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES, 'sub_state' => $state ) ) );
+		$fields = array( 'sub_state' => $state );
+		if ( 'full' === $type ) {
+			$state['archive_file'] = 'backup-artifact.tar';
+			$state['archive_started'] = true;
+			if ( $archive_done ) {
+				$state['archive_done'] = true;
+				$state['artifact'] = array( 'file' => 'backup-artifact.tar', 'size' => 2048 );
+			}
+			$fields = array( 'phase' => MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES, 'sub_state' => $state );
+		}
+		$this->assertSame( 1, $spine->checkpoint( $task_id, (int) $task->version, $fields ) );
+		$this->runner->stubs['run_incremental_diff'] = array( 'changes' => 0, 'tombstones' => 0, 'force_full' => false );
+		file_put_contents( $this->backup_dir . '/changes.list', '' );
 		$backup = \MainWP\Child\MainWP_Backup::get();
 		try {
-			for ( $slice = 0; $slice < 3; ++$slice ) {
+			for ( $slice = 0; $slice < 4; ++$slice ) {
 				$backup->reset_failed_adds();
 				$task = $this->advance( $task_id );
 				if ( MainWP_Child_Backup_Task::PHASE_COMPLETED === $task->phase ) { break; }
 			}
 			$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
-			$this->assertSame( ! $archive_done, in_array( 'run_file_archiver', $this->runner->seam_names(), true ) );
+			if ( 'full' === $type ) {
+				$this->assertSame( ! $archive_done, in_array( 'run_file_archiver', $this->runner->seam_names(), true ) );
+			}
 			$walk = $this->artifacts_by_role( $spine->status_payload( $task, $this->backup_dir ) )['manifest']['walk'];
-			$this->assertSame( true, $walk['unarchived_overflow'] ?? null );
-			$this->assertArrayNotHasKey( 'unarchived', $walk );
+			if ( null === $expected ) {
+				$this->assertSame( true, $walk['unarchived_overflow'] ?? null );
+				$this->assertArrayNotHasKey( 'unarchived', $walk );
+			} else {
+				$this->assertSame( $expected, $walk['unarchived'] ?? null );
+				$this->assertArrayNotHasKey( 'unarchived_overflow', $walk );
+			}
 		} finally {
 			$backup->reset_failed_adds();
 		}

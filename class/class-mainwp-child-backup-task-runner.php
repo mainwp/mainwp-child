@@ -835,8 +835,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             } finally {
                 $fresh_failures = MainWP_Backup::get()->get_failed_add_paths();
                 $root           = $this->site_root();
-                // A list persisted by an older Child was never checked and may hold rewritten names.
-                if ( ! empty( $sub_state['failed_add_paths'] ) && empty( $sub_state['failed_add_checked'] ) ) {
+                if ( $this->failed_adds_unlisted( $sub_state ) ) {
                     $sub_state['unarchived_unlisted'] = true;
                 }
                 foreach ( $fresh_failures as $path ) {
@@ -848,7 +847,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 }
                 // The manifest may resume in another request after the archive closes.
                 $sub_state['failed_add_paths']   = array_values( array_unique( array_merge( $sub_state['failed_add_paths'] ?? array(), $fresh_failures ) ) );
-                $sub_state['failed_add_checked'] = true;
+                $sub_state['failed_add_checked'] = count( $sub_state['failed_add_paths'] );
             }
             if ( $archive_yielded ) {
                 return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
@@ -898,7 +897,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
             }
 
-            $unlisted = ! empty( $sub_state['unarchived_unlisted'] ) || ( ! empty( $sub_state['failed_add_paths'] ) && empty( $sub_state['failed_add_checked'] ) );
+            $unlisted = $this->failed_adds_unlisted( $sub_state );
 
             unset( $sub_state['walk_cursor'] );
             $sub_state['walk_done'] = true;
@@ -1018,7 +1017,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
         }
 
-        $unlisted = ! empty( $sub_state['unarchived_unlisted'] ) || ( ! empty( $sub_state['failed_add_paths'] ) && empty( $sub_state['failed_add_checked'] ) );
+        $unlisted = $this->failed_adds_unlisted( $sub_state );
 
         $artifacts   = array();
         $artifacts[] = array(
@@ -1843,6 +1842,19 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         return $walker;
+    }
+
+    /**
+     * Whether the persisted failed-add list can no longer be published as exact.
+     *
+     * @param array $sub_state Task cursor.
+     * @return bool True when the walk must carry overflow instead of a list.
+     */
+    protected function failed_adds_unlisted( $sub_state ) {
+        // Older Childs append unchecked paths whose names the JSON checkpoint may have
+        // rewritten, without updating the count, so any count drift means distrust.
+        $checked = isset( $sub_state['failed_add_checked'] ) && is_int( $sub_state['failed_add_checked'] ) ? $sub_state['failed_add_checked'] : 0;
+        return ! empty( $sub_state['unarchived_unlisted'] ) || count( $sub_state['failed_add_paths'] ?? array() ) !== $checked;
     }
 
     /**
