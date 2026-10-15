@@ -354,6 +354,8 @@ class BackupIncrementalZipWriterTest extends WP_UnitTestCase {
 		$writer->open_new_part( 1 );
 		$writer->add_file( $this->src . '/a.php', 'a.php' );
 		foreach ( array( false, true ) as $resume ) {
+			// Each pass must record its own skips, or the resumed assertion passes on the first pass's.
+			MainWP_Backup::reset_skipped_paths();
 			if ( $resume ) {
 				$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
 				$this->assertTrue( $writer->open_for_append( 1, 1 ) );
