@@ -1340,6 +1340,47 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertContains( 'dump_tier1', $this->runner->seam_names() );
 	}
 
+	public static function required_dump_archives() {
+		return array(
+			'full tar' => array( 'full', 'tar', MainWP_Backup_Error::ERR_TAR_WRITE_FAILED ),
+			'full zip' => array( 'full', 'zip', MainWP_Backup_Error::ERR_ZIP_FAILED ),
+			'db tar'   => array( 'db', 'tar', MainWP_Backup_Error::ERR_TAR_WRITE_FAILED ),
+			'db zip'   => array( 'db', 'zip', MainWP_Backup_Error::ERR_ZIP_FAILED ),
+		);
+	}
+
+	/** @dataProvider required_dump_archives */
+	public function test_prepared_dump_failed_add_fails_backup( $kind, $ext, $code ) {
+		$uploads = wp_upload_dir();
+		$source = $uploads['basedir'] . '/required-' . wp_generate_uuid4() . '.payload';
+		file_put_contents( $source, 'prepared dump bytes' );
+		$backup = new MainWP_Backup();
+		$files = array( $source, $source . '.missing' );
+		$backup->set_prepared_db_files( $files );
+		$archive = $this->backup_dir . '/required.' . $ext;
+		$tar = null;
+		try {
+			try {
+				if ( 'db' === $kind ) {
+					$backup->archive_db_files( $files, $this->backup_dir . '/required', $ext );
+				} elseif ( 'zip' === $ext ) {
+					$backup->create_zip_full_backup( $archive, array( '*' ), false, true, false, false );
+				} else {
+					$tar = new \MainWP\Child\Tar_Archiver( $backup, $ext );
+					$tar->create_full_backup( $archive, array( '*' ), false, true, false, false );
+				}
+				$this->fail( 'A required prepared dump was omitted without failing the backup.' );
+			} catch ( MainWP_Exception $e ) {
+				$this->assertSame( $code, $e->get_message_error_code() );
+			}
+		} finally {
+			$backup->set_prepared_db_files( null );
+			if ( null !== $tar && $tar->is_open() ) { $tar->close(); }
+			if ( file_exists( $source ) ) { unlink( $source ); }
+			MainWP_Backup::reset_skipped_paths();
+		}
+	}
+
 	/**
 	 * The full-backup engine consumes prepared dump files instead of
 	 * dumping again - the dump-once seam.

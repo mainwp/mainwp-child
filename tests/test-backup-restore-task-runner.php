@@ -4201,6 +4201,37 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertTrue( MainWP_Child_Callable::get_instance()->is_callable_function( 'restore_preflight' ) );
 	}
 
+	public static function customer_capture_reads() {
+		return array(
+			'customers' => array( 'SELECT u.* FROM `rt_users`' ),
+			'usermeta'  => array( 'SELECT * FROM `rt_usermeta` WHERE user_id IN' ),
+		);
+	}
+
+	/** @dataProvider customer_capture_reads */
+	public function test_woo_customer_read_failure_stops_before_replay( $read ) {
+		global $wpdb;
+		$this->seed_woo_tables();
+		$task_id = $this->make_task( 'db', array( $this->make_hpos_db_artifact() ), array( 'preserve_orders' => true, 'woo_order_since' => 0 ) );
+		$filter = static function ( $query ) use ( $read ) {
+			return 0 === strpos( $query, $read ) ? 'SELECT mainwp_forced_customer_read_failure' : $query;
+		};
+		$suppress = $wpdb->suppress_errors( true );
+		add_filter( 'query', $filter );
+		try {
+			$task = $this->drive( $task_id );
+		} finally {
+			remove_filter( 'query', $filter );
+			$wpdb->suppress_errors( $suppress );
+		}
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED, $sub['error']['code'] );
+		$this->assertArrayNotHasKey( 'woo_capture', $sub );
+		$this->assertNotContains( 'replay_slice', $this->runner->fake_engine->calls );
+		$this->assertSame( 'buyer', $wpdb->get_var( 'SELECT user_login FROM `rt_users` WHERE ID = 50' ) );
+	}
+
 	/**
 	 * Capture records the customer and stock a kept order references; after a
 	 * simulated revert, merge re-inserts the absent customer (original ID) and

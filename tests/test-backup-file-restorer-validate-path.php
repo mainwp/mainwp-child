@@ -157,6 +157,29 @@ class BackupFileRestorerValidatePathTest extends WP_UnitTestCase {
 		$this->assertSame( $this->extract_to . '/a/b/c/d.txt', $path );
 	}
 
+	public static function dotted_relative_paths() {
+		return array( array( 'report..pdf' ), array( 'a..b/c.txt' ) );
+	}
+
+	/** @dataProvider dotted_relative_paths */
+	public function test_dotted_filename_is_accepted( $name ) {
+		$this->assertSame( $this->extract_to . '/' . $name, MainWP_Child_Backup_File_Restorer::validate_extract_path( $name, $this->extract_to ) );
+	}
+
+	public static function unsafe_relative_paths() {
+		return array(
+			array( '..' ), array( 'safe/..' ), array( 'safe/../file.txt' ),
+			array( '/absolute.txt' ), array( 'C:\\absolute.txt' ),
+			array( 'safe\\file.txt' ), array( "safe\0file.txt" ), array( "\0file.txt" ), array( "file.txt\0" ),
+		);
+	}
+
+	/** @dataProvider unsafe_relative_paths */
+	public function test_unsafe_path_stays_rejected( $name ) {
+		$this->expectException( \Exception::class );
+		MainWP_Child_Backup_File_Restorer::validate_extract_path( $name, $this->extract_to );
+	}
+
 	public function test_read_only_parent_reports_target_not_writable() {
 		if ( function_exists( 'posix_geteuid' ) && 0 === posix_geteuid() ) {
 			$this->markTestSkipped( 'Root ignores directory permissions.' );

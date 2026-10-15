@@ -509,6 +509,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$entries = array(
 			$plugin . '/live.php' => 'old child',
 			$plugin . '/new.php' => 'old extra file',
+			$plugin . '/new..php' => 'old dotted file',
 			$plugin . '-extra/keep.php' => 'other plugin',
 		);
 		if ( 'zip' === $format ) {
@@ -522,6 +523,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertTrue( $result['done'] );
 		$this->assertSame( 'current child', file_get_contents( $this->extract_to . '/' . $plugin . '/live.php' ) );
 		$this->assertFileDoesNotExist( $this->extract_to . '/' . $plugin . '/new.php' );
+		$this->assertFileDoesNotExist( $this->extract_to . '/' . $plugin . '/new..php' );
 		$this->assertSame( 'other plugin', file_get_contents( $this->extract_to . '/' . $plugin . '-extra/keep.php' ) );
 	}
 
@@ -536,12 +538,14 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			mkdir( $this->extract_to . '/' . $directory, 0777, true );
 			file_put_contents( $this->extract_to . '/' . $directory . '/live.php', 'current child' );
 		}
+		file_put_contents( $this->extract_to . '/' . $plugin . '/live..php', 'current dotted child' );
 		$tombstones = $this->dir . '/tombstones.list';
-		file_put_contents( $tombstones, $plugin . "/live.php\n./" . $plugin . "//live.php\n" . $plugin . "-extra/live.php\n" );
+		file_put_contents( $tombstones, $plugin . "/live..php\n" . $plugin . "/live.php\n./" . $plugin . "//live.php\n" . $plugin . "-extra/live.php\n" );
 		$result = $this->restorer->apply_tombstones( $tombstones, $this->extract_to );
 		$this->assertNull( $result['error'] );
 		$this->assertSame( 1, $result['deleted'] );
 		$this->assertSame( 'current child', file_get_contents( $this->extract_to . '/' . $plugin . '/live.php' ) );
+		$this->assertSame( 'current dotted child', file_get_contents( $this->extract_to . '/' . $plugin . '/live..php' ) );
 		$this->assertFileDoesNotExist( $this->extract_to . '/' . $plugin . '-extra/live.php' );
 	}
 
@@ -1480,6 +1484,54 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $this->extract_to . '/gone.txt' );
 		$this->assertFileDoesNotExist( $this->extract_to . '/sub/also-gone.txt' );
 		$this->assertFileExists( $this->extract_to . '/stays.txt' );
+	}
+
+	public function test_dotted_filenames_extract_and_apply_tombstones() {
+		$entries = array( 'report..pdf' => 'report bytes', 'a..b/c.txt' => 'nested bytes' );
+		$zip = $this->make_zip( 'dotted.zip', $entries );
+		$result = $this->run_all( $this->config( array( $zip ) ) );
+		$this->assertNull( $result['error'] );
+		foreach ( $entries as $name => $content ) {
+			$this->assertSame( $content, file_get_contents( $this->extract_to . '/' . $name ) );
+		}
+		$tombstones = $this->dir . '/dotted.list';
+		file_put_contents( $tombstones, "report..pdf\na..b/c.txt\n" );
+		$result = $this->restorer->apply_tombstones( $tombstones, $this->extract_to );
+		$this->assertNull( $result['error'] );
+		$this->assertSame( 2, $result['deleted'] );
+		foreach ( array_keys( $entries ) as $name ) {
+			$this->assertFileDoesNotExist( $this->extract_to . '/' . $name );
+		}
+	}
+
+	public static function unsafe_tombstone_paths() {
+		return array(
+			array( '..' ), array( 'safe/..' ), array( 'safe/../file.txt' ),
+			array( '/absolute.txt' ), array( 'C:\\absolute.txt' ),
+			array( 'safe\\file.txt' ), array( "safe\0file.txt" ), array( "\0file.txt" ), array( "file.txt\0" ),
+		);
+	}
+
+	/** @dataProvider unsafe_tombstone_paths */
+	public function test_unsafe_tombstone_stays_rejected( $name ) {
+		$tombstones = $this->dir . '/unsafe.list';
+		file_put_contents( $tombstones, $name . "\n" );
+		$result = $this->restorer->apply_tombstones( $tombstones, $this->extract_to );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertSame( 0, $result['deleted'] );
+	}
+
+	public function test_tombstones_accept_dotted_filenames() {
+		mkdir( $this->extract_to . '/a..b' );
+		file_put_contents( $this->extract_to . '/report..pdf', 'report' );
+		file_put_contents( $this->extract_to . '/a..b/c.txt', 'nested' );
+		$tombstones = $this->dir . '/dotted.list';
+		file_put_contents( $tombstones, "report..pdf\na..b/c.txt\n" );
+		$result = $this->restorer->apply_tombstones( $tombstones, $this->extract_to );
+		$this->assertNull( $result['error'] );
+		$this->assertSame( 2, $result['deleted'] );
+		$this->assertFileDoesNotExist( $this->extract_to . '/report..pdf' );
+		$this->assertFileDoesNotExist( $this->extract_to . '/a..b/c.txt' );
 	}
 
 	/**

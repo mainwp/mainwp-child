@@ -284,7 +284,9 @@ class Tar_Archiver {
         if ( $this->archive ) {
             $this->init_log_handle( $archive . '.log' );
             foreach ( $files as $filepath ) {
-                $this->add_file( $filepath, basename( $filepath ) );
+                if ( ! $this->add_file( $filepath, basename( $filepath ) ) ) {
+                    $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+                }
             }
 
             $this->add_data( pack( 'a1024', '' ) );
@@ -453,7 +455,9 @@ class Tar_Archiver {
             $db_files = $this->backup->get_or_create_db_dump_files( $this->backup->db_dump_prefix( dirname( $filepath ) ), $this );
 
             foreach ( $db_files as $db_file ) {
-                $this->add_file( $db_file, basename( WP_CONTENT_DIR ) . '/' . ( '.sql' === substr( $db_file, -4 ) ? 'dbBackup.sql' : basename( $db_file ) ) );
+                if ( ! $this->add_file( $db_file, basename( WP_CONTENT_DIR ) . '/' . ( '.sql' === substr( $db_file, -4 ) ? 'dbBackup.sql' : basename( $db_file ) ) ) ) {
+                    $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+                }
             }
 
             foreach ( $nodes as $node ) {

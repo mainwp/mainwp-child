@@ -2715,7 +2715,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @param array  $sub_state Cursor.
      * @param string $scratch   Per-task scratch directory (with trailing slash).
      *
-     * @throws MainWP_Exception When the capture file cannot be written.
+     * @throws MainWP_Exception When the customer capture cannot be read or written.
      *
      * @return array { file: string, customers: int, stock: int }
      */
@@ -2739,7 +2739,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             . ' WHERE u.ID IN ( SELECT DISTINCT customer_id FROM `' . $orders_tb . '` WHERE customer_id > 0 )' . $where,
             ARRAY_A
         );
-        $users = is_array( $users ) ? $users : array();
+        if ( '' !== $wpdb->last_error || ! is_array( $users ) ) {
+            throw new MainWP_Exception( 'Could not read the live WooCommerce customers to preserve.', null, MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+        }
 
         $ids = array();
         foreach ( $users as $u ) {
@@ -2748,7 +2750,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $usermeta = array();
         if ( ! empty( $ids ) ) {
             $usermeta = $wpdb->get_results( 'SELECT * FROM `' . $meta_tb . '` WHERE user_id IN (' . implode( ',', array_map( 'intval', $ids ) ) . ')', ARRAY_A );
-            $usermeta = is_array( $usermeta ) ? $usermeta : array();
+            if ( '' !== $wpdb->last_error || ! is_array( $usermeta ) ) {
+                throw new MainWP_Exception( 'Could not read the live WooCommerce customers to preserve.', null, MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+            }
         }
         // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
 

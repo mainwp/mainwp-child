@@ -1152,6 +1152,7 @@ class MainWP_Backup {
      * @param string $archive Type of archive to create.
      *
      * @return bool Return false on failure.
+     * @throws MainWP_Exception When a required database dump cannot be added.
      */
     public function m_zip_file( $files, $archive ) {
         $this->zip                 = new \ZipArchive();
@@ -1164,7 +1165,10 @@ class MainWP_Backup {
         $zipRes = $this->zip->open( $archive, \ZipArchive::CREATE );
         if ( $zipRes ) {
             foreach ( $files as $file ) {
-                $this->add_file_to_zipp( $file, basename( $file ) );
+                if ( ! $this->add_file_to_zipp( $file, basename( $file ) ) ) {
+                    $this->close_zip_archive();
+                    throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ZIP_FAILED ) ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+                }
             }
 
             $this->close_zip_archive();
@@ -1844,7 +1848,10 @@ class MainWP_Backup {
             $db_files = $this->get_or_create_db_dump_files( $this->db_dump_prefix( dirname( $filepath ) ) );
             // Clone validation requires the fixed empty marker; table fragments retain their run id.
             foreach ( $db_files as $db_file ) {
-                $this->add_file_to_zipp( $db_file, basename( WP_CONTENT_DIR ) . '/' . ( '.sql' === substr( $db_file, -4 ) ? 'dbBackup.sql' : basename( $db_file ) ) );
+                if ( ! $this->add_file_to_zipp( $db_file, basename( WP_CONTENT_DIR ) . '/' . ( '.sql' === substr( $db_file, -4 ) ? 'dbBackup.sql' : basename( $db_file ) ) ) ) {
+                    $this->close_zip_archive();
+                    throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ZIP_FAILED ) ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+                }
             }
 
             foreach ( $nodes as $node ) {
