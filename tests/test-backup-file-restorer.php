@@ -1507,9 +1507,20 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 	public static function unsafe_tombstone_paths() {
 		return array(
 			array( '..' ), array( 'safe/..' ), array( 'safe/../file.txt' ),
-			array( '/absolute.txt' ), array( 'C:\\absolute.txt' ),
-			array( 'safe\\file.txt' ), array( "safe\0file.txt" ), array( "\0file.txt" ), array( "file.txt\0" ),
+			array( '/absolute.txt' ), array( 'C:\\absolute.txt' ), array( 'C:/absolute.txt' ),
+			array( '\\file.txt' ), array( '\\\\srv\\share' ), array( 'safe\\..\\file.txt' ), array( '..\\file.txt' ),
+			array( "safe\0file.txt" ), array( "\0file.txt" ), array( "file.txt\0" ),
 		);
+	}
+
+	public function test_tombstones_accept_backslash_in_filename() {
+		file_put_contents( $this->extract_to . '/safe\\file.txt', 'literal' );
+		$tombstones = $this->dir . '/backslash.list';
+		file_put_contents( $tombstones, "safe\\file.txt\n" );
+		$result = $this->restorer->apply_tombstones( $tombstones, $this->extract_to );
+		$this->assertNull( $result['error'] );
+		$this->assertSame( 1, $result['deleted'] );
+		$this->assertFileDoesNotExist( $this->extract_to . '/safe\\file.txt' );
 	}
 
 	/** @dataProvider unsafe_tombstone_paths */

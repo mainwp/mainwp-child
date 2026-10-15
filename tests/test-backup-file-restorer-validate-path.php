@@ -166,11 +166,16 @@ class BackupFileRestorerValidatePathTest extends WP_UnitTestCase {
 		$this->assertSame( $this->extract_to . '/' . $name, MainWP_Child_Backup_File_Restorer::validate_extract_path( $name, $this->extract_to ) );
 	}
 
+	public function test_backslash_in_filename_is_accepted() {
+		$this->assertSame( $this->extract_to . '/safe\\file.txt', MainWP_Child_Backup_File_Restorer::validate_extract_path( 'safe\\file.txt', $this->extract_to ) );
+	}
+
 	public static function unsafe_relative_paths() {
 		return array(
 			array( '..' ), array( 'safe/..' ), array( 'safe/../file.txt' ),
-			array( '/absolute.txt' ), array( 'C:\\absolute.txt' ),
-			array( 'safe\\file.txt' ), array( "safe\0file.txt" ), array( "\0file.txt" ), array( "file.txt\0" ),
+			array( '/absolute.txt' ), array( 'C:\\absolute.txt' ), array( 'C:/absolute.txt' ),
+			array( '\\file.txt' ), array( '\\\\srv\\share' ), array( 'safe\\..\\file.txt' ), array( '..\\file.txt' ),
+			array( "safe\0file.txt" ), array( "\0file.txt" ), array( "file.txt\0" ),
 		);
 	}
 

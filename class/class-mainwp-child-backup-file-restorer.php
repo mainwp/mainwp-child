@@ -798,7 +798,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 continue;
             }
 
-            if ( 0 === strpos( $relpath, '/' ) || in_array( '..', explode( '/', $relpath ), true ) || false !== strpos( $relpath, '\\' ) || false !== strpos( $line, "\0" ) || preg_match( '#^[A-Z]:/#i', $relpath ) ) {
+            if ( 0 === strpos( $relpath, '/' ) || in_array( '..', preg_split( '#[\\\\/]#', $relpath ), true ) || false !== strpos( $line, "\0" ) || preg_match( '#^([A-Z]:)?[\\\\/]#i', $relpath ) ) {
                 return array(
                     'deleted'    => $deleted,
                     'error'      => sprintf( 'Tombstone entry resolves outside the site root: %s. Deletion aborted.', esc_html( $relpath ) ),
@@ -1232,14 +1232,15 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      */
     public static function validate_extract_path( $entry_name, $extract_to ) {
         // Reject absolute paths - PHP 7.4 compatible.
-        if ( strpos( $entry_name, '/' ) === 0 || preg_match( '#^[A-Z]:/#i', $entry_name ) ) {
+        if ( strpos( $entry_name, '/' ) === 0 || preg_match( '#^([A-Z]:)?[\\\\/]#i', $entry_name ) ) {
             throw new \Exception(
                 sprintf( 'Archive contains absolute path entry: %s. Extraction aborted.', esc_html( $entry_name ) )
             );
         }
 
-        // Dots within a filename are valid; parent segments and ambiguous separators are unsafe.
-        if ( in_array( '..', explode( '/', $entry_name ), true ) || false !== strpos( $entry_name, '\\' ) || false !== strpos( $entry_name, "\0" ) ) {
+        // Dots within a filename are valid, and a Linux site can archive a backslash as a literal
+        // filename character; only a '..' segment under either separator is traversal.
+        if ( in_array( '..', preg_split( '#[\\\\/]#', $entry_name ), true ) || false !== strpos( $entry_name, "\0" ) ) {
             throw new \Exception(
                 sprintf( 'Archive contains path traversal entry: %s. Extraction aborted.', esc_html( $entry_name ) )
             );
