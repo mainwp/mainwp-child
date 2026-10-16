@@ -123,11 +123,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         }
         $sub_state = is_array( $sub_state ) ? $sub_state : array();
         $committed = null;
-        if ( MainWP_Child_Backup_Task::PHASE_SWAPPING_DB === $task->phase ) {
+        $stems     = MainWP_Child_Backup_Task::PHASE_SWAPPING_DB === $task->phase ? $this->loaded_stems( $sub_state ) : array();
+        // With no stems the probe answers false without looking, which would read as untouched.
+        if ( ! empty( $stems ) ) {
             $old_tables = array();
             try {
                 $committed = $this->restore_engine()->is_swap_committed(
-                    $this->loaded_stems( $sub_state ),
+                    $stems,
                     array(
                         'restore_id'    => $sub_state['params']['restore_id'] ?? $task->restore_id,
                         'target_prefix' => $this->target_prefix(),
@@ -155,6 +157,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $failed                            = parent::failure_sub_state( $task, $sub_state, $message, $code );
         $failed['verification']['outcome'] = null !== $this->failure_outcome
             ? $this->failure_outcome : $this->terminal_outcome( $task, $sub_state, 'failed', $code );
+        $this->failure_outcome             = null;
         return $failed;
     }
 

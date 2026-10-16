@@ -8428,6 +8428,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$cursor = $this->spine->read_sub_state( $task, $this->dir );
 		$sidecar = $this->spine->write_sub_state( $id, $cursor, $this->dir, (int) $task->version );
 		$this->assertNotFalse( $sidecar );
+		$sidecar_path = $this->dir . '/' . json_decode( $sidecar, true )['file'];
+		$this->assertFileExists( $sidecar_path );
 		$this->assertNotFalse( $this->spine->checkpoint( $id, (int) $task->version, array( 'sub_state' => $sidecar ) ) );
 		$this->assertTrue( $this->force_outcome_terminal( $id, $writer ) );
 		$this->spine->reclaim_expired_tasks( $this->dir );
@@ -8436,7 +8438,43 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'fixture identity', $stored );
 		$this->assertStringNotContainsString( '_sidecar', $stored );
 		$this->stored_outcome( $id );
-		$this->assertEmpty( glob( $this->dir . '/task_substate-' . sanitize_file_name( $id ) . '-v*.json' ) );
+		$this->assertFileDoesNotExist( $sidecar_path );
+	}
+
+	/**
+	 * The cap must not terminalize while an overrun slice has re-extended its
+	 * lease to clean up: the watchdog's probe would run after the slice dropped
+	 * the tmp tables, and the slice's own failure write would follow it.
+	 */
+	public function test_outcome_watchdog_cap_yields_to_a_slice_that_re_extended_its_lease() {
+		global $wpdb;
+		$id = $this->make_task( 'full', array( $this->make_part_artifact(), $this->make_db_artifact() ) );
+		$this->set_outcome_cursor( $id, 'swapping_db', array( 'files_touched' => true ) );
+		$task = $this->spine->get_task( $id );
+		$this->assertTrue( $this->spine->acquire_lease( $id, 'overrun-slice', (int) $task->version ) );
+		$table = $this->spine->get_table_name();
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $table . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND), resume_count = max_resumes, last_progress_at = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE task_id = %s', $id ) );
+		$interleaved = false;
+		$spine       = $this->spine;
+		$race        = function ( $sql ) use ( $id, $table, $spine, &$interleaved ) {
+			// The slice's cleanup fence lands between the watchdog's stalled-task read and its first write.
+			if ( ! $interleaved && 0 === strpos( ltrim( $sql ), 'UPDATE ' . $table ) && false !== strpos( $sql, $id ) ) {
+				$interleaved = true;
+				$this->assertTrue( $spine->renew_lease( $id, 'overrun-slice', 180, true ) );
+			}
+			return $sql;
+		};
+		add_filter( 'query', $race );
+		try {
+			\MainWP\Child\MainWP_Child_Backup_Watchdog::instance()->check_tasks( 1 );
+		} finally {
+			remove_filter( 'query', $race );
+		}
+		$this->assertTrue( $interleaved );
+		$task = $this->spine->get_task( $id );
+		$this->assertSame( 'swapping_db', $task->phase );
+		$this->assertSame( 'overrun-slice', $task->lease_owner );
+		$this->assertArrayNotHasKey( 'error', $this->spine->read_sub_state( $task, $this->dir ) );
 	}
 
 	/** @dataProvider outcome_forced_writers */

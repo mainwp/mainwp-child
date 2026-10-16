@@ -171,7 +171,16 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
                         'code'    => MainWP_Backup_Error::ERR_STALLED,
                     ),
                 );
+                $cap_owner = '';
                 if ( MainWP_Child_Backup_Task::is_restore_type( $task->type ) ) {
+                    // An overrun slice re-extends its own lease without a version bump
+                    // while it cleans up, so the cap takes the lease first: then neither
+                    // side can drop tmp tables under the other's swap probe or report.
+                    $cap_owner = substr( MainWP_Child_Backup_Task_Runner::LEASE_OWNER_WATCHDOG, 0, 27 ) . ':' . wp_generate_uuid4();
+                    if ( ! $spine->acquire_lease( $task->task_id, $cap_owner, $version, 2 * MainWP_Child_Backup_Task::SLICE_BUDGET_SECONDS ) ) {
+                        continue;
+                    }
+                    ++$version;
                     $terminal_state['verification']['outcome'] = MainWP_Child_Restore_Task_Runner::instance()->terminal_outcome( $task, null, 'failed', MainWP_Backup_Error::ERR_STALLED );
                 }
                 $capped = $spine->checkpoint(
@@ -183,6 +192,9 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
                     ),
                     false
                 );
+                if ( '' !== $cap_owner ) {
+                    $spine->release_lease( $task->task_id, $cap_owner, false !== $capped ? (int) $capped : $version );
+                }
 
                 // A forced-terminal restore leaves tmp tables, the maintenance
                 // flag, and scratch behind (the runner never ran its catch);
