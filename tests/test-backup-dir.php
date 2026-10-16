@@ -25,23 +25,24 @@ class BackupDirTest extends WP_UnitTestCase {
 	 * @dataProvider backup_folder_failures
 	 */
 	public function test_backup_folder_errors_name_the_site_relative_folder( $locked, $expected ) {
-		$name = 'mwp1890-' . uniqid();
-		$root = ABSPATH . 'wp-content/uploads/' . $name;
-		mkdir( $root . '/mainwp', 0755, true );
-		file_put_contents( $root . '/mainwp/index.php', '' );
-		if ( 'backup' === $locked ) {
-			mkdir( $root . '/mainwp/backup-a1B2c3D4e5F6g7H8', 0755 );
-		}
-		$locked_dir = 'backup' === $locked ? $root . '/mainwp/backup-a1B2c3D4e5F6g7H8' : $root . '/mainwp';
-		update_option( 'mainwp_backup_dir_hash', 'a1B2c3D4e5F6g7H8' );
-		$filter = static function ( $uploads ) use ( $root ) {
+		$name       = 'mwp1890-' . uniqid();
+		$root       = ABSPATH . 'wp-content/uploads/' . $name;
+		$backup_dir = $root . '/mainwp/backup-a1B2c3D4e5F6g7H8';
+		$locked_dir = 'backup' === $locked ? $backup_dir : $root . '/mainwp';
+		$filter     = static function ( $uploads ) use ( $root ) {
 			$uploads['basedir'] = $root;
 			return $uploads;
 		};
-		add_filter( 'mainwp_child_get_wp_upload_dir', $filter );
-		chmod( $locked_dir, 0555 );
 		$error = null;
 		try {
+			$this->assertTrue( mkdir( $root . '/mainwp', 0755, true ) );
+			$this->assertNotFalse( file_put_contents( $root . '/mainwp/index.php', '' ) );
+			if ( 'backup' === $locked ) {
+				$this->assertTrue( mkdir( $backup_dir, 0755 ) );
+			}
+			update_option( 'mainwp_backup_dir_hash', 'a1B2c3D4e5F6g7H8' );
+			add_filter( 'mainwp_child_get_wp_upload_dir', $filter );
+			chmod( $locked_dir, 0555 );
 			clearstatcache( true, $locked_dir );
 			if ( is_writable( $locked_dir ) ) { $this->markTestSkipped( 'The test user can write to a read-only directory.' ); }
 			try {
@@ -56,13 +57,14 @@ class BackupDirTest extends WP_UnitTestCase {
 			$this->assertSame( '', $error->get_message_error_code(), 'A registered code would make the Dashboard show its generic text instead.' );
 		} finally {
 			remove_filter( 'mainwp_child_get_wp_upload_dir', $filter );
-			chmod( $locked_dir, 0755 );
-			@unlink( $root . '/mainwp/backup-a1B2c3D4e5F6g7H8/index.php' );
-			@unlink( $root . '/mainwp/backup-a1B2c3D4e5F6g7H8/.htaccess' );
-			@rmdir( $root . '/mainwp/backup-a1B2c3D4e5F6g7H8' );
-			unlink( $root . '/mainwp/index.php' );
-			rmdir( $root . '/mainwp' );
-			rmdir( $root );
+			// Guarded: setup may have stopped part way, and a cleanup warning must not hide the assertion that failed.
+			if ( is_dir( $locked_dir ) ) { chmod( $locked_dir, 0755 ); }
+			foreach ( array( $backup_dir . '/index.php', $backup_dir . '/.htaccess', $root . '/mainwp/index.php' ) as $file ) {
+				if ( file_exists( $file ) ) { unlink( $file ); }
+			}
+			foreach ( array( $backup_dir, $root . '/mainwp', $root ) as $dir ) {
+				if ( is_dir( $dir ) ) { rmdir( $dir ); }
+			}
 		}
 	}
 
