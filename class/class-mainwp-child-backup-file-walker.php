@@ -699,7 +699,11 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
             return false;
         }
         if ( ! MainWP_Backup::is_safe_backup_path( $node, array_merge( MainWP_Backup::default_backup_bases(), array( $this->root ) ), array_column( $this->stack, 'dir' ) ) ) {
-            MainWP_Backup::record_skipped_path( $node, 'unsafe' );
+            $reason = 'unsafe';
+            if ( ! is_link( $node ) && false === realpath( $node ) ) {
+                $reason = 'unresolved';
+            }
+            MainWP_Backup::record_skipped_path( $node, $reason );
             return false;
         }
 

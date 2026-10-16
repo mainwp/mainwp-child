@@ -17,6 +17,32 @@ use MainWP\Child\MainWP_Child_Backup_Task;
  */
 class BackupTaskSidecarTest extends WP_UnitTestCase {
 
+	public function test_sidecar_pointer_retains_only_valid_artifact_digests() {
+		$spine = MainWP_Child_Backup_Task::instance();
+		$id = $spine->create_task( 'full' );
+		$sub = $this->oversized_sub_state();
+		$full_hash = str_repeat( 'a', 64 );
+		$db_hash = str_repeat( 'b', 64 );
+		$sub['artifact'] = array( 'file' => '/private/backups/full.zip', 'size' => 100, 'sha256' => $full_hash );
+		$sub['artifacts'] = array(
+			array( 'file' => 'full.zip', 'size' => 100, 'role' => 'full', 'sha256' => $full_hash ),
+			array( 'file' => 'database.zip', 'sha256' => $db_hash ),
+			array( 'file' => 'invalid.zip', 'sha256' => str_repeat( 'g', 64 ) ),
+			array( 'file' => 'short.zip', 'sha256' => 'abc' ),
+			array( 'file' => 'unhashed.zip', 'hash_skipped' => 'too_large' ),
+		);
+		$serialized = $spine->write_sub_state( $id, $sub, $this->backup_dir, 0 );
+		$pointer = json_decode( $serialized, true );
+		$this->assertSame( array( '_sidecar', 'file', 'artifact_sha256' ), array_keys( $pointer ) );
+		$this->assertTrue( $pointer['_sidecar'] );
+		$this->assertSame( array( 'full.zip' => $full_hash, 'database.zip' => $db_hash ), $pointer['artifact_sha256'] );
+		$this->assertNotFalse( $spine->checkpoint( $id, 0, array( 'sub_state' => $serialized ) ) );
+		$this->assertSame( $sub, $spine->read_sub_state( $spine->get_task( $id ), $this->backup_dir ) );
+		unlink( $this->backup_dir . '/' . $pointer['file'] );
+		$this->assertNull( $spine->read_sub_state( $spine->get_task( $id ), $this->backup_dir ) );
+		$this->assertSame( $pointer['artifact_sha256'], json_decode( $spine->get_task( $id )->sub_state, true )['artifact_sha256'] );
+	}
+
 	/**
 	 * Scratch dir standing in for the randomized backup dir.
 	 *

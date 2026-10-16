@@ -250,6 +250,9 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
         clearstatcache( true, $abs_path );
         if ( MainWP_Backup::is_file_link( $abs_path ) || ! MainWP_Backup::is_safe_backup_path( $abs_path, $this->allowed_backup_bases ) ) {
             $result['skip_reason'] = MainWP_Backup::is_file_link( $abs_path ) ? 'link' : 'unsafe';
+            if ( 'unsafe' === $result['skip_reason'] && ! is_link( $abs_path ) && ! file_exists( $abs_path ) ) {
+                $result['skip_reason'] = 'unstatable';
+            }
             MainWP_Backup::record_skipped_path( $abs_path, $result['skip_reason'] );
             $result['skipped'] = true;
             return $result;

@@ -795,12 +795,23 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             return false;
         }
 
-        return wp_json_encode(
-            array(
-                '_sidecar' => true,
-                'file'     => basename( $sidecar ),
-            )
+        $pointer = array(
+            '_sidecar' => true,
+            'file'     => basename( $sidecar ),
         );
+        // Artifact evidence must survive a missing or rewritten sidecar.
+        $artifacts = isset( $sub_state['artifacts'] ) && is_array( $sub_state['artifacts'] ) ? $sub_state['artifacts'] : array();
+        if ( isset( $sub_state['artifact'] ) ) {
+            $artifacts[] = $sub_state['artifact'];
+        }
+        foreach ( $artifacts as $artifact ) {
+            if ( ! isset( $artifact['file'], $artifact['sha256'] ) || ! is_string( $artifact['file'] ) || '' === basename( $artifact['file'] )
+                || isset( $artifact['hash_skipped'] ) || ! is_string( $artifact['sha256'] ) || ! preg_match( '/^[a-f0-9]{64}$/D', $artifact['sha256'] ) ) {
+                continue;
+            }
+            $pointer['artifact_sha256'][ basename( $artifact['file'] ) ] = $artifact['sha256'];
+        }
+        return wp_json_encode( $pointer );
     }
 
     /**

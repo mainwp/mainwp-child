@@ -1479,9 +1479,6 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 hash_update( $context, $chunk );
             }
             $heartbeat();
-            if ( $this->hash_budget_exhausted( $deadline ) ) {
-                return null;
-            }
             return array( 'sha256' => hash_final( $context ) );
         } finally {
             fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with the bounded read.

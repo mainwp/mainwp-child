@@ -318,6 +318,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 
 	public function test_backup_hash_successor_cas_refuses_stale_digest_and_completion() {
 		global $wpdb;
+		file_put_contents( $this->backup_dir . '/backup-artifact.tar', str_repeat( 'a', 3 * 1024 * 1024 ) );
 		$id = $this->runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
 		$spine = MainWP_Child_Backup_Task::instance();
 		$checks = 0;
@@ -433,6 +434,20 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( '_skip_report', $payload['sub_state'] );
 	}
 
+	public function test_backup_hash_keeps_digest_when_deadline_reaches_final_chunk() {
+		$id = $this->runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
+		$checks = 0;
+		$this->runner->stubs['hash_budget_exhausted'] = function () use ( &$checks ) {
+			return ++$checks >= 3;
+		};
+		$task = $this->advance( $id );
+		$this->assertSame( 'completed', $task->phase );
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+		$this->assertSame( hash_file( 'sha256', $this->backup_dir . '/backup-artifact.tar' ), $payload['sha256'] );
+		$this->assertArrayNotHasKey( 'hash_skipped', $payload );
+		$this->assertSame( 2, $checks );
+	}
+
 	public function test_backup_hash_two_attempts_are_checkpointed_and_bounded() {
 		file_put_contents( $this->backup_dir . '/backup-artifact.tar', str_repeat( 'chunk', 1024 * 1024 ) );
 		$id = $this->runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
@@ -490,6 +505,7 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	public function test_backup_hash_cancel_during_read_is_busy_then_stale_result_is_refused() {
+		file_put_contents( $this->backup_dir . '/backup-artifact.tar', str_repeat( 'a', 3 * 1024 * 1024 ) );
 		$id = $this->runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
 		$spine = MainWP_Child_Backup_Task::instance();
 		$checks = 0;

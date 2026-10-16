@@ -136,6 +136,25 @@ class CorruptOnceSlicingWalker extends SlicingTestWalker {
 
 class BackupFileWalkerTest extends WP_UnitTestCase {
 
+	public function test_vanished_node_is_reported_as_unresolved() {
+		$path = $this->root . '/vanished.php';
+		file_put_contents( $path, 'gone before traversal' );
+		unlink( $path );
+		$skips = array();
+		$listener = function ( $node, $reason ) use ( &$skips ) { $skips[ $node ] = $reason; };
+		add_action( 'mainwp_child_backup_skipped_path', $listener, 10, 2 );
+		try {
+			$walker = new MainWP_Child_Backup_File_Walker( $this->root );
+			$method = new ReflectionMethod( $walker, 'is_walkable' );
+			$method->setAccessible( true );
+			$this->assertFalse( $method->invoke( $walker, $path ) );
+			$this->assertSame( array( $path => 'unresolved' ), $skips );
+		} finally {
+			remove_action( 'mainwp_child_backup_skipped_path', $listener, 10 );
+			\MainWP\Child\MainWP_Backup::reset_skipped_paths();
+		}
+	}
+
 	/** @dataProvider failed_run_write_cases */
 	public function test_failed_run_write_uses_confirmed_space( $free, $expected, $merge, $short_path = null ) {
 		FailedWalkerWriteStream::$short_path = $short_path;

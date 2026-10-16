@@ -126,22 +126,35 @@ class MainWP_Child_Backup_Download_Token { // phpcs:ignore Generic.Classes.Openi
         }
         global $wpdb;
         $spine    = MainWP_Child_Backup_Task::instance();
-        $dirs     = MainWP_Helper::get_mainwp_dir( 'backup' );
         $recorded = false;
+        $like     = '%' . $wpdb->esc_like( substr( wp_json_encode( $basename ), 1, -1 ) ) . '%';
         // Legacy downloads also work before the task table exists.
         $suppress = $wpdb->suppress_errors( true );
         try {
             $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- completed cursors are the recorded artifact evidence.
-                'SELECT task_id, sub_state FROM ' . $spine->get_table_name() . " WHERE phase = 'completed' AND type IN ('full','files','db','incremental')" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- trusted table helper and literal predicates.
+                $wpdb->prepare(
+                    'SELECT task_id, sub_state FROM ' . $spine->get_table_name() . " WHERE phase = 'completed' AND type IN ('full','files','db','incremental') AND sub_state LIKE %s", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- trusted table helper; the filename pattern is prepared.
+                    $like
+                )
             );
         } finally {
             $wpdb->suppress_errors( $suppress );
         }
         foreach ( (array) $rows as $row ) {
-            $sub     = $spine->read_sub_state( $row, $dirs[0] );
-            $entries = $sub['artifacts'] ?? array();
-            if ( isset( $sub['artifact'] ) ) {
-                $entries[] = $sub['artifact'];
+            $sub = json_decode( (string) $row->sub_state, true );
+            if ( ! empty( $sub['_sidecar'] ) ) {
+                $entries = array();
+                if ( isset( $sub['artifact_sha256'][ $basename ] ) ) {
+                    $entries[] = array(
+                        'file'   => $basename,
+                        'sha256' => $sub['artifact_sha256'][ $basename ],
+                    );
+                }
+            } else {
+                $entries = $sub['artifacts'] ?? array();
+                if ( isset( $sub['artifact'] ) ) {
+                    $entries[] = $sub['artifact'];
+                }
             }
             foreach ( $entries as $entry ) {
                 if ( ! isset( $entry['file'], $entry['sha256'] ) || isset( $entry['hash_skipped'] )

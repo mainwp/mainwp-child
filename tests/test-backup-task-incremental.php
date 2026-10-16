@@ -332,6 +332,7 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		$this->assertTrue( $walk['unarchived_overflow'] );
 		$this->assertArrayNotHasKey( 'unarchived', $walk );
 		$this->assertSame( $invalid ? 1 : 1001, $walk['skipped_count'] );
+		$this->assertSame( array( 'unstatable' => $invalid ? 1 : 1001 ), $walk['skipped_by_reason'] );
 		$this->assertSame( 'partial', $payload['content_status'] );
 		$this->assertCount( $invalid ? 0 : 100, $walk['skipped_paths'] );
 	}

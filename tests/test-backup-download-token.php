@@ -17,6 +17,97 @@ class BackupDownloadTokenTest extends WP_UnitTestCase {
 
 	private $recorded_tasks = array();
 
+	public static function unavailable_hash_sidecars() {
+		return array( 'missing' => array( 'missing' ), 'invalid' => array( 'invalid' ), 'unreadable' => array( 'unreadable' ), 'rewritten' => array( 'rewritten' ) );
+	}
+
+	/** @dataProvider unavailable_hash_sidecars */
+	public function test_backup_hash_token_keeps_db_evidence_when_sidecar_is_unavailable( $damage ) {
+		$file = 'backup-sidecar-evidence.zip';
+		$path = $this->create_artifact( $file, 'original bytes' );
+		$id = $this->record_completed_hash( $file, hash_file( 'sha256', $path ) );
+		$spine = \MainWP\Child\MainWP_Child_Backup_Task::instance();
+		$pointer = json_decode( $spine->get_task( $id )->sub_state, true );
+		$this->assertTrue( $pointer['_sidecar'] );
+		$dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
+		$sidecar = $dirs[0] . '/' . $pointer['file'];
+		file_put_contents( $path, 'changed bytes' );
+		try {
+			if ( 'missing' === $damage ) {
+				unlink( $sidecar );
+			} elseif ( 'invalid' === $damage ) {
+				file_put_contents( $sidecar, '{invalid' );
+			} elseif ( 'unreadable' === $damage ) {
+				chmod( $sidecar, 0000 );
+				clearstatcache( true, $sidecar );
+				if ( is_readable( $sidecar ) ) {
+					$this->markTestSkipped( 'The test user can read chmod 0000 files.' );
+				}
+			} else {
+				$forged = json_decode( file_get_contents( $sidecar ), true );
+				$forged['artifacts'][0]['sha256'] = hash_file( 'sha256', $path );
+				file_put_contents( $sidecar, wp_json_encode( $forged ) );
+			}
+			$result = MainWP_Child_Backup_Download_Token::instance()->issue( $file );
+			$this->assertSame( array( 'error', 'error_code' ), array_keys( $result ) );
+			$this->assertSame( MainWP_Backup_Error::ERR_DL_FILE_HASH_MISMATCH, $result['error_code'] );
+			file_put_contents( $path, 'original bytes' );
+			$this->assertArrayHasKey( 'token', MainWP_Child_Backup_Download_Token::instance()->issue( $file ) );
+		} finally {
+			if ( is_file( $sidecar ) ) {
+				chmod( $sidecar, 0600 );
+			}
+		}
+	}
+
+	public function test_backup_hash_token_legacy_pointer_without_digest_map_has_no_evidence() {
+		global $wpdb;
+		$file = 'backup-old-pointer.zip';
+		$path = $this->create_artifact( $file, 'old bytes' );
+		$id = $this->record_completed_hash( $file, hash_file( 'sha256', $path ) );
+		$spine = \MainWP\Child\MainWP_Child_Backup_Task::instance();
+		$pointer = json_decode( $spine->get_task( $id )->sub_state, true );
+		unset( $pointer['artifact_sha256'] );
+		$this->assertSame( 1, $wpdb->update( $spine->get_table_name(), array( 'sub_state' => wp_json_encode( $pointer ) ), array( 'task_id' => $id ) ) );
+		file_put_contents( $path, 'new bytes' );
+		$this->assertArrayHasKey( 'token', MainWP_Child_Backup_Download_Token::instance()->issue( $file ) );
+	}
+
+	public function test_backup_hash_token_scan_selects_only_json_encoded_basename_matches() {
+		global $wpdb;
+		$file = 'backup-scan_50%-café.zip';
+		$path = $this->create_artifact( $file, 'selected bytes' );
+		$digest = hash_file( 'sha256', $path );
+		$id = $this->record_completed_hash( $file, $digest );
+		for ( $i = 0; $i < 40; ++$i ) {
+			$this->record_completed_hash( 'backup-history-' . $i . '.zip', str_repeat( 'b', 64 ), true );
+		}
+		$this->record_completed_hash( 'backup-scanX50-unrelated-café.zip', str_repeat( 'c', 64 ), true );
+		$spine = \MainWP\Child\MainWP_Child_Backup_Task::instance();
+		$table = $spine->get_table_name();
+		$scans = array();
+		$listener = function ( $query ) use ( $table, &$scans ) {
+			if ( 0 === strpos( $query, 'SELECT task_id, sub_state FROM ' . $table . ' WHERE phase' ) ) {
+				$scans[] = $query;
+			}
+			return $query;
+		};
+		add_filter( 'query', $listener );
+		try {
+			$result = MainWP_Child_Backup_Download_Token::instance()->issue( $file );
+		} finally {
+			remove_filter( 'query', $listener );
+		}
+		$this->assertArrayHasKey( 'token', $result );
+		$this->assertSame( $digest, $result['hash'] );
+		$this->assertCount( 1, $scans );
+		$like = '%' . $wpdb->esc_like( substr( wp_json_encode( $file ), 1, -1 ) ) . '%';
+		$this->assertStringContainsString( $wpdb->remove_placeholder_escape( $wpdb->prepare( 'AND sub_state LIKE %s', $like ) ), $scans[0] );
+		$rows = $wpdb->get_results( $scans[0] );
+		$this->assertCount( 1, $rows );
+		$this->assertSame( $id, $rows[0]->task_id );
+	}
+
 	private function record_completed_hash( $file, $digest, $single = false, $skip = false ) {
 		$spine = \MainWP\Child\MainWP_Child_Backup_Task::instance();
 		$spine->install();

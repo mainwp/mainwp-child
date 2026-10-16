@@ -331,6 +331,7 @@ class BackupIncrementalZipWriterTest extends WP_UnitTestCase {
 
 		$result = $writer->add_file( $this->src . '/gone.php', 'gone.php' );
 		$this->assertTrue( $result['skipped'] );
+		$this->assertSame( 'unstatable', $result['skip_reason'] );
 
 		$writer->add_file( $this->src . '/a.php', 'a.php' );
 		$record = $writer->close_part();
