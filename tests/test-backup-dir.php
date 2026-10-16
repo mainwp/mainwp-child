@@ -66,6 +66,29 @@ class BackupDirTest extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * Folder labels never carry an absolute path, a drive letter or a root slash.
+	 *
+	 * @dataProvider folder_label_cases
+	 */
+	public function test_folder_label_is_site_relative_or_last_two_names( $dir, $expected ) {
+		$label = new ReflectionMethod( MainWP_Helper::class, 'message_dir_label' );
+		$label->setAccessible( true );
+		$this->assertSame( $expected, $label->invoke( null, $dir ) );
+	}
+
+	public static function folder_label_cases() {
+		return array(
+			'under the site root' => array( ABSPATH . 'wp-content/uploads/mainwp/', 'wp-content/uploads/mainwp' ),
+			'site root sibling with a shared prefix' => array( untrailingslashit( ABSPATH ) . '2/uploads/mainwp/', 'uploads/mainwp' ),
+			'outside the site root' => array( '/srv/shared/uploads/mainwp/', 'uploads/mainwp' ),
+			'filesystem root' => array( '/mainwp/', 'mainwp' ),
+			'drive root' => array( 'C:\\mainwp\\', 'mainwp' ),
+			'drive path' => array( 'C:\\uploads\\mainwp\\', 'uploads/mainwp' ),
+			'relative' => array( 'mainwp/', 'mainwp' ),
+		);
+	}
+
 	public static function backup_folder_failures() {
 		return array(
 			'folder cannot be created' => array( 'mainwp', 'Could not create the backup folder inside %s. ' . self::LIKELY_CAUSE ),
