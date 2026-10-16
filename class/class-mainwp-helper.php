@@ -209,7 +209,11 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
                 }
             }
             if ( ! $protected ) {
-                $error = esc_html__( 'Unable to create the backup directory. Is its parent directory writable by the server?', 'mainwp-child' );
+                $error = sprintf(
+                    /* translators: %s: site-relative folder path, such as wp-content/uploads/mainwp */
+                    esc_html__( 'The backup folder inside %s exists, but its index.php and .htaccess protection files could not be written. A security or folder-lock plugin may be locking that parent folder or the folders inside it, or permissions may not allow the web server to write there. Unlock the parent folder or fix its permissions, then try again.', 'mainwp-child' ),
+                    esc_html( static::message_dir_label( $dir ) )
+                );
                 if ( $die_on_error ) {
                     static::instance()->error( $error );
                 } else {
@@ -423,7 +427,12 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
 
             if ( ! file_exists( $dir ) ) {
                 if ( preg_match( '/^backup-[A-Za-z0-9]{16}$/', basename( untrailingslashit( $dir ) ) ) ) {
-                    $error = esc_html__( 'Unable to create the backup directory. Is its parent directory writable by the server?', 'mainwp-child' );
+                    // Name the parent only: the backup folder name is the per-site secret.
+                    $error = sprintf(
+                        /* translators: %s: site-relative folder path, such as wp-content/uploads/mainwp */
+                        esc_html__( 'Could not create the backup folder inside %s. A security or folder-lock plugin may be locking that folder, or its permissions may not allow the web server to write to it. Unlock the folder or fix its permissions, then try again.', 'mainwp-child' ),
+                        esc_html( static::message_dir_label( dirname( untrailingslashit( $dir ) ) ) )
+                    );
                 } else {
                     $error = esc_html__( 'Unable to create directory ', 'mainwp-child' ) . str_replace( ABSPATH, '', $dir ) . '.' . esc_html__( ' Is its parent directory writable by the server?', 'mainwp-child' );
                 }
@@ -434,6 +443,22 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
                 }
             }
         }
+    }
+
+    /**
+     * Name a folder in a Dashboard-facing message without the server's absolute path.
+     *
+     * @param string $dir Absolute folder path.
+     *
+     * @return string The path relative to the site root, or its last two segments when the folder is outside the site root.
+     */
+    private static function message_dir_label( $dir ) {
+        $dir  = untrailingslashit( wp_normalize_path( $dir ) );
+        $root = trailingslashit( wp_normalize_path( ABSPATH ) );
+        if ( 0 === strpos( $dir . '/', $root ) && strlen( $dir ) >= strlen( $root ) ) {
+            return substr( $dir, strlen( $root ) );
+        }
+        return basename( dirname( $dir ) ) . '/' . basename( $dir );
     }
 
     /**

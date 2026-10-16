@@ -15,6 +15,64 @@ use MainWP\Child\MainWP_Helper;
  */
 class BackupDirTest extends WP_UnitTestCase {
 
+	const LIKELY_CAUSE = 'A security or folder-lock plugin may be locking that folder, or its permissions may not allow the web server to write to it. Unlock the folder or fix its permissions, then try again.';
+
+	const PROTECTION_CAUSE = 'A security or folder-lock plugin may be locking that parent folder or the folders inside it, or permissions may not allow the web server to write there. Unlock the parent folder or fix its permissions, then try again.';
+
+	/**
+	 * Both backup-folder failures name the folder relative to the site root, never the hash.
+	 *
+	 * @dataProvider backup_folder_failures
+	 */
+	public function test_backup_folder_errors_name_the_site_relative_folder( $locked, $expected ) {
+		$name = 'mwp1890-' . uniqid();
+		$root = ABSPATH . 'wp-content/uploads/' . $name;
+		mkdir( $root . '/mainwp', 0755, true );
+		file_put_contents( $root . '/mainwp/index.php', '' );
+		if ( 'backup' === $locked ) {
+			mkdir( $root . '/mainwp/backup-a1B2c3D4e5F6g7H8', 0755 );
+		}
+		$locked_dir = 'backup' === $locked ? $root . '/mainwp/backup-a1B2c3D4e5F6g7H8' : $root . '/mainwp';
+		update_option( 'mainwp_backup_dir_hash', 'a1B2c3D4e5F6g7H8' );
+		$filter = static function ( $uploads ) use ( $root ) {
+			$uploads['basedir'] = $root;
+			return $uploads;
+		};
+		add_filter( 'mainwp_child_get_wp_upload_dir', $filter );
+		chmod( $locked_dir, 0555 );
+		$error = null;
+		try {
+			clearstatcache( true, $locked_dir );
+			if ( is_writable( $locked_dir ) ) { $this->markTestSkipped( 'The test user can write to a read-only directory.' ); }
+			try {
+				@MainWP_Helper::get_mainwp_dir( 'backup', false );
+			} catch ( \MainWP\Child\MainWP_Exception $e ) {
+				$error = $e;
+			}
+			$this->assertInstanceOf( \MainWP\Child\MainWP_Exception::class, $error );
+			$this->assertSame( sprintf( $expected, 'wp-content/uploads/' . $name . '/mainwp' ), $error->getMessage() );
+			$this->assertStringNotContainsString( 'a1B2c3D4e5F6g7H8', $error->getMessage() );
+			$this->assertStringNotContainsString( ABSPATH, $error->getMessage() );
+			$this->assertSame( '', $error->get_message_error_code(), 'A registered code would make the Dashboard show its generic text instead.' );
+		} finally {
+			remove_filter( 'mainwp_child_get_wp_upload_dir', $filter );
+			chmod( $locked_dir, 0755 );
+			@unlink( $root . '/mainwp/backup-a1B2c3D4e5F6g7H8/index.php' );
+			@unlink( $root . '/mainwp/backup-a1B2c3D4e5F6g7H8/.htaccess' );
+			@rmdir( $root . '/mainwp/backup-a1B2c3D4e5F6g7H8' );
+			unlink( $root . '/mainwp/index.php' );
+			rmdir( $root . '/mainwp' );
+			rmdir( $root );
+		}
+	}
+
+	public static function backup_folder_failures() {
+		return array(
+			'folder cannot be created' => array( 'mainwp', 'Could not create the backup folder inside %s. ' . self::LIKELY_CAUSE ),
+			'protection files cannot be written' => array( 'backup', 'The backup folder inside %s exists, but its index.php and .htaccess protection files could not be written. ' . self::PROTECTION_CAUSE ),
+		);
+	}
+
 	/** @dataProvider directory_error_paths */
 	public function test_check_dir_error_hides_backup_hash_only( $name, $private ) {
 		$parent = tempnam( sys_get_temp_dir(), 'mainwp-dir-error-' );
@@ -29,6 +87,8 @@ class BackupDirTest extends WP_UnitTestCase {
 			if ( $private ) {
 				$this->assertStringNotContainsString( 'backup-a1B2c3D4e5F6g7H8', $message, 'Directory errors must not disclose the backup-directory hash.' );
 				$this->assertStringNotContainsString( $parent, $message );
+				$this->assertSame( 'Could not create the backup folder inside ' . basename( dirname( $parent ) ) . '/' . basename( $parent ) . '. ' . self::LIKELY_CAUSE, $message );
+				$this->assertSame( '', $e->get_message_error_code(), 'A registered code would make the Dashboard show its generic text instead.' );
 			} else {
 				$this->assertSame( 'Unable to create directory ' . str_replace( ABSPATH, '', $path ) . '. Is its parent directory writable by the server?', $message );
 			}
@@ -69,7 +129,8 @@ class BackupDirTest extends WP_UnitTestCase {
 			}
 			$this->assertSame( array(), $warnings, 'Protection-file warnings must not disclose the backup path.' );
 			$this->assertInstanceOf( \MainWP\Child\MainWP_Exception::class, $error );
-			$this->assertSame( 'Unable to create the backup directory. Is its parent directory writable by the server?', $error->getMessage() );
+			$this->assertSame( 'The backup folder inside ' . basename( $root ) . '/mainwp exists, but its index.php and .htaccess protection files could not be written. ' . self::PROTECTION_CAUSE, $error->getMessage() );
+			$this->assertSame( '', $error->get_message_error_code(), 'A registered code would make the Dashboard show its generic text instead.' );
 		} finally {
 			remove_filter( 'mainwp_child_get_wp_upload_dir', $filter );
 			chmod( $directory, 0755 );
