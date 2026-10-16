@@ -50,6 +50,8 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
     const ERR_DL_FILE_CHANGED    = 'mainwp_backup_dl_file_changed';
     const ERR_DL_TOKEN_INVALID   = 'mainwp_backup_dl_token_invalid';
 
+    const ERR_DL_FILE_HASH_MISMATCH = 'mainwp_backup_dl_hash_mismatch';
+
     const ERR_UNSUPPORTED_LAYOUT = 'mainwp_backup_unsupported_layout';
 
     const ERR_INCREMENTAL_BASE_MISSING = 'mainwp_backup_incremental_base_missing';
@@ -240,6 +242,7 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
             self::ERR_BACKUP_CANCELLED           => esc_html__( 'The backup was cancelled from the dashboard.', 'mainwp-child' ),
             self::ERR_UNKNOWN_PHASE              => esc_html__( 'The backup reached a step this child site does not recognize. This usually means the MainWP Child plugin is older than the Dashboard. Update the MainWP Child plugin to the latest version, then run the backup again.', 'mainwp-child' ),
             self::ERR_DL_FILE_NOT_FOUND          => esc_html__( 'The requested backup file was not found on the child site. It may have been removed by a cleanup. Run a new backup and try the download again.', 'mainwp-child' ),
+            self::ERR_DL_FILE_HASH_MISMATCH      => esc_html__( 'The backup file on the child site has changed since the backup finished and no longer matches its recorded hash. Run a new backup.', 'mainwp-child' ),
             self::ERR_DL_FILE_CHANGED            => esc_html__( 'The backup file changed on the child site after the download was authorized. Request a new download to get a fresh authorization for the current file.', 'mainwp-child' ),
             self::ERR_DL_TOKEN_INVALID           => esc_html__( 'The download authorization is invalid, expired, or was already used. Request a new download from the Dashboard to get a fresh authorization.', 'mainwp-child' ),
 

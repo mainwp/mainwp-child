@@ -695,17 +695,17 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
             if ( $this->include_file_links ) {
                 return true;
             }
-            MainWP_Backup::record_skipped_path( $node );
+            MainWP_Backup::record_skipped_path( $node, 'link' );
             return false;
         }
         if ( ! MainWP_Backup::is_safe_backup_path( $node, array_merge( MainWP_Backup::default_backup_bases(), array( $this->root ) ), array_column( $this->stack, 'dir' ) ) ) {
-            MainWP_Backup::record_skipped_path( $node );
+            MainWP_Backup::record_skipped_path( $node, 'unsafe' );
             return false;
         }
 
         $real = realpath( $node );
         if ( false === $real ) {
-            MainWP_Backup::record_skipped_path( $node );
+            MainWP_Backup::record_skipped_path( $node, 'unresolved' );
             return false;
         }
 

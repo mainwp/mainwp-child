@@ -249,14 +249,16 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
         // A source can be replaced between the walk and this pack slice.
         clearstatcache( true, $abs_path );
         if ( MainWP_Backup::is_file_link( $abs_path ) || ! MainWP_Backup::is_safe_backup_path( $abs_path, $this->allowed_backup_bases ) ) {
-            MainWP_Backup::record_skipped_path( $abs_path );
+            $result['skip_reason'] = MainWP_Backup::is_file_link( $abs_path ) ? 'link' : 'unsafe';
+            MainWP_Backup::record_skipped_path( $abs_path, $result['skip_reason'] );
             $result['skipped'] = true;
             return $result;
         }
 
         $size = @filesize( $abs_path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- a file deleted between walk and pack is skipped, not fatal.
         if ( false === $size || ! is_file( $abs_path ) ) {
-            MainWP_Backup::record_skipped_path( $abs_path );
+            $result['skip_reason'] = 'unstatable';
+            MainWP_Backup::record_skipped_path( $abs_path, $result['skip_reason'] );
             $result['skipped'] = true;
             return $result;
         }

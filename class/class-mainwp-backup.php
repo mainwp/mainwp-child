@@ -1381,8 +1381,9 @@ class MainWP_Backup {
      * Record a path skipped by the traversal guards, for the backup report.
      *
      * @param string $path Skipped path.
+     * @param string $reason Traversal refusal.
      */
-    public static function record_skipped_path( $path ) {
+    public static function record_skipped_path( $path, $reason = 'unsafe' ) {
         if ( count( static::$skipped_paths ) < 100 ) {
             static::$skipped_paths[] = (string) $path;
         }
@@ -1390,8 +1391,9 @@ class MainWP_Backup {
          * Fires when the backup traversal skips a symlink or unsafe path.
          *
          * @param string $path The skipped path.
+         * @param string $reason Traversal refusal.
          */
-        do_action( 'mainwp_child_backup_skipped_path', $path );
+        do_action( 'mainwp_child_backup_skipped_path', $path, $reason );
     }
 
     /**
@@ -1424,7 +1426,7 @@ class MainWP_Backup {
     public function record_failed_add( $path ) {
         ++$this->failed_add_count;
         $this->failed_add_paths[] = (string) $path;
-        static::record_skipped_path( $path );
+        static::record_skipped_path( $path, 'unreadable' );
         if ( $this->failed_add_count > self::MAX_FAILED_ADDS ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_TOO_MANY_SKIPPED ) ), null, MainWP_Backup_Error::ERR_TOO_MANY_SKIPPED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
         }
@@ -1603,7 +1605,7 @@ class MainWP_Backup {
         while ( ! empty( $stack ) ) {
             $frame = array_pop( $stack );
             if ( count( $frame['ancestors'] ) > self::MAX_INVENTORY_DEPTH ) {
-                static::record_skipped_path( $frame['dir'] );
+                static::record_skipped_path( $frame['dir'], 'inventory_depth' );
                 continue;
             }
             $real = realpath( $frame['dir'] );
@@ -1871,7 +1873,7 @@ class MainWP_Backup {
 
             foreach ( $nodes as $node ) {
                 if ( static::is_file_link( $node ) || ! static::is_safe_backup_path( $node, $this->allowed_backup_bases, array( ABSPATH ) ) ) {
-                    static::record_skipped_path( $node );
+                    static::record_skipped_path( $node, static::is_file_link( $node ) ? 'link' : 'unsafe' );
                     continue;
                 }
 
@@ -2074,7 +2076,7 @@ class MainWP_Backup {
             }
             $this->heartbeat();
             if ( static::is_file_link( $node ) || ! static::is_safe_backup_path( $node, $this->allowed_backup_bases, $ancestors ) ) {
-                static::record_skipped_path( $node );
+                static::record_skipped_path( $node, static::is_file_link( $node ) ? 'link' : 'unsafe' );
                 continue;
             }
 
@@ -2258,7 +2260,7 @@ class MainWP_Backup {
             $ancestors                  = array( dirname( rtrim( $path, '/' ) ) );
         }
         if ( static::is_file_link( $path ) || ! static::is_safe_backup_path( $path, $this->allowed_backup_bases, $ancestors ) ) {
-            static::record_skipped_path( $path );
+            static::record_skipped_path( $path, static::is_file_link( $path ) ? 'link' : 'unsafe' );
             return;
         }
 
@@ -2299,7 +2301,7 @@ class MainWP_Backup {
 
             $descent_chain = $ancestors;
             if ( static::is_file_link( $name ) || ! static::is_safe_backup_path( $name, $this->allowed_backup_bases, $descent_chain ) ) {
-                static::record_skipped_path( $name );
+                static::record_skipped_path( $name, static::is_file_link( $name ) ? 'link' : 'unsafe' );
                 continue;
             }
 
@@ -2406,7 +2408,7 @@ class MainWP_Backup {
         // Walk-time metadata may predate a replaced file or link.
         clearstatcache( true, $path );
         if ( static::is_file_link( $path ) || ! static::is_safe_backup_path( $path, $this->allowed_backup_bases ) ) {
-            static::record_skipped_path( $path );
+            static::record_skipped_path( $path, static::is_file_link( $path ) ? 'link' : 'unsafe' );
             return false;
         }
 

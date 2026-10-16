@@ -20,6 +20,21 @@ use MainWP\Child\MainWP_Backup;
  */
 class BackupIncrementalZipWriterTest extends WP_UnitTestCase {
 
+	public function test_backup_guard_incremental_close_failure_is_fatal() {
+		$writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $this->dir, 'core' );
+		$slot = new ReflectionProperty( $writer, 'zip' );
+		$slot->setAccessible( true );
+		$slot->setValue( $writer, new class extends ZipArchive {
+			public function close(): bool { return false; }
+		} );
+		try {
+			$writer->close_part();
+			$this->fail( 'A failed ZIP close must remain fatal.' );
+		} catch ( \MainWP\Child\MainWP_Exception $e ) {
+			$this->assertSame( \MainWP\Child\MainWP_Backup_Error::ERR_ZIP_FAILED, $e->get_message_error_code() );
+		}
+	}
+
 	/**
 	 * Scratch dir for parts.
 	 *

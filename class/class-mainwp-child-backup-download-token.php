@@ -78,7 +78,13 @@ class MainWP_Child_Backup_Download_Token { // phpcs:ignore Generic.Classes.Openi
             );
         }
 
-        $hash  = hash_file( 'sha256', $full_path );
+        $hash = hash_file( 'sha256', $full_path );
+        if ( $this->recorded_hash_mismatch( basename( $full_path ), $hash ) ) {
+            return array(
+                'error'      => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DL_FILE_HASH_MISMATCH ),
+                'error_code' => MainWP_Backup_Error::ERR_DL_FILE_HASH_MISMATCH,
+            );
+        }
         $size  = (int) filesize( $full_path );
         $mtime = (int) filemtime( $full_path );
         $token = wp_generate_password( self::TOKEN_LENGTH, false );
@@ -105,6 +111,51 @@ class MainWP_Child_Backup_Download_Token { // phpcs:ignore Generic.Classes.Openi
             'size'       => $size,
             'expires_in' => self::TTL,
         );
+    }
+
+    /**
+     * Shared chain files are rewritten by later runs; only run-owned archives bind to a finished hash.
+     *
+     * @param string       $basename Requested file.
+     * @param string|false $hash Current digest.
+     * @return bool Whether recorded evidence exists but none matches.
+     */
+    private function recorded_hash_mismatch( $basename, $hash ) {
+        if ( MainWP_Child_Backup_Task::is_chain_file( $basename ) ) {
+            return false;
+        }
+        global $wpdb;
+        $spine    = MainWP_Child_Backup_Task::instance();
+        $dirs     = MainWP_Helper::get_mainwp_dir( 'backup' );
+        $recorded = false;
+        // Legacy downloads also work before the task table exists.
+        $suppress = $wpdb->suppress_errors( true );
+        try {
+            $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- completed cursors are the recorded artifact evidence.
+                'SELECT task_id, sub_state FROM ' . $spine->get_table_name() . " WHERE phase = 'completed' AND type IN ('full','files','db','incremental')" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- trusted table helper and literal predicates.
+            );
+        } finally {
+            $wpdb->suppress_errors( $suppress );
+        }
+        foreach ( (array) $rows as $row ) {
+            $sub     = $spine->read_sub_state( $row, $dirs[0] );
+            $entries = $sub['artifacts'] ?? array();
+            if ( isset( $sub['artifact'] ) ) {
+                $entries[] = $sub['artifact'];
+            }
+            foreach ( $entries as $entry ) {
+                if ( ! isset( $entry['file'], $entry['sha256'] ) || isset( $entry['hash_skipped'] )
+                    || basename( (string) $entry['file'] ) !== $basename || ! is_string( $entry['sha256'] )
+                    || ! preg_match( '/^[a-f0-9]{64}$/D', $entry['sha256'] ) ) {
+                    continue;
+                }
+                $recorded = true;
+                if ( is_string( $hash ) && hash_equals( $entry['sha256'], $hash ) ) {
+                    return false;
+                }
+            }
+        }
+        return $recorded;
     }
 
     /**

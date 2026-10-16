@@ -1263,6 +1263,10 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             $sub_state = $projected;
         }
 
+        if ( is_array( $sub_state ) ) {
+            unset( $sub_state['_skip_report'], $sub_state['_hash_attempts'], $sub_state['_pack_skips'] );
+        }
+
         $payload = array(
             'task_id'           => $task->task_id,
             'phase'             => $task->phase,
@@ -1278,6 +1282,15 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         if ( self::PHASE_COMPLETED === $task->phase && isset( $sub_state['artifact']['file'] ) ) {
             $payload['file'] = $sub_state['artifact']['file'];
             $payload['size'] = (int) $sub_state['artifact']['size'];
+            foreach ( array( 'sha256', 'hash_skipped' ) as $key ) {
+                if ( isset( $sub_state['artifact'][ $key ] ) ) {
+                    $payload[ $key ] = $sub_state['artifact'][ $key ];
+                }
+            }
+        }
+
+        if ( self::PHASE_COMPLETED === $task->phase && isset( $sub_state['content_status'] ) ) {
+            $payload['content_status'] = $sub_state['content_status'];
         }
 
         // Multi-artifact runs (incremental parts, chain-base manifests)

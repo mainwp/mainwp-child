@@ -191,7 +191,21 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             $params = $this->resolve_staged_manifest( $type, is_array( $params ) ? $params : array() );
             $params = $this->spill_parent_manifest( $params );
             // The mutex and post-acquire spine check prevent a competing insert, so VALUES is safe here.
-            $created = $spine->create_task( $type, array( 'params' => $params ), null, null, $task_id );
+            $created = $spine->create_task(
+                $type,
+                array(
+                    'params'       => $params,
+                    '_skip_report' => array(
+                        'seen'              => array(),
+                        'skipped_count'     => 0,
+                        'skipped_paths'     => array(),
+                        'skipped_by_reason' => array(),
+                    ),
+                ),
+                null,
+                null,
+                $task_id
+            );
             if ( false === $created ) {
                 throw new MainWP_Exception( 'The backup task could not be created on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
             }
@@ -614,7 +628,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             case MainWP_Child_Backup_Task::PHASE_ARCHIVING_FILES:
                 return $this->run_archiving_files( $task, $version, $sub_state, $deadline, $backup_dir );
             case MainWP_Child_Backup_Task::PHASE_UPLOADING:
-                return $this->run_stub_phase( $task, $version, $sub_state, $backup_dir, 'upload_accepted', 'perform_upload' );
+                return $this->run_uploading( $task, $version, $sub_state, $deadline, $backup_dir );
             case MainWP_Child_Backup_Task::PHASE_SUBMITTING:
                 return $this->run_stub_phase( $task, $version, $sub_state, $backup_dir, 'submit_accepted', 'perform_submit' );
             default:
@@ -795,137 +809,145 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             return $this->run_incremental_archiving( $task, $version, $sub_state, $deadline, $backup_dir );
         }
 
-        $params = isset( $sub_state['params'] ) && is_array( $sub_state['params'] ) ? $sub_state['params'] : array();
+        $record_skip = function ( $path, $reason = 'unsafe' ) use ( &$sub_state ) {
+            $this->merge_skipped_path( $sub_state, $path, $reason );
+        };
+        add_action( 'mainwp_child_backup_skipped_path', $record_skip, 10, 2 );
+        try {
+            $params = isset( $sub_state['params'] ) && is_array( $sub_state['params'] ) ? $sub_state['params'] : array();
 
-        if ( empty( $sub_state['archive_done'] ) ) {
-            if ( empty( $sub_state['archive_file'] ) ) {
-                $name      = isset( $params['file'] ) && '' !== $params['file'] ? $params['file'] . '-' : '';
-                $extension = $this->resolve_archive_extension( isset( $params['ext'] ) ? $params['ext'] : 'zip' );
+            if ( empty( $sub_state['archive_done'] ) ) {
+                if ( empty( $sub_state['archive_file'] ) ) {
+                    $name      = isset( $params['file'] ) && '' !== $params['file'] ? $params['file'] . '-' : '';
+                    $extension = $this->resolve_archive_extension( isset( $params['ext'] ) ? $params['ext'] : 'zip' );
 
-                $sub_state['archive_file'] = 'backup-' . $name . time() . $extension;
-            }
-            $append = ! empty( $sub_state['archive_started'] );
-
-            // Persist the archive name before any engine work, so a killed
-            // slice resumes the same file instead of starting a second one.
-            $sub_state['archive_started'] = true;
-
-            $result = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
-            if ( $result['abandon'] ) {
-                return $result;
-            }
-            $version = $result['version'];
-
-            $archive_yielded = false;
-            $backup          = MainWP_Backup::get();
-            if ( ! $append ) {
-                $backup->reset_failed_adds();
-            }
-            // A newly readable failed source would break tar's match against the next archived entry.
-            $backup->set_failed_add_skips( $append ? ( $sub_state['failed_add_paths'] ?? array() ) : array() );
-            try {
-                $res = $this->run_file_archiver(
-                    $params,
-                    $sub_state['archive_file'],
-                    $append,
-                    $deadline,
-                    isset( $sub_state['db_files'] ) ? $sub_state['db_files'] : array(),
-                    'files' === $task->type
-                );
-            } catch ( MainWP_Backup_Budget_Exception $e ) {
-                if ( $this->lease_lost ) {
-                    throw $e;
+                    $sub_state['archive_file'] = 'backup-' . $name . time() . $extension;
                 }
-                unset( $e );
-                $archive_yielded = true;
-            } finally {
-                $backup->set_failed_add_skips( array() );
-                $fresh_failures = $backup->get_failed_add_paths();
-                $root           = $this->site_root();
-                if ( $this->failed_adds_unlisted( $sub_state ) ) {
-                    $sub_state['unarchived_unlisted'] = true;
+                $append = ! empty( $sub_state['archive_started'] );
+
+                // Persist the archive name before any engine work, so a killed
+                // slice resumes the same file instead of starting a second one.
+                $sub_state['archive_started'] = true;
+
+                $result = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
+                if ( $result['abandon'] ) {
+                    return $result;
                 }
-                foreach ( $fresh_failures as $path ) {
-                    // The JSON checkpoint rewrites invalid UTF-8, and a path outside the root
-                    // has no relpath; checked before persisting, neither can be listed exactly.
-                    if ( 0 !== strpos( $path, $root ) || 1 !== preg_match( '//u', $path ) ) {
+                $version = $result['version'];
+
+                $archive_yielded = false;
+                $backup          = MainWP_Backup::get();
+                if ( ! $append ) {
+                    $backup->reset_failed_adds();
+                }
+                // A newly readable failed source would break tar's match against the next archived entry.
+                $backup->set_failed_add_skips( $append ? ( $sub_state['failed_add_paths'] ?? array() ) : array() );
+                try {
+                    $res = $this->run_file_archiver(
+                        $params,
+                        $sub_state['archive_file'],
+                        $append,
+                        $deadline,
+                        isset( $sub_state['db_files'] ) ? $sub_state['db_files'] : array(),
+                        'files' === $task->type
+                    );
+                } catch ( MainWP_Backup_Budget_Exception $e ) {
+                    if ( $this->lease_lost ) {
+                        throw $e;
+                    }
+                    unset( $e );
+                    $archive_yielded = true;
+                } finally {
+                    $backup->set_failed_add_skips( array() );
+                    $fresh_failures = $backup->get_failed_add_paths();
+                    $root           = $this->site_root();
+                    if ( $this->failed_adds_unlisted( $sub_state ) ) {
                         $sub_state['unarchived_unlisted'] = true;
                     }
+                    foreach ( $fresh_failures as $path ) {
+                        // The JSON checkpoint rewrites invalid UTF-8, and a path outside the root
+                        // has no relpath; checked before persisting, neither can be listed exactly.
+                        if ( 0 !== strpos( $path, $root ) || 1 !== preg_match( '//u', $path ) ) {
+                            $sub_state['unarchived_unlisted'] = true;
+                        }
+                    }
+                    // The manifest may resume in another request after the archive closes.
+                    $sub_state['failed_add_paths']   = array_values( array_unique( array_merge( $sub_state['failed_add_paths'] ?? array(), $fresh_failures ) ) );
+                    $sub_state['failed_add_checked'] = count( $sub_state['failed_add_paths'] );
                 }
-                // The manifest may resume in another request after the archive closes.
-                $sub_state['failed_add_paths']   = array_values( array_unique( array_merge( $sub_state['failed_add_paths'] ?? array(), $fresh_failures ) ) );
-                $sub_state['failed_add_checked'] = count( $sub_state['failed_add_paths'] );
-            }
-            if ( $archive_yielded ) {
-                return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
-            }
-
-            // The engine reads its own size right after closing the archive it
-            // has been statting all along; a stale stat-cache entry there would
-            // report a pre-close byte count. Re-read the size from disk.
-            $archive_path = rtrim( $backup_dir, '/' ) . '/' . $res['file'];
-            clearstatcache( true, $archive_path );
-            $archive_size = file_exists( $archive_path ) ? (int) filesize( $archive_path ) : (int) $res['filesize'];
-
-            $sub_state['artifact'] = array(
-                'file' => $res['file'],
-                'size' => $archive_size,
-            );
-            unset( $sub_state['db_files'] );
-
-            // Persist archive_done before the manifest walk so a walk that
-            // yields never re-enters the archiver - a zip would delete and
-            // rebuild the finished archive on re-entry.
-            $sub_state['archive_done'] = true;
-            $result                    = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
-            if ( $result['abandon'] ) {
-                return $result;
-            }
-            $version = $result['version'];
-        }
-
-        if ( ! empty( $params['emit_manifest'] ) && empty( $sub_state['walk_done'] ) ) {
-            // An archive without a manifest cannot seed the incremental chain.
-            // The Dashboard reports a base with no manifest as a corrupt file
-            // without a cause, so the walk failure must reach it as an error.
-            try {
-                $walk_params                     = $params;
-                $walk_params['failed_add_paths'] = $sub_state['failed_add_paths'] ?? array();
-                $walk                            = $this->walk_manifest_slice( $walk_params, $backup_dir, isset( $sub_state['walk_cursor'] ) ? $sub_state['walk_cursor'] : null, $deadline );
-            } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - manifest failures must reach the Dashboard.
-                if ( $e instanceof MainWP_Exception && ! empty( $e->get_message_error_code() ) ) {
-                    throw $e;
+                if ( $archive_yielded ) {
+                    return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
                 }
-                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED ) . ' ' . $e->getMessage() ), null, MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+
+                // The engine reads its own size right after closing the archive it
+                // has been statting all along; a stale stat-cache entry there would
+                // report a pre-close byte count. Re-read the size from disk.
+                $archive_path = rtrim( $backup_dir, '/' ) . '/' . $res['file'];
+                clearstatcache( true, $archive_path );
+                $archive_size = file_exists( $archive_path ) ? (int) filesize( $archive_path ) : (int) $res['filesize'];
+
+                $sub_state['artifact'] = array(
+                    'file' => $res['file'],
+                    'size' => $archive_size,
+                );
+                unset( $sub_state['db_files'] );
+
+                // Persist archive_done before the manifest walk so a walk that
+                // yields never re-enters the archiver - a zip would delete and
+                // rebuild the finished archive on re-entry.
+                $sub_state['archive_done'] = true;
+                $result                    = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
+                if ( $result['abandon'] ) {
+                    return $result;
+                }
+                $version = $result['version'];
             }
 
-            if ( empty( $walk['done'] ) ) {
-                $sub_state['walk_cursor'] = $walk['cursor'];
-                return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+            if ( ! empty( $params['emit_manifest'] ) && empty( $sub_state['walk_done'] ) ) {
+                // An archive without a manifest cannot seed the incremental chain.
+                // The Dashboard reports a base with no manifest as a corrupt file
+                // without a cause, so the walk failure must reach it as an error.
+                try {
+                    $walk_params                     = $params;
+                    $walk_params['failed_add_paths'] = $sub_state['failed_add_paths'] ?? array();
+                    $walk                            = $this->walk_manifest_slice( $walk_params, $backup_dir, isset( $sub_state['walk_cursor'] ) ? $sub_state['walk_cursor'] : null, $deadline );
+                } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - manifest failures must reach the Dashboard.
+                    if ( $e instanceof MainWP_Exception && ! empty( $e->get_message_error_code() ) ) {
+                        throw $e;
+                    }
+                    throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED ) . ' ' . $e->getMessage() ), null, MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+                }
+
+                if ( empty( $walk['done'] ) ) {
+                    $sub_state['walk_cursor'] = $walk['cursor'];
+                    return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+                }
+
+                $unlisted = $this->failed_adds_unlisted( $sub_state );
+
+                unset( $sub_state['walk_cursor'] );
+                $sub_state['walk_done'] = true;
+                $sub_state['manifest']  = $this->manifest_from_walk( $walk );
+                $sub_state['artifacts'] = array(
+                    array(
+                        'file' => $sub_state['artifact']['file'],
+                        'size' => (int) $sub_state['artifact']['size'],
+                        'role' => 'full',
+                    ),
+                    array(
+                        'file'   => MainWP_Child_Backup_File_Walker::FILES_LIST,
+                        'size'   => (int) $sub_state['manifest']['size'],
+                        'role'   => 'manifest',
+                        'sha256' => $sub_state['manifest']['sha256'] ?? '',
+                        'walk'   => $this->manifest_walk_params( $params, $sub_state['failed_add_paths'] ?? array(), $unlisted, $sub_state ),
+                    ),
+                );
             }
 
-            $unlisted = $this->failed_adds_unlisted( $sub_state );
-
-            unset( $sub_state['walk_cursor'] );
-            $sub_state['walk_done'] = true;
-            $sub_state['manifest']  = $this->manifest_from_walk( $walk );
-            $sub_state['artifacts'] = array(
-                array(
-                    'file' => $sub_state['artifact']['file'],
-                    'size' => (int) $sub_state['artifact']['size'],
-                    'role' => 'full',
-                ),
-                array(
-                    'file'   => MainWP_Child_Backup_File_Walker::FILES_LIST,
-                    'size'   => (int) $sub_state['manifest']['size'],
-                    'role'   => 'manifest',
-                    'sha256' => $sub_state['manifest']['sha256'] ?? '',
-                    'walk'   => $this->manifest_walk_params( $params, $sub_state['failed_add_paths'] ?? array(), $unlisted ),
-                ),
-            );
+            return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+        } finally {
+            remove_action( 'mainwp_child_backup_skipped_path', $record_skip, 10 );
         }
-
-        return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
     }
 
     /**
@@ -953,127 +975,135 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @return array Slice result.
      */
     protected function run_incremental_archiving( $task, $version, $sub_state, $deadline, $backup_dir ) { // phpcs:ignore -- NOSONAR - staged diff/pack flow.
-        $params = isset( $sub_state['params'] ) && is_array( $sub_state['params'] ) ? $sub_state['params'] : array();
-        $dir    = rtrim( $backup_dir, '/' ) . '/';
+        $record_skip = function ( $path, $reason = 'unsafe' ) use ( &$sub_state ) {
+            $this->merge_skipped_path( $sub_state, $path, $reason );
+        };
+        add_action( 'mainwp_child_backup_skipped_path', $record_skip, 10, 2 );
+        try {
+            $params = isset( $sub_state['params'] ) && is_array( $sub_state['params'] ) ? $sub_state['params'] : array();
+            $dir    = rtrim( $backup_dir, '/' ) . '/';
 
-        // The manifest walk is its own resumable sub-phase before the diff.
-        // A walk longer than a slice yields and resumes from its cursor instead
-        // of restarting from zero and starving the diff each slice.
-        if ( empty( $sub_state['walk_done'] ) ) {
-            try {
-                $walk = $this->walk_manifest_slice( $params, $backup_dir, isset( $sub_state['walk_cursor'] ) ? $sub_state['walk_cursor'] : null, $deadline );
-            } catch ( \Throwable $e ) { // NOSONAR - manifest failures must reach the Dashboard.
-                if ( $e instanceof MainWP_Exception && ! empty( $e->get_message_error_code() ) ) {
-                    throw $e;
+            // The manifest walk is its own resumable sub-phase before the diff.
+            // A walk longer than a slice yields and resumes from its cursor instead
+            // of restarting from zero and starving the diff each slice.
+            if ( empty( $sub_state['walk_done'] ) ) {
+                try {
+                    $walk = $this->walk_manifest_slice( $params, $backup_dir, isset( $sub_state['walk_cursor'] ) ? $sub_state['walk_cursor'] : null, $deadline );
+                } catch ( \Throwable $e ) { // NOSONAR - manifest failures must reach the Dashboard.
+                    if ( $e instanceof MainWP_Exception && ! empty( $e->get_message_error_code() ) ) {
+                        throw $e;
+                    }
+                    throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED ) . ' ' . $e->getMessage() ), null, MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
                 }
-                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED ) . ' ' . $e->getMessage() ), null, MainWP_Backup_Error::ERR_MANIFEST_WALK_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+
+                if ( empty( $walk['done'] ) ) {
+                    $sub_state['walk_cursor'] = $walk['cursor'];
+                    return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+                }
+
+                unset( $sub_state['walk_cursor'] );
+                $sub_state['walk_done'] = true;
+                $sub_state['manifest']  = $this->manifest_from_walk( $walk );
+
+                // Fall through to the diff in the same slice - do not checkpoint
+                // walk_done on its own. An internal checkpoint here would leave
+                // advance_one_slice holding a stale version if the diff then throws
+                // (base-missing), so the failure could not be recorded. A diff that
+                // dies mid-run simply resumes the walk from its last checkpoint, a
+                // bounded re-merge, never a full re-walk.
             }
 
-            if ( empty( $walk['done'] ) ) {
-                $sub_state['walk_cursor'] = $walk['cursor'];
+            if ( empty( $sub_state['diff_done'] ) ) {
+                $parent_path = $this->resolve_parent_manifest( $sub_state, $backup_dir );
+
+                $diff = $this->run_incremental_diff(
+                    $parent_path,
+                    $dir . MainWP_Child_Backup_File_Walker::FILES_LIST . MainWP_Child_Backup_File_Walker::STAGED_SUFFIX,
+                    $dir . MainWP_Child_Backup_Incremental_Diff::CHANGES_LIST,
+                    $dir . MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST
+                );
+
+                if ( ! empty( $diff['force_full'] ) ) {
+                    throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING ) ), null, MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+                }
+
+                $sub_state['diff_done']        = true;
+                $sub_state['changes_count']    = (int) $diff['changes'];
+                $sub_state['tombstones_count'] = (int) $diff['tombstones'];
+                $sub_state['pack_cursor']      = array(
+                    'line'             => 0,
+                    'component'        => '',
+                    'part_index'       => 0,
+                    'part_entry_count' => 0,
+                    'part_byte_count'  => 0,
+                    'part_start_line'  => 0,
+                    'next_index'       => array(),
+                );
+                $sub_state['completed_parts']  = array();
+
+                // Yield so the pack loop starts with a fresh slice budget.
                 return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
             }
 
-            unset( $sub_state['walk_cursor'] );
-            $sub_state['walk_done'] = true;
-            $sub_state['manifest']  = $this->manifest_from_walk( $walk );
-
-            // Fall through to the diff in the same slice - do not checkpoint
-            // walk_done on its own. An internal checkpoint here would leave
-            // advance_one_slice holding a stale version if the diff then throws
-            // (base-missing), so the failure could not be recorded. A diff that
-            // dies mid-run simply resumes the walk from its last checkpoint, a
-            // bounded re-merge, never a full re-walk.
-        }
-
-        if ( empty( $sub_state['diff_done'] ) ) {
-            $parent_path = $this->resolve_parent_manifest( $sub_state, $backup_dir );
-
-            $diff = $this->run_incremental_diff(
-                $parent_path,
-                $dir . MainWP_Child_Backup_File_Walker::FILES_LIST . MainWP_Child_Backup_File_Walker::STAGED_SUFFIX,
-                $dir . MainWP_Child_Backup_Incremental_Diff::CHANGES_LIST,
-                $dir . MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST
-            );
-
-            if ( ! empty( $diff['force_full'] ) ) {
-                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING ) ), null, MainWP_Backup_Error::ERR_INCREMENTAL_BASE_MISSING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            $pack      = $this->pack_incremental_changes( $sub_state, $deadline, $backup_dir );
+            $sub_state = $pack['sub_state'];
+            if ( empty( $pack['done'] ) ) {
+                return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
             }
 
-            $sub_state['diff_done']        = true;
-            $sub_state['changes_count']    = (int) $diff['changes'];
-            $sub_state['tombstones_count'] = (int) $diff['tombstones'];
-            $sub_state['pack_cursor']      = array(
-                'line'             => 0,
-                'component'        => '',
-                'part_index'       => 0,
-                'part_entry_count' => 0,
-                'part_byte_count'  => 0,
-                'part_start_line'  => 0,
-                'next_index'       => array(),
+            $unlisted = $this->failed_adds_unlisted( $sub_state );
+
+            $artifacts   = array();
+            $artifacts[] = array(
+                'file'   => $sub_state['manifest']['file'],
+                'size'   => (int) $sub_state['manifest']['size'],
+                'role'   => 'manifest',
+                'sha256' => $sub_state['manifest']['sha256'] ?? '',
+                'walk'   => $this->manifest_walk_params( $params, $sub_state['failed_add_paths'] ?? array(), $unlisted, $sub_state ),
             );
-            $sub_state['completed_parts']  = array();
 
-            // Yield so the pack loop starts with a fresh slice budget.
-            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
-        }
+            $tombstones_path = $dir . MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST;
+            $artifacts[]     = array(
+                'file' => MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST,
+                'size' => file_exists( $tombstones_path ) ? (int) filesize( $tombstones_path ) : 0,
+                'role' => 'tombstones',
+            );
 
-        $pack      = $this->pack_incremental_changes( $sub_state, $deadline, $backup_dir );
-        $sub_state = $pack['sub_state'];
-        if ( empty( $pack['done'] ) ) {
-            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
-        }
-
-        $unlisted = $this->failed_adds_unlisted( $sub_state );
-
-        $artifacts   = array();
-        $artifacts[] = array(
-            'file'   => $sub_state['manifest']['file'],
-            'size'   => (int) $sub_state['manifest']['size'],
-            'role'   => 'manifest',
-            'sha256' => $sub_state['manifest']['sha256'] ?? '',
-            'walk'   => $this->manifest_walk_params( $params, $sub_state['failed_add_paths'] ?? array(), $unlisted ),
-        );
-
-        $tombstones_path = $dir . MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST;
-        $artifacts[]     = array(
-            'file' => MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST,
-            'size' => file_exists( $tombstones_path ) ? (int) filesize( $tombstones_path ) : 0,
-            'role' => 'tombstones',
-        );
-
-        if ( ! empty( $sub_state['db_files'] ) ) {
-            $db_artifact = $this->archive_db_artifact( $sub_state['db_files'], $sub_state['db_prefix'], 'zip' );
-            if ( empty( $db_artifact ) || ! file_exists( $db_artifact ) ) {
-                throw new MainWP_Exception( 'The database backup archive could not be created.', null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+            if ( ! empty( $sub_state['db_files'] ) ) {
+                $db_artifact = $this->archive_db_artifact( $sub_state['db_files'], $sub_state['db_prefix'], 'zip' );
+                if ( empty( $db_artifact ) || ! file_exists( $db_artifact ) ) {
+                    throw new MainWP_Exception( 'The database backup archive could not be created.', null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+                }
+                // Same stat-cache guard as the db-only path above.
+                clearstatcache( true, $db_artifact );
+                $artifacts[] = array(
+                    'file' => basename( $db_artifact ),
+                    'size' => (int) filesize( $db_artifact ),
+                    'role' => 'db',
+                );
+                unset( $sub_state['db_files'] );
             }
-            // Same stat-cache guard as the db-only path above.
-            clearstatcache( true, $db_artifact );
-            $artifacts[] = array(
-                'file' => basename( $db_artifact ),
-                'size' => (int) filesize( $db_artifact ),
-                'role' => 'db',
+
+            foreach ( $sub_state['completed_parts'] as $part ) {
+                $artifacts[] = array(
+                    'file' => $part['file'],
+                    'size' => (int) $part['size'],
+                    'role' => 'part',
+                );
+            }
+
+            // The manifest is the top-level artifact: it is small, always
+            // present, and what the next run in the chain needs first.
+            $sub_state['artifact']  = array(
+                'file' => $sub_state['manifest']['file'],
+                'size' => (int) $sub_state['manifest']['size'],
             );
-            unset( $sub_state['db_files'] );
+            $sub_state['artifacts'] = $artifacts;
+
+            return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+        } finally {
+            remove_action( 'mainwp_child_backup_skipped_path', $record_skip, 10 );
         }
-
-        foreach ( $sub_state['completed_parts'] as $part ) {
-            $artifacts[] = array(
-                'file' => $part['file'],
-                'size' => (int) $part['size'],
-                'role' => 'part',
-            );
-        }
-
-        // The manifest is the top-level artifact: it is small, always
-        // present, and what the next run in the chain needs first.
-        $sub_state['artifact']  = array(
-            'file' => $sub_state['manifest']['file'],
-            'size' => (int) $sub_state['manifest']['size'],
-        );
-        $sub_state['artifacts'] = $artifacts;
-
-        return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
     }
 
     /**
@@ -1170,6 +1200,16 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             }
 
             $added = $writer->add_file( $this->site_root() . $relpath, $relpath );
+            if ( $added['skipped'] ) {
+                $path = $this->site_root() . $relpath;
+                $this->merge_skipped_path( $sub_state, $path, $added['skip_reason'] );
+                $relative = $this->skipped_relpath( $path );
+                if ( null === $relative ) {
+                    $sub_state['_pack_skips']['unlisted'] = true;
+                } elseif ( count( $sub_state['_pack_skips']['paths'] ?? array() ) < 1001 ) {
+                    $sub_state['_pack_skips']['paths'][ substr( hash( 'sha256', $path ), 0, 32 ) ] = $relative;
+                }
+            }
             if ( $added['rotated'] && null !== $added['closed'] ) {
                 $completed[]                                  = $added['closed'];
                 $cursor['next_index'][ $cursor['component'] ] = $added['closed']['index'] + 1;
@@ -1337,6 +1377,171 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
+     * PHP 7.4 hash contexts cannot survive a checkpoint, so a retry needs a fresh slice.
+     *
+     * @param object $task Task row.
+     * @param int    $version Owned version.
+     * @param array  $sub_state Cursor.
+     * @param int    $deadline Slice deadline.
+     * @param string $backup_dir Scratch directory.
+     * @return array Slice result.
+     */
+    protected function run_uploading( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        $artifacts = $sub_state['artifacts'] ?? array();
+        if ( isset( $sub_state['artifact'] ) ) {
+            $artifacts[] = $sub_state['artifact'];
+        }
+        $by_name = array();
+        foreach ( $artifacts as $artifact ) {
+            $file = $artifact['file'];
+            if ( ! isset( $by_name[ $file ] ) || isset( $artifact['sha256'] ) || isset( $artifact['hash_skipped'] ) ) {
+                $by_name[ $file ] = $artifact;
+            }
+        }
+
+        foreach ( $by_name as $file => $artifact ) {
+            $changed     = false;
+            $hash_result = array_intersect_key( $artifact, array_flip( array( 'sha256', 'hash_skipped' ) ) );
+            if ( empty( $hash_result ) ) {
+                $changed = true;
+                $attempt = (int) ( $sub_state['_hash_attempts'][ $file ] ?? 0 );
+                if ( $attempt < 2 ) {
+                    // A crash consumes this attempt even if no digest is checkpointed.
+                    $sub_state['_hash_attempts'][ $file ] = ++$attempt;
+                    $result                               = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
+                    if ( $result['abandon'] ) {
+                        return $result;
+                    }
+                    $version     = $result['version'];
+                    $hash_result = $this->hash_artifact( rtrim( $backup_dir, '/' ) . '/' . basename( $file ), $deadline );
+                    if ( null === $hash_result && $attempt < 2 ) {
+                        return $this->slice_result( $version, true );
+                    }
+                }
+                if ( empty( $hash_result ) ) {
+                    $hash_result = array( 'hash_skipped' => 'too_large' );
+                }
+            }
+
+            if ( isset( $sub_state['artifact']['file'] ) && $file === $sub_state['artifact']['file'] ) {
+                $merged                = array_merge( $sub_state['artifact'], $hash_result );
+                $changed               = $changed || $merged !== $sub_state['artifact'];
+                $sub_state['artifact'] = $merged;
+            }
+            foreach ( $sub_state['artifacts'] ?? array() as $index => $entry ) {
+                if ( $file === $entry['file'] ) {
+                    $merged                           = array_merge( $entry, $hash_result );
+                    $changed                          = $changed || $merged !== $entry;
+                    $sub_state['artifacts'][ $index ] = $merged;
+                }
+            }
+            if ( ! $changed ) {
+                continue;
+            }
+            $result = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
+            if ( $result['abandon'] ) {
+                return $result;
+            }
+            $version = $result['version'];
+        }
+
+        return $this->run_stub_phase( $task, $version, $sub_state, $backup_dir, 'upload_accepted', 'perform_upload' );
+    }
+
+    /**
+     * Reads stay bounded so lease loss and the slice deadline can interrupt hashing.
+     *
+     * @param string $path Closed artifact path.
+     * @param int    $deadline Slice deadline.
+     * @return array|null Digest or unreadable marker; null when the slice expires.
+     */
+    protected function hash_artifact( $path, $deadline ) {
+        $heartbeat = $this->dump_heartbeat();
+        $heartbeat();
+        if ( $this->hash_budget_exhausted( $deadline ) ) {
+            return null;
+        }
+        $handle = @fopen( $path, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- unreadable artifacts retain the existing completion policy.
+        if ( false === $handle ) {
+            return array( 'hash_skipped' => 'unreadable' );
+        }
+        try {
+            $context = hash_init( 'sha256' );
+            while ( ! feof( $handle ) ) {
+                $heartbeat();
+                if ( $this->hash_budget_exhausted( $deadline ) ) {
+                    return null;
+                }
+                $chunk = @fread( $handle, 2 * 1024 * 1024 ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- read failures are reported without failing the backup.
+                if ( false === $chunk || ( '' === $chunk && ! feof( $handle ) ) ) {
+                    return array( 'hash_skipped' => 'unreadable' );
+                }
+                hash_update( $context, $chunk );
+            }
+            $heartbeat();
+            if ( $this->hash_budget_exhausted( $deadline ) ) {
+                return null;
+            }
+            return array( 'sha256' => hash_final( $context ) );
+        } finally {
+            fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with the bounded read.
+        }
+    }
+
+    /**
+     * A separate seam keeps hash budgets independent from pack-loop tests.
+     *
+     * @param int $deadline Slice deadline.
+     * @return bool Whether another hash chunk would exceed the slice.
+     */
+    protected function hash_budget_exhausted( $deadline ) {
+        return time() >= $deadline - 2;
+    }
+
+    /**
+     * Digest keys survive JSON checkpoints even when the original filename cannot.
+     *
+     * @param array  $sub_state Cursor, updated in the progress checkpoint.
+     * @param string $path Absolute skipped path.
+     * @param string $reason Traversal refusal.
+     */
+    protected function merge_skipped_path( &$sub_state, $path, $reason ) {
+        if ( ! isset( $sub_state['_skip_report'] ) || 'inventory_depth' === $reason ) {
+            return;
+        }
+        $key = substr( hash( 'sha256', $path ), 0, 32 );
+        if ( isset( $sub_state['_skip_report']['seen'][ $key ] ) ) {
+            return;
+        }
+        $report                 = &$sub_state['_skip_report'];
+        $report['seen'][ $key ] = true;
+        ++$report['skipped_count'];
+        $report['skipped_by_reason'][ $reason ] = ( $report['skipped_by_reason'][ $reason ] ?? 0 ) + 1;
+        $relative                               = $this->skipped_relpath( $path );
+        if ( null !== $relative && count( $report['skipped_paths'] ) < 100 ) {
+            $report['skipped_paths'][] = $relative;
+        }
+    }
+
+    /**
+     * Unlistable paths must still count without exposing an absolute name.
+     *
+     * @param string $path Absolute skipped path.
+     * @return string|null A path that JSON can preserve relative to the site root.
+     */
+    protected function skipped_relpath( $path ) {
+        $root = $this->site_root();
+        if ( 0 !== strpos( $path, $root ) || 1 !== preg_match( '//u', $path ) ) {
+            return null;
+        }
+        $relative = substr( $path, strlen( $root ) );
+        if ( '' === $relative || preg_match( '#(^|/)\.\.(/|$)#', $relative ) ) {
+            return null;
+        }
+        return $relative;
+    }
+
+    /**
      * A wired-but-stubbed late phase with the safety guard: work already
      * accepted by the receiver is never re-issued.
      *
@@ -1374,6 +1579,12 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         $next  = MainWP_Child_Backup_Task::next_phase( $task->phase, $task->type );
         if ( null === $next ) {
             return $this->slice_result( $version, true );
+        }
+
+        if ( MainWP_Child_Backup_Task::PHASE_COMPLETED === $next
+            && ! MainWP_Child_Backup_Task::is_restore_type( $task->type ) && isset( $sub_state['_skip_report'] ) ) {
+            $walk                        = $this->manifest_walk_params( $sub_state['params'] ?? array(), $sub_state['failed_add_paths'] ?? array(), $this->failed_adds_unlisted( $sub_state ), $sub_state );
+            $sub_state['content_status'] = 'db' !== $task->type && ( $sub_state['_skip_report']['skipped_count'] > 0 || ! empty( $walk['unarchived_overflow'] ) ) ? 'partial' : 'complete';
         }
 
         $sub_state = $this->stamp_progress( $task, $sub_state, $backup_dir );
@@ -1866,9 +2077,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @param array $params Backup parameters.
      * @param array $failed_add_paths Persisted absolute paths with no archived bytes.
      * @param bool  $unlisted         Whether a failed path could not be recorded exactly.
+     * @param array $sub_state        Cursor with skip coverage.
      * @return array Manifest coverage.
      */
-    protected function manifest_walk_params( $params, $failed_add_paths = array(), $unlisted = false ) {
+    protected function manifest_walk_params( $params, $failed_add_paths = array(), $unlisted = false, $sub_state = array() ) {
         $walk       = array(
             'excludes'     => isset( $params['excludes'] ) && is_array( $params['excludes'] ) ? array_values( array_filter( array_map( 'strval', $params['excludes'] ), 'strlen' ) ) : array(),
             'excludenonwp' => empty( $params['excludenonwp'] ) ? 0 : 1,
@@ -1881,7 +2093,11 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 $unarchived[] = substr( $path, strlen( $root ) );
             }
         }
-        $unarchived = array_values( array_unique( $unarchived ) );
+        $unarchived = array_values( array_unique( array_merge( $unarchived, array_values( $sub_state['_pack_skips']['paths'] ?? array() ) ) ) );
+        $unlisted   = $unlisted || ! empty( $sub_state['_pack_skips']['unlisted'] );
+        if ( isset( $sub_state['_skip_report'] ) ) {
+            $walk = array_merge( $walk, array_intersect_key( $sub_state['_skip_report'], array_flip( array( 'skipped_count', 'skipped_paths', 'skipped_by_reason' ) ) ) );
+        }
         // A partial list would authorize deleting omitted files with no snapshot bytes.
         // Overflow doubles as "not listable" so the Dashboard gate keeps one refusal key.
         if ( $unlisted || count( $unarchived ) > 1000 ) {

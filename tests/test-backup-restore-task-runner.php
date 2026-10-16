@@ -2074,6 +2074,25 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( $clean, MainWP_Child_Backup_Reconciler::sanitize_options( $clean ) );
 	}
 
+	public function test_backup_guard_restore_ignores_skip_report_keys_and_keeps_unarchived() {
+		$this->prepare_reconcile_fixture();
+		$path = 'wp-content/plugins/pack-skipped.php';
+		file_put_contents( $this->site . '/' . $path, 'live pack skip' );
+		$options = $this->reconcile_options();
+		$options['reconcile']['walk']['unarchived'] = array( $path );
+		$old = MainWP_Child_Backup_Reconciler::sanitize_options( $options['reconcile'] );
+		$options['reconcile']['walk']['skipped_count'] = 1;
+		$options['reconcile']['walk']['skipped_paths'] = array( $path );
+		$options['reconcile']['walk']['skipped_by_reason'] = array( 'link' => 1 );
+		$this->assertSame( $old, MainWP_Child_Backup_Reconciler::sanitize_options( $options['reconcile'] ) );
+		$task = $this->drive( $this->make_task( 'full', array( $this->make_part_artifact(), $this->make_db_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $options ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( 'completed', $task->phase );
+		$this->assertSame( 'live pack skip', file_get_contents( $this->site . '/' . $path ) );
+		$this->assertSame( array( 'unarchived' => 1 ), $sub['verification']['reconcile']['kept_by_reason'] );
+		$this->assertFileDoesNotExist( $this->site . '/wp-content/plugins/persist.php' );
+	}
+
 	public function test_unarchived_empty_object_on_wire_is_invalid() {
 		$raw = json_decode( '{"manifest":"s1-files.list","walk":{"excludes":[],"excludenonwp":0,"excludezip":0,"unarchived":{}}}', true );
 		$clean = MainWP_Child_Backup_Reconciler::sanitize_options( $raw );

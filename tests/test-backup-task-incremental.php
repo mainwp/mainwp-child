@@ -21,6 +21,348 @@ require_once __DIR__ . '/test-backup-task-runner.php';
  */
 class BackupTaskIncrementalTest extends WP_UnitTestCase {
 
+	private function create_report_task( $type, $extra = array() ) {
+		$this->runner->test_content_roots = array();
+		return $this->runner->create_task_for_params( $type, array_merge( array( 'ext' => 'tar', 'emit_manifest' => true ), $extra ) );
+	}
+
+	public static function backup_status_fixture_cases() {
+		$cases = array( 'full', 'files', 'db', 'incremental', 'full-hash-skipped' );
+		return array_combine( $cases, array_map( static function ( $case ) { return array( $case ); }, $cases ) );
+	}
+
+	private static function normalize_backup_status( $value, $key = '' ) {
+		if ( in_array( $key, array( 'task_id', 'started_at', 'last_progress_at', 'max_wall_clock_at', 'version', 'db_prefix', 'parent_manifest_file' ), true ) ) {
+			return '<' . $key . '>';
+		}
+		if ( in_array( $key, array( 'size', 'total_bytes', 'bytes_done', 'bytes_total' ), true ) ) {
+			return '<size>';
+		}
+		if ( 'sha256' === $key ) {
+			return '<sha256>';
+		}
+		if ( is_array( $value ) ) {
+			foreach ( $value as $child => $item ) {
+				$value[ $child ] = self::normalize_backup_status( $item, $child );
+			}
+		} elseif ( is_string( $value ) ) {
+			if ( preg_match( '/^(core|plugins)\..*\.part[0-9]+\.zip$/', $value, $match ) ) {
+				return '<' . $match[1] . '-part>';
+			}
+			if ( 0 === strpos( $value, 'backup-' ) ) {
+				return '<archive>';
+			}
+		}
+		return $value;
+	}
+
+	private static function beta6_backup_read( $payload ) {
+		$read = array( 'file' => $payload['file'], 'size' => $payload['size'], 'artifacts' => array() );
+		foreach ( $payload['artifacts'] ?? array() as $entry ) {
+			$row = array_intersect_key( $entry, array_flip( array( 'file', 'size', 'role' ) ) );
+			if ( 'manifest' === $entry['role'] ) {
+				$row['sha256'] = $entry['sha256'];
+				$row['walk'] = $entry['walk'];
+			}
+			$read['artifacts'][] = $row;
+		}
+		return $read;
+	}
+
+	/** @dataProvider backup_status_fixture_cases */
+	public function test_backup_status_response_fixture_and_beta6_compatibility( $case ) {
+		$this->arrange_incremental_fixtures();
+		$this->runner->stubs['woo_backup_meta'] = array( 'has_wc_orders' => false, 'woocommerce_db_version' => '' );
+		$type = 'full-hash-skipped' === $case ? 'full' : $case;
+		if ( 'full' === $case ) {
+			$link = $this->site . '/host-link.php';
+			$this->assertTrue( symlink( $this->site . '/carried.php', $link ) );
+			$this->runner->stubs['run_file_archiver'] = function () use ( $link ) {
+				\MainWP\Child\MainWP_Backup::get()->add_file_to_zipp( $link, 'host-link.php' );
+				return array( 'file' => 'backup-artifact.tar', 'filesize' => 2048 );
+			};
+		}
+		$extra = 'incremental' === $type ? array( 'parent_manifest_b64' => base64_encode( $this->parent_manifest_content() ) ) : array();
+		$id = $this->create_report_task( $type, $extra );
+		if ( 'full-hash-skipped' === $case ) {
+			$this->runner->stubs['hash_budget_exhausted'] = true;
+		}
+		$task = $this->advance( $id );
+		if ( 'incremental' === $type ) {
+			unlink( $this->site . '/changed.php' );
+			$this->assertTrue( symlink( $this->site . '/carried.php', $this->site . '/changed.php' ) );
+		}
+		for ( $slice = 0; $slice < 5 && 'completed' !== $task->phase; ++$slice ) {
+			$task = $this->advance( $id );
+		}
+		$this->assertSame( 'completed', $task->phase );
+		$spine = MainWP_Child_Backup_Task::instance();
+		$wire = json_decode( wp_json_encode( $spine->status_payload( $task, $this->backup_dir ) ), true );
+		$this->assertSame( $wire, json_decode( wp_json_encode( $spine->status_payload( $spine->get_task( $id ), $this->backup_dir ) ), true ) );
+		$this->assertIsString( $wire['file'] );
+		$this->assertIsInt( $wire['size'] );
+		$old = $wire;
+		unset( $old['sha256'], $old['hash_skipped'], $old['content_status'] );
+		foreach ( $old['artifacts'] ?? array() as $index => $entry ) {
+			$this->assertIsString( $entry['file'] );
+			$this->assertIsInt( $entry['size'] );
+			$this->assertIsString( $entry['role'] );
+			if ( 'manifest' !== $entry['role'] ) {
+				unset( $old['artifacts'][ $index ]['sha256'], $old['artifacts'][ $index ]['hash_skipped'] );
+			} else {
+				$this->assertMatchesRegularExpression( '/^[a-f0-9]{64}$/D', $entry['sha256'] );
+				$this->assertIsArray( $entry['walk'] );
+			}
+		}
+		$this->assertSame( self::beta6_backup_read( $old ), self::beta6_backup_read( $wire ) );
+		$payload = self::normalize_backup_status( $wire );
+		$path = __DIR__ . '/fixtures/backup-status-completed-' . $case . '.json';
+		if ( '1' === getenv( 'MAINWP_REGENERATE_BACKUP_FIXTURES' ) ) {
+			file_put_contents( $path, wp_json_encode( $payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) . "\n" );
+		}
+		$this->assertEquals( json_decode( file_get_contents( $path ), true ), $payload, $case );
+	}
+
+	/** @dataProvider backup_report_traversal_cases */
+	public function test_backup_report_link_once_across_append_slices_and_manifest_walk( $type, $slices ) {
+		$this->arrange_incremental_fixtures();
+		$link = $this->site . '/host-link.php';
+		$this->assertTrue( symlink( $this->site . '/carried.php', $link ) );
+		$walk_saw_link = false;
+		$this->runner->stubs['walk_manifest_slice'] = function ( $params, $dir, $cursor, $deadline ) use ( $link, &$walk_saw_link ) {
+			$listener = function ( $path ) use ( $link, &$walk_saw_link ) { $walk_saw_link = $walk_saw_link || $path === $link; };
+			add_action( 'mainwp_child_backup_skipped_path', $listener );
+			try {
+				$walker = new \MainWP\Child\MainWP_Child_Backup_File_Walker( $this->site . '/', array(), false, false, array( $dir ) );
+				return $walker->emit_sidecars_slice( $dir, $cursor, $deadline );
+			} finally {
+				remove_action( 'mainwp_child_backup_skipped_path', $listener );
+			}
+		};
+		$attempt = 0;
+		$this->runner->stubs['run_file_archiver'] = function () use ( $link, $slices, &$attempt ) {
+			$this->assertFalse( \MainWP\Child\MainWP_Backup::get()->add_file_to_zipp( $link, 'host-link.php' ) );
+			if ( ++$attempt < $slices ) {
+				throw new \MainWP\Child\MainWP_Backup_Budget_Exception( 'Append slice.' );
+			}
+			return array( 'file' => 'backup-artifact.tar', 'filesize' => 2048 );
+		};
+		$id = $this->create_report_task( $type );
+		for ( $slice = 0; $slice < $slices; ++$slice ) {
+			$task = $this->advance( $id );
+		}
+		$this->assertSame( 'completed', $task->phase );
+		$this->assertTrue( $walk_saw_link );
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+		$report = $this->artifacts_by_role( $payload )['manifest']['walk'];
+		$this->assertSame( 1, $report['skipped_count'] );
+		$this->assertSame( array( 'host-link.php' ), $report['skipped_paths'] );
+		$this->assertSame( array( 'link' => 1 ), $report['skipped_by_reason'] );
+		$this->assertSame( 'partial', $payload['content_status'] );
+		$this->assertArrayNotHasKey( 'unarchived', $report );
+		$this->assertSame( $payload['sha256'], $this->artifacts_by_role( $payload )['full']['sha256'] );
+	}
+
+	public static function backup_report_traversal_cases() {
+		return array( 'full' => array( 'full', 1 ), 'full sliced' => array( 'full', 3 ), 'files' => array( 'files', 1 ), 'files sliced' => array( 'files', 3 ) );
+	}
+
+	public function test_backup_report_count_uncapped_unlistable_paths_and_replayed_slice() {
+		$this->runner->test_site_root = ABSPATH;
+		$attempt = 0;
+		$this->runner->stubs['run_file_archiver'] = function () use ( &$attempt ) {
+			for ( $i = 0; $i < 105; ++$i ) {
+				\MainWP\Child\MainWP_Backup::record_skipped_path( ABSPATH . 'link-' . $i, 'link' );
+			}
+			\MainWP\Child\MainWP_Backup::record_skipped_path( '/outside-root/private', 'unsafe' );
+			\MainWP\Child\MainWP_Backup::record_skipped_path( ABSPATH . "invalid-\xff", 'unreadable' );
+			\MainWP\Child\MainWP_Backup::record_skipped_path( ABSPATH . 'estimate-only', 'inventory_depth' );
+			if ( 1 === ++$attempt ) {
+				throw new \MainWP\Child\MainWP_Backup_Budget_Exception( 'Replay the traversal.' );
+			}
+			return array( 'file' => 'backup-artifact.tar', 'filesize' => 2048 );
+		};
+		$id = $this->create_report_task( 'files' );
+		$task = $this->advance( $id );
+		$spine = MainWP_Child_Backup_Task::instance();
+		$sub = $spine->read_sub_state( $task, $this->backup_dir );
+		$this->assertSame( 107, $sub['_skip_report']['skipped_count'] );
+		$this->assertCount( 100, $sub['_skip_report']['skipped_paths'] );
+		$this->assertStringNotContainsString( '/outside-root', wp_json_encode( $sub['_skip_report'] ) );
+		foreach ( array_keys( $sub['_skip_report']['seen'] ) as $key ) {
+			$this->assertMatchesRegularExpression( '/^[a-f0-9]{32}$/D', $key );
+		}
+		$task = $this->advance( $id );
+		$payload = $spine->status_payload( $task, $this->backup_dir );
+		$walk = $this->artifacts_by_role( $payload )['manifest']['walk'];
+		$this->assertSame( 107, $walk['skipped_count'] );
+		$this->assertSame( array( 'link' => 105, 'unsafe' => 1, 'unreadable' => 1 ), $walk['skipped_by_reason'] );
+		$this->assertSame( 'partial', $payload['content_status'] );
+	}
+
+	public function test_backup_report_legacy_manifest_omits_new_walk_keys() {
+		$this->runner->stubs['run_file_archiver'] = function () {
+			\MainWP\Child\MainWP_Backup::record_skipped_path( ABSPATH . 'legacy-link', 'link' );
+			return array( 'file' => 'backup-artifact.tar', 'filesize' => 2048 );
+		};
+		$task = $this->advance( $this->create_task( 'full', array( 'emit_manifest' => true ) ) );
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+		$this->assertArrayNotHasKey( 'content_status', $payload );
+		$walk = $this->artifacts_by_role( $payload )['manifest']['walk'];
+		foreach ( array( 'skipped_count', 'skipped_paths', 'skipped_by_reason' ) as $key ) {
+			$this->assertArrayNotHasKey( $key, $walk );
+		}
+	}
+
+	/** @dataProvider backup_pack_report_cases */
+	public function test_backup_pack_skip_enters_unarchived_and_survives_torn_part( $sliced ) {
+		$this->arrange_incremental_fixtures();
+		$id = $this->create_report_task( 'incremental', array( 'parent_manifest_b64' => base64_encode( $this->parent_manifest_content() ) ) );
+		$task = $this->advance( $id );
+		$this->assertSame( 'archiving_files', $task->phase );
+		unlink( $this->site . '/changed.php' );
+		$this->assertTrue( symlink( $this->site . '/carried.php', $this->site . '/changed.php' ) );
+		if ( $sliced ) {
+			$checks = 0;
+			$this->runner->stubs['pack_budget_exhausted'] = function () use ( &$checks ) { return ++$checks > 2; };
+			$task = $this->advance( $id );
+			$sub = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $this->backup_dir );
+			$this->assertSame( 2, $sub['pack_cursor']['line'] );
+			$this->assertSame( 1, $sub['_skip_report']['skipped_count'] );
+			$cursor = $sub['pack_cursor'];
+			$part = MainWP_Child_Backup_Incremental_Zip_Writer::part_basename( $cursor['component'], $cursor['part_index'], $id );
+			file_put_contents( $this->backup_dir . '/' . $part, 'PK torn' );
+			unset( $this->runner->stubs['pack_budget_exhausted'] );
+		}
+		$task = $this->advance( $id );
+		$this->assertSame( 'completed', $task->phase );
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+		$walk = $this->artifacts_by_role( $payload )['manifest']['walk'];
+		$this->assertSame( array( 'changed.php' ), $walk['unarchived'] );
+		$this->assertSame( 1, $walk['skipped_count'] );
+		$this->assertSame( array( 'changed.php' ), $walk['skipped_paths'] );
+		$this->assertSame( array( 'link' => 1 ), $walk['skipped_by_reason'] );
+		$this->assertSame( 'partial', $payload['content_status'] );
+		$this->assertNotContains( 'changed.php', $this->packed_entries( $payload ) );
+		foreach ( $payload['artifacts'] as $entry ) {
+			$this->assertMatchesRegularExpression( '/^[a-f0-9]{64}$/D', $entry['sha256'], $entry['file'] );
+			if ( 'manifest' !== $entry['role'] ) {
+				$this->assertSame( hash_file( 'sha256', $this->backup_dir . '/' . $entry['file'] ), $entry['sha256'] );
+			}
+		}
+		$this->assertSame( $this->artifacts_by_role( $payload )['manifest']['sha256'], $payload['sha256'] );
+		$this->assertArrayNotHasKey( '_pack_skips', $payload['sub_state'] );
+	}
+
+	public static function backup_pack_report_cases() {
+		return array( 'unsliced' => array( false ), 'torn append' => array( true ) );
+	}
+
+	/** @dataProvider backup_unreadable_report_cases */
+	public function test_backup_report_add_and_copy_failures_are_partial( $engine, $sliced ) {
+		$this->site = ABSPATH . 'mainwp-report-' . uniqid();
+		mkdir( $this->site );
+		$path = $this->site . '/unreadable.txt';
+		file_put_contents( $path, 'live bytes' );
+		$this->runner->test_site_root = ABSPATH;
+		$slot = new ReflectionProperty( \MainWP\Child\MainWP_Backup::class, 'instance' );
+		$slot->setAccessible( true );
+		$previous = $slot->getValue();
+		$backup = new \MainWP\Child\MainWP_Backup();
+		$slot->setValue( null, $backup );
+		$zip = new class extends ZipArchive {
+			public function addFile( $filename, $entryname = '', $start = 0, $length = 0, $flags = 0 ): bool { return false; }
+		};
+		$zip_slot = new ReflectionProperty( $backup, 'zip' );
+		$zip_slot->setAccessible( true );
+		$zip_slot->setValue( $backup, $zip );
+		file_put_contents( $this->backup_dir . '/blocked', 'blocks destination' );
+		$attempt = 0;
+		$this->runner->stubs['run_file_archiver'] = function () use ( $path, $engine, $backup, $sliced, &$attempt ) {
+			if ( 'zip' === $engine ) {
+				$this->assertFalse( $backup->add_file_to_zipp( $path, 'unreadable.txt' ) );
+			} else {
+				$backup->copy_dir( array( $path ), array(), $this->backup_dir . '/blocked/', false );
+			}
+			if ( $sliced && 1 === ++$attempt ) {
+				throw new \MainWP\Child\MainWP_Backup_Budget_Exception( 'Unreadable source checkpoint.' );
+			}
+			return array( 'file' => 'backup-artifact.tar', 'filesize' => 2048 );
+		};
+		try {
+			$id = $this->create_report_task( 'full' );
+			$task = $this->advance( $id );
+			if ( $sliced ) {
+				$this->assertSame( 'archiving_files', $task->phase );
+				$task = $this->advance( $id );
+			}
+			$this->assertSame( 'completed', $task->phase );
+			$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+			$walk = $this->artifacts_by_role( $payload )['manifest']['walk'];
+			$relative = substr( $path, strlen( ABSPATH ) );
+			$this->assertSame( 'partial', $payload['content_status'] );
+			$this->assertSame( 1, $walk['skipped_count'] );
+			$this->assertSame( array( 'unreadable' => 1 ), $walk['skipped_by_reason'] );
+			$this->assertSame( array( $relative ), $walk['skipped_paths'] );
+			$this->assertSame( array( $relative ), $walk['unarchived'] );
+		} finally {
+			$slot->setValue( null, $previous );
+		}
+	}
+
+	public static function backup_unreadable_report_cases() {
+		return array( 'addFile false' => array( 'zip', false ), 'addFile false sliced' => array( 'zip', true ), 'copy false' => array( 'copy', false ), 'copy false sliced' => array( 'copy', true ) );
+	}
+
+	/** @dataProvider backup_pack_unlisted_cases */
+	public function test_backup_pack_skips_honor_overflow_and_unlisted_rules( $invalid ) {
+		$this->arrange_incremental_fixtures();
+		$id = $this->create_report_task( 'incremental', array( 'parent_manifest_b64' => base64_encode( $this->parent_manifest_content() ) ) );
+		$this->advance( $id );
+		// One real change keeps a part with entries; a part whose every source is skipped is never written.
+		$lines = strtok( (string) file_get_contents( $this->backup_dir . '/changes.list' ), "\n" ) . "\n";
+		for ( $i = 0; $i < ( $invalid ? 1 : 1001 ); ++$i ) {
+			$lines .= ( $invalid ? "invalid-\xff" : 'absent-' . $i ) . "\t1\t1\n";
+		}
+		file_put_contents( $this->backup_dir . '/changes.list', $lines );
+		$task = $this->advance( $id );
+		$this->assertSame( 'completed', $task->phase, (string) wp_json_encode( MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir )['error'] ?? null ) );
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+		$walk = $this->artifacts_by_role( $payload )['manifest']['walk'];
+		$this->assertTrue( $walk['unarchived_overflow'] );
+		$this->assertArrayNotHasKey( 'unarchived', $walk );
+		$this->assertSame( $invalid ? 1 : 1001, $walk['skipped_count'] );
+		$this->assertSame( 'partial', $payload['content_status'] );
+		$this->assertCount( $invalid ? 0 : 100, $walk['skipped_paths'] );
+	}
+
+	public static function backup_pack_unlisted_cases() {
+		return array( 'overflow' => array( false ), 'invalid UTF-8' => array( true ) );
+	}
+
+	public function test_backup_report_replay_after_lost_progress_checkpoint_counts_once() {
+		global $wpdb;
+		$spine = MainWP_Child_Backup_Task::instance();
+		$id = $this->create_report_task( 'files' );
+		$attempt = 0;
+		$this->runner->stubs['run_file_archiver'] = function () use ( $spine, $id, $wpdb, &$attempt ) {
+			\MainWP\Child\MainWP_Backup::record_skipped_path( ABSPATH . 'replayed-link', 'link' );
+			if ( 1 === ++$attempt ) {
+				$before = $spine->get_task( $id );
+				$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $id ) );
+				$this->assertTrue( $spine->acquire_lease( $id, 'replay-owner', (int) $before->version ) );
+			}
+			return array( 'file' => 'backup-artifact.tar', 'filesize' => 2048 );
+		};
+		$task = $this->advance( $id );
+		$this->assertSame( 0, $spine->read_sub_state( $task, $this->backup_dir )['_skip_report']['skipped_count'] );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $id ) );
+		$task = $this->advance( $id );
+		$this->assertSame( 'completed', $task->phase );
+		$walk = $this->artifacts_by_role( $spine->status_payload( $task, $this->backup_dir ) )['manifest']['walk'];
+		$this->assertSame( 1, $walk['skipped_count'] );
+	}
+
 	/**
 	 * Runner under test.
 	 *

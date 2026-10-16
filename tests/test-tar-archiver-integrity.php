@@ -416,6 +416,11 @@ class TarArchiverIntegrityTest extends WP_UnitTestCase {
 			unlink( $link );
 			$this->file_link( $targets[0], $link );
 			$last_slice = $yield_after_link ? 3 : 2;
+			$reasons    = array();
+			$on_skip    = function ( $path, $reason = '' ) use ( &$reasons ) {
+				$reasons[ $path ] = $reason;
+			};
+			add_action( 'mainwp_child_backup_skipped_path', $on_skip, 10, 2 );
 			for ( $slice = 2; $slice <= $last_slice; ++$slice ) {
 				$backup->reset_failed_adds();
 				MainWP_Backup::reset_skipped_paths();
@@ -448,6 +453,8 @@ class TarArchiverIntegrityTest extends WP_UnitTestCase {
 				$this->assertNull( $error, 'A skipped link must not leave a stale archive member before the next file.' );
 				$this->assertSame( $should_yield, $yielded );
 				$this->assertContains( $link, MainWP_Backup::get_skipped_paths() );
+				// The backup report counts this skip by reason, so the tar engine must name it a link.
+				$this->assertSame( 'link', $reasons[ $link ] ?? null );
 				$this->assertSame( array(), $backup->get_failed_add_paths() );
 				$this->assertSame( 0, $backup->get_failed_add_count() );
 				$this->assertFalse( $backup->is_failed_add_skipped( $link ) );
@@ -463,6 +470,9 @@ class TarArchiverIntegrityTest extends WP_UnitTestCase {
 				$this->assertSame( $content, $archiver->get_from_name( $entry ), 'Extracted bytes for ' . $entry );
 			}
 		} finally {
+			if ( isset( $on_skip ) ) {
+				remove_action( 'mainwp_child_backup_skipped_path', $on_skip, 10 );
+			}
 			$archiver->close();
 			if ( 'root' === $site ) {
 				foreach ( $files as $path ) {

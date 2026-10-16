@@ -15,12 +15,72 @@ use MainWP\Child\MainWP_Helper;
  */
 class BackupDownloadTokenTest extends WP_UnitTestCase {
 
+	private $recorded_tasks = array();
+
+	private function record_completed_hash( $file, $digest, $single = false, $skip = false ) {
+		$spine = \MainWP\Child\MainWP_Child_Backup_Task::instance();
+		$spine->install();
+		$entry = array( 'file' => $file, 'size' => 1 );
+		if ( $skip ) {
+			$entry['hash_skipped'] = 'too_large';
+		} elseif ( null !== $digest ) {
+			$entry['sha256'] = $digest;
+		}
+		$id = $spine->create_task( 'files', $single ? array( 'artifact' => $entry ) : array( 'artifacts' => array( $entry ), 'padding' => str_repeat( 'x', 60000 ) ) );
+		$dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
+		$sub = $spine->read_sub_state( $spine->get_task( $id ), $dirs[0] );
+		$serialized = $spine->write_sub_state( $id, $sub, $dirs[0], 0 );
+		$pointer = json_decode( $serialized, true );
+		if ( ! empty( $pointer['_sidecar'] ) ) {
+			$this->artifacts[] = $dirs[0] . '/' . $pointer['file'];
+		}
+		$this->assertNotFalse( $spine->checkpoint( $id, 0, array( 'phase' => 'completed', 'sub_state' => $serialized ) ) );
+		$this->recorded_tasks[] = $id;
+		return $id;
+	}
+
+	public function test_backup_hash_token_refuses_changed_archive_and_accepts_any_matching_record() {
+		$file = 'backup-recorded-digest.zip';
+		$path = $this->create_artifact( $file, 'original' );
+		$old = hash_file( 'sha256', $path );
+		$this->record_completed_hash( $file, $old );
+		$tokens = MainWP_Child_Backup_Download_Token::instance();
+		$this->assertArrayHasKey( 'token', $tokens->issue( $file ) );
+		file_put_contents( $path, 'modified' );
+		$answer = $tokens->issue( $file );
+		$this->assertSame( array( 'error', 'error_code' ), array_keys( $answer ) );
+		$this->assertSame( MainWP_Backup_Error::ERR_DL_FILE_HASH_MISMATCH, $answer['error_code'] );
+		$this->record_completed_hash( $file, hash_file( 'sha256', $path ), true );
+		$this->assertArrayHasKey( 'token', $tokens->issue( $file ) );
+	}
+
+	public function test_backup_hash_token_chain_and_skipped_hash_exemptions() {
+		$tokens = MainWP_Child_Backup_Download_Token::instance();
+		foreach ( array( 'files.list', 'tombstones.list', 'changes.list' ) as $file ) {
+			$this->create_artifact( $file, 'new run' );
+			$this->record_completed_hash( $file, str_repeat( 'a', 64 ), true );
+			$this->assertArrayHasKey( 'token', $tokens->issue( $file ), $file );
+		}
+		$file = 'backup-skipped-digest.zip';
+		$this->create_artifact( $file );
+		$this->record_completed_hash( $file, null, true, true );
+		$this->assertArrayHasKey( 'token', $tokens->issue( $file ) );
+	}
+
+	public function test_backup_guard_token_without_recorded_hash_is_issued() {
+		$path = $this->create_artifact( 'backup-legacy-hash.zip', 'legacy bytes' );
+		$result = MainWP_Child_Backup_Download_Token::instance()->issue( basename( $path ) );
+		$this->assertSame( hash_file( 'sha256', $path ), $result['hash'] );
+		$this->assertArrayHasKey( 'token', $result );
+	}
+
 	/**
 	 * Download token error code constants exist, use the mainwp_backup_ prefix,
 	 * and are registered in the code registry.
 	 */
 	public function test_download_error_codes_are_registered() {
 		$codes = array(
+			MainWP_Backup_Error::ERR_DL_FILE_HASH_MISMATCH,
 			MainWP_Backup_Error::ERR_DL_FILE_NOT_FOUND,
 			MainWP_Backup_Error::ERR_DL_FILE_CHANGED,
 			MainWP_Backup_Error::ERR_DL_TOKEN_INVALID,
@@ -39,6 +99,7 @@ class BackupDownloadTokenTest extends WP_UnitTestCase {
 	public function test_download_error_messages_are_specific() {
 		$fallback = MainWP_Backup_Error::message( 'mainwp_backup_nonexistent_code' );
 		$codes    = array(
+			MainWP_Backup_Error::ERR_DL_FILE_HASH_MISMATCH,
 			MainWP_Backup_Error::ERR_DL_FILE_NOT_FOUND,
 			MainWP_Backup_Error::ERR_DL_FILE_CHANGED,
 			MainWP_Backup_Error::ERR_DL_TOKEN_INVALID,
@@ -61,6 +122,11 @@ class BackupDownloadTokenTest extends WP_UnitTestCase {
 	 * Remove artifacts created during the test.
 	 */
 	public function tear_down() {
+		global $wpdb;
+		foreach ( $this->recorded_tasks as $id ) {
+			$wpdb->delete( \MainWP\Child\MainWP_Child_Backup_Task::instance()->get_table_name(), array( 'task_id' => $id ) );
+		}
+		$this->recorded_tasks = array();
 		foreach ( $this->artifacts as $path ) {
 			if ( file_exists( $path ) ) {
 				unlink( $path );

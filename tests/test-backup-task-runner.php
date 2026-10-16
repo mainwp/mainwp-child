@@ -238,6 +238,13 @@ class Testable_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 		return parent::pack_budget_exhausted( $deadline );
 	}
 
+	protected function hash_budget_exhausted( $deadline ) {
+		if ( isset( $this->stubs['hash_budget_exhausted'] ) ) {
+			return (bool) $this->stub( 'hash_budget_exhausted', array( $deadline ) );
+		}
+		return parent::hash_budget_exhausted( $deadline );
+	}
+
 	/**
 	 * Manifest sidecar promotion stub.
 	 *
@@ -284,6 +291,269 @@ class Testable_Task_Runner extends MainWP_Child_Backup_Task_Runner {
  * Tests for the resumable task runner.
  */
 class BackupTaskRunnerTest extends WP_UnitTestCase {
+
+	public function test_backup_hash_crash_consumes_attempt_before_read_and_cannot_restart_forever() {
+		global $wpdb;
+		$id = $this->runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
+		$spine = MainWP_Child_Backup_Task::instance();
+		$crashes = 0;
+		$this->runner->stubs['hash_budget_exhausted'] = function () use ( $id, $spine, &$crashes ) {
+			$sub = $spine->read_sub_state( $spine->get_task( $id ), $this->backup_dir );
+			$this->assertSame( ++$crashes, $sub['_hash_attempts']['backup-artifact.tar'] );
+			$lost = new ReflectionProperty( MainWP_Child_Backup_Task_Runner::class, 'lease_lost' );
+			$lost->setAccessible( true );
+			$lost->setValue( $this->runner, true );
+			throw new MainWP_Backup_Budget_Exception( 'Interrupted owner.' );
+		};
+		for ( $attempt = 1; $attempt <= 2; ++$attempt ) {
+			$task = $this->advance( $id );
+			$this->assertSame( 'uploading', $task->phase );
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $id ) );
+		}
+		$task = $this->advance( $id );
+		$this->assertSame( 'completed', $task->phase );
+		$this->assertSame( 2, $crashes );
+		$this->assertSame( 'too_large', $spine->status_payload( $task, $this->backup_dir )['hash_skipped'] );
+	}
+
+	public function test_backup_hash_successor_cas_refuses_stale_digest_and_completion() {
+		global $wpdb;
+		$id = $this->runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
+		$spine = MainWP_Child_Backup_Task::instance();
+		$checks = 0;
+		$successor = null;
+		$this->runner->stubs['hash_budget_exhausted'] = function () use ( $wpdb, $spine, $id, &$checks, &$successor ) {
+			if ( 3 === ++$checks ) {
+				$before = $spine->get_task( $id );
+				$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $id ) );
+				$this->assertTrue( $spine->acquire_lease( $id, 'successor', (int) $before->version ) );
+				$successor = $spine->get_task( $id );
+			}
+			return false;
+		};
+		$task = $this->advance( $id );
+		$this->assertNotNull( $successor );
+		$this->assertSame( $successor->version, $task->version );
+		$this->assertSame( $successor->sub_state, $task->sub_state );
+		$this->assertSame( 'successor', $task->lease_owner );
+		$this->assertSame( 'uploading', $task->phase );
+		$this->assertArrayNotHasKey( 'sha256', $spine->read_sub_state( $task, $this->backup_dir )['artifact'] );
+		$this->assertNotContains( 'perform_upload', $this->runner->seam_names() );
+	}
+
+	public function test_backup_hash_lease_loss_interrupts_chunk_loop_without_failure_cleanup() {
+		global $wpdb;
+		$id = $this->runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
+		$spine = MainWP_Child_Backup_Task::instance();
+		$this->runner->stubs['hash_budget_exhausted'] = function () use ( $wpdb, $spine, $id ) {
+			$before = $spine->get_task( $id );
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $id ) );
+			$this->assertTrue( $spine->acquire_lease( $id, 'successor', (int) $before->version ) );
+			$method = new ReflectionMethod( MainWP_Child_Backup_Task_Runner::class, 'dump_heartbeat' );
+			$method->setAccessible( true );
+			$method->invoke( $this->runner )();
+			$this->fail( 'A stolen lease must stop hashing.' );
+		};
+		$task = $this->advance( $id );
+		$this->assertSame( 'uploading', $task->phase );
+		$this->assertSame( 'successor', $task->lease_owner );
+		$this->assertFileExists( $this->backup_dir . '/backup-artifact.tar' );
+	}
+
+	public function test_backup_hash_missing_artifact_is_unreadable_without_failure() {
+		$this->runner->stubs['perform_upload'] = function ( $sub ) {
+			$this->assertSame( 'unreadable', $sub['artifact']['hash_skipped'] );
+		};
+		$this->runner->stubs['run_file_archiver'] = function () {
+			unlink( $this->backup_dir . '/backup-artifact.tar' );
+			return array( 'file' => 'backup-artifact.tar', 'filesize' => 2048 );
+		};
+		$id = $this->runner->create_task_for_params( 'files', array() );
+		$task = $this->advance( $id );
+		$this->assertSame( 'completed', $task->phase );
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+		$this->assertSame( 'unreadable', $payload['hash_skipped'] );
+		$this->assertArrayNotHasKey( 'sha256', $payload );
+		$this->assertSame( 'complete', $payload['content_status'] );
+	}
+
+	public function test_backup_guard_failed_add_threshold_remains_eleven() {
+		$backup = MainWP_Backup::get();
+		$backup->reset_failed_adds();
+		try {
+			for ( $i = 0; $i < 10; ++$i ) {
+				$backup->record_failed_add( ABSPATH . 'unreadable-' . $i );
+			}
+			$this->assertSame( 10, $backup->get_failed_add_count() );
+			try {
+				$backup->record_failed_add( ABSPATH . 'unreadable-11' );
+				$this->fail( 'The eleventh failed add must abort.' );
+			} catch ( MainWP_Exception $e ) {
+				$this->assertSame( MainWP_Backup_Error::ERR_TOO_MANY_SKIPPED, $e->get_message_error_code() );
+			}
+		} finally {
+			$backup->reset_failed_adds();
+		}
+	}
+
+	/** @dataProvider backup_forced_terminal_cases */
+	public function test_backup_guard_hashing_deadline_and_watchdog_keep_codes( $watchdog ) {
+		global $wpdb;
+		$spine = MainWP_Child_Backup_Task::instance();
+		$id = $this->create_task( 'db' );
+		$this->assertNotFalse( $spine->checkpoint( $id, 0, array( 'phase' => 'uploading' ) ) );
+		if ( $watchdog ) {
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET last_progress_at = DATE_SUB(NOW(), INTERVAL 600 SECOND), resume_count = max_resumes WHERE task_id = %s', $id ) );
+			\MainWP\Child\MainWP_Child_Backup_Watchdog::instance()->check_tasks( 0 );
+		} else {
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET max_wall_clock_at = DATE_SUB(NOW(), INTERVAL 60 SECOND) WHERE task_id = %s', $id ) );
+			$this->assertTrue( $spine->enforce_wall_clock_deadline( $id ) );
+		}
+		$task = $spine->get_task( $id );
+		$this->assertSame( 'failed', $task->phase );
+		$this->assertSame( $watchdog ? MainWP_Backup_Error::ERR_STALLED : MainWP_Backup_Error::ERR_WALL_CLOCK, $spine->status_payload( $task, $this->backup_dir )['error_code'] );
+	}
+
+	public static function backup_forced_terminal_cases() {
+		return array( 'deadline' => array( false ), 'watchdog' => array( true ) );
+	}
+
+	public function test_backup_hash_closed_artifact_and_poll_payload_agree() {
+		$id = $this->runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
+		$task = $this->advance( $id );
+		$spine = MainWP_Child_Backup_Task::instance();
+		$sub = $spine->read_sub_state( $task, $this->backup_dir );
+		$payload = $spine->status_payload( $task, $this->backup_dir );
+		$this->assertSame( 'completed', $task->phase );
+		$this->assertSame( hash_file( 'sha256', $this->backup_dir . '/backup-artifact.tar' ), $sub['artifact']['sha256'] );
+		$this->assertSame( $sub['artifact']['sha256'], $payload['sha256'] );
+		$this->assertSame( 'complete', $payload['content_status'] );
+		$this->assertSame( $payload, $spine->status_payload( $spine->get_task( $id ), $this->backup_dir ) );
+		$this->assertArrayNotHasKey( '_hash_attempts', $payload['sub_state'] );
+		$this->assertArrayNotHasKey( '_skip_report', $payload['sub_state'] );
+	}
+
+	public function test_backup_hash_two_attempts_are_checkpointed_and_bounded() {
+		file_put_contents( $this->backup_dir . '/backup-artifact.tar', str_repeat( 'chunk', 1024 * 1024 ) );
+		$id = $this->runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
+		$checks = array();
+		$this->runner->stubs['hash_budget_exhausted'] = function () use ( $id, &$checks ) {
+			$spine = MainWP_Child_Backup_Task::instance();
+			$sub = $spine->read_sub_state( $spine->get_task( $id ), $this->backup_dir );
+			$attempt = $sub['_hash_attempts']['backup-artifact.tar'];
+			$checks[ $attempt ] = ( $checks[ $attempt ] ?? 0 ) + 1;
+			return $checks[ $attempt ] >= 3;
+		};
+		$task = $this->advance( $id );
+		$spine = MainWP_Child_Backup_Task::instance();
+		$sub = $spine->read_sub_state( $task, $this->backup_dir );
+		$this->assertSame( 'uploading', $task->phase );
+		$this->assertSame( 1, $sub['_hash_attempts']['backup-artifact.tar'] );
+		$this->assertArrayNotHasKey( 'sha256', $sub['artifact'] );
+		$this->runner->calls = array();
+		$task = $this->advance( $id );
+		$sub = $spine->read_sub_state( $task, $this->backup_dir );
+		$this->assertSame( 'completed', $task->phase );
+		$this->assertSame( 'hash_budget_exhausted', $this->runner->seam_names()[0] );
+		$this->assertSame( 2, $sub['_hash_attempts']['backup-artifact.tar'] );
+		$this->assertSame( 'too_large', $sub['artifact']['hash_skipped'] );
+		$this->assertArrayNotHasKey( 'sha256', $sub['artifact'] );
+		$this->assertSame( 'too_large', $spine->status_payload( $task, $this->backup_dir )['hash_skipped'] );
+		$this->assertSame( array( 1 => 3, 2 => 3 ), $checks );
+	}
+
+	public function test_backup_hash_resume_after_close_starts_hash_without_rearchiving() {
+		$runner = new class extends Testable_Task_Runner {
+			public $stop_before_hash = true;
+			protected function run_phase( $task, $version, $sub_state, $deadline, $backup_dir ) {
+				if ( $this->stop_before_hash && 'uploading' === $task->phase ) {
+					return $this->slice_result( $version, true );
+				}
+				return parent::run_phase( $task, $version, $sub_state, $deadline, $backup_dir );
+			}
+		};
+		$runner->test_backup_dir = $this->backup_dir;
+		$runner->stubs = $this->runner->stubs;
+		$this->runner = $runner;
+		$id = $runner->create_task_for_params( 'files', array() );
+		$task = $this->advance( $id );
+		$this->assertSame( 'uploading', $task->phase );
+		$spine = MainWP_Child_Backup_Task::instance();
+		$sub = $spine->read_sub_state( $task, $this->backup_dir );
+		$this->assertArrayNotHasKey( '_hash_attempts', $sub );
+		$runner->stop_before_hash = false;
+		$runner->calls = array();
+		$task = $this->advance( $id );
+		$this->assertSame( 'completed', $task->phase );
+		$this->assertNotContains( 'run_file_archiver', $runner->seam_names() );
+		$this->assertSame( hash_file( 'sha256', $this->backup_dir . '/backup-artifact.tar' ), $spine->status_payload( $task, $this->backup_dir )['sha256'] );
+	}
+
+	public function test_backup_hash_cancel_during_read_is_busy_then_stale_result_is_refused() {
+		$id = $this->runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
+		$spine = MainWP_Child_Backup_Task::instance();
+		$checks = 0;
+		$this->runner->stubs['hash_budget_exhausted'] = function () use ( $id, $spine, &$checks ) {
+			if ( 3 === ++$checks ) {
+				$held = $spine->get_task( $id );
+				$this->assertSame( 'busy', $this->runner->cancel_backup_task( $id )['result'] );
+				$spine->release_lease( $id, $held->lease_owner, (int) $held->version );
+				$this->assertSame( 'ok', $this->runner->cancel_backup_task( $id )['result'] );
+			}
+			return false;
+		};
+		$task = $this->advance( $id );
+		$this->assertSame( 'failed', $task->phase );
+		$payload = $spine->status_payload( $task, $this->backup_dir );
+		$this->assertSame( MainWP_Backup_Error::ERR_BACKUP_CANCELLED, $payload['error_code'] );
+		$this->assertArrayNotHasKey( 'sha256', $payload['sub_state']['artifact'] );
+	}
+
+	public function test_backup_hash_legacy_cursor_omits_content_status() {
+		$task = $this->advance( $this->create_task( 'db' ) );
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+		$this->assertSame( 'completed', $task->phase );
+		$this->assertArrayNotHasKey( 'content_status', $payload );
+		$this->assertArrayHasKey( 'sha256', $payload );
+	}
+
+	public function test_backup_guard_phase_order_and_terminals() {
+		$orders = array(
+			'db' => array( 'queued', 'dumping_db', 'uploading', 'submitting', 'completed' ),
+			'files' => array( 'queued', 'archiving_files', 'uploading', 'submitting', 'completed' ),
+			'full' => array( 'queued', 'dumping_db', 'archiving_files', 'uploading', 'submitting', 'completed' ),
+			'incremental' => array( 'queued', 'dumping_db', 'archiving_files', 'uploading', 'submitting', 'completed' ),
+		);
+		foreach ( $orders as $type => $order ) {
+			foreach ( $order as $index => $phase ) {
+				$this->assertSame( $order[ $index + 1 ] ?? null, MainWP_Child_Backup_Task::next_phase( $phase, $type ) );
+				$this->assertSame( 'completed' === $phase, MainWP_Child_Backup_Task::is_terminal_phase( $phase ) );
+			}
+		}
+		$this->assertTrue( MainWP_Child_Backup_Task::is_terminal_phase( 'failed' ) );
+		$this->assertSame( 10, MainWP_Backup::MAX_FAILED_ADDS );
+	}
+
+	public function test_backup_guard_cancel_at_uploading_is_busy_then_fences_checkpoint() {
+		$spine = MainWP_Child_Backup_Task::instance();
+		$id = $this->create_task( 'files' );
+		$version = $spine->checkpoint( $id, 0, array( 'phase' => 'uploading' ) );
+		$this->assertTrue( $spine->acquire_lease( $id, 'hash-owner', $version ) );
+		$held = $spine->get_task( $id );
+		$this->assertSame( 'busy', $this->runner->cancel_backup_task( $id )['result'] );
+		$spine->release_lease( $id, 'hash-owner', (int) $held->version );
+		$before = $spine->get_task( $id );
+		$this->assertSame( 'ok', $this->runner->cancel_backup_task( $id )['result'] );
+		$this->assertSame( 'failed', $spine->get_task( $id )->phase );
+		$this->assertFalse( $spine->checkpoint( $id, (int) $before->version, array( 'phase' => 'completed' ) ) );
+	}
+
+	public function test_backup_guard_fatal_archive_close_still_fails() {
+		$this->runner->stubs['run_file_archiver'] = new MainWP_Exception( 'Archive close failed.', null, MainWP_Backup_Error::ERR_ZIP_FAILED );
+		$task = $this->advance( $this->create_task( 'files' ) );
+		$this->assertSame( 'failed', $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_ZIP_FAILED, MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir )['error_code'] );
+	}
 
 	/**
 	 * Runner under test.
