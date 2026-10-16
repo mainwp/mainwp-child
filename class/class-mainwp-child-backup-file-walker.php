@@ -732,6 +732,10 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
      * @param string $relpath Site-relative path.
      */
     protected function record_file( $node, $relpath ) {
+        // A leftover clone config would give the manifest metadata for the wrong bytes.
+        if ( 'clone/config.txt' === $relpath ) {
+            return;
+        }
         if ( $this->excludezip && MainWP_Helper::ends_with( $node, '.zip' ) ) {
             return;
         }

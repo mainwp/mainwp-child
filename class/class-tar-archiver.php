@@ -444,6 +444,10 @@ class Tar_Archiver {
         }
 
         if ( $this->archive ) {
+            if ( $addConfig ) {
+                // A leftover config would shadow the generated metadata for first-match readers.
+                $excludes[] = 'clone/config.txt';
+            }
             $nodes = glob( ABSPATH . '*' );
             if ( file_exists( ABSPATH . '.htaccess' ) ) {
                 $nodes[] = ABSPATH . '.htaccess';
