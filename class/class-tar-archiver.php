@@ -34,6 +34,13 @@ class Tar_Archiver {
     protected $excludeZip;
 
     /**
+     * Whether this pass appends its own clone/config.txt, so an on-disk one is skipped.
+     *
+     * @var bool
+     */
+    private $skipLeftoverConfig = false;
+
+    /**
      * Backup archive file.
      *
      * @var resource Backup file.
@@ -427,6 +434,8 @@ class Tar_Archiver {
      */
     public function create_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp, $append = false ) {
 
+        $this->skipLeftoverConfig = (bool) $addConfig;
+
         $this->init_log_handle( $filepath . '.log' );
 
         $this->create_pid_file( $filepath );
@@ -444,10 +453,6 @@ class Tar_Archiver {
         }
 
         if ( $this->archive ) {
-            if ( $addConfig ) {
-                // A leftover config would shadow the generated metadata for first-match readers.
-                $excludes[] = 'clone/config.txt';
-            }
             $nodes = glob( ABSPATH . '*' );
             if ( file_exists( ABSPATH . '.htaccess' ) ) {
                 $nodes[] = ABSPATH . '.htaccess';
@@ -979,6 +984,12 @@ class Tar_Archiver {
         if ( $this->excludeZip && MainWP_Helper::ends_with( $path, '.zip' ) ) {
             $this->log( 'Skipping ' . $path );
 
+            return false;
+        }
+
+        // A leftover would shadow the generated config for first-match readers. The exact
+        // entry name matches the manifest walker, so descendants and aliases stay in both.
+        if ( $this->skipLeftoverConfig && 'clone/config.txt' === $entryName ) {
             return false;
         }
 

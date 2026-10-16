@@ -810,7 +810,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 );
             }
 
-            if ( static::should_skip_entry( $relpath ) || $this->preserves_mu_plugin( $relpath, $extract_to, $mu_plugins_preserve ) ) {
+            // Restore never writes clone metadata, so a tombstone must not delete it either.
+            if ( static::should_skip_entry( $relpath ) || null === static::map_entry_name( $relpath ) || $this->preserves_mu_plugin( $relpath, $extract_to, $mu_plugins_preserve ) ) {
                 continue;
             }
 
@@ -1060,9 +1061,10 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @return bool
      */
     private function has_linked_ancestor( $target, $root ) {
-        $root_length = strlen( rtrim( $root, '/' ) );
-        $parent      = dirname( $target );
-        while ( strlen( $parent ) > $root_length ) {
+        $root_length   = strlen( rtrim( $root, '/' ) );
+        $parent        = dirname( $target );
+        $parent_length = strlen( $parent );
+        while ( $parent_length > $root_length ) {
             if ( is_link( $parent ) ) {
                 return true;
             }
@@ -1071,7 +1073,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             if ( $next === $parent ) {
                 break;
             }
-            $parent = $next;
+            $parent        = $next;
+            $parent_length = strlen( $parent );
         }
         return false;
     }

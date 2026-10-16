@@ -1492,6 +1492,24 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertFileExists( $this->extract_to . '/stays.txt' );
 	}
 
+	/**
+	 * A manifest transition must not delete config bytes extraction preserves.
+	 */
+	public function test_tombstones_preserve_legacy_clone_config() {
+		mkdir( $this->extract_to . '/clone' );
+		file_put_contents( $this->extract_to . '/clone/config.txt', 'leftover clone config' );
+		file_put_contents( $this->extract_to . '/gone.txt', 'ordinary file' );
+		$tombstones = $this->dir . '/tombstones.list';
+		file_put_contents( $tombstones, "clone/config.txt\ngone.txt\n" );
+
+		$result = $this->restorer->apply_tombstones( $tombstones, $this->extract_to );
+		$this->assertNull( $result['error'] );
+		$this->assertSame( 1, $result['deleted'] );
+		$this->assertFileExists( $this->extract_to . '/clone/config.txt' );
+		$this->assertSame( 'leftover clone config', file_get_contents( $this->extract_to . '/clone/config.txt' ) );
+		$this->assertFileDoesNotExist( $this->extract_to . '/gone.txt' );
+	}
+
 	public function test_dotted_filenames_extract_and_apply_tombstones() {
 		$entries = array( 'report..pdf' => 'report bytes', 'a..b/c.txt' => 'nested bytes' );
 		$zip = $this->make_zip( 'dotted.zip', $entries );

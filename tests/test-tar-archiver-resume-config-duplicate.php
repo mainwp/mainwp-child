@@ -47,6 +47,13 @@ class TarArchiverResumeConfigDuplicateTest extends WP_UnitTestCase {
 	private $clone_files = array();
 
 	/**
+	 * Links must be removed before recursive cleanup can follow their targets.
+	 *
+	 * @var string[]
+	 */
+	private $fixture_links = array();
+
+	/**
 	 * Whether cleanup owns the site-root clone directory.
 	 *
 	 * @var bool
@@ -63,19 +70,27 @@ class TarArchiverResumeConfigDuplicateTest extends WP_UnitTestCase {
 		mkdir( $this->fixture . '/nested', 0777, true );
 		mkdir( $this->scratch );
 		for ( $i = 0; $i < 4; $i++ ) {
-			file_put_contents( $this->fixture . '/file-' . $i . '.txt', str_repeat( "content-$i\n", 40 ) ); // phpcs:ignore -- test fixture.
+			file_put_contents( $this->fixture . '/file-' . $i . '.txt', str_repeat( "content-$i\n", 40 ) );
 		}
-		file_put_contents( $this->fixture . '/nested/inner.txt', 'inner' ); // phpcs:ignore -- test fixture.
+		file_put_contents( $this->fixture . '/nested/inner.txt', 'inner' );
 	}
 
 	/**
 	 * Remove fixtures and archives.
 	 */
 	public function tear_down() {
-		foreach ( $this->clone_files as $path => $original ) {
-			if ( null === $original ) {
+		foreach ( $this->fixture_links as $path ) {
+			if ( is_link( $path ) ) {
 				unlink( $path );
-			} else {
+			}
+		}
+		foreach ( $this->clone_files as $path => $original ) {
+			if ( is_dir( $path ) ) {
+				MainWP_Helper::delete_dir( $path . '/' );
+			} elseif ( null === $original ) {
+				unlink( $path );
+			}
+			if ( null !== $original ) {
 				file_put_contents( $path, $original );
 			}
 		}
@@ -209,7 +224,7 @@ class TarArchiverResumeConfigDuplicateTest extends WP_UnitTestCase {
 	 */
 	private function tar_bytes( $type, $path ) {
 		if ( 'tar' === $type ) {
-			return file_get_contents( $path ); // phpcs:ignore -- test reader.
+			return file_get_contents( $path );
 		}
 		$stream = gzopen( $path, 'rb' );
 		$bytes  = stream_get_contents( $stream );
@@ -225,7 +240,7 @@ class TarArchiverResumeConfigDuplicateTest extends WP_UnitTestCase {
 	 * @param string $bytes Tar bytes.
 	 */
 	private function write_tar_bytes( $type, $path, $bytes ) {
-		file_put_contents( $path, 'tar' === $type ? $bytes : gzencode( $bytes ) ); // phpcs:ignore -- test fixture.
+		file_put_contents( $path, 'tar' === $type ? $bytes : gzencode( $bytes ) );
 	}
 
 	/**
@@ -339,6 +354,66 @@ class TarArchiverResumeConfigDuplicateTest extends WP_UnitTestCase {
 		$names    = $this->header_names( $this->tar_bytes( $type, $path ), $contents );
 		$this->assertSame( 1, $this->count_entry( $names, 'clone/notes.txt' ) );
 		$this->assertSame( array( 'keep these notes' ), $contents['clone/notes.txt'] );
+	}
+
+	/**
+	 * A config-named directory has ordinary site files in the manifest.
+	 *
+	 * @dataProvider archive_types
+	 * @param string $type Archive type.
+	 */
+	public function test_generated_config_keeps_config_directory_descendants( $type ) {
+		$this->make_leftover_clone();
+		$config_dir = ABSPATH . 'clone/config.txt';
+		unlink( $config_dir );
+		$this->assertTrue( mkdir( $config_dir ) );
+		file_put_contents( $config_dir . '/notes.txt', 'keep config directory notes' );
+
+		$walker = new MainWP_Child_Backup_File_Walker( ABSPATH, $this->excludes() );
+		$walker->emit_sidecars( $this->scratch );
+		$paths = array();
+		foreach ( file( $this->scratch . '/files.list.staged', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ) as $line ) {
+			$paths[] = explode( "\t", $line )[0];
+		}
+		$this->assertContains( 'clone/config.txt/notes.txt', $paths );
+
+		$path = $this->archive_path( $type );
+		$this->run_pass( $type, $path, false );
+		$contents = array();
+		$names    = $this->header_names( $this->tar_bytes( $type, $path ), $contents );
+		$this->assertSame( 1, $this->count_entry( $names, 'clone/config.txt/notes.txt' ) );
+		$this->assertSame( array( 'keep config directory notes' ), $contents['clone/config.txt/notes.txt'] );
+	}
+
+	/**
+	 * A directory alias must keep archive payloads aligned with the manifest.
+	 *
+	 * @dataProvider archive_types
+	 * @param string $type Archive type.
+	 */
+	public function test_generated_config_keeps_directory_alias_manifest_agreement( $type ) {
+		$this->make_leftover_clone();
+		$alias = $this->fixture . '/alias';
+		$this->fixture_links[] = $alias;
+		if ( ! @symlink( ABSPATH . 'clone', $alias ) ) {
+			$this->markTestSkipped( 'Directory symlinks are unavailable.' );
+		}
+
+		$walker = new MainWP_Child_Backup_File_Walker( ABSPATH, $this->excludes() );
+		$walker->emit_sidecars( $this->scratch );
+		$paths = array();
+		foreach ( file( $this->scratch . '/files.list.staged', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ) as $line ) {
+			$paths[] = explode( "\t", $line )[0];
+		}
+		$entry = str_replace( ABSPATH, '', $this->fixture ) . '/alias/config.txt';
+		$this->assertContains( $entry, $paths );
+
+		$path = $this->archive_path( $type );
+		$this->run_pass( $type, $path, false );
+		$contents = array();
+		$names    = $this->header_names( $this->tar_bytes( $type, $path ), $contents );
+		$this->assertSame( in_array( $entry, $paths, true ), in_array( $entry, $names, true ), 'The archive and manifest must agree on directory aliases.' );
+		$this->assertSame( array( '{"leftover":true}' ), $contents[ $entry ] );
 	}
 
 	/**
@@ -474,7 +549,7 @@ class TarArchiverResumeConfigDuplicateTest extends WP_UnitTestCase {
 	public function test_rerun_after_changed_file_keeps_one_config( $type, $padding ) {
 		$this->build_finished_archive( $type, $padding );
 		$path = $this->archive_path( $type );
-		file_put_contents( $this->fixture . '/file-1.txt', str_repeat( 'grown ', 400 ) ); // phpcs:ignore -- test fixture.
+		file_put_contents( $this->fixture . '/file-1.txt', str_repeat( 'grown ', 400 ) );
 
 		$this->run_pass( $type, $path, true );
 
@@ -497,7 +572,7 @@ class TarArchiverResumeConfigDuplicateTest extends WP_UnitTestCase {
 		foreach ( array( 'added', 'removed' ) as $change ) {
 			$before = $this->build_finished_archive( $type, $padding );
 			if ( 'added' === $change ) {
-				file_put_contents( $this->fixture . '/zz-new.txt', 'new' ); // phpcs:ignore -- test fixture.
+				file_put_contents( $this->fixture . '/zz-new.txt', 'new' );
 			} else {
 				unlink( $this->fixture . '/file-3.txt' );
 			}
@@ -518,7 +593,7 @@ class TarArchiverResumeConfigDuplicateTest extends WP_UnitTestCase {
 			if ( 'added' === $change ) {
 				unlink( $this->fixture . '/zz-new.txt' );
 			} else {
-				file_put_contents( $this->fixture . '/file-3.txt', str_repeat( "content-3\n", 40 ) ); // phpcs:ignore -- test fixture.
+				file_put_contents( $this->fixture . '/file-3.txt', str_repeat( "content-3\n", 40 ) );
 			}
 			unlink( $path );
 		}
