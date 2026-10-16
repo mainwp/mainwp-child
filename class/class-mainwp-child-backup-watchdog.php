@@ -165,17 +165,21 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
 
                 // Out of resume attempts: record why so the Dashboard shows a
                 // reason and a code instead of a bare "failed".
+                $terminal_state = array(
+                    'error' => array(
+                        'message' => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_STALLED ),
+                        'code'    => MainWP_Backup_Error::ERR_STALLED,
+                    ),
+                );
+                if ( MainWP_Child_Backup_Task::is_restore_type( $task->type ) ) {
+                    $terminal_state['verification']['outcome'] = MainWP_Child_Restore_Task_Runner::instance()->terminal_outcome( $task, null, 'failed', MainWP_Backup_Error::ERR_STALLED );
+                }
                 $capped = $spine->checkpoint(
                     $task->task_id,
                     $version,
                     array(
                         'phase'     => MainWP_Child_Backup_Task::PHASE_FAILED,
-                        'sub_state' => array(
-                            'error' => array(
-                                'message' => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_STALLED ),
-                                'code'    => MainWP_Backup_Error::ERR_STALLED,
-                            ),
-                        ),
+                        'sub_state' => $terminal_state,
                     ),
                     false
                 );

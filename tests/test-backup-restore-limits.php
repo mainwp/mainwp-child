@@ -234,6 +234,8 @@ class BackupRestoreLimitsTest extends WP_UnitTestCase {
 		) ) ),
 			// Already captured, so this call starts extracting instead of yielding after the mu-plugins capture.
 			'mu_plugins_preserve' => array( 'directory' => null, 'mode' => 'set', 'paths' => array() ),
+			// Already recorded, so the only checkpoints counted are extraction's own.
+			'files_touched'       => true,
 		);
 		$method = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'run_restoring_files' );
 		$method->setAccessible( true );
@@ -294,6 +296,8 @@ class BackupRestoreLimitsTest extends WP_UnitTestCase {
 		) ) ),
 			// Already captured, so this call starts extracting instead of yielding after the mu-plugins capture.
 			'mu_plugins_preserve' => array( 'directory' => null, 'mode' => 'set', 'paths' => array() ),
+			// Already recorded, so the only checkpoints counted are extraction's own.
+			'files_touched'       => true,
 		);
 		$method = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'run_restoring_files' );
 		$method->setAccessible( true );

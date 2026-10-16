@@ -544,12 +544,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 $own_row ? (int) $failed_row->version : $version,
                 array(
                     'phase'     => MainWP_Child_Backup_Task::PHASE_FAILED,
-                    'sub_state' => array(
-                        'error' => array(
-                            'message' => $e->getMessage(),
-                            'code'    => $code,
-                        ),
-                    ),
+                    'sub_state' => $this->failure_sub_state( $failed_row ?? $task, (array) $pre_fail, $e->getMessage(), $code ),
                 ),
                 false,
                 $backup_dir
@@ -577,6 +572,24 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         $this->current_lease_owner = '';
 
         return $spine->get_task( $task_id );
+    }
+
+    /**
+     * Restore failures can retain evidence beside the existing error.
+     *
+     * @param object $task      Pre-terminal row.
+     * @param array  $sub_state Its resolved cursor.
+     * @param string $message   Existing failure message.
+     * @param string $code      Existing failure code.
+     * @return array Terminal failure cursor.
+     */
+    protected function failure_sub_state( $task, $sub_state, $message, $code ) {
+        return array(
+            'error' => array(
+                'message' => $message,
+                'code'    => $code,
+            ),
+        );
     }
 
     /**

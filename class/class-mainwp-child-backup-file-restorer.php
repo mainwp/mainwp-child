@@ -55,6 +55,20 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     private $checkpoint_cursor;
 
     /**
+     * Invoked outside entry error handlers so listener failures reach the slice.
+     *
+     * @var callable|null
+     */
+    private $after_file_change;
+
+    /**
+     * Whether the current entry replaced a live file.
+     *
+     * @var bool
+     */
+    private $file_changed = false;
+
+    /**
      * Directories already swept for abandoned entry temps in this request.
      *
      * @var array
@@ -178,6 +192,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
 
         $this->mu_plugins_preserve = isset( $config['mu_plugins_preserve'] ) ? $config['mu_plugins_preserve'] : array();
         $this->checkpoint_cursor   = isset( $config['checkpoint_cursor'] ) ? $config['checkpoint_cursor'] : null;
+        $this->after_file_change   = $config['after_file_change'] ?? null;
+        $this->file_changed        = false;
         $parts                     = $config['parts'];
         $extract_to                = $config['extract_to'];
         $did_work                  = false;
@@ -255,6 +271,10 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 return $this->result( false, $cursor, $e->getMessage(), ! empty( $error_code ) ? $error_code : MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
             }
 
+            if ( $this->file_changed && null !== $this->after_file_change ) {
+                $this->file_changed = false;
+                call_user_func( $this->after_file_change );
+            }
             ++$cursor['entry_index'];
             $did_work = true;
         }
@@ -392,6 +412,10 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 return $this->result( false, $cursor, $e->getMessage(), ! empty( $error_code ) ? $error_code : MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
             }
 
+            if ( $this->file_changed && null !== $this->after_file_change ) {
+                $this->file_changed = false;
+                call_user_func( $this->after_file_change );
+            }
             ++$cursor['entry_index'];
             $did_work = true;
         }
@@ -776,14 +800,15 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * outside the root) abort - a tombstone list is artifact data and
      * gets the same trust as an archive entry.
      *
-     * @param string $tombstones_file Path to tombstones.list.
-     * @param string $extract_to      Extraction root.
-     * @param array  $mu_plugins_preserve Persisted host-file protection.
-     * @param array  $cursor             Cumulative kept-link counts and paths.
+     * @param string        $tombstones_file Path to tombstones.list.
+     * @param string        $extract_to      Extraction root.
+     * @param array         $mu_plugins_preserve Persisted host-file protection.
+     * @param array         $cursor             Cumulative kept-link counts and paths.
+     * @param callable|null $after_file_change Live deletion callback.
      *
      * @return array { deleted: int, error: string|null, error_code: string|null }
      */
-    public function apply_tombstones( $tombstones_file, $extract_to, $mu_plugins_preserve = array(), &$cursor = array() ) {
+    public function apply_tombstones( $tombstones_file, $extract_to, $mu_plugins_preserve = array(), &$cursor = array(), $after_file_change = null ) {
         $lines = file( $tombstones_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- local sidecar read.
         if ( false === $lines ) {
             return array(
@@ -859,6 +884,9 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 );
             }
             ++$deleted;
+            if ( null !== $after_file_change ) {
+                call_user_func( $after_file_change );
+            }
         }
 
         return array(
@@ -1013,6 +1041,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 return;
             }
             $this->promote_entry_temp( $temp, $target, $mode, $entry_name );
+            $this->file_changed = true;
             // Only promoted dump members belong to the replay set, including across slices.
             $dump_root = rtrim( $extract_to, '/' );
             if ( in_array( dirname( $target ), array( $dump_root, $dump_root . '/wp-content' ), true ) && isset( $cursor['dump_files'] ) && preg_match( '/^dbBackup.*\.sql\.php$/D', basename( $target ) ) && ! in_array( $target, $cursor['dump_files'], true ) ) {

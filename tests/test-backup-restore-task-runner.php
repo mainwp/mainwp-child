@@ -524,6 +524,9 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 	public $before_loopback;
 	public $test_slice_budget = 40;
 	public $late_verify_once = false;
+	public $pause_before_phase;
+	public $throw_url_rewrite = false;
+	public $throw_woo_merge = false;
 
 	protected function cache_purger() {
 		return $this->test_cache_purger ? $this->test_cache_purger : parent::cache_purger();
@@ -534,12 +537,23 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 		return parent::advance_one_slice( $task, $owner, $lease_pre_held );
 	}
 
+	protected function run_merging_woo( $task, $version, $sub_state, $deadline, $backup_dir ) {
+		if ( $this->throw_woo_merge ) {
+			throw new MainWP_Exception( 'merge fixture failed', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+		}
+		return parent::run_merging_woo( $task, $version, $sub_state, $deadline, $backup_dir );
+	}
+
 	protected function slice_budget() {
 		return $this->test_slice_budget;
 	}
 
 	protected function run_phase( $task, $version, $sub_state, $deadline, $backup_dir ) {
 		$this->slice_phases[] = $task->phase;
+		if ( $this->pause_before_phase === $task->phase ) {
+			$this->pause_before_phase = null;
+			return $this->slice_result( $version, true );
+		}
 		if ( $this->late_verify_once && MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY === $task->phase && count( $this->slice_phases ) > 1 ) {
 			$this->late_verify_once = false;
 			$deadline = time() - 1;
@@ -782,6 +796,9 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 	public $yield_before_url_rewrite = false;
 
 	protected function run_rewriting_urls( $task, $version, $sub_state, $deadline, $backup_dir ) {
+		if ( $this->throw_url_rewrite ) {
+			throw new MainWP_Exception( 'rewrite fixture failed', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+		}
 		if ( $this->yield_before_url_rewrite ) {
 			$this->yield_before_url_rewrite = false;
 			return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
@@ -3685,7 +3702,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			$this->assertContains( 'is_swap_committed', $this->runner->fake_engine->calls );
 			if ( null === $committed ) {
 				$this->assertNotContains( 'swap_tables:items', $this->runner->fake_engine->calls );
-				$this->assertCount( 3, array_keys( $this->runner->fake_engine->calls, 'is_swap_committed', true ) );
+				// Three resume probes, then one more for the failure's outcome report.
+				$this->assertCount( 4, array_keys( $this->runner->fake_engine->calls, 'is_swap_committed', true ) );
 				foreach ( $state['identity_preserve'] as $row ) {
 					$this->assertSame( $row, $wpdb->get_row( $wpdb->prepare( 'SELECT option_name, option_value, autoload FROM `rt_options` WHERE option_name = %s', $row['option_name'] ), ARRAY_A ) );
 				}
@@ -5982,12 +6000,12 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$task = $this->runner->advance_one_slice( $this->spine->get_task( $task_id ), 'stale' );
 		$this->assertTrue( $ran_successor );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $task->phase );
-		$this->assert_dump_sweep_state( $task_id, true, false, false );
+		$this->assert_dump_sweep_state( $task_id, true, true, true, true );
 	}
 
 	/**
 	 * A slice that overran its lease and then threw still owns the row when
-	 * nobody took it over, so the sweep is skipped but the failure lands.
+	 * nobody took it over, so it re-extends the lease and the failure lands.
 	 */
 	public function test_block_c_e_expired_untaken_lease_still_fails_the_task() {
 		$task_id = $this->dump_sweep_fixture();
@@ -6000,7 +6018,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $this->spine->status_payload( $task, $this->dir )['error_code'] );
 		$this->assertNull( $task->active_slot );
-		$this->assert_dump_sweep_state( $task_id, true, false, false );
+		$this->assert_dump_sweep_state( $task_id, false, false, false );
 	}
 
 	public function test_block_c_f_successor_after_slot_release_keeps_fresh_dumps() {
@@ -7911,4 +7929,864 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertContains( 'priora1', $swept );
 		$this->assertContains( 'priorb2', $swept );
 	}
+
+	public function test_outcome_guard_phase_order_for_each_restore_type() {
+		$prefix = array( 'queued', 'pulling', 'receiving', 'verifying' );
+		$orders = array(
+			'restore' => array_merge( $prefix, array( 'restoring_files', 'replaying_db', 'swapping_db', 'rewriting_urls', 'verify_site', 'completed' ) ),
+			'restore_db' => array_merge( $prefix, array( 'replaying_db', 'swapping_db', 'rewriting_urls', 'verify_site', 'completed' ) ),
+			'restore_files' => array_merge( $prefix, array( 'restoring_files', 'verify_site', 'completed' ) ),
+		);
+		foreach ( $orders as $type => $expected ) {
+			$actual = array( 'queued' );
+			while ( null !== ( $next = MainWP_Child_Backup_Task::next_phase( end( $actual ), $type ) ) ) {
+				$actual[] = $next;
+			}
+			$this->assertSame( $expected, $actual, $type );
+		}
+	}
+
+	public function test_outcome_guard_resume_between_files_and_database() {
+		$artifact = $this->make_full_archive_with_embedded_dump();
+		unset( $artifact['sha256'] );
+		$manifest = $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) );
+		$over = $this->reconcile_options();
+		$this->assertArrayNotHasKey( 'skipped_count', $over['reconcile']['walk'] );
+		$id = $this->make_task( 'full', array( $artifact, $manifest ), $over );
+		$this->runner->fake_engine->replay_yield_once = true;
+		list( $task ) = $this->advance_until( $id, static function ( $sub, $task ) {
+			return 'replaying_db' === $task->phase;
+		} );
+		$this->assertSame( 'restored-content', file_get_contents( $this->site . '/wp-content/uploads/restored.txt' ) );
+		$this->assertSame( 'replaying_db', $task->phase );
+		$this->assertSame( 'completed', $this->drive( $id )->phase );
+		$this->assertSame( 1, count( array_filter( $this->runner->fake_engine->calls, static function ( $call ) {
+			return 0 === strpos( $call, 'swap_tables:' );
+		} ) ) );
+	}
+
+	private static function beta6_cancel_read( $payload ) {
+		$result = (string) ( $payload['result'] ?? '' );
+		if ( in_array( $result, array( 'ok', 'busy', 'rolling_back' ), true ) ) {
+			return $result;
+		}
+		if ( 'not_found' === $result ) {
+			return 'failed';
+		}
+		if ( 'already_terminal' === $result ) {
+			return 'completed' === (string) ( $payload['phase'] ?? '' ) ? 'completed' : 'failed';
+		}
+		throw new RuntimeException( $payload['error'] ?? 'Cancel unconfirmed' );
+	}
+
+	private static function beta6_running_read( $payload ) {
+		if ( ! isset( $payload['phase'] ) && isset( $payload['error'] ) ) {
+			return array( 'retryable', $payload['error'], $payload['error_code'] ?? '' );
+		}
+		if ( 'completed' === ( $payload['phase'] ?? '' ) ) {
+			return array( 'completed', $payload['sub_state']['verification'] ?? array() );
+		}
+		if ( 'failed' === ( $payload['phase'] ?? '' ) ) {
+			return array( 'failed', $payload['error'] ?? $payload['sub_state']['error']['message'] ?? '', $payload['error_code'] ?? $payload['sub_state']['error']['code'] ?? '' );
+		}
+		return array( 'poll' );
+	}
+
+	public function test_outcome_guard_beta6_readers() {
+		foreach ( array( 'ok' => 'ok', 'busy' => 'busy', 'rolling_back' => 'rolling_back', 'not_found' => 'failed' ) as $result => $expected ) {
+			$this->assertSame( $expected, self::beta6_cancel_read( array( 'result' => $result ) ) );
+		}
+		$this->assertSame( 'completed', self::beta6_cancel_read( array( 'result' => 'already_terminal', 'phase' => 'completed' ) ) );
+		$this->assertSame( 'failed', self::beta6_cancel_read( array( 'result' => 'already_terminal', 'phase' => 'failed' ) ) );
+		$this->assertSame( array( 'failed', 'top message', 'top code' ), self::beta6_running_read( array( 'phase' => 'failed', 'error' => 'top message', 'error_code' => 'top code', 'sub_state' => array( 'error' => array( 'message' => 'nested message', 'code' => 'nested code' ) ) ) ) );
+		$this->assertSame( array( 'failed', 'nested message', 'nested code' ), self::beta6_running_read( array( 'phase' => 'failed', 'sub_state' => array( 'error' => array( 'message' => 'nested message', 'code' => 'nested code' ) ) ) ) );
+		$this->assertSame( array( 'completed', array( 'sentinel_ok' => true ) ), self::beta6_running_read( array( 'phase' => 'completed', 'sub_state' => array( 'verification' => array( 'sentinel_ok' => true ) ) ) ) );
+		$this->expectException( RuntimeException::class );
+		self::beta6_cancel_read( array( 'error' => 'request failed' ) );
+	}
+
+
+	private function pause_outcome_task( $id, $phase ) {
+		$this->runner->pause_before_phase = $phase;
+		return $this->advance_until( $id, static function ( $sub, $task ) use ( $phase ) {
+			return $phase === $task->phase;
+		} );
+	}
+
+	private function set_outcome_cursor( $id, $phase, $patch = array(), $remove = array() ) {
+		$task = $this->spine->get_task( $id );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$sub = array_replace_recursive( $sub, $patch );
+		foreach ( $remove as $key ) {
+			unset( $sub[ $key ] );
+		}
+		$this->assertNotFalse( $this->spine->checkpoint( $id, (int) $task->version, array( 'phase' => $phase, 'sub_state' => $sub ), false, $this->dir ) );
+		return $this->spine->get_task( $id );
+	}
+
+	private function stored_outcome( $id ) {
+		$payload = $this->spine->status_payload( $this->spine->get_task( $id ), $this->dir );
+		$this->assertArrayHasKey( 'outcome', $payload['sub_state']['verification'] ?? array() );
+		return $payload['sub_state']['verification']['outcome'];
+	}
+
+	private function force_outcome_terminal( $id, $writer ) {
+		return $this->with_dump_sweep_singleton( function () use ( $id, $writer ) {
+			global $wpdb;
+			if ( 'watchdog' === $writer ) {
+				$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET resume_count = max_resumes, last_progress_at = DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE task_id = %s', $id ) );
+				\MainWP\Child\MainWP_Child_Backup_Watchdog::instance()->check_tasks( 1 );
+				return 'failed' === $this->spine->get_task( $id )->phase;
+			}
+			$this->force_deadline_past( $id );
+			return 'reclaim' === $writer ? 1 === $this->spine->reclaim_expired_tasks( $this->dir ) : $this->spine->enforce_wall_clock_deadline( $id );
+		} );
+	}
+
+	public static function outcome_fixture_cases() {
+		$cases = array( 'completed-full', 'completed-files-only', 'completed-db-only', 'failed-before-any-change', 'failed-mid-files', 'failed-after-files-before-swap', 'failed-after-swap', 'fk-rolled-back', 'fk-rollback-failed', 'cancelled-before-any-change', 'cancelled-mid-files', 'cancelled-after-files-before-swap', 'cancelled-after-swap' );
+		return array_combine( $cases, array_map( static function ( $case ) { return array( $case ); }, $cases ) );
+	}
+
+	private function outcome_fixture_payload( $case ) {
+		$this->runner->test_cache_purger = new class {
+			public function auto_purge_cache() {
+				update_option( 'mainwp_cache_control_log', '{"action":"SUCCESS","result_basis":"not_attempted"}' );
+			}
+		};
+		$fk = 0 === strpos( $case, 'fk-' );
+		$type = $fk || 'completed-db-only' === $case ? 'db' : ( 'completed-files-only' === $case ? 'files' : 'full' );
+		$artifacts = array();
+		if ( 'db' !== $type ) {
+			$artifacts[] = $this->make_named_zip_artifact( 'outcome-files.zip', array( 'wp-content/uploads/restored.txt' => 'restored-content', 'wp-content/uploads/second.txt' => 'second' ) );
+		}
+		if ( 'files' !== $type ) {
+			$artifacts[] = $this->make_db_artifact( $fk );
+		}
+		// The FK in-place path needs matching prefixes; across prefixes it is refused.
+		$id = $this->make_task( $type, $artifacts, $fk ? array( 'source_prefix' => 'rt_' ) : array() );
+		$this->runner->fake_snapshot_bytes = 0;
+		$listener = null;
+		try {
+			if ( $fk ) {
+				$this->runner->fake_engine->replay_error = 'replay fixture failed';
+				if ( 'fk-rollback-failed' === $case ) {
+					$this->runner->fake_engine->rollback_error = 'rollback fixture failed';
+				}
+			} elseif ( 'failed-before-any-change' === $case ) {
+				$this->assertTrue( $this->force_outcome_terminal( $id, 'deadline' ) );
+			} elseif ( 'failed-mid-files' === $case || 'failed-after-swap' === $case ) {
+				$point = 'failed-mid-files' === $case ? 'after_first_file_change' : 'after_swap_commit';
+				$listener = static function ( $actual, $task_id ) use ( $id, $point ) {
+					if ( $id === $task_id && $point === $actual ) {
+						throw new MainWP_Exception( 'checkpoint fixture failed', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+					}
+				};
+				add_action( 'mainwp_child_restore_checkpoint', $listener, 10, 2 );
+			} elseif ( 'failed-after-files-before-swap' === $case ) {
+				$this->runner->fake_engine->replay_throw = true;
+			} elseif ( 'cancelled-mid-files' === $case ) {
+				$this->slice_one_file_at_a_time();
+				$this->advance_until( $id, static function ( $sub, $task ) {
+					return 'restoring_files' === $task->phase && ! empty( $sub['file_restore']['part_cursor']['entry_index'] );
+				} );
+			} elseif ( 'cancelled-after-files-before-swap' === $case || 'cancelled-after-swap' === $case ) {
+				$this->pause_outcome_task( $id, 'cancelled-after-swap' === $case ? 'rewriting_urls' : 'replaying_db' );
+			}
+			if ( 0 === strpos( $case, 'cancelled-' ) ) {
+				$payload = $this->callable_cancel( array( 'task_id' => $id ) );
+				$this->assertSame( 'ok', $payload['result'] );
+				$this->assertSame( 'failed', $payload['phase'] );
+				$this->assertArrayNotHasKey( 'error', $payload );
+				return $payload;
+			}
+			$task = $this->drive( $id );
+			$this->assertSame( 0 === strpos( $case, 'completed-' ) ? 'completed' : 'failed', $task->phase );
+			return $this->spine->status_payload( $task, $this->dir );
+		} finally {
+			if ( null !== $listener ) {
+				remove_action( 'mainwp_child_restore_checkpoint', $listener, 10 );
+			}
+		}
+	}
+
+	private static function normalize_outcome_payload( $payload ) {
+		foreach ( array( 'task_id', 'started_at', 'last_progress_at', 'max_wall_clock_at', 'version' ) as $key ) {
+			if ( array_key_exists( $key, $payload ) ) {
+				$payload[ $key ] = '<' . $key . '>';
+			}
+		}
+		return json_decode( wp_json_encode( $payload ), true );
+	}
+
+	/** @dataProvider outcome_fixture_cases */
+	public function test_outcome_response_fixture_and_beta6_compatibility( $case ) {
+		$payload = self::normalize_outcome_payload( $this->outcome_fixture_payload( $case ) );
+		$path = __DIR__ . '/fixtures/restore-outcome-' . $case . '.json';
+		$expected = json_decode( file_get_contents( $path ), true );
+		$this->assertIsArray( $expected, $path );
+		$this->assertEquals( $expected, $payload, $case );
+		$old = $payload;
+		unset( $old['verification']['outcome'], $old['failure'], $old['sub_state']['verification']['outcome'] );
+		if ( isset( $payload['result'] ) ) {
+			$this->assertSame( self::beta6_cancel_read( $old ), self::beta6_cancel_read( $payload ) );
+		} else {
+			$new_read = self::beta6_running_read( $payload );
+			if ( 'completed' === $payload['phase'] ) {
+				$this->assertSame( $payload['sub_state']['verification']['outcome'], $new_read[1]['outcome'] );
+				unset( $new_read[1]['outcome'] );
+			}
+			$this->assertEquals( self::beta6_running_read( $old ), $new_read );
+		}
+	}
+
+	public function test_outcome_derivation_never_applies_an_unfinished_half() {
+		$phases = array( 'queued', 'pulling', 'receiving', 'verifying', 'restoring_files', 'snapshot_db', 'replaying_db', 'preserve_woo', 'swapping_db', 'rewriting_urls', 'merge_woo', 'verify_site', 'fk_rollback' );
+		foreach ( array( 'restore', 'restore_files', 'restore_db' ) as $type ) {
+			foreach ( $phases as $phase ) {
+				foreach ( array( 'completed', 'failed', 'cancelled' ) as $kind ) {
+					foreach ( array( array(), array( 'files_touched' => false ), array( 'files_touched' => true ) ) as $cursor ) {
+						foreach ( array( false, true, null ) as $probe ) {
+							$out = MainWP_Child_Restore_Task_Runner::derive_outcome( $type, $phase, $cursor, $kind, '', $probe );
+							$label = wp_json_encode( array( $type, $phase, $kind, $cursor, $probe ) );
+							$this->assertFalse( $out['files_copy_taken'], $label );
+							$this->assertSame( $phase, $out['phase_reached'], $label );
+							if ( 'restore_db' === $type ) {
+								$this->assertSame( 'not_applicable', $out['files'], $label );
+							} elseif ( 'completed' === $kind ) {
+								$this->assertSame( 'applied', $out['files'], $label );
+							} elseif ( in_array( $phase, array( 'queued', 'pulling', 'receiving', 'verifying' ), true ) ) {
+								$this->assertSame( 'not_started', $out['files'], $label );
+							} elseif ( 'restoring_files' === $phase ) {
+								$this->assertSame( isset( $cursor['files_touched'] ) && false === $cursor['files_touched'] ? 'not_started' : 'left_partial', $out['files'], $label );
+							} else {
+								$this->assertSame( 'applied', $out['files'], $label );
+							}
+							if ( 'restore_files' === $type ) {
+								$this->assertSame( 'not_applicable', $out['database'], $label );
+							} elseif ( 'completed' === $kind ) {
+								$this->assertSame( 'applied', $out['database'], $label );
+							} else {
+								$this->assertNotSame( 'applied', $out['database'], $label );
+								if ( in_array( $phase, array( 'queued', 'pulling', 'receiving', 'verifying', 'restoring_files', 'snapshot_db', 'replaying_db', 'preserve_woo' ), true ) || ( 'swapping_db' === $phase && false === $probe ) ) {
+									$this->assertSame( 'not_started', $out['database'], $label );
+								} else {
+									$this->assertSame( 'left_partial', $out['database'], $label );
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/** @dataProvider outcome_forced_writers */
+	public function test_outcome_forced_end_between_files_and_database( $writer ) {
+		$id = $this->make_task( 'full', array( $this->make_part_artifact(), $this->make_db_artifact() ) );
+		$this->pause_outcome_task( $id, 'replaying_db' );
+		$this->assertTrue( $this->force_outcome_terminal( $id, $writer ) );
+		$this->assertSame( array( 'files' => 'applied', 'database' => 'not_started', 'files_copy_taken' => false, 'phase_reached' => 'replaying_db' ), $this->stored_outcome( $id ) );
+		$payload = $this->spine->status_payload( $this->spine->get_task( $id ), $this->dir );
+		$this->assertSame( 'watchdog' === $writer ? MainWP_Backup_Error::ERR_STALLED : MainWP_Backup_Error::ERR_WALL_CLOCK, $payload['error_code'] );
+	}
+
+	public static function outcome_forced_writers() {
+		return array( 'deadline' => array( 'deadline' ), 'watchdog' => array( 'watchdog' ), 'reclaim' => array( 'reclaim' ) );
+	}
+
+	/** @dataProvider outcome_forced_writers */
+	public function test_outcome_forced_end_after_uncheckpointed_file_change( $writer ) {
+		$id = $this->make_task( 'full', array( $this->make_part_artifact(), $this->make_db_artifact() ) );
+		$observed = false;
+		$listener = function ( $point, $task_id ) use ( $id, &$observed ) {
+			if ( 'after_first_file_change' !== $point || $id !== $task_id ) {
+				return;
+			}
+			$observed = true;
+			$task = $this->spine->get_task( $id );
+			$sub = $this->spine->read_sub_state( $task, $this->dir );
+			$this->assertTrue( $sub['files_touched'] );
+			$this->assertArrayNotHasKey( 'file_restore', $sub );
+			$this->assertFileExists( $this->site . '/wp-content/uploads/restored.txt' );
+			global $wpdb;
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $id ) );
+			$this->assertTrue( $this->spine->acquire_lease( $id, 'crash-successor', (int) $task->version ) );
+			throw new MainWP_Exception( 'host interrupted the slice', null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+		};
+		$this->advance_until( $id, function ( $sub, $task ) {
+			return 'restoring_files' === $task->phase;
+		} );
+		add_action( 'mainwp_child_restore_checkpoint', $listener, 10, 2 );
+		try {
+			for ( $i = 0; $i < 5 && ! $observed; ++$i ) {
+				$this->runner->advance_one_slice( $this->spine->get_task( $id ), 'crashed' );
+			}
+		} finally {
+			remove_action( 'mainwp_child_restore_checkpoint', $listener, 10 );
+		}
+		$this->assertTrue( $observed );
+		$task = $this->spine->get_task( $id );
+		$this->assertSame( 'restoring_files', $task->phase );
+		$this->spine->release_lease( $id, 'crash-successor', (int) $task->version );
+		$this->assertTrue( $this->force_outcome_terminal( $id, $writer ) );
+		$this->assertSame( 'left_partial', $this->stored_outcome( $id )['files'] );
+	}
+
+	public static function outcome_swap_ends() {
+		$rows = array();
+		foreach ( array( 'slice', 'cancel', 'deadline', 'watchdog', 'reclaim' ) as $writer ) {
+			foreach ( array( 'no' => false, 'yes' => true, 'unknown' => null ) as $name => $probe ) {
+				$rows[ $writer . '-' . $name ] = array( $writer, $probe );
+			}
+		}
+		return $rows;
+	}
+
+	/** @dataProvider outcome_swap_ends */
+	public function test_outcome_swap_probe_precedes_tmp_drop( $writer, $probe ) {
+		$id = $this->make_task( 'db', array( $this->make_db_artifact() ) );
+		$this->pause_outcome_task( $id, 'swapping_db' );
+		$this->runner->fake_engine->calls = array();
+		$this->runner->fake_engine->swap_committed = $probe;
+		if ( 'slice' === $writer ) {
+			$this->runner->fake_engine->swap_error = 'swap fixture failed';
+			$task = $this->drive( $id );
+			$this->assertSame( 'failed', $task->phase );
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_SWAP_FAILED, $this->spine->status_payload( $task, $this->dir )['error_code'] );
+		} elseif ( 'cancel' === $writer ) {
+			$this->assertSame( 'ok', $this->callable_cancel( array( 'task_id' => $id ) )['result'] );
+		} else {
+			$this->assertTrue( $this->force_outcome_terminal( $id, $writer ) );
+		}
+		$this->assertSame( false === $probe ? 'not_started' : 'left_partial', $this->stored_outcome( $id )['database'] );
+		$calls = $this->runner->fake_engine->calls;
+		$this->assertContains( 'is_swap_committed', $calls );
+		$this->assertContains( 'cleanup_tmp_tables', $calls );
+		$this->assertLessThan( array_search( 'cleanup_tmp_tables', $calls, true ), array_search( 'is_swap_committed', $calls, true ) );
+		$this->assertNotContains( 'drop_old_tables', $calls );
+	}
+
+	/** @dataProvider outcome_post_swap_failures */
+	public function test_outcome_post_swap_failure_keeps_restored_and_old_tables( $failure ) {
+		$id = $this->dump_sweep_fixture( 'rewriting_urls' );
+		global $wpdb;
+		$wpdb->insert( 'rt_items', array( 'id' => 99, 'val' => 'restored bytes' ) );
+		$this->set_outcome_cursor( $id, 'merge' === $failure ? 'merge_woo' : ( 'rewrite' === $failure ? 'rewriting_urls' : 'verify_site' ), array( 'old_tables' => array( 'rt_dump_sweep_old' ) ) );
+		$this->runner->throw_url_rewrite = 'rewrite' === $failure;
+		$this->runner->throw_woo_merge = 'merge' === $failure;
+		$this->runner->fake_engine->verify_ok = 'counts' !== $failure;
+		$listener = static function ( $point ) use ( $failure ) {
+			if ( 'listener' === $failure && 'before_post_swap_check' === $point ) {
+				throw new MainWP_Exception( 'post check fixture failed', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+			}
+		};
+		add_action( 'mainwp_child_restore_checkpoint', $listener, 10, 2 );
+		try {
+			$this->assertSame( 'failed', $this->drive( $id )->phase );
+		} finally {
+			remove_action( 'mainwp_child_restore_checkpoint', $listener, 10 );
+		}
+		$this->assertSame( 'left_partial', $this->stored_outcome( $id )['database'] );
+		$this->assertNotContains( 'drop_old_tables', $this->runner->fake_engine->calls );
+		$this->assertSame( '17', $wpdb->get_var( 'SELECT id FROM rt_dump_sweep_old' ) );
+		$this->assertSame( 'restored bytes', $wpdb->get_var( 'SELECT val FROM rt_items WHERE id = 99' ) );
+	}
+
+	public static function outcome_post_swap_failures() {
+		return array( 'rewrite' => array( 'rewrite' ), 'merge' => array( 'merge' ), 'counts' => array( 'counts' ), 'listener' => array( 'listener' ) );
+	}
+
+
+	/** @dataProvider outcome_stale_actors */
+	public function test_outcome_stale_slice_and_cancel_keep_successor_state( $actor ) {
+		$id = $this->dump_sweep_fixture();
+		$this->runner->fake_engine->replay_throw = 'slice' === $actor;
+		$successor_row = null;
+		$this->runner->before_terminal_cleanup = function () use ( $id, &$successor_row ) {
+			global $wpdb;
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $id ) );
+			$row = $this->spine->get_task( $id );
+			$this->assertTrue( $this->spine->acquire_lease( $id, 'successor', (int) $row->version ) );
+			$successor_row = $this->spine->get_task( $id );
+		};
+		if ( 'slice' === $actor ) {
+			$this->runner->advance_one_slice( $this->spine->get_task( $id ), 'stale' );
+		} else {
+			$answer = $this->callable_cancel( array( 'task_id' => $id ) );
+			$this->assertSame( 'busy', $answer['result'] );
+			$this->assertArrayNotHasKey( 'verification', $answer );
+		}
+		$this->assertNotNull( $successor_row );
+		$this->assertEquals( $successor_row, $this->spine->get_task( $id ) );
+		$this->assert_dump_sweep_state( $id, true, true, true, true );
+		$this->assertNotContains( 'cleanup_tmp_tables', $this->runner->fake_engine->calls );
+		$this->assertNotContains( 'exit_maintenance', $this->runner->fake_engine->calls );
+		$this->assertArrayNotHasKey( 'verification', $this->spine->read_sub_state( $successor_row, $this->dir ) );
+		$this->spine->release_lease( $id, 'successor', (int) $successor_row->version );
+		$this->runner->fake_engine->replay_throw = false;
+		$this->assertSame( 'completed', $this->drive( $id )->phase );
+		$this->assertSame( 'applied', $this->stored_outcome( $id )['database'] );
+	}
+
+	public static function outcome_stale_actors() {
+		return array( 'slice' => array( 'slice' ), 'cancel' => array( 'cancel' ) );
+	}
+
+	public static function outcome_legacy_cursors() {
+		return array(
+			'verifying' => array( 'verifying', false, 'not_started', 'not_started' ),
+			'files-without-cursor' => array( 'restoring_files', false, 'left_partial', 'not_started' ),
+			'files-with-cursor' => array( 'restoring_files', true, 'left_partial', 'not_started' ),
+			'replay' => array( 'replaying_db', true, 'applied', 'not_started' ),
+			'swap' => array( 'swapping_db', true, 'applied', 'left_partial' ),
+			'verify-site' => array( 'verify_site', true, 'applied', 'left_partial' ),
+		);
+	}
+
+	/** @dataProvider outcome_legacy_cursors */
+	public function test_outcome_legacy_cursor_deadline_is_conservative( $phase, $with_files, $files, $database ) {
+		$id = $this->make_task( 'full', array( $this->make_part_artifact(), $this->make_db_artifact() ) );
+		$patch = $with_files ? array( 'file_restore' => array( 'op_index' => 0 ) ) : array();
+		$this->set_outcome_cursor( $id, $phase, $patch, array( 'files_touched' ) );
+		$this->runner->fake_engine->swap_committed = null;
+		$this->assertTrue( $this->force_outcome_terminal( $id, 'deadline' ) );
+		$out = $this->stored_outcome( $id );
+		$this->assertSame( $files, $out['files'] );
+		$this->assertSame( $database, $out['database'] );
+	}
+
+	public function test_outcome_legacy_archives_and_walk_complete_without_new_fields() {
+		$artifact = $this->make_full_archive_with_embedded_dump();
+		unset( $artifact['sha256'] );
+		$manifest = $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) );
+		$over = $this->reconcile_options();
+		$this->assertArrayNotHasKey( 'skipped_count', $over['reconcile']['walk'] );
+		$id = $this->make_task( 'full', array( $artifact, $manifest ), $over );
+		$this->assertSame( 'completed', $this->drive( $id )->phase );
+		$this->assertSame( 'restored-content', file_get_contents( $this->site . '/wp-content/uploads/restored.txt' ) );
+		$this->assertSame( 'applied', $this->stored_outcome( $id )['files'] );
+		$this->assertSame( 'applied', $this->stored_outcome( $id )['database'] );
+	}
+
+	public function test_outcome_deadline_retries_with_new_cursor_and_one_terminal_write() {
+		global $wpdb;
+		$id = $this->make_task( 'full', array() );
+		$this->set_outcome_cursor( $id, 'restoring_files' );
+		$this->force_deadline_past( $id );
+		$attempts = array();
+		$raced_version = null;
+		$race = function ( $query ) use ( $id, &$attempts, &$raced_version ) {
+			if ( false !== strpos( $query, "SET phase = 'failed', active_slot = NULL" ) && false !== strpos( $query, $id ) ) {
+				$attempts[] = $query;
+				if ( 1 === count( $attempts ) ) {
+					$row = $this->set_outcome_cursor( $id, 'restoring_files', array( 'files_touched' => true ) );
+					$raced_version = (int) $row->version;
+				}
+			}
+			return $query;
+		};
+		add_filter( 'query', $race );
+		try {
+			$this->assertTrue( $this->with_dump_sweep_singleton( function () use ( $id ) { return $this->spine->enforce_wall_clock_deadline( $id ); } ) );
+		} finally {
+			remove_filter( 'query', $race );
+		}
+		$this->assertCount( 2, $attempts );
+		$this->assertStringContainsString( 'AND version = ', $attempts[0] );
+		$this->assertSame( $raced_version + 1, (int) $this->spine->get_task( $id )->version );
+		$this->assertSame( 'left_partial', $this->stored_outcome( $id )['files'] );
+	}
+
+	public function test_outcome_deadline_retry_is_bounded() {
+		$id = $this->make_task( 'full', array() );
+		$this->force_deadline_past( $id );
+		$attempts = 0;
+		$race = function ( $query ) use ( $id, &$attempts ) {
+			if ( false !== strpos( $query, "SET phase = 'failed', active_slot = NULL" ) && false !== strpos( $query, $id ) ) {
+				++$attempts;
+				$this->set_outcome_cursor( $id, 'queued' );
+			}
+			return $query;
+		};
+		add_filter( 'query', $race );
+		try {
+			$this->assertFalse( $this->with_dump_sweep_singleton( function () use ( $id ) { return $this->spine->enforce_wall_clock_deadline( $id ); } ) );
+		} finally {
+			remove_filter( 'query', $race );
+		}
+		$this->assertSame( 3, $attempts );
+		$this->assertSame( 'queued', $this->spine->get_task( $id )->phase );
+		$this->assertArrayNotHasKey( 'verification', $this->spine->read_sub_state( $this->spine->get_task( $id ), $this->dir ) );
+	}
+
+	/** @dataProvider outcome_forced_writers */
+	public function test_outcome_forced_terminal_credentials_stay_scrubbed( $writer ) {
+		$id = $this->make_task( 'full', array() );
+		$this->set_outcome_cursor( $id, 'restoring_files', array( 'params' => array( 'pull_manifest' => array( 'secret' => 'fixture credential' ) ), 'identity_preserve' => array( 'secret' => 'fixture identity' ), 'padding' => str_repeat( 'x', 60000 ) ) );
+		$task = $this->spine->get_task( $id );
+		$cursor = $this->spine->read_sub_state( $task, $this->dir );
+		$sidecar = $this->spine->write_sub_state( $id, $cursor, $this->dir, (int) $task->version );
+		$this->assertNotFalse( $sidecar );
+		$this->assertNotFalse( $this->spine->checkpoint( $id, (int) $task->version, array( 'sub_state' => $sidecar ) ) );
+		$this->assertTrue( $this->force_outcome_terminal( $id, $writer ) );
+		$this->spine->reclaim_expired_tasks( $this->dir );
+		$stored = $this->spine->get_task( $id )->sub_state;
+		$this->assertStringNotContainsString( 'fixture credential', $stored );
+		$this->assertStringNotContainsString( 'fixture identity', $stored );
+		$this->assertStringNotContainsString( '_sidecar', $stored );
+		$this->stored_outcome( $id );
+		$this->assertEmpty( glob( $this->dir . '/task_substate-' . sanitize_file_name( $id ) . '-v*.json' ) );
+	}
+
+	/** @dataProvider outcome_forced_writers */
+	public function test_outcome_fk_rollback_forced_end_keeps_maintenance_and_codes( $writer ) {
+		$id = $this->dump_sweep_fixture( 'fk_rollback' );
+		$this->set_outcome_cursor( $id, 'fk_rollback', array( 'db_replay' => array( 'fk_path' => true ) ) );
+		$this->assertTrue( $this->force_outcome_terminal( $id, $writer ) );
+		$payload = $this->spine->status_payload( $this->spine->get_task( $id ), $this->dir );
+		$this->assertSame( 'watchdog' === $writer ? MainWP_Backup_Error::ERR_STALLED : MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED, $payload['error_code'] );
+		$this->assertSame( 'left_partial', $this->stored_outcome( $id )['database'] );
+		$this->assert_dump_sweep_state( $id, true, true, true, true );
+	}
+
+	public function test_outcome_cancel_rollback_busy_and_old_terminal_answers() {
+		$id = $this->make_task( 'db', array() );
+		$this->set_outcome_cursor( $id, 'fk_rollback', array( 'db_replay' => array( 'fk_path' => true ) ) );
+		$before = $this->spine->read_sub_state( $this->spine->get_task( $id ), $this->dir );
+		$this->assertSame( array( 'result' => 'rolling_back', 'phase' => 'fk_rollback' ), $this->callable_cancel( array( 'task_id' => $id ) ) );
+		$this->assertEquals( $before, $this->spine->read_sub_state( $this->spine->get_task( $id ), $this->dir ) );
+		$task = $this->spine->get_task( $id );
+		$this->assertTrue( $this->spine->acquire_lease( $id, 'other', (int) $task->version ) );
+		$this->assertSame( array( 'result' => 'busy', 'phase' => 'fk_rollback' ), $this->callable_cancel( array( 'task_id' => $id ) ) );
+		$task = $this->spine->get_task( $id );
+		$this->spine->release_lease( $id, 'other', (int) $task->version );
+		$this->set_outcome_cursor( $id, 'failed', array( 'error' => array( 'message' => 'failure at /srv/private/file.php', 'code' => MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ) ) );
+		$answer = $this->callable_cancel( array( 'task_id' => $id ) );
+		$this->assertSame( 'already_terminal', $answer['result'] );
+		$this->assertArrayNotHasKey( 'verification', $answer );
+		$this->assertArrayNotHasKey( 'error', $answer );
+		$this->assertSame( \MainWP\Child\MainWP_Backup_Error::sanitize_message( 'failure at /srv/private/file.php' ), $answer['failure']['message'] );
+	}
+
+	public function test_outcome_create_replay_and_two_pollers_read_same_terminal_report() {
+		$artifact = $this->make_db_artifact();
+		$id = $this->make_task( 'db', array( $artifact ), array( 'restore_id' => 'outcomereplay' ) );
+		$this->assertSame( 'completed', $this->drive( $id )->phase );
+		$one = $this->spine->status_payload( $this->spine->get_task( $id ), $this->dir );
+		$reused = false;
+		$again = $this->runner->create_restore_task( 'db', array( 'restore_id' => 'outcomereplay', 'artifacts' => array( $artifact ) ), $reused );
+		$this->assertSame( $id, $again );
+		$this->assertTrue( $reused );
+		$two = $this->spine->status_payload( $this->spine->get_task( $again ), $this->dir );
+		$this->assertSame( $one, $two );
+		$this->assertSame( $one['sub_state']['verification']['outcome'], $this->callable_cancel( array( 'task_id' => $id ) )['verification']['outcome'] );
+	}
+
+	public function test_outcome_drill_points_and_task_id_once_per_file_slice() {
+		$id = $this->make_task( 'full', array( $this->make_named_zip_artifact( 'two.zip', array( 'a.txt' => 'one', 'b.txt' => 'two' ) ), $this->make_db_artifact() ) );
+		$seen = array();
+		$slice = 0;
+		$listener = function ( $point, $task_id ) use ( $id, &$seen, &$slice ) {
+			$this->assertSame( $id, $task_id );
+			$seen[] = array( $point, $slice );
+			if ( 'after_swap_commit' === $point ) {
+				$row = $this->spine->get_task( $id );
+				$this->assertSame( 'swapping_db', $row->phase );
+				$sub = $this->spine->read_sub_state( $row, $this->dir );
+				$this->assertNotEmpty( $sub['old_tables'] );
+				$this->assertArrayHasKey( 'identity_preserve', $sub );
+				$this->assertContains( 'exit_maintenance', $this->runner->fake_engine->calls );
+			}
+			if ( 'before_post_swap_check' === $point ) {
+				$this->assertNotContains( 'verify_row_counts', $this->runner->fake_engine->calls );
+			}
+		};
+		add_action( 'mainwp_child_restore_checkpoint', $listener, 10, 2 );
+		try {
+			$task = $this->spine->get_task( $id );
+			while ( ! MainWP_Child_Backup_Task::is_terminal_phase( $task->phase ) && ++$slice < 30 ) {
+				$task = $this->runner->advance_one_slice( $task, 'drill' );
+			}
+			$this->assertSame( 'completed', $task->phase );
+		} finally {
+			remove_action( 'mainwp_child_restore_checkpoint', $listener, 10 );
+		}
+		$this->assertSame( array( 'after_first_file_change', 'after_swap_commit', 'before_post_swap_check' ), array_column( $seen, 0 ) );
+	}
+
+	public function test_outcome_tombstone_delete_is_a_drill_checkpoint() {
+		file_put_contents( $this->site . '/stale.txt', 'live' );
+		$id = $this->make_task( 'files', array( $this->make_tombstones_artifact() ) );
+		$seen = 0;
+		$listener = function ( $point, $task_id ) use ( $id, &$seen ) {
+			if ( 'after_first_file_change' === $point ) {
+				++$seen;
+				$this->assertSame( $id, $task_id );
+				$this->assertFileDoesNotExist( $this->site . '/stale.txt' );
+				$this->assertTrue( $this->spine->read_sub_state( $this->spine->get_task( $id ), $this->dir )['files_touched'] );
+				throw new MainWP_Exception( 'delete checkpoint failed', null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+			}
+		};
+		add_action( 'mainwp_child_restore_checkpoint', $listener, 10, 2 );
+		try {
+			$this->assertSame( 'failed', $this->drive( $id )->phase );
+		} finally {
+			remove_action( 'mainwp_child_restore_checkpoint', $listener, 10 );
+		}
+		$this->assertSame( 1, $seen );
+		$payload = $this->spine->status_payload( $this->spine->get_task( $id ), $this->dir );
+		$this->assertSame( 'delete checkpoint failed', $payload['error'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $payload['error_code'] );
+		$this->assertSame( 'left_partial', $this->stored_outcome( $id )['files'] );
+	}
+
+	public function test_outcome_capability_is_available_without_readiness_probes() {
+		$report = \MainWP\Child\MainWP_Backup::get()->check_backup_readiness( true );
+		$this->assertTrue( $report['restore_outcome_report'] );
+	}
+
+
+	public function test_outcome_fk_and_committed_cursor_evidence_rules() {
+		foreach ( array( 'restore', 'restore_db', 'restore_files' ) as $type ) {
+			foreach ( array( 'verifying', 'snapshot_db', 'replaying_db', 'preserve_woo', 'swapping_db', 'fk_rollback', 'rewriting_urls', 'merge_woo', 'verify_site' ) as $phase ) {
+				foreach ( array( '', MainWP_Backup_Error::ERR_RESTORE_ROLLED_BACK, MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED ) as $code ) {
+					$sub = array( 'files_touched' => true, 'db_replay' => array( 'fk_path' => true ) );
+					$out = MainWP_Child_Restore_Task_Runner::derive_outcome( $type, $phase, $sub, 'failed', $code, false );
+					$expected = 'not_started';
+					if ( 'restore_files' === $type ) {
+						$expected = 'not_applicable';
+					} elseif ( 'fk_rollback' === $phase && MainWP_Backup_Error::ERR_RESTORE_ROLLED_BACK === $code ) {
+						$expected = 'rolled_back';
+					} elseif ( in_array( $phase, array( 'replaying_db', 'fk_rollback', 'rewriting_urls', 'merge_woo', 'verify_site' ), true ) ) {
+						$expected = 'left_partial';
+					}
+					$this->assertSame( $expected, $out['database'], wp_json_encode( array( $type, $phase, $code ) ) );
+				}
+			}
+		}
+		foreach ( array( array( 'old_tables' => array() ), array( 'restored_mutex' => '' ) ) as $evidence ) {
+			$out = MainWP_Child_Restore_Task_Runner::derive_outcome( 'restore', 'swapping_db', $evidence, 'failed', '', false );
+			$this->assertSame( 'left_partial', $out['database'] );
+		}
+	}
+
+	public function test_outcome_file_marker_lost_cas_stops_before_any_mutation() {
+		$id = $this->make_task( 'files', array( $this->make_files_archive_artifact() ) );
+		$this->advance_until( $id, static function ( $sub, $task ) {
+			return 'restoring_files' === $task->phase && isset( $sub['mu_plugins_preserve'] );
+		} );
+		file_put_contents( $this->site . '/dbBackup-marker.sql.php', 'must survive' );
+		$raced = false;
+		$race = function ( $query ) use ( $id, &$raced, &$race ) {
+			if ( false !== strpos( $query, 'SET last_progress_at = NOW(), version = version + 1, sub_state =' ) && false !== strpos( $query, $id ) && false !== strpos( $query, 'files_touched' ) ) {
+				remove_filter( 'query', $race );
+				global $wpdb;
+				$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $id ) );
+				$task = $this->spine->get_task( $id );
+				$this->assertTrue( $this->spine->acquire_lease( $id, 'marker-successor', (int) $task->version ) );
+				$raced = true;
+			}
+			return $query;
+		};
+		add_filter( 'query', $race );
+		try {
+			$task = $this->runner->advance_one_slice( $this->spine->get_task( $id ), 'marker' );
+		} finally {
+			remove_filter( 'query', $race );
+		}
+		$this->assertTrue( $raced );
+		$this->assertSame( 'restoring_files', $task->phase );
+		$this->assertFalse( $this->spine->read_sub_state( $task, $this->dir )['files_touched'] );
+		$this->assertFileExists( $this->site . '/dbBackup-marker.sql.php' );
+		$this->assertFileDoesNotExist( $this->site . '/wp-content/uploads/restored.txt' );
+	}
+
+	public static function outcome_cancel_races() {
+		return array( 'terminal-checkpoint' => array( false ), 'fk-reroute-checkpoint' => array( true ) );
+	}
+
+	/** @dataProvider outcome_cancel_races */
+	public function test_outcome_lost_cancel_cas_returns_stored_report( $fk ) {
+		$id = $this->make_task( $fk ? 'db' : 'full', array() );
+		if ( $fk ) {
+			$this->set_outcome_cursor( $id, 'replaying_db', array( 'db_replay' => array( 'fk_path' => true, 'snapshot_done' => true ) ) );
+		}
+		$raced = false;
+		$target = $fk ? "phase = 'fk_rollback'" : "phase = 'failed'";
+		$race = function ( $query ) use ( $id, $fk, $target, &$raced, &$race ) {
+			if ( false !== strpos( $query, 'SET last_progress_at = NOW(), version = version + 1' ) && false !== strpos( $query, $target ) && false !== strpos( $query, $id ) ) {
+				remove_filter( 'query', $race );
+				global $wpdb;
+				$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $id ) );
+				if ( $fk ) {
+					$this->assertTrue( $this->force_outcome_terminal( $id, 'deadline' ) );
+					$this->assertSame( 'fk_rollback', $this->spine->get_task( $id )->phase );
+					$this->assertTrue( $this->force_outcome_terminal( $id, 'deadline' ) );
+				} else {
+					$this->assertTrue( $this->force_outcome_terminal( $id, 'watchdog' ) );
+				}
+				$raced = true;
+			}
+			return $query;
+		};
+		add_filter( 'query', $race );
+		try {
+			$answer = $this->callable_cancel( array( 'task_id' => $id ) );
+		} finally {
+			remove_filter( 'query', $race );
+		}
+		$this->assertTrue( $raced );
+		$this->assertSame( 'already_terminal', $answer['result'] );
+		$this->assertSame( 'failed', $answer['phase'] );
+		$this->assertArrayNotHasKey( 'error', $answer );
+		$this->assertSame( $this->stored_outcome( $id ), $answer['verification']['outcome'] );
+		$this->assertSame( $fk ? MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED : MainWP_Backup_Error::ERR_STALLED, $answer['failure']['code'] );
+	}
+
+	public function test_outcome_cancel_at_post_swap_verification_keeps_result_and_report() {
+		$id = $this->make_task( 'full', array( $this->make_part_artifact(), $this->make_db_artifact() ) );
+		$this->pause_outcome_task( $id, 'verify_site' );
+		$answer = $this->callable_cancel( array( 'task_id' => $id ) );
+		$this->assertSame( 'ok', $answer['result'] );
+		$this->assertSame( 'failed', $answer['phase'] );
+		$this->assertSame( array( 'files' => 'applied', 'database' => 'left_partial', 'files_copy_taken' => false, 'phase_reached' => 'verify_site' ), $answer['verification']['outcome'] );
+		$this->assertNotContains( 'drop_old_tables', $this->runner->fake_engine->calls );
+	}
+
+	public function test_outcome_terminal_rescrub_preserves_report() {
+		global $wpdb;
+		$id = $this->make_task( 'full', array() );
+		$this->runner->cancel_restore_task( $id );
+		$expected = $this->stored_outcome( $id );
+		$task = $this->spine->get_task( $id );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$sub['params']['pull_manifest'] = array( 'secret' => 'fixture credential' );
+		$sub['identity_preserve'] = array( 'secret' => 'fixture identity' );
+		$sub['padding'] = str_repeat( 'x', 60000 );
+		$pointer = $this->spine->write_sub_state( $id, $sub, $this->dir, (int) $task->version );
+		$this->assertNotFalse( $pointer );
+		$path = $this->dir . '/' . json_decode( $pointer, true )['file'];
+		$this->assertFileExists( $path );
+		$this->assertSame( 1, $wpdb->update( $this->spine->get_table_name(), array( 'sub_state' => $pointer ), array( 'task_id' => $id ) ) );
+		$this->spine->reclaim_expired_tasks( $this->dir );
+		$this->assertSame( $expected, $this->stored_outcome( $id ) );
+		$stored = $this->spine->get_task( $id )->sub_state;
+		$this->assertStringNotContainsString( 'fixture credential', $stored );
+		$this->assertStringNotContainsString( 'fixture identity', $stored );
+		$this->assertFileDoesNotExist( $path );
+	}
+
+	public static function outcome_deadline_races() {
+		return array( 'terminal' => array( 'terminal' ), 'leased' => array( 'leased' ), 'future' => array( 'future' ), 'fk-rerouted' => array( 'fk-rerouted' ) );
+	}
+
+	/** @dataProvider outcome_deadline_races */
+	public function test_outcome_deadline_retry_rechecks_eligibility( $change ) {
+		$id = $this->make_task( 'db', array() );
+		$this->set_outcome_cursor( $id, 'replaying_db' );
+		$this->force_deadline_past( $id );
+		$raced = false;
+		$race = function ( $query ) use ( $id, $change, &$raced, &$race ) {
+			if ( false !== strpos( $query, "SET phase = 'failed', active_slot = NULL" ) && false !== strpos( $query, $id ) ) {
+				remove_filter( 'query', $race );
+				$row = $this->set_outcome_cursor( $id, 'terminal' === $change ? 'completed' : 'replaying_db', 'fk-rerouted' === $change ? array( 'db_replay' => array( 'fk_path' => true, 'snapshot_done' => true ) ) : array() );
+				if ( 'leased' === $change ) {
+					$this->assertTrue( $this->spine->acquire_lease( $id, 'deadline-successor', (int) $row->version ) );
+				} elseif ( 'future' === $change ) {
+					$this->spine->extend_wall_clock( $id, 3600 );
+				}
+				$raced = true;
+			}
+			return $query;
+		};
+		add_filter( 'query', $race );
+		try {
+			$result = $this->with_dump_sweep_singleton( function () use ( $id ) { return $this->spine->enforce_wall_clock_deadline( $id ); } );
+		} finally {
+			remove_filter( 'query', $race );
+		}
+		$this->assertTrue( $raced );
+		$this->assertSame( 'fk-rerouted' === $change, $result );
+		$this->assertSame( 'terminal' === $change ? 'completed' : ( 'fk-rerouted' === $change ? 'fk_rollback' : 'replaying_db' ), $this->spine->get_task( $id )->phase );
+		$this->assertArrayNotHasKey( 'verification', $this->spine->read_sub_state( $this->spine->get_task( $id ), $this->dir ) );
+	}
+
+	/** @dataProvider outcome_rollback_errors */
+	public function test_outcome_fk_rollback_error_and_throw_keep_recovery( $throw ) {
+		$id = $this->dump_sweep_fixture( 'fk_rollback' );
+		$this->set_outcome_cursor( $id, 'fk_rollback', array( 'db_replay' => array( 'fk_path' => true ) ) );
+		if ( $throw ) {
+			$this->runner->fake_engine->rollback_throw = true;
+		} else {
+			$this->runner->fake_engine->rollback_error = 'rollback failed';
+		}
+		$this->assertSame( 'failed', $this->drive( $id )->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED, $this->spine->status_payload( $this->spine->get_task( $id ), $this->dir )['error_code'] );
+		$this->assertSame( 'left_partial', $this->stored_outcome( $id )['database'] );
+		$this->assert_dump_sweep_state( $id, true, true, true, true );
+	}
+
+	public static function outcome_rollback_errors() {
+		return array( 'returned' => array( false ), 'thrown' => array( true ) );
+	}
+
+	public function test_outcome_dump_sweep_change_fires_after_marker_checkpoint() {
+		file_put_contents( $this->site . '/dbBackup-first.sql.php', 'old dump' );
+		$id = $this->make_task( 'files', array( $this->make_files_archive_artifact() ) );
+		$seen = 0;
+		$listener = function ( $point, $task_id ) use ( $id, &$seen ) {
+			if ( 'after_first_file_change' === $point ) {
+				++$seen;
+				$this->assertSame( $id, $task_id );
+				$this->assertFileDoesNotExist( $this->site . '/dbBackup-first.sql.php' );
+				$this->assertFileDoesNotExist( $this->site . '/wp-content/uploads/restored.txt' );
+				$this->assertTrue( $this->spine->read_sub_state( $this->spine->get_task( $id ), $this->dir )['files_touched'] );
+				throw new MainWP_Exception( 'dump checkpoint failed', null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+			}
+		};
+		add_action( 'mainwp_child_restore_checkpoint', $listener, 10, 2 );
+		try {
+			$this->assertSame( 'failed', $this->drive( $id )->phase );
+		} finally {
+			remove_action( 'mainwp_child_restore_checkpoint', $listener, 10 );
+		}
+		$this->assertSame( 1, $seen );
+		$payload = $this->spine->status_payload( $this->spine->get_task( $id ), $this->dir );
+		$this->assertSame( 'dump checkpoint failed', $payload['error'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $payload['error_code'] );
+		$this->assertSame( 'left_partial', $this->stored_outcome( $id )['files'] );
+	}
+
+
+	/** @dataProvider outcome_repair_probes */
+	public function test_outcome_uniqueness_repair_reports_refused_restore( $probe ) {
+		global $wpdb;
+		$id = $this->make_task( 'full', array() );
+		$this->set_outcome_cursor( $id, 'swapping_db', array( 'db_replay' => array( 'cursor' => array( 'tables' => array( 'items' => array( 'status' => 'ok', 'rows' => 2 ) ) ) ) ) );
+		$this->runner->fake_engine->swap_committed = $probe;
+		$this->runner->fake_engine->calls = array();
+		$this->assertSame( 1, $wpdb->insert( $this->spine->get_table_name(), array( 'task_id' => 'newer-active-fixture', 'type' => 'full', 'phase' => 'queued', 'active_slot' => null, 'started_at' => gmdate( 'Y-m-d H:i:s', time() + 60 ), 'sub_state' => '{}' ) ) );
+		$repair = new ReflectionMethod( MainWP_Child_Backup_Task::class, 'repair_active_task_key' );
+		$repair->setAccessible( true );
+		$suppress = $wpdb->suppress_errors( true );
+		try {
+			$this->assertTrue( $this->with_dump_sweep_singleton( function () use ( $repair ) { return $repair->invoke( $this->spine ); } ) );
+		} finally {
+			$wpdb->suppress_errors( $suppress );
+		}
+		$task = $this->spine->get_task( $id );
+		$this->assertSame( 'failed', $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $this->spine->status_payload( $task, $this->dir )['error_code'] );
+		$this->assertSame( false === $probe ? 'not_started' : 'left_partial', $this->stored_outcome( $id )['database'] );
+		$this->assertSame( 'queued', $this->spine->get_task( 'newer-active-fixture' )->phase );
+		$this->assertContains( 'is_swap_committed', $this->runner->fake_engine->calls );
+		$this->assertNotContains( 'cleanup_tmp_tables', $this->runner->fake_engine->calls );
+		$this->assertNotContains( 'exit_maintenance', $this->runner->fake_engine->calls );
+	}
+
+	public static function outcome_repair_probes() {
+		return array( 'not-committed' => array( false ), 'committed' => array( true ), 'unknown' => array( null ) );
+	}
+
 }

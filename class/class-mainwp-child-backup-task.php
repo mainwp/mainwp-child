@@ -316,20 +316,23 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             }
 
             // dbDelta may have installed the key before the old rows were backfilled.
-            $rows = $wpdb->get_results( "SELECT task_id, version FROM {$table} WHERE phase NOT IN ('completed','failed') ORDER BY started_at DESC, task_id DESC" );
+            $rows = $wpdb->get_results( "SELECT * FROM {$table} WHERE phase NOT IN ('completed','failed') ORDER BY started_at DESC, task_id DESC" );
             if ( '' !== $wpdb->last_error || count( (array) $rows ) < 2 ) {
                 return false;
             }
-            $sub_state = wp_json_encode(
-                array(
-                    'error' => array(
-                        'code'    => MainWP_Backup_Error::ERR_ALREADY_RUNNING,
-                        'message' => 'Task failed during active-task uniqueness repair; a newer task remains active.',
-                    ),
-                )
+            $failure = array(
+                'error' => array(
+                    'code'    => MainWP_Backup_Error::ERR_ALREADY_RUNNING,
+                    'message' => 'Task failed during active-task uniqueness repair; a newer task remains active.',
+                ),
             );
             foreach ( array_slice( $rows, 1 ) as $row ) {
-                $changed = $wpdb->query(
+                $terminal_state = $failure;
+                if ( self::is_restore_type( $row->type ) ) {
+                    $terminal_state['verification']['outcome'] = MainWP_Child_Restore_Task_Runner::instance()->terminal_outcome( $row, null, 'failed', MainWP_Backup_Error::ERR_ALREADY_RUNNING );
+                }
+                $sub_state = wp_json_encode( $terminal_state );
+                $changed   = $wpdb->query(
                     $wpdb->prepare(
                         "UPDATE {$table} SET phase = 'failed', active_slot = NULL, sub_state = %s, version = version + 1 WHERE task_id = %s AND version = %d AND phase NOT IN ('completed','failed')",
                         $sub_state,
@@ -559,15 +562,40 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     /**
      * Renew only the invocation that still owns a live lease, preserving its CAS version.
      *
-     * @param string $task_id     Task id.
-     * @param string $owner       Invocation token.
-     * @param int    $ttl_seconds Lease TTL in seconds.
+     * @param string $task_id       Task id.
+     * @param string $owner         Invocation token.
+     * @param int    $ttl_seconds   Lease TTL in seconds.
+     * @param bool   $allow_expired Also re-extend an expired lease nobody else acquired.
      * @return bool Whether the lease remains owned by this invocation.
      */
-    public function renew_lease( $task_id, $owner, $ttl_seconds = 180 ) {
+    public function renew_lease( $task_id, $owner, $ttl_seconds = 180, $allow_expired = false ) {
         global $wpdb;
         if ( '' === $owner || $ttl_seconds <= 0 ) {
             return false;
+        }
+        if ( $allow_expired ) {
+            // Any other invocation must acquire before writing, which replaces the
+            // owner, so an unchanged owner proves the task was never taken over.
+            $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- ownership must be checked atomically.
+                $wpdb->prepare(
+                    'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- trusted table name.
+                    " SET lease_expires_at = DATE_ADD(NOW(), INTERVAL %d SECOND)
+                     WHERE task_id = %s AND lease_owner = %s AND phase NOT IN ('completed','failed')",
+                    $ttl_seconds,
+                    $task_id,
+                    $owner
+                )
+            );
+            if ( 0 !== $result ) {
+                return 1 === $result;
+            }
+            return '1' === $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- distinguish an unchanged expiry from ownership loss.
+                $wpdb->prepare(
+                    'SELECT 1 FROM ' . $this->get_table_name() . " WHERE task_id = %s AND lease_owner = %s AND phase NOT IN ('completed','failed')", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- trusted table name.
+                    $task_id,
+                    $owner
+                )
+            );
         }
         $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- ownership must be checked atomically.
             $wpdb->prepare(
@@ -936,77 +964,110 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     public function enforce_wall_clock_deadline( $task_id ) {
         global $wpdb;
 
-        $task = $this->get_task( $task_id );
-        if ( null === $task || self::is_terminal_phase( $task->phase ) ) {
-            return false;
-        }
+        $read_version = null;
+        for ( $attempt = 0; $attempt < 3; ++$attempt ) {
+            $task = $this->get_task( $task_id );
+            if ( null !== $task && $read_version === (int) $task->version ) {
+                return false;
+            }
+            $read_version = null !== $task ? (int) $task->version : null;
+            if ( null === $task || self::is_terminal_phase( $task->phase ) ) {
+                return false;
+            }
 
-        // A foreign-key restore that times out mid-replay is rerouted to roll
-        // the half-applied database back instead of failing outright. The
-        // foreign-key condition lives in the JSON sub_state, so it is resolved
-        // here in PHP and committed with a deadline + phase guarded write:
-        // MySQL time still owns the deadline, the version bump makes a
-        // still-live runner back off, and the rollback gets a fresh deadline.
-        //
-        // The reroute waits for the lease to be free (the same gate the runner
-        // acquires through), so the rollback that follows can never overlap a
-        // replay still writing the live tables, and a replay that has just
-        // finished - still holding the lease through its phase transition -
-        // is never rerouted into rolling back a restore that already applied.
-        // A mid-replay fk restore is therefore never forced to a bare failure
-        // that would skip the rollback: it reroutes when the lease frees or a
-        // later poll retries.
-        if ( self::PHASE_REPLAYING_DB === $task->phase && $this->is_fk_replay_in_progress( $task ) ) {
-            $rerouted = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- conditional reroute write on the spine table.
-                $wpdb->prepare(
-                    'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
-                    ' SET phase = %s, max_wall_clock_at = DATE_ADD(NOW(), INTERVAL %d SECOND), version = version + 1
-                     WHERE task_id = %s AND phase = %s AND max_wall_clock_at < NOW()
-                       AND ( lease_owner IS NULL OR lease_expires_at < NOW() )',
-                    self::PHASE_FK_ROLLBACK,
-                    self::FK_ROLLBACK_DEADLINE_SECONDS,
-                    $task_id,
-                    self::PHASE_REPLAYING_DB
-                )
-            );
-            return 1 === $rerouted;
-        }
+            // A foreign-key restore that times out mid-replay is rerouted to roll
+            // the half-applied database back instead of failing outright. The
+            // foreign-key condition lives in the JSON sub_state, so it is resolved
+            // here in PHP and committed with a deadline + phase guarded write:
+            // MySQL time still owns the deadline, the version bump makes a
+            // still-live runner back off, and the rollback gets a fresh deadline.
+            //
+            // The reroute waits for the lease to be free (the same gate the runner
+            // acquires through), so the rollback that follows can never overlap a
+            // replay still writing the live tables, and a replay that has just
+            // finished - still holding the lease through its phase transition -
+            // is never rerouted into rolling back a restore that already applied.
+            // A mid-replay fk restore is therefore never forced to a bare failure
+            // that would skip the rollback: it reroutes when the lease frees or a
+            // later poll retries.
+            if ( self::PHASE_REPLAYING_DB === $task->phase && $this->is_fk_replay_in_progress( $task ) ) {
+                $rerouted = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- conditional reroute write on the spine table.
+                    $wpdb->prepare(
+                        'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
+                        ' SET phase = %s, max_wall_clock_at = DATE_ADD(NOW(), INTERVAL %d SECOND), version = version + 1
+                         WHERE task_id = %s AND phase = %s AND max_wall_clock_at < NOW()
+                           AND ( lease_owner IS NULL OR lease_expires_at < NOW() )',
+                        self::PHASE_FK_ROLLBACK,
+                        self::FK_ROLLBACK_DEADLINE_SECONDS,
+                        $task_id,
+                        self::PHASE_REPLAYING_DB
+                    )
+                );
+                return 1 === $rerouted;
+            }
 
-        // Every other timed-out task fails. A rollback that itself timed out
-        // keeps maintenance on (nothing exits it) and reports the
-        // rollback-failed code so the cause is clear; everything else reports
-        // the wall-clock code. The error is recorded in the same guarded write
-        // so the Dashboard poll sees a reason, not a bare "failed".
-        $code = ( self::PHASE_FK_ROLLBACK === $task->phase )
-            ? MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED
-            : MainWP_Backup_Error::ERR_WALL_CLOCK;
+            // Every other timed-out task fails. A rollback that itself timed out
+            // keeps maintenance on (nothing exits it) and reports the
+            // rollback-failed code so the cause is clear; everything else reports
+            // the wall-clock code. The error is recorded in the same guarded write
+            // so the Dashboard poll sees a reason, not a bare "failed".
+            $code = ( self::PHASE_FK_ROLLBACK === $task->phase )
+                ? MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED
+                : MainWP_Backup_Error::ERR_WALL_CLOCK;
 
-        $sub_state = wp_json_encode(
-            array(
+            $terminal_state = array(
                 'error' => array(
                     'message' => MainWP_Backup_Error::message( $code ),
                     'code'    => $code,
                 ),
-            )
-        );
+            );
+            if ( self::is_restore_type( $task->type ) ) {
+                // Every restore poll lands here; the report reads the cursor and may
+                // probe the swap, so only a task the write below can fail pays for it.
+                $eligible = $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- same predicates as the terminal write.
+                    $wpdb->prepare(
+                        'SELECT 1 FROM ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
+                        " WHERE task_id = %s AND version = %d AND phase NOT IN ('completed','failed')
+                           AND ( lease_owner IS NULL OR lease_expires_at < NOW() )
+                           AND ( max_wall_clock_at < NOW()
+                                 OR ( phase = %s AND started_at < DATE_SUB( NOW(), INTERVAL %d SECOND ) ) )",
+                        $task_id,
+                        $read_version,
+                        self::PHASE_QUEUED,
+                        self::QUEUED_STALL_WINDOW_SECONDS
+                    )
+                );
+                if ( '1' !== (string) $eligible ) {
+                    $result = 0;
+                    continue;
+                }
+                $terminal_state['verification']['outcome'] = MainWP_Child_Restore_Task_Runner::instance()->terminal_outcome( $task, null, 'failed', $code );
+            }
+            $sub_state = wp_json_encode( $terminal_state );
 
-        // A still-queued task is failed once it has sat untouched past the
-        // shorter stall window, even while its full wall-clock deadline is
-        // still in the future - see QUEUED_STALL_WINDOW_SECONDS.
-        $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- conditional terminal write on the spine table.
-            $wpdb->prepare(
-                'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
-                " SET phase = 'failed', active_slot = NULL, sub_state = %s, version = version + 1
-                 WHERE task_id = %s AND phase NOT IN ('completed','failed')
-                   AND ( lease_owner IS NULL OR lease_expires_at < NOW() )
-                   AND ( max_wall_clock_at < NOW()
-                         OR ( phase = %s AND started_at < DATE_SUB( NOW(), INTERVAL %d SECOND ) ) )",
-                $sub_state,
-                $task_id,
-                self::PHASE_QUEUED,
-                self::QUEUED_STALL_WINDOW_SECONDS
-            )
-        );
+            // A still-queued task is failed once it has sat untouched past the
+            // shorter stall window, even while its full wall-clock deadline is
+            // still in the future - see QUEUED_STALL_WINDOW_SECONDS.
+            $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- conditional terminal write on the spine table.
+                $wpdb->prepare(
+                    'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
+                    " SET phase = 'failed', active_slot = NULL, sub_state = %s, version = version + 1
+                     WHERE task_id = %s AND version = %d AND phase NOT IN ('completed','failed')
+                       AND ( lease_owner IS NULL OR lease_expires_at < NOW() )
+                       AND ( max_wall_clock_at < NOW()
+                             OR ( phase = %s AND started_at < DATE_SUB( NOW(), INTERVAL %d SECOND ) ) )",
+                    $sub_state,
+                    $task_id,
+                    $read_version,
+                    self::PHASE_QUEUED,
+                    self::QUEUED_STALL_WINDOW_SECONDS
+                )
+            );
+
+            if ( 0 !== $result ) {
+                break;
+            }
+        }
 
         // Only when this call actually failed the task: a forced-terminal
         // restore left tmp tables, the .maintenance flag, and scratch behind

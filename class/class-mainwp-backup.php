@@ -1755,6 +1755,7 @@ class MainWP_Backup {
         );
 
         $report['reconcile_unarchived_support'] = true;
+        $report['restore_outcome_report']       = true;
 
         if ( $capabilities_only ) {
             return $report;
