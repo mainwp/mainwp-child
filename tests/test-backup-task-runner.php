@@ -448,6 +448,21 @@ class BackupTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( 2, $checks );
 	}
 
+	public function test_backup_hash_keeps_digest_of_an_exact_chunk_multiple_at_the_deadline() {
+		file_put_contents( $this->backup_dir . '/backup-artifact.tar', str_repeat( 'a', 4 * 1024 * 1024 ) );
+		$id = $this->runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );
+		$checks = 0;
+		// Checks: before opening, before chunk 1, before chunk 2; a fourth would only find EOF.
+		$this->runner->stubs['hash_budget_exhausted'] = function () use ( &$checks ) {
+			return ++$checks >= 4;
+		};
+		$task = $this->advance( $id );
+		$this->assertSame( 'completed', $task->phase );
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+		$this->assertSame( hash_file( 'sha256', $this->backup_dir . '/backup-artifact.tar' ), $payload['sha256'] );
+		$this->assertSame( 3, $checks );
+	}
+
 	public function test_backup_hash_two_attempts_are_checkpointed_and_bounded() {
 		file_put_contents( $this->backup_dir . '/backup-artifact.tar', str_repeat( 'chunk', 1024 * 1024 ) );
 		$id = $this->runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );

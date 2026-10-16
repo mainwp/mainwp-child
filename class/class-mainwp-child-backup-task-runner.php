@@ -1467,15 +1467,21 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
         try {
             $context = hash_init( 'sha256' );
-            while ( ! feof( $handle ) ) {
+            $stat    = fstat( $handle );
+            $size    = is_array( $stat ) ? (int) $stat['size'] : -1;
+            $read    = 0;
+            // Bounded by the closed artifact's size: feof() stays false after the last full
+            // chunk, and a budget check there would throw away a digest that is already complete.
+            while ( $size < 0 ? ! feof( $handle ) : $read < $size ) {
                 $heartbeat();
                 if ( $this->hash_budget_exhausted( $deadline ) ) {
                     return null;
                 }
                 $chunk = @fread( $handle, 2 * 1024 * 1024 ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- read failures are reported without failing the backup.
-                if ( false === $chunk || ( '' === $chunk && ! feof( $handle ) ) ) {
+                if ( false === $chunk || ( '' === $chunk && ! feof( $handle ) ) || ( '' === $chunk && $size >= 0 ) ) {
                     return array( 'hash_skipped' => 'unreadable' );
                 }
+                $read += strlen( $chunk );
                 hash_update( $context, $chunk );
             }
             $heartbeat();

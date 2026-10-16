@@ -145,6 +145,47 @@ class BackupDownloadTokenTest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'token', $tokens->issue( $file ) );
 	}
 
+	public static function token_evidence_read_failures() {
+		return array(
+			'query fails on the existing table' => array( false, MainWP_Backup_Error::ERR_DB_QUERY_FAILED ),
+			'task table missing (legacy)'        => array( true, null ),
+		);
+	}
+
+	/**
+	 * A failed evidence read must not pass as "no recorded hash"; only a missing table is the legacy case.
+	 *
+	 * @dataProvider token_evidence_read_failures
+	 */
+	public function test_backup_hash_token_refuses_when_recorded_evidence_cannot_be_read( $table_missing, $code ) {
+		$file = 'backup-evidence-read.zip';
+		$path = $this->create_artifact( $file, 'original' );
+		$this->record_completed_hash( $file, hash_file( 'sha256', $path ) );
+		file_put_contents( $path, 'modified' );
+		$table  = \MainWP\Child\MainWP_Child_Backup_Task::instance()->get_table_name();
+		$filter = function ( $query ) use ( $table, $table_missing ) {
+			if ( false !== strpos( $query, 'sub_state LIKE' ) ) {
+				return $table_missing ? str_replace( $table, $table . '_absent', $query ) : str_replace( 'SELECT task_id, sub_state', 'SELECT no_such_column', $query );
+			}
+			if ( $table_missing && 0 === strpos( $query, 'SELECT 1 FROM ' . $table ) ) {
+				return str_replace( $table, $table . '_absent', $query );
+			}
+			return $query;
+		};
+		add_filter( 'query', $filter );
+		try {
+			$answer = MainWP_Child_Backup_Download_Token::instance()->issue( $file );
+		} finally {
+			remove_filter( 'query', $filter );
+		}
+		if ( null === $code ) {
+			$this->assertArrayHasKey( 'token', $answer );
+		} else {
+			$this->assertSame( array( 'error', 'error_code' ), array_keys( $answer ) );
+			$this->assertSame( $code, $answer['error_code'] );
+		}
+	}
+
 	public function test_backup_hash_token_chain_and_skipped_hash_exemptions() {
 		$tokens = MainWP_Child_Backup_Download_Token::instance();
 		foreach ( array( 'files.list', 'tombstones.list', 'changes.list' ) as $file ) {

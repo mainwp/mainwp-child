@@ -1873,7 +1873,10 @@ class MainWP_Backup {
 
             foreach ( $nodes as $node ) {
                 if ( static::is_file_link( $node ) || ! static::is_safe_backup_path( $node, $this->allowed_backup_bases, array( ABSPATH ) ) ) {
-                    static::record_skipped_path( $node, static::is_file_link( $node ) ? 'link' : 'unsafe' );
+                    // An excluded path was never meant to be in the backup, so it is not a skip.
+                    if ( ! static::excluded_by_path_or_target( $excludes, $node ) ) {
+                        static::record_skipped_path( $node, static::is_file_link( $node ) ? 'link' : 'unsafe' );
+                    }
                     continue;
                 }
 
@@ -2301,7 +2304,10 @@ class MainWP_Backup {
 
             $descent_chain = $ancestors;
             if ( static::is_file_link( $name ) || ! static::is_safe_backup_path( $name, $this->allowed_backup_bases, $descent_chain ) ) {
-                static::record_skipped_path( $name, static::is_file_link( $name ) ? 'link' : 'unsafe' );
+                // An excluded path was never meant to be in the backup, so it is not a skip.
+                if ( ! static::excluded_by_path_or_target( $excludes, $name ) ) {
+                    static::record_skipped_path( $name, static::is_file_link( $name ) ? 'link' : 'unsafe' );
+                }
                 continue;
             }
 

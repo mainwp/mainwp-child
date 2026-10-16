@@ -79,7 +79,15 @@ class MainWP_Child_Backup_Download_Token { // phpcs:ignore Generic.Classes.Openi
         }
 
         $hash = hash_file( 'sha256', $full_path );
-        if ( $this->recorded_hash_mismatch( basename( $full_path ), $hash ) ) {
+        // An unreadable file keeps today's answer (a token without a hash), not a false mismatch.
+        $mismatch = is_string( $hash ) ? $this->recorded_hash_mismatch( basename( $full_path ), $hash ) : false;
+        if ( null === $mismatch ) {
+            return array(
+                'error'      => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DB_QUERY_FAILED ),
+                'error_code' => MainWP_Backup_Error::ERR_DB_QUERY_FAILED,
+            );
+        }
+        if ( $mismatch ) {
             return array(
                 'error'      => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DL_FILE_HASH_MISMATCH ),
                 'error_code' => MainWP_Backup_Error::ERR_DL_FILE_HASH_MISMATCH,
@@ -116,9 +124,9 @@ class MainWP_Child_Backup_Download_Token { // phpcs:ignore Generic.Classes.Openi
     /**
      * Shared chain files are rewritten by later runs; only run-owned archives bind to a finished hash.
      *
-     * @param string       $basename Requested file.
-     * @param string|false $hash Current digest.
-     * @return bool Whether recorded evidence exists but none matches.
+     * @param string $basename Requested file.
+     * @param string $hash     Current digest.
+     * @return bool|null Whether recorded evidence exists but none matches; null when the evidence cannot be read.
      */
     private function recorded_hash_mismatch( $basename, $hash ) {
         if ( MainWP_Child_Backup_Task::is_chain_file( $basename ) ) {
@@ -137,6 +145,11 @@ class MainWP_Child_Backup_Download_Token { // phpcs:ignore Generic.Classes.Openi
                     $like
                 )
             );
+            // A failed read of an existing table must not pass as "no recorded hash".
+            if ( '' !== (string) $wpdb->last_error ) {
+                $wpdb->query( 'SELECT 1 FROM ' . $spine->get_table_name() . ' LIMIT 1' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared -- existence probe on the trusted task table name.
+                return '' === (string) $wpdb->last_error ? null : false;
+            }
         } finally {
             $wpdb->suppress_errors( $suppress );
         }

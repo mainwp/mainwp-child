@@ -481,6 +481,51 @@ class BackupSymlinksTest extends WP_UnitTestCase {
 		$this->assertFalse( MainWP_Backup::excluded_by_path_or_target( $excludes, $link . '/keep.txt' ) );
 	}
 
+	public static function skip_report_engines() {
+		return array( 'zip' => array( 'zip' ), 'tar' => array( 'tar' ) );
+	}
+
+	/**
+	 * The backup report counts skips by reason, so a path the user excluded must not appear as one.
+	 *
+	 * @dataProvider skip_report_engines
+	 */
+	public function test_excluded_link_is_not_reported_as_a_skip( $engine ) {
+		if ( 'zip' === $engine && ! class_exists( 'ZipArchive' ) ) {
+			$this->markTestSkipped( 'ZipArchive unavailable.' );
+		}
+		$tree     = $this->option_b_tree();
+		$excludes = array( str_replace( ABSPATH, '', $tree . '/absolute.txt' ), str_replace( ABSPATH, '', $tree . '/outside-dir' ) );
+		$reasons  = array();
+		$on_skip  = function ( $path, $reason = '' ) use ( &$reasons ) {
+			$reasons[ $path ] = $reason;
+		};
+		add_action( 'mainwp_child_backup_skipped_path', $on_skip, 10, 2 );
+		try {
+			if ( 'zip' === $engine ) {
+				$backup  = $this->backup();
+				$zip     = new ZipArchive();
+				$archive = $this->external . '/report.zip';
+				$this->assertTrue( $zip->open( $archive, ZipArchive::CREATE ) );
+				$slot = new ReflectionProperty( MainWP_Backup::class, 'zip' );
+				$slot->setAccessible( true );
+				$slot->setValue( $backup, $zip );
+				$backup->zip_add_dir( $tree, $excludes );
+				$zip->close();
+			} else {
+				$tar = new Tar_Archiver( $this->backup(), 'tar' );
+				$tar->create( $this->external . '/report.tar' );
+				$tar->add_dir( $tree, $excludes );
+				$tar->close();
+			}
+		} finally {
+			remove_action( 'mainwp_child_backup_skipped_path', $on_skip, 10 );
+		}
+		$this->assertArrayNotHasKey( $tree . '/absolute.txt', $reasons, 'An excluded file link is not a skip.' );
+		$this->assertArrayNotHasKey( $tree . '/outside-dir', $reasons, 'An excluded unsafe directory link is not a skip.' );
+		$this->assertSame( 'link', $reasons[ $tree . '/linked.txt' ] ?? null, 'A link the backup was meant to cover is still reported.' );
+	}
+
 	public function test_zip_descends_links_and_records_refusals() {
 		if ( ! class_exists( 'ZipArchive' ) ) {
 			$this->markTestSkipped( 'ZipArchive unavailable.' );

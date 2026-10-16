@@ -471,7 +471,10 @@ class Tar_Archiver {
 
             foreach ( $nodes as $node ) {
                 if ( MainWP_Backup::is_file_link( $node ) ) {
-                    MainWP_Backup::record_skipped_path( $node, 'link' );
+                    // An excluded path was never meant to be in the backup, so it is not a skip.
+                    if ( ! MainWP_Backup::excluded_by_path_or_target( $excludes, $node ) ) {
+                        MainWP_Backup::record_skipped_path( $node, 'link' );
+                    }
                     continue;
                 }
 
@@ -696,7 +699,10 @@ class Tar_Archiver {
                 }
             }
             if ( MainWP_Backup::is_file_link( $name ) || ! MainWP_Backup::is_safe_backup_path( $name, $bases, $descent_chain ) ) {
-                MainWP_Backup::record_skipped_path( $name, MainWP_Backup::is_file_link( $name ) ? 'link' : 'unsafe' );
+                // An excluded path was never meant to be in the backup, so it is not a skip.
+                if ( ! MainWP_Backup::excluded_by_path_or_target( $excludes, $name ) ) {
+                    MainWP_Backup::record_skipped_path( $name, MainWP_Backup::is_file_link( $name ) ? 'link' : 'unsafe' );
+                }
                 $this->log( 'Skipping unsafe path ' . $name );
                 continue;
             }
