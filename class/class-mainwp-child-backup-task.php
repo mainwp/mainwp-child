@@ -574,8 +574,9 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             return false;
         }
         if ( $allow_expired ) {
-            // Any other invocation must acquire before writing, which replaces the
-            // owner, so an unchanged owner proves the task was never taken over.
+            // Any other invocation acquires before writing, and the FK rollback
+            // reroutes clear the owner, so an unchanged owner proves the task was
+            // never taken over.
             $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- ownership must be checked atomically.
                 $wpdb->prepare(
                     'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- trusted table name.
@@ -989,12 +990,13 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             // is never rerouted into rolling back a restore that already applied.
             // A mid-replay fk restore is therefore never forced to a bare failure
             // that would skip the rollback: it reroutes when the lease frees or a
-            // later poll retries.
+            // later poll retries. The expired owner is cleared so an overrun slice
+            // still cleaning up loses its fence and cannot remove the aside dumps.
             if ( self::PHASE_REPLAYING_DB === $task->phase && $this->is_fk_replay_in_progress( $task ) ) {
                 $rerouted = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- conditional reroute write on the spine table.
                     $wpdb->prepare(
                         'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
-                        ' SET phase = %s, max_wall_clock_at = DATE_ADD(NOW(), INTERVAL %d SECOND), version = version + 1
+                        ' SET phase = %s, max_wall_clock_at = DATE_ADD(NOW(), INTERVAL %d SECOND), lease_owner = NULL, lease_expires_at = NULL, version = version + 1
                          WHERE task_id = %s AND phase = %s AND max_wall_clock_at < NOW()
                            AND ( lease_owner IS NULL OR lease_expires_at < NOW() )',
                         self::PHASE_FK_ROLLBACK,
@@ -1145,7 +1147,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- compare-and-swap reroute write on the spine table.
             $wpdb->prepare(
                 'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
-                ' SET phase = %s, max_wall_clock_at = DATE_ADD(NOW(), INTERVAL %d SECOND), resume_count = 0, last_progress_at = NOW(), version = version + 1
+                ' SET phase = %s, max_wall_clock_at = DATE_ADD(NOW(), INTERVAL %d SECOND), resume_count = 0, last_progress_at = NOW(), lease_owner = NULL, lease_expires_at = NULL, version = version + 1
                  WHERE task_id = %s AND version = %d AND phase = %s
                    AND ( lease_owner IS NULL OR lease_expires_at < NOW() )',
                 self::PHASE_FK_ROLLBACK,

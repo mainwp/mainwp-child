@@ -181,19 +181,28 @@ class MainWP_Child_Backup_Watchdog { // phpcs:ignore Generic.Classes.OpeningBrac
                         continue;
                     }
                     ++$version;
-                    $terminal_state['verification']['outcome'] = MainWP_Child_Restore_Task_Runner::instance()->terminal_outcome( $task, null, 'failed', MainWP_Backup_Error::ERR_STALLED );
                 }
-                $capped = $spine->checkpoint(
-                    $task->task_id,
-                    $version,
-                    array(
-                        'phase'     => MainWP_Child_Backup_Task::PHASE_FAILED,
-                        'sub_state' => $terminal_state,
-                    ),
-                    false
-                );
-                if ( '' !== $cap_owner ) {
-                    $spine->release_lease( $task->task_id, $cap_owner, false !== $capped ? (int) $capped : $version );
+                $capped = false;
+                try {
+                    if ( '' !== $cap_owner ) {
+                        $terminal_state['verification']['outcome'] = MainWP_Child_Restore_Task_Runner::instance()->terminal_outcome( $task, null, 'failed', MainWP_Backup_Error::ERR_STALLED );
+                    }
+                    $capped = $spine->checkpoint(
+                        $task->task_id,
+                        $version,
+                        array(
+                            'phase'     => MainWP_Child_Backup_Task::PHASE_FAILED,
+                            'sub_state' => $terminal_state,
+                        ),
+                        false
+                    );
+                } finally {
+                    if ( '' !== $cap_owner ) {
+                        $held = $spine->get_task( $task->task_id );
+                        if ( null !== $held ) {
+                            $spine->release_lease( $task->task_id, $cap_owner, (int) $held->version );
+                        }
+                    }
                 }
 
                 // A forced-terminal restore leaves tmp tables, the maintenance

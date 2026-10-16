@@ -525,6 +525,7 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 	public $test_slice_budget = 40;
 	public $late_verify_once = false;
 	public $pause_before_phase;
+	public $backup_dir_throws = false;
 	public $throw_url_rewrite = false;
 	public $throw_woo_merge = false;
 
@@ -638,6 +639,9 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 	 * @return string
 	 */
 	protected function backup_dir() {
+		if ( $this->backup_dir_throws ) {
+			throw new MainWP_Exception( 'Unable to connect to the filesystem.' );
+		}
 		return $this->test_backup_dir;
 	}
 
@@ -8439,6 +8443,64 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '_sidecar', $stored );
 		$this->stored_outcome( $id );
 		$this->assertFileDoesNotExist( $sidecar_path );
+	}
+
+	/**
+	 * The report must never stop a terminal write or a terminal cancel answer:
+	 * with the backup dir unavailable the inline cursor still answers.
+	 */
+	public function test_outcome_unreadable_backup_dir_does_not_block_terminal_writes() {
+		$id = $this->make_task( 'full', array( $this->make_part_artifact(), $this->make_db_artifact() ) );
+		$this->set_outcome_cursor( $id, 'replaying_db' );
+		$this->force_deadline_past( $id );
+		$this->runner->backup_dir_throws = true;
+		try {
+			$this->with_dump_sweep_singleton( function () use ( $id ) {
+				$this->spine->enforce_wall_clock_deadline( $id );
+			} );
+		} catch ( \Throwable $cleanup_error ) {
+			// Cleanup after the terminal write still needs the directory; the write itself must have landed.
+			unset( $cleanup_error );
+		}
+		$answer = $this->runner->cancel_restore_task( $id );
+		$this->runner->backup_dir_throws = false;
+		$this->assertSame( 'failed', $this->spine->get_task( $id )->phase );
+		$this->assertSame( array( 'files' => 'applied', 'database' => 'not_started', 'files_copy_taken' => false, 'phase_reached' => 'replaying_db' ), $this->stored_outcome( $id ) );
+		$this->assertSame( 'already_terminal', $answer['result'] );
+		$this->assertSame( 'not_started', $answer['verification']['outcome']['database'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_WALL_CLOCK, $answer['failure']['code'] );
+	}
+
+	/**
+	 * A deadline reroute to the FK rollback while an overrun slice is about to
+	 * clean up must leave the aside dumps, maintenance and the rollback phase in
+	 * place: the reroute clears the expired owner, so the slice's fence fails.
+	 */
+	public function test_outcome_fk_reroute_during_overrun_cleanup_keeps_rollback_source() {
+		$this->dump_sweep_runner();
+		// The in-place replay has applied; leaving maintenance then fails, so the slice cleans up.
+		$this->runner->fake_engine->exit_maintenance_throw = true;
+		$id = $this->make_task( 'db', array( $this->make_db_artifact( true ) ), array( 'source_prefix' => 'rt_' ) );
+		$paused = false;
+		$aside_at_pause = false;
+		$this->runner->before_terminal_cleanup = function () use ( $id, &$paused, &$aside_at_pause ) {
+			global $wpdb;
+			$paused = true;
+			$aside_at_pause = is_dir( $this->runner->scratch_dir( $id, $this->dir ) . 'aside' );
+			$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $id ) );
+			$this->force_deadline_past( $id );
+			$this->assertTrue( $this->spine->enforce_wall_clock_deadline( $id ) );
+		};
+		$task = $this->spine->get_task( $id );
+		for ( $i = 0; $i < 30 && ! $paused && ! MainWP_Child_Backup_Task::is_terminal_phase( $task->phase ); ++$i ) {
+			$task = $this->runner->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
+		}
+		$this->assertTrue( $paused );
+		$this->assertTrue( $aside_at_pause );
+		$task = $this->spine->get_task( $id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK, $task->phase );
+		$this->assertArrayNotHasKey( 'error', $this->spine->read_sub_state( $task, $this->dir ) );
+		$this->assertDirectoryExists( $this->runner->scratch_dir( $id, $this->dir ) . 'aside' );
 	}
 
 	/**

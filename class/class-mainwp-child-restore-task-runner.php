@@ -119,7 +119,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      */
     public function terminal_outcome( $task, $sub_state = null, $terminal_kind = 'failed', $error_code = '' ) {
         if ( null === $sub_state ) {
-            $sub_state = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $this->backup_dir() );
+            $sub_state = $this->report_cursor( $task );
         }
         $sub_state = is_array( $sub_state ) ? $sub_state : array();
         $committed = null;
@@ -142,6 +142,28 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
         }
         return self::derive_outcome( $task->type, $task->phase, $sub_state, $terminal_kind, $error_code, $committed );
+    }
+
+    /**
+     * Read a cursor for the report without letting the read block a terminal write.
+     *
+     * Resolving the backup dir needs a filesystem connection; when it fails the
+     * inline cursor still answers, and a sidecar cursor reads as unknown, which
+     * derive_outcome() treats conservatively.
+     *
+     * @param object $task Task row.
+     * @return array Cursor, or an empty array when it cannot be read.
+     */
+    protected function report_cursor( $task ) {
+        try {
+            $state = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $this->backup_dir() );
+        } catch ( \Throwable $read_error ) {
+            $state = json_decode( isset( $task->sub_state ) ? (string) $task->sub_state : '', true );
+            if ( is_array( $state ) && ! empty( $state['_sidecar'] ) ) {
+                $state = array();
+            }
+        }
+        return is_array( $state ) ? $state : array();
     }
 
     /**
@@ -173,7 +195,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             'result' => $result,
             'phase'  => $task->phase,
         );
-        $state  = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $this->backup_dir() );
+        $state  = $this->report_cursor( $task );
         if ( isset( $state['verification']['outcome'] ) ) {
             $answer['verification']['outcome'] = $state['verification']['outcome'];
         }
@@ -1089,9 +1111,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $this->after_file_change = null;
             $fresh                   = MainWP_Child_Backup_Task::instance()->get_task( $task->task_id );
             if ( null !== $fresh ) {
-                $task      = $fresh;
-                $sub_state = MainWP_Child_Backup_Task::instance()->read_sub_state( $fresh, $backup_dir );
-                $sub_state = is_array( $sub_state ) ? $sub_state : array();
+                $task        = $fresh;
+                $fresh_state = MainWP_Child_Backup_Task::instance()->read_sub_state( $fresh, $backup_dir );
+                $sub_state   = is_array( $fresh_state ) ? $fresh_state : ( is_array( $sub_state ) ? $sub_state : array() );
             }
             $code                  = $e instanceof MainWP_Exception ? $e->get_message_error_code() : '';
             $this->failure_outcome = $this->terminal_outcome( $task, $sub_state, 'failed', $code );
