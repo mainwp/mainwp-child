@@ -1782,24 +1782,43 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * Delete backup.
      *
-     * @uses \MainWP\Child\MainWP_Helper::get_mainwp_dir()
+     * @uses \MainWP\Child\MainWP_Helper::locate_backup_file()
      * @uses \MainWP\Child\MainWP_Helper::write()
      */
     public function delete_backup() {
         // phpcs:disable WordPress.Security.NonceVerification
-        $file = isset( $_REQUEST['del'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['del'] ) ) : '';
-        // phpcs:enable
+        $file = isset( $_REQUEST['del'] ) ? wp_unslash( $_REQUEST['del'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- The archive-name check below rejects path components before filesystem access.
+        // phpcs:enable WordPress.Security.NonceVerification
 
-        // Resolve through the same lookup the download path uses: it rejects a
-        // name carrying a separator, and it also finds an archive still sitting
-        // in the pre-hash legacy directory, which a hashed-dir-only delete
-        // silently failed to remove while still reporting ok.
-        $path = MainWP_Helper::locate_backup_file( $file );
-        if ( false !== $path ) {
-            wp_delete_file( $path );  // NOSONAR .
+        // Native incremental collection also removes its downloaded tombstone artifact.
+        if ( $this->is_backup_archive_name( $file ) || 'tombstones.list' === $file ) {
+            $path = MainWP_Helper::locate_backup_file( $file );
+            // realpath() follows links, so a linked name or directory could select a different target.
+            if ( false !== $path && ! is_link( $path ) && ! is_link( dirname( $path ) ) ) {
+                $resolved_dir  = realpath( dirname( $path ) );
+                $resolved_file = realpath( $path );
+                if ( false !== $resolved_dir && false !== $resolved_file && is_file( $resolved_file ) && 0 === strpos( $resolved_file, $resolved_dir . DIRECTORY_SEPARATOR ) ) {
+                    wp_delete_file( $resolved_file ); // NOSONAR .
+                }
+            }
         }
 
         MainWP_Helper::write( array( 'result' => 'ok' ) );
+    }
+
+    /**
+     * Custom backup names have no fixed prefix, while control files share this directory.
+     *
+     * @param mixed $name Requested archive basename.
+     * @return bool
+     */
+    private function is_backup_archive_name( $name ) {
+        return is_string( $name ) && '' !== $name
+            && false === strpos( $name, '/' )
+            && false === strpos( $name, '\\' )
+            && false === strpos( $name, "\0" )
+            && false === strpos( $name, '..' )
+            && 1 === preg_match( '/\.(?:zip|tar|tar\.gz|tar\.bz2)\z/', $name );
     }
 
     /**
