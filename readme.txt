@@ -115,6 +115,18 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 
 == Changelog ==
 
+= 6.3-beta6 - 10-16-2026 =
+
+* Security: Deleting a backup file removes only backup archives inside the backup folders and never follows a symbolic link.
+* Security: A restore refuses download links that point at IPv4-mapped forms of private addresses or at cloud metadata addresses, including the AWS IPv6 metadata address.
+* Fixed: Native backups skip file symlinks, and a restore never replaces a live symlink, so mu-plugins that hosts link into the site survive.
+* Fixed: A restore never deletes a file through a linked folder.
+* Fixed: A backup no longer stores clone/config.txt twice when a leftover clone folder sits in the site root.
+* Fixed: The database backup no longer loops on a table whose primary key is a generated column.
+* Fixed: A database archive that cannot be added to the backup is removed instead of being left behind.
+* Fixed: A custom post import that refuses a serialized meta value reports the result as partial instead of dropping the value silently.
+* Changed: When the backup folder cannot be created or protected, the error says which step failed, names the folder, and points to a security or folder-lock plugin or the folder permissions as the likely cause.
+
 = 6.3-beta5 - 10-15-2026 =
 
 * Fixed: A restore no longer deletes or overwrites mu-plugins files that are not in the backup, such as host security plugins and the files they load.
