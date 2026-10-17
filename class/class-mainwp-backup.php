@@ -219,6 +219,13 @@ class MainWP_Backup {
     private static $disk_space_probe = null;
 
     /**
+     * Floors already computed in this request, by directory.
+     *
+     * @var array<string,int>
+     */
+    private static $disk_space_floors = array();
+
+    /**
      * PclZip needs the staged tree's size before creating its temporary copy.
      *
      * @var int Bytes copied into the PclZip staging tree.
@@ -1776,7 +1783,7 @@ class MainWP_Backup {
             $message = sprintf(
                 /* translators: 1: free disk space found on the child site, 2: minimum free disk space the backup needed (safety floor plus data still to be written). */
                 esc_html__( 'The backup stopped because the child site ran low on disk space. It had %1$s free and the backup needed at least %2$s. Free up disk space on the child site and try again.', 'mainwp-child' ),
-                esc_html( size_format( $free, 1 ) ),
+                esc_html( size_format( (int) $free, 1 ) ), // disk_free_space() returns a float, and size_format( 0.0 ) is false.
                 esc_html( size_format( $needed, 1 ) )
             );
             throw new MainWP_Exception( $message, null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- format and sizes are escaped above.
@@ -1790,11 +1797,21 @@ class MainWP_Backup {
      * @return int Minimum free bytes.
      */
     public static function get_disk_space_floor( $backup_dir ) {
+        // Capacity does not change mid-run, and the floor is checked per archive entry (one statvfs each, a round trip on network mounts).
+        $key = (string) $backup_dir;
+        if ( null === self::$disk_space_probe && isset( self::$disk_space_floors[ $key ] ) ) {
+            return self::$disk_space_floors[ $key ];
+        }
         $total = self::probe_disk_space( 'disk_total_space', $backup_dir );
         if ( false === $total ) {
             return 100 * 1024 * 1024;
         }
-        return max( 100 * 1024 * 1024, min( 1024 * 1024 * 1024, (int) ( $total / 10 ) ) );
+        // Clamp before the cast: a tenth of a large disk overflows a 32-bit int and would wrap the floor down.
+        $floor = (int) max( 100 * 1024 * 1024, min( 1024 * 1024 * 1024, $total / 10 ) );
+        if ( null === self::$disk_space_probe ) {
+            self::$disk_space_floors[ $key ] = $floor;
+        }
+        return $floor;
     }
 
     /**

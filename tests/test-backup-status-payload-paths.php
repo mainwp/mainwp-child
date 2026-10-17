@@ -378,6 +378,7 @@ class BackupStatusPayloadPathsTest extends WP_UnitTestCase {
 				$methods .= str_replace( 'MainWP_Helper', '\\Backup_Status_Payload_Response_Helper', implode( '', array_slice( $lines, $method->getStartLine() - 1, $method->getEndLine() - $method->getStartLine() + 1 ) ) );
 			}
 			// The real callable exits when writing; this fixture substitutes only its response boundary.
+			// nosemgrep: AIK_eval-use -- test fixture; evaluates source copied from this repo's own MainWP_Child_Callable methods.
 			eval( 'namespace MainWP\\Child; class Backup_Status_Callable_Fixture extends MainWP_Child_Callable {' . $methods . '}' );
 		}
 		$previous_post = $_POST;

@@ -161,6 +161,13 @@ class BackupDiskFloorTest extends WP_UnitTestCase {
 			$e->getMessage()
 		);
 		$this->assertSame( 'Could not write backup data. The server may be out of disk space. Free up disk space on the child site and try again.', MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) );
+
+		// disk_free_space() returns a float; a full disk reads 0.0, which size_format() alone turns into false.
+		$this->space( (float) ( 20 * self::GB ), 0.0 );
+		$full = $this->disk_error( function () {
+			MainWP_Backup::assert_disk_space_during_backup( $this->dir );
+		} );
+		$this->assertStringContainsString( 'It had 0.0 B free and the backup needed at least 1.0 GB.', $full->getMessage() );
 	}
 
 	public function test_explicit_minimum_and_equality_remain_supported() {
