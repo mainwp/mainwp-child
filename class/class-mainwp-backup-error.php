@@ -71,6 +71,8 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
     const ERR_RESTORE_CANCELLED       = 'mainwp_restore_cancelled';
     const ERR_RESTORE_DB_PERMS        = 'mainwp_restore_db_perms';
 
+    const ERR_RESTORE_CANCELLED_BEFORE_START = 'mainwp_restore_cancelled_before_start';
+
     const ERR_RESTORE_TARGET_NOT_WRITABLE = 'mainwp_restore_target_not_writable';
 
     const ERR_RESTORE_ROLLED_BACK     = 'mainwp_restore_rolled_back';
@@ -263,6 +265,8 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
             self::ERR_RESTORE_CROSS_PREFIX_FK    => esc_html__( 'This backup uses a different database table prefix than this site and its database has foreign keys, which cannot be restored across prefixes. Restore it to a site that uses the same table prefix as the backup.', 'mainwp-child' ),
             self::ERR_RESTORE_WRONG_PHASE        => esc_html__( 'The restore task is not accepting artifact data in its current phase. Check the task status and retry the transfer if it is still receiving.', 'mainwp-child' ),
             self::ERR_RESTORE_CANCELLED          => esc_html__( 'The restore was cancelled from the dashboard. Any tables already replaced were kept aside for rollback.', 'mainwp-child' ),
+            self::ERR_RESTORE_CANCELLED_BEFORE_START
+                => esc_html__( 'This restore was cancelled before the site started it.', 'mainwp-child' ),
             self::ERR_RESTORE_DB_PERMS           => esc_html__( 'The database user is missing a permission the restore needs to swap tables. The live database was not changed. Grant the database user the CREATE, DROP, and ALTER permissions, or ask your host, then try again.', 'mainwp-child' ),
             self::ERR_RESTORE_ROLLED_BACK        => esc_html__( 'The database restore failed partway through, so the original site tables were restored from the copy taken before the restore. No data was permanently changed. Check the child site error log for the failing table and try the restore again.', 'mainwp-child' ),
             self::ERR_RESTORE_ROLLBACK_FAILED    => esc_html__( 'The database restore failed partway through and the automatic recovery could not finish, so the database may be in a partial state. The site has been left in maintenance mode on purpose. Ask your host or a database administrator to check the database before bringing the site back online.', 'mainwp-child' ),

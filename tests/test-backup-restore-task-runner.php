@@ -6498,6 +6498,307 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 
 		$this->assertSame( array( 'result' => 'not_found' ), $this->callable_cancel( array( 'restore_id' => 'missing123' ) ) );
 		$this->assertEquals( $before, $this->spine->get_task( $task_id ) );
+		$tombstone = $this->spine->get_task_by_restore_id( 'missing123' );
+		$this->assertNotNull( $tombstone );
+		$this->assertMatchesRegularExpression( '/^task-[0-9]+-[a-z0-9]{12}$/', $tombstone->task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $tombstone->phase );
+		$this->assertSame( 'restore', $tombstone->type );
+		$this->assertNull( $tombstone->active_slot );
+		$this->assertSame( 'missing123', $tombstone->restore_id );
+		$this->assertSame( 0, (int) $tombstone->resume_count );
+		$this->assertSame( 0, (int) $tombstone->version );
+		$this->assertNotEmpty( $tombstone->started_at );
+		$this->assertSame( $tombstone->started_at, $tombstone->last_progress_at );
+		$this->assertSame(
+			array(
+				'params' => array( 'restore_id' => 'missing123' ),
+				'error' => array(
+					'code' => MainWP_Backup_Error::ERR_RESTORE_CANCELLED_BEFORE_START,
+					'message' => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_CANCELLED_BEFORE_START ),
+				),
+			),
+			json_decode( $tombstone->sub_state, true )
+		);
+		$this->assert_restore_row_count( 'missing123', 1 );
+	}
+
+	public function test_beta6_cancel_unknown_and_repeated_restore_id_wire_shape() {
+		$expected = array( 'result' => 'not_found' );
+		$this->assertSame( $expected, $this->callable_cancel( array( 'restore_id' => 'compat123' ) ) );
+		$this->assertSame( $expected, $this->callable_cancel( array( 'restore_id' => 'compat123' ) ) );
+	}
+
+	public function test_beta6_reused_cancelled_restore_create_wire_shape() {
+		$created = $this->callable_restore( 'restore_task_create', $this->restore_create_post( 'compat456' ) );
+		$this->assertNotEmpty( $created['task_id'] );
+		$this->assertSame( 'ok', $this->callable_cancel( array( 'task_id' => $created['task_id'] ) )['result'] );
+
+		$replayed = $this->callable_restore( 'restore_task_create', $this->restore_create_post( 'compat456' ) );
+		$this->assertSame( $created['task_id'], $replayed['task_id'] );
+		$this->assertTrue( $replayed['reused'] );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $replayed['phase'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_CANCELLED, $replayed['error_code'] );
+		$this->assertSame( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_CANCELLED ), $replayed['error'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_CANCELLED, $replayed['sub_state']['error']['code'] );
+	}
+
+	/** @dataProvider restore_create_transfer_modes */
+	public function test_cancel_before_create_reuses_tombstone_without_starting_restore( $cloud_pull ) {
+		$restore_id = 'cancel123';
+		$post = $this->restore_create_post( $restore_id, $cloud_pull );
+		$scheduled = 0;
+		$watchdog = static function ( $pre, $event ) use ( &$scheduled ) {
+			if ( \MainWP\Child\MainWP_Child_Backup_Watchdog::CRON_HOOK === $event->hook ) {
+				++$scheduled;
+			}
+			return $pre;
+		};
+		$schedule_filter = array( \MainWP\Child\MainWP_Child_Backup_Watchdog::instance(), 'register_schedule' );
+		$schedule_was_registered = false !== has_filter( 'cron_schedules', $schedule_filter );
+		if ( ! $schedule_was_registered ) {
+			add_filter( 'cron_schedules', $schedule_filter );
+		}
+		wp_clear_scheduled_hook( \MainWP\Child\MainWP_Child_Backup_Watchdog::CRON_HOOK );
+		add_filter( 'pre_schedule_event', $watchdog, 10, 2 );
+		try {
+			$this->assertSame( array( 'result' => 'not_found' ), $this->callable_cancel( array( 'restore_id' => $restore_id ) ) );
+			$tombstone = $this->spine->get_task_by_restore_id( $restore_id );
+			$this->assertNotNull( $tombstone );
+			$params = array( 'restore_id' => $restore_id, 'artifacts' => json_decode( $post['artifacts_json'], true ) );
+			if ( $cloud_pull ) {
+				$params['pull_manifest'] = json_decode( $post['pull_manifest_json'], true );
+			}
+			$reused = false;
+			$this->assertSame( $tombstone->task_id, $this->runner->create_restore_task( 'db', $params, $reused ) );
+			$this->assertTrue( $reused );
+			$answer = $this->callable_restore( 'restore_task_create', $post );
+			$this->assertSame( $tombstone->task_id, $answer['task_id'] );
+			$this->assertTrue( $answer['reused'] );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $answer['phase'] );
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_CANCELLED_BEFORE_START, $answer['error_code'] );
+			$this->assertSame( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_CANCELLED_BEFORE_START ), $answer['error'] );
+			$this->assertSame( $answer['error_code'], $answer['sub_state']['error']['code'] );
+			$this->assertEquals( $tombstone, $this->spine->get_task( $tombstone->task_id ) );
+			$this->assertDirectoryDoesNotExist( $this->runner->scratch_dir( $tombstone->task_id, $this->dir ) );
+			$this->assertSame( array(), glob( $this->dir . '/restore-*' ) );
+			$this->assertSame( array(), $this->runner->fake_engine->calls );
+			$this->assertSame( 0, $scheduled );
+			$this->assertFalse( wp_next_scheduled( \MainWP\Child\MainWP_Child_Backup_Watchdog::CRON_HOOK ) );
+			$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+			$this->assert_restore_row_count( $restore_id, 1 );
+		} finally {
+			remove_filter( 'pre_schedule_event', $watchdog );
+			if ( ! $schedule_was_registered ) {
+				remove_filter( 'cron_schedules', $schedule_filter );
+			}
+		}
+	}
+
+	public static function restore_create_transfer_modes() {
+		return array( 'staged' => array( false ), 'cloud pull' => array( true ) );
+	}
+
+	public function test_cancel_tombstone_insert_race_cancels_winning_create() {
+		$table = $this->spine->get_table_name();
+		$task_id = null;
+		$race = function ( $query ) use ( &$race, &$task_id, $table ) {
+			if ( 0 === strpos( $query, "INSERT INTO {$table} " ) ) {
+				remove_filter( 'query', $race );
+				$task_id = $this->make_task( 'db', array(), array( 'restore_id' => 'racecreate' ) );
+			}
+			return $query;
+		};
+		add_filter( 'query', $race );
+		try {
+			$answer = $this->callable_cancel( array( 'restore_id' => 'racecreate' ) );
+		} finally {
+			remove_filter( 'query', $race );
+		}
+		$this->assertNotEmpty( $task_id, 'The create must land between the lookup and tombstone insert.' );
+		$this->assertSame( 'ok', $answer['result'] );
+		$task = $this->spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_CANCELLED, $this->spine->status_payload( $task )['error_code'] );
+		$this->assertFalse( $this->spine->is_restore_tombstone( $task, $this->dir ) );
+		$this->assert_restore_row_count( 'racecreate', 1 );
+		$this->assertDirectoryDoesNotExist( $this->runner->scratch_dir( $task_id, $this->dir ) );
+	}
+
+	public function test_create_insert_race_reuses_winning_cancel_tombstone() {
+		$table = $this->spine->get_table_name();
+		$task_id = null;
+		$race = function ( $query ) use ( &$race, &$task_id, $table ) {
+			if ( 0 === strpos( $query, "INSERT INTO {$table} " ) ) {
+				remove_filter( 'query', $race );
+				$task_id = $this->spine->insert_restore_tombstone( 'racecancel' );
+				$this->assertIsString( $task_id );
+			}
+			return $query;
+		};
+		wp_clear_scheduled_hook( \MainWP\Child\MainWP_Child_Backup_Watchdog::CRON_HOOK );
+		add_filter( 'query', $race );
+		try {
+			$reused = false;
+			$created = $this->runner->create_restore_task( 'db', array( 'restore_id' => 'racecancel', 'artifacts' => array() ), $reused );
+		} finally {
+			remove_filter( 'query', $race );
+		}
+		$this->assertNotEmpty( $task_id );
+		$this->assertSame( $task_id, $created );
+		$this->assertTrue( $reused );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_CANCELLED_BEFORE_START, $this->spine->status_payload( $this->spine->get_task( $task_id ) )['error_code'] );
+		$this->assertSame( array(), glob( $this->dir . '/restore-*' ) );
+		$this->assertSame( array(), $this->runner->fake_engine->calls );
+		$this->assertFalse( wp_next_scheduled( \MainWP\Child\MainWP_Child_Backup_Watchdog::CRON_HOOK ) );
+		$this->assertNull( MainWP_Child_Backup_Mutex::holder() );
+		$this->assert_restore_row_count( 'racecancel', 1 );
+	}
+
+	public function test_cancel_insert_race_reuses_winning_cancel_tombstone() {
+		$table = $this->spine->get_table_name();
+		$task_id = null;
+		$race = function ( $query ) use ( &$race, &$task_id, $table ) {
+			if ( 0 === strpos( $query, "INSERT INTO {$table} " ) ) {
+				remove_filter( 'query', $race );
+				$this->assertSame( array( 'result' => 'not_found' ), $this->callable_cancel( array( 'restore_id' => 'twocancels' ) ) );
+				$task_id = $this->spine->get_task_by_restore_id( 'twocancels' )->task_id;
+			}
+			return $query;
+		};
+		add_filter( 'query', $race );
+		try {
+			$answer = $this->callable_cancel( array( 'restore_id' => 'twocancels' ) );
+		} finally {
+			remove_filter( 'query', $race );
+		}
+		$this->assertNotEmpty( $task_id );
+		$this->assertSame( array( 'result' => 'not_found' ), $answer );
+		$this->assertSame( $task_id, $this->spine->get_task_by_restore_id( 'twocancels' )->task_id );
+		$this->assert_restore_row_count( 'twocancels', 1 );
+	}
+
+	public function test_callable_cancel_tombstone_insert_failure_is_retryable_error() {
+		$table = $this->spine->get_table_name();
+		$broken = false;
+		$break = static function ( $query ) use ( $table, &$broken ) {
+			if ( 0 === strpos( $query, "INSERT INTO {$table} " ) ) {
+				$broken = true;
+				return 'INSERT INTO mainwp_child_missing_tombstone_table (task_id) VALUES (1)';
+			}
+			return $query;
+		};
+		add_filter( 'query', $break );
+		try {
+			$answer = $this->callable_cancel( array( 'restore_id' => 'insertfail' ) );
+		} finally {
+			remove_filter( 'query', $break );
+		}
+		$this->assertTrue( $broken );
+		$this->assertArrayHasKey( 'error', $answer );
+		$this->assertArrayNotHasKey( 'result', $answer );
+		$this->assertNull( $this->spine->get_task_by_restore_id( 'insertfail' ) );
+	}
+
+	/** @dataProvider tombstone_duplicate_read_failures */
+	public function test_callable_cancel_tombstone_duplicate_unreadable_row_is_error( $query_error ) {
+		global $wpdb;
+		$table = $this->spine->get_table_name();
+		$inserted = false;
+		$read_back = false;
+		$race = function ( $query ) use ( &$race, &$inserted, &$read_back, $query_error, $table, $wpdb ) {
+			if ( ! $inserted && 0 === strpos( $query, "INSERT INTO {$table} " ) ) {
+				$inserted = true;
+				$this->assertIsString( $this->spine->insert_restore_tombstone( 'rereadfail' ) );
+			} elseif ( $inserted && 0 === strpos( $query, "SELECT * FROM {$table} WHERE restore_id =" ) ) {
+				remove_filter( 'query', $race );
+				$read_back = true;
+				if ( $query_error ) {
+					return 'SELECT * FROM mainwp_child_missing_tombstone_lookup';
+				}
+				$wpdb->delete( $table, array( 'restore_id' => 'rereadfail' ) );
+			}
+			return $query;
+		};
+		$suppress = $wpdb->suppress_errors( true );
+		add_filter( 'query', $race );
+		try {
+			$answer = $this->callable_cancel( array( 'restore_id' => 'rereadfail' ) );
+		} finally {
+			remove_filter( 'query', $race );
+			$wpdb->suppress_errors( $suppress );
+		}
+		$this->assertTrue( $inserted );
+		$this->assertTrue( $read_back );
+		$this->assertArrayHasKey( 'error', $answer );
+		$this->assertArrayNotHasKey( 'result', $answer );
+	}
+
+	public static function tombstone_duplicate_read_failures() {
+		return array( 'row disappeared' => array( false ), 'query failed' => array( true ) );
+	}
+
+	public function test_tombstone_does_not_take_restore_or_backup_active_slot() {
+		$tombstone_id = $this->spine->insert_restore_tombstone( 'slotcancel' );
+		$this->assertIsString( $tombstone_id );
+		$this->assertSame( array(), $this->spine->get_active_tasks() );
+		$reused = true;
+		$restore_id = $this->runner->create_restore_task( 'db', array( 'restore_id' => 'slotrestore', 'artifacts' => array() ), $reused );
+		$this->assertNotSame( $tombstone_id, $restore_id );
+		$this->assertFalse( $reused );
+		$this->assertSame( 'ok', $this->runner->cancel_restore_task( $restore_id )['result'] );
+		$backup_id = $this->spine->create_task( 'full', array(), null, null, null, true );
+		$this->assertIsString( $backup_id );
+		$this->assertSame( array( $backup_id ), array_column( $this->spine->get_active_tasks(), 'task_id' ) );
+	}
+
+	public function test_tombstone_cancel_by_task_id_returns_nested_terminal_failure() {
+		$task_id = $this->spine->insert_restore_tombstone( 'taskcancel' );
+		$this->assertIsString( $task_id );
+		$before = $this->spine->get_task( $task_id );
+		$answer = $this->callable_cancel( array( 'task_id' => $task_id ) );
+		$this->assertSame( 'already_terminal', $answer['result'] );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $answer['phase'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_CANCELLED_BEFORE_START, $answer['failure']['code'] );
+		$this->assertSame( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_CANCELLED_BEFORE_START ), $answer['failure']['message'] );
+		$this->assertArrayNotHasKey( 'error', $answer );
+		$this->assertEquals( $before, $this->spine->get_task( $task_id ) );
+	}
+
+	public function test_tombstone_status_and_run_remain_terminal_without_work() {
+		$task_id = $this->spine->insert_restore_tombstone( 'statuscancel' );
+		$this->assertIsString( $task_id );
+		$before = $this->spine->get_task( $task_id );
+		$answer = $this->callable_restore( 'restore_task_status', array( 'task_id' => $task_id ) );
+		$this->assertSame( $task_id, $answer['task_id'] );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $answer['phase'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_CANCELLED_BEFORE_START, $answer['error_code'] );
+		$this->assertEquals( $before, $this->runner->advance_one_slice( $before, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD ) );
+		$this->assertEquals( $before, $this->spine->get_task( $task_id ) );
+		$this->assertSame( array(), $this->runner->fake_engine->calls );
+		$this->assertDirectoryDoesNotExist( $this->runner->scratch_dir( $task_id, $this->dir ) );
+	}
+
+	public function test_retention_prune_deletes_tombstone() {
+		$task_id = $this->spine->insert_restore_tombstone( 'prunecancel' );
+		$this->assertIsString( $task_id );
+		$this->assertSame( 'pruned', $this->spine->prune_task( $task_id, $this->dir, $this->runner->fake_engine ) );
+		$this->assertNull( $this->spine->get_task( $task_id ) );
+		$this->assertNull( $this->spine->get_task_by_restore_id( 'prunecancel' ) );
+	}
+
+	public function test_expired_tombstone_allows_fresh_restore_create() {
+		global $wpdb;
+		$task_id = $this->spine->insert_restore_tombstone( 'expiredcancel' );
+		$this->assertIsString( $task_id );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET started_at = DATE_SUB(NOW(), INTERVAL 8 DAY) WHERE task_id = %s', $task_id ) );
+		$this->spine->reclaim_expired_tasks( $this->dir );
+		$this->assertNull( $this->spine->get_task( $task_id ) );
+		$reused = true;
+		$fresh_id = $this->runner->create_restore_task( 'db', array( 'restore_id' => 'expiredcancel', 'artifacts' => array() ), $reused );
+		$this->assertFalse( $reused );
+		$this->assertNotSame( $task_id, $fresh_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $this->spine->get_task( $fresh_id )->phase );
+		$this->assert_restore_row_count( 'expiredcancel', 1 );
 	}
 
 	public function test_callable_cancel_reports_failed_restore_id_lookup_as_error() {
@@ -6577,15 +6878,38 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	}
 
 	private function callable_cancel( $post ) {
+		return $this->callable_restore( 'restore_task_cancel', $post );
+	}
+
+	private function restore_create_post( $restore_id, $cloud_pull = false ) {
+		$artifact = array( 'role' => 'db', 'file' => 'db.sql', 'size' => 1, 'sha256' => hash( 'sha256', 'x' ) );
+		$post = array(
+			'restore_id' => $restore_id,
+			'artifacts_json' => wp_json_encode( array( $artifact ) ),
+			'options_json' => wp_json_encode( array( 'sub_type' => 'db' ) ),
+		);
+		if ( $cloud_pull ) {
+			$artifact['url'] = 'https://bucket.example/db.sql';
+			$post['pull_manifest_json'] = wp_json_encode( array( 'mode' => 'whole_files', 'artifacts' => array( $artifact ) ) );
+		}
+		return $post;
+	}
+
+	private function assert_restore_row_count( $restore_id, $expected ) {
+		global $wpdb;
+		$this->assertSame( $expected, (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $this->spine->get_table_name() . ' WHERE restore_id = %s', $restore_id ) ) );
+	}
+
+	private function callable_restore( $method_name, $post ) {
 		// The response writer exits PHP, so only that boundary is replaced in the real methods.
-		if ( ! class_exists( 'MainWP\\Child\\Restore_Cancel_Callable_Fixture', false ) ) {
+		if ( ! class_exists( 'MainWP\\Child\\Restore_Task_Callable_Fixture', false ) ) {
 			$methods = '';
-			foreach ( array( 'restore_task_cancel', 'load_restore_task_from_request' ) as $name ) {
+			foreach ( array( 'restore_task_cancel', 'restore_task_create', 'sanitize_restore_artifacts', 'restore_task_status', 'load_restore_task_from_request' ) as $name ) {
 				$method = new ReflectionMethod( MainWP_Child_Callable::class, $name );
 				$lines = file( $method->getFileName() );
 				$methods .= str_replace( 'MainWP_Helper', '\\Restore_Cancel_Response_Helper', implode( '', array_slice( $lines, $method->getStartLine() - 1, $method->getEndLine() - $method->getStartLine() + 1 ) ) );
 			}
-			eval( 'namespace MainWP\\Child; class Restore_Cancel_Callable_Fixture extends MainWP_Child_Callable {' . $methods . '}' );
+			eval( 'namespace MainWP\\Child; class Restore_Task_Callable_Fixture extends MainWP_Child_Callable {' . $methods . '}' );
 		}
 		$previous_post = $_POST;
 		$property = new ReflectionProperty( MainWP_Child_Restore_Task_Runner::class, 'restore_instance' );
@@ -6594,7 +6918,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$property->setValue( null, $this->runner );
 		$_POST = $post;
 		try {
-			( new \MainWP\Child\Restore_Cancel_Callable_Fixture() )->restore_task_cancel();
+			( new \MainWP\Child\Restore_Task_Callable_Fixture() )->$method_name();
 			$this->fail( 'The callable must write a response.' );
 		} catch ( Restore_Cancel_Response $response ) {
 			return $response->payload;

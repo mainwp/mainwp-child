@@ -89,6 +89,8 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      */
     const QUEUED_STALL_WINDOW_SECONDS = 15 * MINUTE_IN_SECONDS;
 
+    const RESTORE_TOMBSTONE_TTL_SECONDS = 7 * DAY_IN_SECONDS;
+
     /**
      * Lifetime of the native mutex a prune or sweep takes, refreshed before
      * every delete.
@@ -494,6 +496,73 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         MainWP_Child_Backup_Watchdog::instance()->arm();
 
         return $task_id;
+    }
+
+    /**
+     * Reserve a cancelled restore identity before a delayed create can claim it.
+     *
+     * @param string $restore_id Validated restore id.
+     * @return string|false|null Task id on insert, null on a restore-id duplicate, false on any other failure.
+     */
+    public function insert_restore_tombstone( $restore_id ) {
+        global $wpdb;
+
+        $this->install();
+        if ( self::DB_VERSION !== get_option( self::DB_VERSION_OPTION ) ) {
+            return false;
+        }
+
+        $task_id   = 'task-' . time() . '-' . strtolower( wp_generate_password( 12, false ) );
+        $sub_state = array(
+            'params' => array( 'restore_id' => $restore_id ),
+            'error'  => array(
+                'code'    => MainWP_Backup_Error::ERR_RESTORE_CANCELLED_BEFORE_START,
+                'message' => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_CANCELLED_BEFORE_START ),
+            ),
+        );
+
+        // The restore-id key arbitrates cancel against create without taking the active slot.
+        $suppress = $wpdb->suppress_errors( true );
+        try {
+            $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- dedicated spine table.
+                $wpdb->prepare(
+                    'INSERT INTO ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- trusted table name; values are prepared below.
+                    ' (task_id, phase, type, sub_state, started_at, last_progress_at, resume_count, version, active_slot, restore_id)
+                    VALUES (%s, %s, %s, %s, NOW(), NOW(), 0, 0, NULL, %s)',
+                    $task_id,
+                    self::PHASE_FAILED,
+                    'restore',
+                    wp_json_encode( $sub_state ),
+                    $restore_id
+                )
+            );
+            if ( false === $result && false !== strpos( $wpdb->last_error, 'Duplicate entry' ) && false !== strpos( $wpdb->last_error, 'uniq_restore_id' ) ) {
+                return null;
+            }
+        } finally {
+            $wpdb->suppress_errors( $suppress );
+        }
+
+        return 1 === $result ? $task_id : false;
+    }
+
+    /**
+     * Distinguish a pre-start cancellation from a restore that ran and failed.
+     *
+     * @param object      $task       Task row.
+     * @param string|null $backup_dir Cursor sidecar directory, null for the default.
+     * @return bool Whether the row reserves a cancelled restore identity.
+     */
+    public function is_restore_tombstone( $task, $backup_dir = null ) {
+        if ( self::PHASE_FAILED !== $task->phase ) {
+            return false;
+        }
+        if ( null === $backup_dir ) {
+            $dirs       = MainWP_Helper::get_mainwp_dir( 'backup' );
+            $backup_dir = $dirs[0];
+        }
+        $sub_state = $this->read_sub_state( $task, $backup_dir );
+        return isset( $sub_state['error']['code'] ) && MainWP_Backup_Error::ERR_RESTORE_CANCELLED_BEFORE_START === $sub_state['error']['code'];
     }
 
     /**
@@ -1925,7 +1994,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             }
         }
 
-        // Older builds retained resume credentials after completion; preserve the rows for restore-id reuse.
+        // Real restores keep their replay protection after credentials are scrubbed.
         $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- terminal restore cursor cleanup.
             'SELECT * FROM ' . $this->get_table_name() . " WHERE type IN ('restore','restore_db','restore_files') AND phase IN ('completed','failed')" // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper, no user input.
         );
@@ -1934,6 +2003,21 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             $backup_dir = $dirs[0];
         }
         foreach ( (array) $rows as $task ) {
+            if ( $this->is_restore_tombstone( $task, $backup_dir ) ) {
+                $deleted = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- expire only cancelled identities that never ran.
+                    $wpdb->prepare(
+                        'DELETE FROM ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- trusted table name.
+                        ' WHERE task_id = %s AND phase = %s AND active_slot IS NULL AND started_at < DATE_SUB(NOW(), INTERVAL %d SECOND)',
+                        $task->task_id,
+                        self::PHASE_FAILED,
+                        self::RESTORE_TOMBSTONE_TTL_SECONDS
+                    )
+                );
+                if ( 1 === $deleted ) {
+                    $this->delete_sidecar( $task->task_id, $backup_dir );
+                    continue;
+                }
+            }
             $sub_state = $this->read_sub_state( $task, $backup_dir );
             $stored    = json_decode( $task->sub_state, true );
             if ( is_array( $sub_state ) && ( ! empty( $stored['_sidecar'] ) || array_key_exists( 'identity_preserve', $sub_state )
