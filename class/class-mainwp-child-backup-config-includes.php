@@ -241,6 +241,15 @@ class MainWP_Child_Backup_Config_Includes extends MainWP_Child_Backup_Incrementa
                 continue;
             }
             $state['paths'][ $relative ] = $relative;
+            // A case-insensitive filesystem loads 'Host.php' from host.php; tombstones and reconcile compare directory spellings.
+            $spelling = file_exists( untrailingslashit( $root ) . '/' . $relative ) ? $this->on_disk_spelling( $root, $relative ) : null;
+            if ( null !== $spelling && ! isset( $state['paths'][ $spelling ] ) ) {
+                if ( count( $state['paths'] ) >= self::MAX_PATHS ) {
+                    ++$skipped;
+                } else {
+                    $state['paths'][ $spelling ] = $spelling;
+                }
+            }
         }
         $state['paths'] = array_values( $state['paths'] );
         sort( $state['paths'], SORT_STRING );
@@ -248,6 +257,39 @@ class MainWP_Child_Backup_Config_Includes extends MainWP_Child_Backup_Incrementa
             $this->debug( '[MainWP Backup] Config includes: unresolved=' . $scan['unresolved'] . ' skipped=' . $skipped );
         }
         return $state;
+    }
+
+    /**
+     * Directory entries hold the spelling the walker records.
+     *
+     * @param string $root     Site root.
+     * @param string $relative Existing relpath under the root.
+     * @return string|null Relpath spelled as listed on disk.
+     */
+    private function on_disk_spelling( $root, $relative ) {
+        $dir      = untrailingslashit( $root );
+        $segments = array();
+        foreach ( explode( '/', $relative ) as $segment ) {
+            $entries = @scandir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- an unreadable directory keeps the literal spelling only.
+            if ( ! is_array( $entries ) ) {
+                return null;
+            }
+            $match = in_array( $segment, $entries, true ) ? $segment : null;
+            if ( null === $match ) {
+                foreach ( $entries as $entry ) {
+                    if ( 0 === strcasecmp( $entry, $segment ) ) {
+                        $match = $entry;
+                        break;
+                    }
+                }
+            }
+            if ( null === $match ) {
+                return null;
+            }
+            $segments[] = $match;
+            $dir       .= '/' . $match;
+        }
+        return implode( '/', $segments );
     }
 
     /**

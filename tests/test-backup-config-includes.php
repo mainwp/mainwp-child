@@ -277,4 +277,23 @@ class BackupConfigIncludesTest extends WP_UnitTestCase {
         $this->assertSame( $sorted, $state['paths'] );
         $this->assertSame( array( '[MainWP Backup] Config includes: unresolved=0 skipped=6' ), $this->scanner->messages );
     }
+
+    public function test_case_insensitive_alias_also_protects_the_on_disk_spelling() {
+        file_put_contents( $this->root . '/host.php', '<?php' );
+        if ( ! file_exists( $this->root . '/HOST.PHP' ) ) {
+            $this->markTestSkipped( 'Case-sensitive filesystem: the alias cannot load.' );
+        }
+        file_put_contents( $this->root . '/wp-config.php', "<?php\nrequire ABSPATH . 'Host.php';\n" );
+        $state = $this->scanner->capture( $this->root . '/', null );
+        $this->assertSame( 'live', $state['config'] );
+        $this->assertContains( 'Host.php', $state['paths'] );
+        $this->assertContains( 'host.php', $state['paths'], 'Tombstones and reconcile compare the walker spelling, so the on-disk name must be protected too.' );
+    }
+
+    public function test_exact_spelling_adds_no_alias() {
+        file_put_contents( $this->root . '/host.php', '<?php' );
+        file_put_contents( $this->root . '/wp-config.php', "<?php\nrequire ABSPATH . 'host.php';\n" );
+        $state = $this->scanner->capture( $this->root . '/', null );
+        $this->assertSame( array( 'host.php' ), $state['paths'] );
+    }
 }

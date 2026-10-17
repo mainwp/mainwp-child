@@ -128,12 +128,22 @@ class Test_Backup_Pending_Delete extends WP_UnitTestCase {
         };
         add_filter( 'query', $filter );
         try {
-            $this->busy_delete( $name );
+            if ( 'lost' === $mode ) {
+                // Under the acquired mutex the replacement is seen before the fence check: nothing to delete, nothing queued.
+                $this->assertSame( array( 'result' => 'ok' ), MainWP_Child_Callable::get_instance()->delete_backup_reply( $name ) );
+            } else {
+                $this->busy_delete( $name );
+            }
         } finally {
             remove_filter( 'query', $filter );
             delete_option( MainWP_Child_Backup_Mutex::OPTION_NAME );
         }
         $this->assertTrue( $replaced, 'Replace the file only after delete has captured its original identity.' );
+        if ( 'lost' === $mode ) {
+            $this->assertSame( array(), $this->entries() );
+            $this->assertSame( 'replacement generation is longer', file_get_contents( $path ) );
+            return;
+        }
         $entries = $this->entries();
         $this->assertCount( 1, $entries );
         $this->assertSame( $original['size'], $entries[0]['size'] );
@@ -233,8 +243,78 @@ class Test_Backup_Pending_Delete extends WP_UnitTestCase {
             }
         };
         $runner->failure = new $throwable_class( 'retry failed' );
+        $this->fixture( 'backup-throwing-retry.zip' );
+        $this->queue( 'backup-throwing-retry.zip' );
+        wp_clear_scheduled_hook( MainWP_Child_Backup_Task::PENDING_DELETE_HOOK );
         $runner->run_pending_deletes();
         $this->assertSame( 1, $runner->retry_calls, 'The cron handler must contain a failure from the retry itself.' );
+        $this->assertNotFalse( wp_next_scheduled( MainWP_Child_Backup_Task::PENDING_DELETE_HOOK ), 'A failed pass must leave the next retry armed.' );
+    }
+
+    public function test_replacement_finished_before_the_acquire_is_not_deleted() {
+        $name = 'tombstones.list';
+        $path = $this->fixture( $name, 'generation a' );
+        touch( $path, time() - 60 );
+        clearstatcache( true, $path );
+        $filter = function ( $query ) use ( &$filter, $path ) {
+            if ( false !== strpos( $query, "WHERE phase NOT IN ('completed','failed')" ) ) {
+                remove_filter( 'query', $filter );
+                file_put_contents( $path, 'generation b is longer' );
+                clearstatcache( true, $path );
+            }
+            return $query;
+        };
+        add_filter( 'query', $filter );
+        try {
+            $this->assertSame( array( 'result' => 'ok' ), MainWP_Child_Callable::get_instance()->delete_backup_reply( $name ) );
+        } finally {
+            remove_filter( 'query', $filter );
+        }
+        $this->assertSame( 'generation b is longer', file_get_contents( $path ) );
+        $this->assertSame( array(), $this->entries() );
+    }
+
+    public function test_failed_claim_read_refuses_download_delete() {
+        $path = $this->fixture( 'backup-claims-unreadable.zip' );
+        $filter = static function ( $query ) {
+            if ( false !== strpos( $query, "WHERE phase NOT IN ('completed','failed')" ) ) {
+                return 'SELECT * FROM mainwp_child_backup_task_missing_table_for_test';
+            }
+            return $query;
+        };
+        add_filter( 'query', $filter );
+        $suppress = $GLOBALS['wpdb']->suppress_errors( true );
+        try {
+            $this->assertTrue( $this->spine->live_task_claims_file( 'backup-claims-unreadable.zip', $this->dir ) );
+            $this->busy_delete( 'backup-claims-unreadable.zip' );
+        } finally {
+            remove_filter( 'query', $filter );
+            $GLOBALS['wpdb']->suppress_errors( $suppress );
+        }
+        $this->assertFileExists( $path );
+        $this->assertSame( array(), $this->entries() );
+    }
+
+    public function test_legacy_only_site_without_task_table_skips_the_claim_query() {
+        $version = get_option( MainWP_Child_Backup_Task::DB_VERSION_OPTION );
+        delete_option( MainWP_Child_Backup_Task::DB_VERSION_OPTION );
+        $queries = 0;
+        $count = static function ( $query ) use ( &$queries ) {
+            if ( false !== strpos( $query, "WHERE phase NOT IN ('completed','failed')" ) ) {
+                ++$queries;
+            }
+            return $query;
+        };
+        add_filter( 'query', $count );
+        try {
+            $path = $this->fixture( 'backup-legacy-only.zip' );
+            $this->assertSame( array( 'result' => 'ok' ), MainWP_Child_Callable::get_instance()->delete_backup_reply( 'backup-legacy-only.zip' ) );
+        } finally {
+            remove_filter( 'query', $count );
+            update_option( MainWP_Child_Backup_Task::DB_VERSION_OPTION, $version );
+        }
+        $this->assertSame( 0, $queries );
+        $this->assertFileDoesNotExist( $path );
     }
 
     public static function retry_throwable_provider() {

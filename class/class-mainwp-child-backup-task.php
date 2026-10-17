@@ -1548,6 +1548,10 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * @return bool
      */
     public function live_task_claims_file( $name, $backup_dir ) {
+        // A legacy-only site never installed the task table, so no task can claim the file.
+        if ( ! get_option( self::DB_VERSION_OPTION ) ) {
+            return false;
+        }
         $guard = $this->active_task_sweep_guard( $backup_dir );
         if ( $guard['unreadable'] || isset( $guard['names'][ $name ] ) ) {
             return true;
@@ -1587,6 +1591,11 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             }
             $resolved = $this->download_delete_target( $path );
             if ( false !== $resolved ) {
+                // A run that reused this name and finished before the acquire owns a different file now.
+                if ( false === $identity || $identity !== $this->pending_file_identity( $resolved ) ) {
+                    MainWP_Helper::log_debug( '[MainWP Backup] Download cleanup skipped a file replaced since the request.' );
+                    return true;
+                }
                 if ( ! $this->fence_holds( true ) ) {
                     $this->record_pending_delete( $name, $backup_dir, $identity );
                     return false;
@@ -1890,7 +1899,9 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     public function run_pending_deletes() {
         try {
             $dir = $this->existing_backup_directory();
-            if ( false !== $dir ) {
+            if ( false !== $dir && file_exists( $dir . 'pending-delete.json' ) ) {
+                // WP-Cron already consumed this event; arm the next one first so a failed pass still retries. A drained list clears it.
+                $this->schedule_pending_deletes();
                 $this->retry_pending_deletes( $dir );
             }
         } catch ( \Throwable $e ) {
@@ -2204,7 +2215,13 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         $prefixes   = array();
         $unreadable = false;
 
-        foreach ( $this->get_active_tasks() as $task ) {
+        global $wpdb;
+        $tasks = $this->get_active_tasks();
+        // A failed read returns no rows; download cleanup must not read that as "nothing claimed".
+        if ( '' !== (string) $wpdb->last_error ) {
+            $unreadable = true;
+        }
+        foreach ( $tasks as $task ) {
             $sub_state = $this->read_sub_state( $task, $backup_dir );
             if ( ! is_array( $sub_state ) ) {
                 $unreadable = true;
