@@ -28,6 +28,8 @@ class Test_MainWP_Child_Delete_Backup_Filename extends WP_UnitTestCase {
      */
     private $fixture_files = array();
 
+    private $task_ids = array();
+
     /**
      * The real helper supplies the directory boundary under test.
      *
@@ -57,8 +59,10 @@ class Test_MainWP_Child_Delete_Backup_Filename extends WP_UnitTestCase {
      */
     public function set_up() {
         parent::set_up();
+        MainWP_Child_Backup_Task::instance()->install();
         $this->original_request = $GLOBALS['_REQUEST'];
         $this->fixture_files    = array();
+        $this->task_ids         = array();
         $this->fixture_root     = __DIR__ . '/delete-backup-fixtures-' . wp_generate_uuid4();
         $this->assertTrue( wp_mkdir_p( $this->fixture_root ) );
         add_filter( 'upload_dir', array( $this, 'isolate_upload_dir' ) );
@@ -74,11 +78,16 @@ class Test_MainWP_Child_Delete_Backup_Filename extends WP_UnitTestCase {
      * Failed assertions must leave neither fixtures nor request state behind.
      */
     public function tear_down() {
-        global $wp_filesystem;
+        global $wpdb, $wp_filesystem;
 
+        foreach ( $this->task_ids as $id ) {
+            $wpdb->delete( MainWP_Child_Backup_Task::instance()->get_table_name(), array( 'task_id' => $id ) );
+        }
         remove_filter( 'mainwp_child_get_wp_upload_dir', array( $this, 'isolate_upload_dir' ) );
         remove_filter( 'upload_dir', array( $this, 'isolate_upload_dir' ) );
         $_REQUEST = $this->original_request;
+        wp_clear_scheduled_hook( 'mainwp_child_backup_pending_delete' );
+        delete_option( MainWP_Child_Backup_Mutex::OPTION_NAME );
         foreach ( $this->fixture_files as $path ) {
             wp_delete_file( $path );
         }
@@ -424,6 +433,35 @@ class Test_MainWP_Child_Delete_Backup_Filename extends WP_UnitTestCase {
         $this->assertFileDoesNotExist( $path, 'Dashboard collection must still remove native task archives.' );
     }
 
+    public function test_completed_native_owner_archive_is_deleted_after_download() {
+        $spine = MainWP_Child_Backup_Task::instance();
+        $spine->install();
+        $name = 'backup-beta6-downloaded.tar.gz';
+        $path = $this->backupdir . $name;
+        $this->create_fixture( $path );
+        $task = $spine->create_task( 'full', array() );
+        $this->task_ids[] = $task;
+        $this->assertSame( 1, $spine->checkpoint( $task, 0, array(
+            'phase' => MainWP_Child_Backup_Task::PHASE_COMPLETED,
+            'sub_state' => array( 'artifact' => array( 'file' => $name, 'size' => filesize( $path ) ) ),
+        ) ) );
+
+        $this->assert_ok_reply( $name );
+        $this->assertFileDoesNotExist( $path );
+        $this->assertNotNull( $spine->get_task( $task ), 'Download cleanup keeps the completed owner row.' );
+    }
+
+    /** @dataProvider backup_directory_provider */
+    public function test_download_cleanup_compatibility_for_tombstones_and_legacy_archives( $legacy ) {
+        $dir = $legacy ? $this->legacy_backupdir : $this->backupdir;
+        foreach ( array( 'tombstones.list', 'backup-legacy1791262128.tar.gz', 'custom-backup.zip' ) as $name ) {
+            $path = $dir . $name;
+            $this->create_fixture( $path );
+            $this->assert_ok_reply( $name );
+            $this->assertFileDoesNotExist( $path );
+        }
+    }
+
     /** @dataProvider backup_directory_provider */
     public function test_native_incremental_parts_are_deleted( $legacy ) {
         $backupdir = $legacy ? $this->legacy_backupdir : $this->backupdir;
@@ -452,6 +490,141 @@ class Test_MainWP_Child_Delete_Backup_Filename extends WP_UnitTestCase {
             $this->assert_ok_reply( $refused );
             $this->assertFileExists( $look_alike, 'The tombstone exception must not accept: ' . $refused );
         }
+    }
+
+    /** @dataProvider restore_claim_provider */
+    public function test_live_restore_source_refuses_download_delete( $adopt_only ) {
+        $name = 'backup-rollback-source.zip';
+        $this->create_fixture( $this->backupdir . $name );
+        $this->task_ids[] = MainWP_Child_Backup_Task::instance()->create_task( 'restore', array(
+            'params' => array( 'artifacts' => array( array( 'file' => $name, 'adopt_only' => $adopt_only ) ) ),
+        ) );
+
+        $this->assert_busy_reply( $name );
+        $this->assertFileExists( $this->backupdir . $name );
+        $this->assertFileDoesNotExist( $this->backupdir . 'pending-delete.json' );
+    }
+
+    public static function restore_claim_provider() {
+        return array( 'source' => array( false ), 'rollback safety source' => array( true ) );
+    }
+
+    /** @dataProvider live_backup_claim_provider */
+    public function test_live_backup_name_or_prefix_refuses_download_delete( $name, $state ) {
+        $this->create_fixture( $this->backupdir . $name );
+        $this->task_ids[] = MainWP_Child_Backup_Task::instance()->create_task( 'full', $state );
+        $this->assert_busy_reply( $name );
+        $this->assertFileExists( $this->backupdir . $name );
+        $this->assertFileDoesNotExist( $this->backupdir . 'pending-delete.json' );
+    }
+
+    public static function live_backup_claim_provider() {
+        return array(
+            'archive' => array( 'backup-live.zip', array( 'archive_file' => 'backup-live.zip' ) ),
+            'dump prefix' => array( 'dbBackup-live-001.sql.zip', array( 'db_prefix' => 'dbBackup-live' ) ),
+            'part' => array( 'plugins.token.part001.zip', array( 'artifacts' => array( array( 'file' => 'plugins.token.part001.zip' ) ) ) ),
+        );
+    }
+
+    public function test_delete_wins_mutex_before_restore_create() {
+        global $wpdb;
+        $name = 'backup-delete-wins.zip';
+        $this->create_fixture( $this->backupdir . $name );
+        $attempt = null;
+        $filter = function ( $query ) use ( &$filter, &$attempt ) {
+            if ( false !== strpos( $query, "WHERE phase NOT IN ('completed','failed')" ) ) {
+                remove_filter( 'query', $filter );
+                $attempt = MainWP_Child_Backup_Mutex::acquire( 'native', 'restore-create-interleaved', 60 );
+            }
+            return $query;
+        };
+        add_filter( 'query', $filter );
+        try {
+            $this->assert_ok_reply( $name );
+        } finally {
+            remove_filter( 'query', $filter );
+        }
+        $this->assertIsArray( $attempt );
+        $this->assertSame( 0, strpos( $attempt['owner'], 'delete-' ) );
+        $this->assertFileDoesNotExist( $this->backupdir . $name );
+        $this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'restore-create-after-delete', 60 ) );
+        MainWP_Child_Backup_Mutex::release( 'restore-create-after-delete' );
+    }
+
+    /** @dataProvider lost_delete_mutex_provider */
+    public function test_download_delete_losing_mutex_records_pending( $expired ) {
+        global $wpdb;
+        $name = 'backup-mutex-lost.zip';
+        $this->create_fixture( $this->backupdir . $name );
+        $filter = function ( $query ) use ( &$filter, $wpdb, $expired ) {
+            if ( false !== strpos( $query, "WHERE phase NOT IN ('completed','failed')" ) ) {
+                remove_filter( 'query', $filter );
+                $holder = MainWP_Child_Backup_Mutex::holder();
+                $value = $expired ? 'native|' . $holder['owner'] . '|' . ( time() - 1 ) : 'native|restore-create-thief|' . ( time() + 600 );
+                $wpdb->update( $wpdb->options, array( 'option_value' => $value ), array( 'option_name' => MainWP_Child_Backup_Mutex::OPTION_NAME ) );
+                wp_cache_delete( MainWP_Child_Backup_Mutex::OPTION_NAME, 'options' );
+            }
+            return $query;
+        };
+        add_filter( 'query', $filter );
+        try {
+            $this->assert_busy_reply( $name );
+        } finally {
+            remove_filter( 'query', $filter );
+            delete_option( MainWP_Child_Backup_Mutex::OPTION_NAME );
+        }
+        $this->assertFileExists( $this->backupdir . $name );
+        $pending = json_decode( file_get_contents( $this->backupdir . 'pending-delete.json' ), true );
+        $this->assertSame( $name, $pending[0]['name'] );
+        $this->assertSame( filesize( $this->backupdir . $name ), $pending[0]['size'] );
+        $this->assertSame( filemtime( $this->backupdir . $name ), $pending[0]['mtime'] );
+    }
+
+    public static function lost_delete_mutex_provider() {
+        return array( 'stolen' => array( false ), 'expired' => array( true ) );
+    }
+
+    public function test_unreadable_live_cursor_refuses_download_delete() {
+        global $wpdb;
+        $name = 'backup-unknown-claim.zip';
+        $this->create_fixture( $this->backupdir . $name );
+        $spine = MainWP_Child_Backup_Task::instance();
+        $task = $spine->create_task( 'restore', array() );
+        $this->task_ids[] = $task;
+        $wpdb->update( $spine->get_table_name(), array( 'sub_state' => '{broken' ), array( 'task_id' => $task ) );
+        $this->assert_busy_reply( $name );
+        $this->assertFileExists( $this->backupdir . $name );
+        $this->assertFileDoesNotExist( $this->backupdir . 'pending-delete.json' );
+    }
+
+    public function test_invalid_or_missing_name_never_takes_mutex_or_records_pending() {
+        $attempts = 0;
+        $filter = function ( $query ) use ( &$attempts ) {
+            if ( false !== strpos( $query, MainWP_Child_Backup_Mutex::OPTION_NAME ) ) {
+                ++$attempts;
+            }
+            return $query;
+        };
+        add_filter( 'query', $filter );
+        try {
+            foreach ( array( '../bad.zip', '/etc/bad.zip', "bad.zip\0", 'wp-config.php', array( 'x.zip' ), 'missing.zip' ) as $name ) {
+                $this->assert_ok_reply( $name );
+            }
+        } finally {
+            remove_filter( 'query', $filter );
+        }
+        $this->assertSame( 0, $attempts );
+        $this->assertFileDoesNotExist( $this->backupdir . 'pending-delete.json' );
+        $this->assertFileDoesNotExist( $this->backupdir . 'pending-delete.lock' );
+    }
+
+    private function assert_busy_reply( $name ) {
+        $_REQUEST['del'] = wp_slash( $name );
+        $this->assertSame( array(
+            'error' => MainWP_Backup_Error::sanitize_message( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ),
+            'error_code' => MainWP_Backup_Error::ERR_ALREADY_RUNNING,
+        ), ( $this->delete_backup )() );
+        clearstatcache();
     }
 
     public static function backup_directory_provider() {

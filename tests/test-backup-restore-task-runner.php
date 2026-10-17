@@ -568,6 +568,13 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 	public $mu_plugins_cap = 500;
 	public $mu_plugins_checkpoint_crash = false;
 	public $legacy_file_checkpoints = false;
+	public $test_config_includes;
+	public $config_include_checkpoint_crash = false;
+	public $legacy_config_checkpoints = false;
+
+	protected function config_includes() {
+		return $this->test_config_includes ? $this->test_config_includes : parent::config_includes();
+	}
 
 	protected function mu_plugins_directory() {
 		return $this->test_site_root . '/wp-content/mu-plugins';
@@ -582,6 +589,13 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 	}
 
 	protected function checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, $then_yield ) {
+		if ( $this->config_include_checkpoint_crash && isset( $sub_state['config_include'] ) ) {
+			$this->config_include_checkpoint_crash = false;
+			return $this->slice_result( $version, true );
+		}
+		if ( $this->legacy_config_checkpoints && ! empty( $sub_state['file_restore']['part_cursor']['entry_index'] ) ) {
+			unset( $sub_state['config_include'] );
+		}
 		if ( $this->mu_plugins_checkpoint_crash && isset( $sub_state['mu_plugins_preserve'] ) ) {
 			$this->mu_plugins_checkpoint_crash = false;
 			return $this->slice_result( $version, true );
@@ -1322,6 +1336,259 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->prepare_reconcile_fixture();
 		unlink( $this->site . '/wp-content/plugins/persist.php' );
 		mkdir( $this->site . '/wp-content/mu-plugins' );
+	}
+
+	protected function prepare_config_include_fixture( $body, $parent = true ) {
+		$this->prepare_reconcile_fixture();
+		unlink( $this->site . '/wp-content/plugins/persist.php' );
+		$file = ( $parent ? dirname( $this->site ) : $this->site ) . '/wp-config.php';
+		file_put_contents( $file, '<?php ' . $body );
+		$this->runner->test_config_includes = new class extends \MainWP\Child\MainWP_Child_Backup_Config_Includes {
+			public $prepend = '';
+			public $reads = 0;
+			public $messages = array();
+			public $failure = '';
+			protected function auto_prepend_file() { return $this->prepend; }
+			protected function read_config( $file ) {
+				++$this->reads;
+				if ( 'unreadable' === $this->failure ) { return false; }
+				if ( 'throwable' === $this->failure ) { throw new RuntimeException( 'fixture config read failure' ); }
+				return parent::read_config( $file );
+			}
+			protected function tokenize( $source ) {
+				if ( 'tokenizer' === $this->failure ) { throw new RuntimeException( 'fixture tokenizer unavailable' ); }
+				return parent::tokenize( $source );
+			}
+			protected function debug( $message ) { $this->messages[] = $message; }
+		};
+		return $file;
+	}
+
+	public function test_config_include_parent_config_keeps_live_dependency_and_existing_report_keys() {
+		$this->prepare_config_include_fixture( "require ABSPATH . 'host-include.php';" );
+		file_put_contents( $this->site . '/host-include.php', 'live host bytes' );
+		file_put_contents( $this->site . '/unrelated.php', 'remove this' );
+		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options() ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 'live host bytes', file_get_contents( $this->site . '/host-include.php' ) );
+		$this->assertFileDoesNotExist( $this->site . '/unrelated.php' );
+		$this->assertSame( array( 'paths' => array( 'host-include.php' ), 'config' => 'live' ), $sub['config_include'] );
+		$report = $sub['verification']['reconcile'];
+		$this->assertSame( 1, $report['kept'] );
+		$this->assertSame( array( 'config_include' => 1 ), $report['kept_by_reason'] );
+		$this->assertSame( array( 'host-include.php' ), $report['kept_paths'] );
+		$keys = array_keys( $report );
+		sort( $keys, SORT_STRING );
+		$this->assertSame( array( 'examined', 'kept', 'kept_by_reason', 'kept_paths', 'removed', 'status' ), $keys );
+	}
+
+	public function test_config_include_incremental_tombstone_keeps_live_bytes() {
+		$this->prepare_config_include_fixture( "require ABSPATH . 'host-include.php';" );
+		file_put_contents( $this->site . '/host-include.php', 'live host bytes' );
+		file_put_contents( $this->site . '/stale.php', 'stale' );
+		$base = $this->make_named_zip_artifact( 'base.zip', array( 'snapshot.txt' => 'base bytes' ) );
+		$tombstones = $this->make_named_tombstones_artifact( 'leaf-tombstones.list', "host-include.php\nstale.php\n" );
+		$delta = $this->make_named_zip_artifact( 'delta.zip', array( 'snapshot.txt' => 'leaf bytes' ) );
+		$task = $this->drive( $this->make_task( 'files', array( $base, $tombstones, $delta, $this->make_manifest_artifact( array( 'snapshot.txt' ) ) ), $this->reconcile_options() ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 'live host bytes', file_get_contents( $this->site . '/host-include.php' ) );
+		$this->assertSame( 'leaf bytes', file_get_contents( $this->site . '/snapshot.txt' ) );
+		$this->assertFileDoesNotExist( $this->site . '/stale.php' );
+		$this->assertSame( array( 'config_include' => 1 ), $sub['verification']['reconcile']['kept_by_reason'] );
+	}
+
+	public function test_config_include_resume_reuses_set_after_config_and_prepend_change() {
+		$file = $this->prepare_config_include_fixture( "require ABSPATH . 'host-include.php';" );
+		foreach ( array( 'host-include.php', 'late.php', 'prepend.php', 'late-prepend.php' ) as $path ) {
+			file_put_contents( $this->site . '/' . $path, 'live bytes' );
+		}
+		$this->runner->test_config_includes->prepend = $this->site . '/prepend.php';
+		$this->slice_one_file_at_a_time();
+		$base = $this->make_named_zip_artifact( 'base.zip', array( 'first.txt' => 'first', 'snapshot.txt' => 'base' ) );
+		$tombstones = $this->make_named_tombstones_artifact( 'leaf-tombstones.list', "host-include.php\nprepend.php\n" );
+		$delta = $this->make_named_zip_artifact( 'delta.zip', array( 'snapshot.txt' => 'leaf' ) );
+		$task_id = $this->make_task( 'files', array( $base, $tombstones, $delta, $this->make_manifest_artifact( array( 'first.txt', 'snapshot.txt' ) ) ), $this->reconcile_options() );
+		list( $task, $sub ) = $this->advance_until( $task_id, static function ( $sub ) { return ! empty( $sub['file_restore']['part_cursor']['entry_index'] ); } );
+		$captured = $sub['config_include'];
+		$this->assertSame( array( 'host-include.php', 'prepend.php' ), $captured['paths'] );
+		file_put_contents( $file, "<?php require ABSPATH . 'late.php';" );
+		$this->runner->test_config_includes->prepend = $this->site . '/late-prepend.php';
+		$this->runner->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_WATCHDOG );
+		$task = $this->drive( $task_id );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( $captured, $sub['config_include'] );
+		$this->assertSame( 1, $this->runner->test_config_includes->reads );
+		$this->assertSame( 'live bytes', file_get_contents( $this->site . '/host-include.php' ) );
+		$this->assertSame( 'live bytes', file_get_contents( $this->site . '/prepend.php' ) );
+		$this->assertFileDoesNotExist( $this->site . '/late.php' );
+		$this->assertFileDoesNotExist( $this->site . '/late-prepend.php' );
+		$this->assertSame( array( 'config_include' => 2 ), $sub['verification']['reconcile']['kept_by_reason'] );
+		$this->assertSame( array( 'host-include.php', 'prepend.php' ), $sub['verification']['reconcile']['kept_paths'] );
+	}
+
+	public function test_config_include_capture_checkpoint_crash_recomputes_before_any_file_change() {
+		$file = $this->prepare_config_include_fixture( "require ABSPATH . 'host-include.php';" );
+		file_put_contents( $this->site . '/host-include.php', 'live bytes' );
+		file_put_contents( $this->site . '/stale.php', 'not yet deleted' );
+		$tombstones = $this->make_named_tombstones_artifact( 'leaf-tombstones.list', "host-include.php\nstale.php\n" );
+		$archive = $this->make_named_zip_artifact( 'leaf.zip', array( 'snapshot.txt' => 'snapshot' ) );
+		$task_id = $this->make_task( 'files', array( $tombstones, $archive, $this->make_manifest_artifact( array( 'snapshot.txt' ) ) ), $this->reconcile_options() );
+		$this->runner->config_include_checkpoint_crash = true;
+		list( $task, $sub ) = $this->advance_until( $task_id, function () { return ! $this->runner->config_include_checkpoint_crash; } );
+		$this->assertArrayNotHasKey( 'config_include', $sub );
+		$this->assertArrayNotHasKey( 'mu_plugins_preserve', $sub );
+		$this->assertEmpty( $sub['files_touched'] ?? false );
+		$this->assertFileDoesNotExist( $this->site . '/snapshot.txt' );
+		$this->assertSame( 'not yet deleted', file_get_contents( $this->site . '/stale.php' ) );
+		$this->assertSame( 'live bytes', file_get_contents( $this->site . '/host-include.php' ) );
+		file_put_contents( $file, "<?php require ABSPATH . 'between.php';" );
+		file_put_contents( $this->site . '/between.php', 'added after crash' );
+		$task = $this->runner->advance_one_slice( $task, 'dashboard' );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( array( 'between.php' ), $sub['config_include']['paths'] );
+		$this->assertFileDoesNotExist( $this->site . '/snapshot.txt' );
+		$this->assertFileExists( $this->site . '/stale.php' );
+		$task = $this->drive( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 2, $this->runner->test_config_includes->reads );
+		$this->assertFileExists( $this->site . '/between.php' );
+		$this->assertFileDoesNotExist( $this->site . '/host-include.php' );
+		$this->assertFileDoesNotExist( $this->site . '/stale.php' );
+	}
+
+	public function test_config_include_missing_on_older_cursor_is_captured_without_resetting_mu_plugins() {
+		$this->prepare_config_include_fixture( "require ABSPATH . 'host-include.php';" );
+		file_put_contents( $this->site . '/host-include.php', 'live bytes' );
+		$this->slice_one_file_at_a_time();
+		$this->runner->legacy_config_checkpoints = true;
+		$archive = $this->make_named_zip_artifact( 'leaf.zip', array( 'first.txt' => 'first', 'snapshot.txt' => 'snapshot' ) );
+		$task_id = $this->make_task( 'files', array( $archive, $this->make_manifest_artifact( array( 'first.txt', 'snapshot.txt' ) ) ), $this->reconcile_options() );
+		list( $task, $sub ) = $this->advance_until( $task_id, static function ( $sub ) { return ! empty( $sub['file_restore']['part_cursor']['entry_index'] ); } );
+		$this->assertArrayNotHasKey( 'config_include', $sub );
+		$mu_plugins = $sub['mu_plugins_preserve'];
+		$this->runner->legacy_config_checkpoints = false;
+		$task = $this->drive( $task_id );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( $mu_plugins, $sub['mu_plugins_preserve'] );
+		$this->assertSame( array( 'host-include.php' ), $sub['config_include']['paths'] );
+		$this->assertSame( 'live bytes', file_get_contents( $this->site . '/host-include.php' ) );
+	}
+
+	public function test_config_include_archived_config_uses_snapshot_dependencies_and_keeps_prepend() {
+		$this->prepare_config_include_fixture( "require ABSPATH . 'obsolete.php';", false );
+		file_put_contents( $this->site . '/obsolete.php', 'obsolete' );
+		file_put_contents( $this->site . '/prepend.php', 'server loader' );
+		$this->runner->test_config_includes->prepend = $this->site . '/prepend.php';
+		$archive = $this->make_named_zip_artifact( 'leaf.zip', array( 'wp-config.php' => '<?php /* snapshot config */', 'snapshot.txt' => 'snapshot' ) );
+		$task = $this->drive( $this->make_task( 'files', array( $archive, $this->make_manifest_artifact( array( 'wp-config.php', 'snapshot.txt' ) ) ), $this->reconcile_options() ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( array( 'paths' => array( 'prepend.php' ), 'config' => 'manifest' ), $sub['config_include'] );
+		$this->assertSame( 0, $this->runner->test_config_includes->reads );
+		$this->assertSame( '<?php /* snapshot config */', file_get_contents( $this->site . '/wp-config.php' ) );
+		$this->assertFileDoesNotExist( $this->site . '/obsolete.php' );
+		$this->assertSame( 'server loader', file_get_contents( $this->site . '/prepend.php' ) );
+		$this->assertSame( array( 'config_include' => 1 ), $sub['verification']['reconcile']['kept_by_reason'] );
+	}
+
+	public function test_config_include_excluded_in_root_config_is_scanned() {
+		$this->prepare_config_include_fixture( "include ABSPATH . 'host-include.php';", false );
+		file_put_contents( $this->site . '/host-include.php', 'live bytes' );
+		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options( array( 'wp-config.php' ) ) ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( array( 'host-include.php' ), $sub['config_include']['paths'] );
+		$this->assertSame( array( 'config_include' => 1 ), $sub['verification']['reconcile']['kept_by_reason'] );
+		$this->assertSame( 'live bytes', file_get_contents( $this->site . '/host-include.php' ) );
+	}
+
+	public function test_config_include_dynamic_statements_do_not_protect_live_files() {
+		$this->prepare_config_include_fixture( 'require $path; require WP_CONTENT_DIR . "/constant.php"; include getenv("CONFIG_PATH"); include_once "$path/interpolated.php";' );
+		foreach ( array( 'dynamic.php', 'constant.php', 'environment.php', 'interpolated.php' ) as $path ) {
+			file_put_contents( $this->site . '/' . $path, 'remove this' );
+		}
+		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options() ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( array(), $sub['config_include']['paths'] );
+		$this->assertSame( array( '[MainWP Backup] Config includes: unresolved=4 skipped=0' ), $this->runner->test_config_includes->messages );
+		$this->assertSame( 4, $sub['verification']['reconcile']['removed'] );
+		$this->assertArrayNotHasKey( 'kept', $sub['verification']['reconcile'] );
+		foreach ( array( 'dynamic.php', 'constant.php', 'environment.php', 'interpolated.php' ) as $path ) {
+			$this->assertFileDoesNotExist( $this->site . '/' . $path );
+		}
+	}
+
+	public static function data_config_include_scan_failures() {
+		return array_map( static function ( $failure ) { return array( $failure ); }, array( 'missing', 'malformed', 'unreadable', 'oversized', 'tokenizer', 'throwable' ) );
+	}
+
+	/** @dataProvider data_config_include_scan_failures */
+	public function test_config_include_scan_failure_leaves_reconcile_deletion_unchanged( $failure ) {
+		$file = $this->prepare_config_include_fixture( "require ABSPATH . 'host-include.php';" );
+		if ( 'missing' === $failure ) {
+			unlink( $file );
+		} elseif ( 'malformed' === $failure ) {
+			file_put_contents( $file, ' function {', FILE_APPEND );
+		} elseif ( 'oversized' === $failure ) {
+			file_put_contents( $file, str_repeat( ' ', \MainWP\Child\MainWP_Child_Backup_Config_Includes::MAX_BYTES ), FILE_APPEND );
+		}
+		$this->runner->test_config_includes->failure = $failure;
+		file_put_contents( $this->site . '/host-include.php', 'remove this' );
+		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options() ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( array(), $sub['config_include']['paths'] );
+		$this->assertFileDoesNotExist( $this->site . '/host-include.php' );
+		$this->assertSame( 1, $sub['verification']['reconcile']['removed'] );
+		$this->assertArrayNotHasKey( 'kept', $sub['verification']['reconcile'] );
+		$this->assertCount( 'missing' === $failure ? 0 : 1, $this->runner->test_config_includes->messages );
+	}
+
+	public function test_config_include_no_manifest_captures_live_config_and_skips_reconcile() {
+		$this->prepare_config_include_fixture( "require ABSPATH . 'host-include.php';", false );
+		file_put_contents( $this->site . '/host-include.php', 'live bytes' );
+		$archive = $this->make_named_zip_artifact( 'single.zip', array( 'host-include.php' => 'snapshot bytes' ) );
+		$task = $this->drive( $this->make_task( 'files', array( $archive ) ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( array( 'host-include.php' ), $sub['config_include']['paths'] );
+		$this->assertSame( 'snapshot bytes', file_get_contents( $this->site . '/host-include.php' ) );
+		$this->assertSame( array( 'status' => 'skipped', 'reason' => 'no_manifest' ), $sub['verification']['reconcile'] );
+	}
+
+	public function test_config_include_extraction_restores_snapshot_bytes() {
+		$this->prepare_config_include_fixture( "require ABSPATH . 'host-include.php';" );
+		file_put_contents( $this->site . '/host-include.php', 'live bytes' );
+		$archive = $this->make_named_zip_artifact( 'leaf.zip', array( 'host-include.php' => 'snapshot bytes' ) );
+		$task = $this->drive( $this->make_task( 'files', array( $archive, $this->make_manifest_artifact( array( 'host-include.php' ) ) ), $this->reconcile_options() ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( 'snapshot bytes', file_get_contents( $this->site . '/host-include.php' ) );
+		$this->assertArrayNotHasKey( 'kept', $sub['verification']['reconcile'] );
+	}
+
+	public function test_config_include_kept_sample_is_limited_to_twenty() {
+		$file = $this->prepare_config_include_fixture( '' );
+		$body = '<?php ';
+		for ( $i = 0; $i < 25; ++$i ) {
+			$path = sprintf( 'host-%02d.php', $i );
+			$body .= "require ABSPATH . '$path';";
+			file_put_contents( $this->site . '/' . $path, 'live bytes' );
+		}
+		file_put_contents( $file, $body );
+		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $this->reconcile_options() ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( array( 'config_include' => 25 ), $sub['verification']['reconcile']['kept_by_reason'] );
+		$this->assertSame( 25, $sub['verification']['reconcile']['kept'] );
+		$this->assertCount( 20, $sub['verification']['reconcile']['kept_paths'] );
+		$this->assertSame( 'host-00.php', $sub['verification']['reconcile']['kept_paths'][0] );
+		$this->assertSame( 'host-19.php', $sub['verification']['reconcile']['kept_paths'][19] );
 	}
 
 	protected function mu_plugins_chain( $type = 'files', $with_manifest = true, $with_reconcile = null ) {

@@ -225,6 +225,11 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             MainWP_Helper::maybe_set_doing_cron();
             MainWP_Utility::handle_fatal_error();
             MainWP_Utility::fix_for_custom_themes();
+            try {
+                MainWP_Child_Backup_Task::instance()->maybe_schedule_pending_deletes();
+            } catch ( \Throwable $e ) {
+                MainWP_Helper::log_debug( '[MainWP Backup] Pending delete scheduling failed.' );
+            }
             $this->call_function( $call_func );
         } elseif ( isset( $_POST['function'] ) && $callable_no_auth ) {
 
@@ -1800,20 +1805,32 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         $file = isset( $_REQUEST['del'] ) ? wp_unslash( $_REQUEST['del'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- The archive-name check below rejects path components before filesystem access.
         // phpcs:enable WordPress.Security.NonceVerification
 
-        // Native incremental collection also removes its downloaded tombstone artifact.
-        if ( $this->is_backup_archive_name( $file ) || 'tombstones.list' === $file ) {
-            $path = MainWP_Helper::locate_backup_file( $file );
-            // realpath() follows links, so a linked name or directory could select a different target.
-            if ( false !== $path && ! is_link( $path ) && ! is_link( dirname( $path ) ) ) {
-                $resolved_dir  = realpath( dirname( $path ) );
-                $resolved_file = realpath( $path );
-                if ( false !== $resolved_dir && false !== $resolved_file && is_file( $resolved_file ) && 0 === strpos( $resolved_file, $resolved_dir . DIRECTORY_SEPARATOR ) ) {
-                    wp_delete_file( $resolved_file ); // NOSONAR .
-                }
-            }
-        }
+        MainWP_Helper::write( $this->delete_backup_reply( $file ) );
+    }
 
-        MainWP_Helper::write( array( 'result' => 'ok' ) );
+    /**
+     * Download cleanup may outlive the request that first lost the mutex.
+     *
+     * @param mixed $file Requested basename.
+     * @return array
+     */
+    public function delete_backup_reply( $file ) {
+        $ok = array( 'result' => 'ok' );
+        if ( ! $this->is_backup_archive_name( $file ) && 'tombstones.list' !== $file ) {
+            return $ok;
+        }
+        $path = MainWP_Helper::locate_backup_file( $file );
+        if ( false === $path ) {
+            return $ok;
+        }
+        $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
+        if ( MainWP_Child_Backup_Task::instance()->delete_downloaded_backup( $file, $path, $dirs[0] ) ) {
+            return $ok;
+        }
+        return array(
+            'error'      => MainWP_Backup_Error::sanitize_message( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ),
+            'error_code' => MainWP_Backup_Error::ERR_ALREADY_RUNNING,
+        );
     }
 
     /**

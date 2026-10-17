@@ -695,6 +695,74 @@ class BackupTaskPruneTest extends WP_UnitTestCase {
 		$this->assertFileExists( $this->backup_dir . '/' . $legacy );
 	}
 
+	public function test_prune_retries_pending_list_under_its_existing_fence() {
+		global $wpdb;
+		$root = $this->backup_dir . '/uploads';
+		$upload = static function ( $dirs ) use ( $root ) {
+			$dirs['basedir'] = $root;
+			return $dirs;
+		};
+		wp_mkdir_p( $root );
+		add_filter( 'upload_dir', $upload );
+		add_filter( 'mainwp_child_get_wp_upload_dir', $upload );
+		$dir = \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup' )[0];
+		$name = 'backup-pending-prune.zip';
+		file_put_contents( $dir . $name, 'pending' );
+		$task_id = $this->make_terminal_task( MainWP_Child_Backup_Task::PHASE_COMPLETED, array() );
+		$owner = null;
+		// Reclaim runs first. Insert the intent only when prune takes its mutex.
+		$filter = function ( $query ) use ( &$filter, $dir, $name ) {
+			if ( 0 === strpos( $query, 'INSERT IGNORE INTO' ) && false !== strpos( $query, 'native|prune-' ) ) {
+				remove_filter( 'query', $filter );
+				file_put_contents( $dir . 'pending-delete.json', wp_json_encode( array( array(
+					'name' => $name, 'size' => 7, 'mtime' => filemtime( $dir . $name ), 'added' => time(),
+				) ) ) );
+			}
+			return $query;
+		};
+		$observe = function ( $file ) use ( &$owner, $name ) {
+			if ( basename( $file ) === $name ) {
+				$owner = \MainWP\Child\MainWP_Child_Backup_Mutex::holder();
+			}
+			return $file;
+		};
+		add_filter( 'query', $filter );
+		add_filter( 'wp_delete_file', $observe );
+		try {
+			$this->assertSame( 'pruned', MainWP_Child_Backup_Task::instance()->prune_task( $task_id, $dir ) );
+			$this->assertFileDoesNotExist( $dir . $name );
+			$this->assertFileDoesNotExist( $dir . 'pending-delete.json' );
+			$this->assertIsArray( $owner );
+			$this->assertSame( 0, strpos( $owner['owner'], 'prune-' ) );
+			$this->assertNull( \MainWP\Child\MainWP_Child_Backup_Mutex::holder() );
+		} finally {
+			remove_filter( 'query', $filter );
+			remove_filter( 'wp_delete_file', $observe );
+			wp_clear_scheduled_hook( 'mainwp_child_backup_pending_delete' );
+			remove_filter( 'upload_dir', $upload );
+			remove_filter( 'mainwp_child_get_wp_upload_dir', $upload );
+			global $wp_filesystem;
+			$wp_filesystem->delete( $root, true );
+		}
+	}
+
+	public function test_unreadable_active_cursor_preserves_existing_prune_and_sweep_behavior() {
+		global $wpdb;
+		$spine = MainWP_Child_Backup_Task::instance();
+		$name = 'backup-unreadable-prune.zip';
+		file_put_contents( $this->backup_dir . '/' . $name, 'x' );
+		$terminal = $this->make_terminal_task( MainWP_Child_Backup_Task::PHASE_COMPLETED, array( 'artifact' => array( 'file' => $name, 'size' => 1 ) ) );
+		$active = $spine->create_task( 'full', array() );
+		$wpdb->update( $spine->get_table_name(), array( 'sub_state' => '{broken' ), array( 'task_id' => $active ) );
+		$this->assertSame( 'pruned', $spine->prune_task( $terminal, $this->backup_dir ) );
+		$this->assertFileDoesNotExist( $this->backup_dir . '/' . $name );
+		$stale = $this->backup_dir . '/dbBackup-unreadable.sql';
+		file_put_contents( $stale, 'old dump' );
+		touch( $stale, time() - 4 * HOUR_IN_SECONDS );
+		$spine->sweep_stale_markers( $this->backup_dir );
+		$this->assertFileDoesNotExist( $stale );
+	}
+
 	/**
 	 * Run the prune callable's logic for the given ids.
 	 *

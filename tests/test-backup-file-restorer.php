@@ -1492,6 +1492,31 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertFileExists( $this->extract_to . '/stays.txt' );
 	}
 
+	public function test_config_include_tombstones_keep_exact_mapped_destinations_on_retry() {
+		mkdir( $this->extract_to . '/sub' );
+		foreach ( array( 'host.php', 'sub/host.php', 'host.php.bak', 'gone.php', '.htaccess', 'mainwp-htaccess' ) as $path ) {
+			file_put_contents( $this->extract_to . '/' . $path, 'live bytes' );
+		}
+		$tombstones = $this->dir . '/config-tombstones.list';
+		file_put_contents( $tombstones, "./host.php\nsub//./host.php\nhost.php.bak\ngone.php\nmainwp-htaccess\n" );
+		$state = array( 'paths' => array( 'host.php', 'sub/host.php', '.htaccess' ), 'config' => 'live' );
+		$cursor = array();
+		$changes = 0;
+		$after_change = static function () use ( &$changes ) { ++$changes; };
+		foreach ( array( 2, 0 ) as $expected_deleted ) {
+			$result = $this->restorer->apply_tombstones( $tombstones, $this->extract_to, array(), $cursor, $after_change, $state );
+			$this->assertNull( $result['error'] );
+			$this->assertSame( $expected_deleted, $result['deleted'] );
+			$cursor = unserialize( serialize( $cursor ) );
+		}
+		$this->assertSame( 2, $changes );
+		foreach ( array( 'host.php', 'sub/host.php', '.htaccess', 'mainwp-htaccess' ) as $path ) {
+			$this->assertSame( 'live bytes', file_get_contents( $this->extract_to . '/' . $path ) );
+		}
+		$this->assertFileDoesNotExist( $this->extract_to . '/host.php.bak' );
+		$this->assertFileDoesNotExist( $this->extract_to . '/gone.php' );
+	}
+
 	/**
 	 * A manifest transition must not delete config bytes extraction preserves.
 	 */

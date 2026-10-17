@@ -1729,12 +1729,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
         }
 
-        if ( ! isset( $sub_state['mu_plugins_preserve'] ) ) {
+        if ( ! isset( $sub_state['mu_plugins_preserve'] ) || ! isset( $sub_state['config_include'] ) ) {
             $options = isset( $sub_state['params']['reconcile'] ) ? MainWP_Child_Backup_Reconciler::sanitize_options( $sub_state['params']['reconcile'] ) : array();
             $named   = ! empty( $options['manifest'] );
             $chain   = $archive_count > 1 || $has_tombstones;
-            // Only a chain needs leaf membership. A withheld reconcile block still ships the manifest, and a plan only ever carries the leaf's.
-            $name     = $named ? $options['manifest'] : ( $chain && 1 === count( $manifests ) ? $manifests[0] : '' );
+            // A withheld reconcile block can still ship the leaf manifest.
+            $name     = $named ? $options['manifest'] : ( 1 === count( $manifests ) ? $manifests[0] : '' );
             $verified = isset( $sub_state['verified_manifests'][ $name ] ) ? $sub_state['verified_manifests'][ $name ] : '';
             $manifest = $scratch . $name;
             $actual   = is_file( $manifest ) && ! is_link( $manifest ) ? hash_file( 'sha256', $manifest ) : false;
@@ -1745,14 +1745,20 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             // Archives carry no snapshot identity, so a chain with no usable manifest protects live files from every archive.
             $without_manifest = null === $manifest && $chain;
 
-            $sub_state['mu_plugins_preserve'] = ( new MainWP_Child_Backup_Mu_Plugins() )->capture(
-                $this->site_root(),
-                $this->mu_plugins_directory(),
-                $manifest,
-                isset( $sub_state['file_restore'] ),
-                $this->mu_plugins_preserve_limit(),
-                $without_manifest
-            );
+            if ( ! isset( $sub_state['mu_plugins_preserve'] ) ) {
+                $sub_state['mu_plugins_preserve'] = ( new MainWP_Child_Backup_Mu_Plugins() )->capture(
+                    $this->site_root(),
+                    $this->mu_plugins_directory(),
+                    $named || $chain ? $manifest : null,
+                    isset( $sub_state['file_restore'] ),
+                    $this->mu_plugins_preserve_limit(),
+                    $without_manifest
+                );
+            }
+            if ( ! isset( $sub_state['config_include'] ) ) {
+                // Older cursors can capture late: extraction never replaces these live config sources.
+                $sub_state['config_include'] = $this->config_includes()->capture( $this->site_root(), $manifest );
+            }
             // A crash before this checkpoint must leave extraction entirely untouched.
             return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
         }
@@ -1804,7 +1810,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $path = $scratch . $op['file'];
 
             if ( 'tombstones' === $op['role'] ) {
-                $outcome = $restorer->apply_tombstones( $path, $this->site_root(), $sub_state['mu_plugins_preserve'], $cursor['part_cursor'], $after_change );
+                $outcome = $restorer->apply_tombstones( $path, $this->site_root(), $sub_state['mu_plugins_preserve'], $cursor['part_cursor'], $after_change, $sub_state['config_include'] );
                 if ( null !== $outcome['error'] ) {
                     throw new MainWP_Exception( esc_html( $outcome['error'] ), null, $outcome['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
                 }
@@ -1919,6 +1925,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             array(
                 'task_type'            => $task->type,
                 'mu_plugins_directory' => $this->mu_plugins_directory(),
+                'config_include'       => $sub_state['config_include'],
                 'manifest'             => $path,
                 'walk'                 => $options['walk'],
                 'root'                 => $this->site_root(),
@@ -1981,6 +1988,15 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      */
     protected function mu_plugins_directory() {
         return defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins';
+    }
+
+    /**
+     * Allow deterministic config and prepend capture in restore tests.
+     *
+     * @return MainWP_Child_Backup_Config_Includes Config dependency scanner.
+     */
+    protected function config_includes() {
+        return new MainWP_Child_Backup_Config_Includes();
     }
 
     /**

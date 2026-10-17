@@ -38,6 +38,13 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
     private $unarchived_paths = array();
 
     /**
+     * Live config dependencies are fixed before the first file change.
+     *
+     * @var array
+     */
+    private $config_include_paths = array();
+
+    /**
      * Invalid coverage must never become a broader deletion scope.
      *
      * @param mixed $raw Wire options.
@@ -131,9 +138,10 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
      * @return array Cursor, outcome and completion flags.
      */
     public function reconcile_slice( $cursor, $config, $deadline ) {
-        $this->unarchived_paths   = array_fill_keys( $config['walk']['unarchived'] ?? array(), true );
-        $this->mu_plugins_relpath = isset( $config['root'] ) ? MainWP_Child_Backup_Mu_Plugins::relative_directory( $config['root'], isset( $config['mu_plugins_directory'] ) ? $config['mu_plugins_directory'] : null ) : null;
-        $this->uploads_relpath    = null;
+        $this->unarchived_paths     = array_fill_keys( $config['walk']['unarchived'] ?? array(), true );
+        $this->config_include_paths = array_fill_keys( $config['config_include']['paths'] ?? array(), true );
+        $this->mu_plugins_relpath   = isset( $config['root'] ) ? MainWP_Child_Backup_Mu_Plugins::relative_directory( $config['root'], isset( $config['mu_plugins_directory'] ) ? $config['mu_plugins_directory'] : null ) : null;
+        $this->uploads_relpath      = null;
         if ( isset( $config['task_type'] ) && 'restore_files' === $config['task_type'] ) {
             $uploads = wp_upload_dir( null, false );
             $root    = trailingslashit( wp_normalize_path( $config['root'] ) );
@@ -411,6 +419,8 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
             $reason = 'symlink';
         } elseif ( MainWP_Child_Backup_Mu_Plugins::contains( $path, $this->mu_plugins_relpath ) ) {
             $reason = 'mu_plugins';
+        } elseif ( isset( $this->config_include_paths[ $path ] ) ) {
+            $reason = 'config_include';
         } elseif ( isset( $this->unarchived_paths[ $path ] ) ) {
             $reason = 'unarchived';
         }

@@ -805,10 +805,11 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @param array         $mu_plugins_preserve Persisted host-file protection.
      * @param array         $cursor             Cumulative kept-link counts and paths.
      * @param callable|null $after_file_change Live deletion callback.
+     * @param array         $config_include Persisted config dependencies.
      *
      * @return array { deleted: int, error: string|null, error_code: string|null }
      */
-    public function apply_tombstones( $tombstones_file, $extract_to, $mu_plugins_preserve = array(), &$cursor = array(), $after_file_change = null ) {
+    public function apply_tombstones( $tombstones_file, $extract_to, $mu_plugins_preserve = array(), &$cursor = array(), $after_file_change = null, $config_include = array() ) {
         $lines = file( $tombstones_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- local sidecar read.
         if ( false === $lines ) {
             return array(
@@ -836,7 +837,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             }
 
             // Restore never writes clone metadata, so a tombstone must not delete it either.
-            if ( static::should_skip_entry( $relpath ) || null === static::map_entry_name( $relpath ) || $this->preserves_mu_plugin( $relpath, $extract_to, $mu_plugins_preserve ) ) {
+            $mapped = static::map_entry_name( $relpath );
+            if ( static::should_skip_entry( $relpath ) || null === $mapped || $this->preserves_mu_plugin( $relpath, $extract_to, $mu_plugins_preserve ) || MainWP_Child_Backup_Config_Includes::contains( $mapped, $config_include ) ) {
                 continue;
             }
 
@@ -867,7 +869,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             }
 
             // A host deployment may have replaced a preserved link since the first check.
-            if ( MainWP_Child_Backup_Mu_Plugins::preserves( $relpath, $mu_plugins_preserve ) ) {
+            if ( MainWP_Child_Backup_Mu_Plugins::preserves( $relpath, $mu_plugins_preserve ) || MainWP_Child_Backup_Config_Includes::contains( $mapped, $config_include ) ) {
                 continue;
             }
 
