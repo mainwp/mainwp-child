@@ -168,6 +168,13 @@ class BackupDiskFloorTest extends WP_UnitTestCase {
 			MainWP_Backup::assert_disk_space_during_backup( $this->dir );
 		} );
 		$this->assertStringContainsString( 'It had 0.0 B free and the backup needed at least 1.0 GB.', $full->getMessage() );
+
+		// Large free space stays a float; it must format as-is rather than through an int cast.
+		$this->space( (float) ( 40 * self::GB ), 2.5 * self::GB );
+		$large = $this->disk_error( function () {
+			MainWP_Backup::assert_disk_space_during_backup( $this->dir, null, 3 * self::GB );
+		} );
+		$this->assertStringContainsString( 'It had 2.5 GB free and the backup needed at least 4.0 GB.', $large->getMessage() );
 	}
 
 	public function test_explicit_minimum_and_equality_remain_supported() {

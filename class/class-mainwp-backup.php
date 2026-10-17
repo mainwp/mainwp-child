@@ -1783,7 +1783,7 @@ class MainWP_Backup {
             $message = sprintf(
                 /* translators: 1: free disk space found on the child site, 2: minimum free disk space the backup needed (safety floor plus data still to be written). */
                 esc_html__( 'The backup stopped because the child site ran low on disk space. It had %1$s free and the backup needed at least %2$s. Free up disk space on the child site and try again.', 'mainwp-child' ),
-                esc_html( size_format( (int) $free, 1 ) ), // disk_free_space() returns a float, and size_format( 0.0 ) is false.
+                esc_html( size_format( $free > 0 ? $free : 0, 1 ) ), // size_format() is false for float 0.0, and an int cast would wrap above 2 GB on 32-bit PHP.
                 esc_html( size_format( $needed, 1 ) )
             );
             throw new MainWP_Exception( $message, null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- format and sizes are escaped above.
