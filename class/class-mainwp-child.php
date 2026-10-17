@@ -14,6 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // phpcs:disable -- required for debugging.
 if ( isset( $_REQUEST['mainwpsignature'] ) && ( ! defined('MAINWP_CHILD_DEBUG') || false === MAINWP_CHILD_DEBUG ) ) {
+    MainWP_Security::save_php_reporting_state();
     ini_set( 'display_errors', false );
     error_reporting( 0 );
 }
