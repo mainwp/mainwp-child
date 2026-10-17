@@ -1478,6 +1478,25 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( 'live bytes', file_get_contents( $this->site . '/host-include.php' ) );
 	}
 
+	public function test_config_include_symlinked_root_config_is_scanned_despite_manifest_membership() {
+		$target = $this->prepare_config_include_fixture( "require ABSPATH . 'host.php';" );
+		$config = $this->site . '/wp-config.php';
+		$this->file_link( $target, $config );
+		file_put_contents( $this->site . '/host.php', 'live host bytes' );
+		$archive = $this->make_named_zip_artifact( 'leaf.zip', array( 'wp-config.php' => '<?php /* snapshot config */', 'snapshot.txt' => 'snapshot' ) );
+		$task = $this->drive( $this->make_task( 'files', array( $archive, $this->make_manifest_artifact( array( 'wp-config.php', 'snapshot.txt' ) ) ), $this->reconcile_options() ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertSame( array( 'paths' => array( 'host.php' ), 'config' => 'live' ), $sub['config_include'] );
+		$this->assertSame( 1, $this->runner->test_config_includes->reads );
+		$this->assertTrue( is_link( $config ) );
+		$this->assertSame( $target, readlink( $config ) );
+		$this->assertSame( "<?php require ABSPATH . 'host.php';", file_get_contents( $config ) );
+		$this->assertSame( 'live host bytes', file_get_contents( $this->site . '/host.php' ) );
+		$this->assertSame( 1, $sub['verification']['reconcile']['kept_by_reason']['config_include'] );
+		$this->assertContains( 'host.php', $sub['verification']['reconcile']['kept_paths'] );
+	}
+
 	public function test_config_include_archived_config_uses_snapshot_dependencies_and_keeps_prepend() {
 		$this->prepare_config_include_fixture( "require ABSPATH . 'obsolete.php';", false );
 		file_put_contents( $this->site . '/obsolete.php', 'obsolete' );

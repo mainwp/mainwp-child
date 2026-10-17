@@ -951,13 +951,7 @@ class MainWP_Backup {
 
             $files = glob( $backupdir . '*' );
             foreach ( $files as $file ) {
-                if ( MainWP_Helper::ends_with( $file, '/index.php' ) | MainWP_Helper::ends_with( $file, '/.htaccess' ) ) {
-                    continue;
-                }
-
-                if ( ( time() - filemtime( $file ) ) > ( 60 * 60 * 3 ) ) {
-                    wp_delete_file( $file );
-                }
+                $this->delete_aged_backup_file( $file );
             }
 
             // phpcs:disable WordPress.Security.NonceVerification
@@ -1016,6 +1010,24 @@ class MainWP_Backup {
         }
         // phpcs:enable WordPress.Security.NonceVerification
         return $information;
+    }
+
+    /**
+     * Pending intents and their lock inode must survive legacy backup cleanup.
+     *
+     * @param string $file Backup-directory file selected by the legacy sweep.
+     */
+    protected function delete_aged_backup_file( $file ) {
+        if ( MainWP_Helper::ends_with( $file, '/index.php' ) | MainWP_Helper::ends_with( $file, '/.htaccess' ) ) {
+            return;
+        }
+        // Removing the lock would let concurrent writers lock different inodes.
+        if ( in_array( basename( $file ), array( 'pending-delete.json', 'pending-delete.lock' ), true ) ) {
+            return;
+        }
+        if ( ( time() - filemtime( $file ) ) > ( 60 * 60 * 3 ) ) {
+            wp_delete_file( $file );
+        }
     }
 
     /**

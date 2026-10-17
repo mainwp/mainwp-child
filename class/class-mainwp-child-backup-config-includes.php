@@ -48,6 +48,11 @@ class MainWP_Child_Backup_Config_Includes extends MainWP_Child_Backup_Incrementa
             'unresolved' => 0,
         );
         try {
+            // PHP resolves config symlinks before assigning __DIR__ and __FILE__.
+            $file = realpath( $file );
+            if ( false === $file ) {
+                throw new \RuntimeException( 'Config unavailable.' );
+            }
             $source = $this->read_config( $file );
             if ( false === $source || strlen( $source ) > self::MAX_BYTES ) {
                 throw new \RuntimeException( 'Config unavailable.' );
@@ -201,7 +206,17 @@ class MainWP_Child_Backup_Config_Includes extends MainWP_Child_Backup_Incrementa
         $config     = self::locate( $root );
         $in_root    = untrailingslashit( $root ) . '/wp-config.php';
         $candidates = array();
-        if ( is_file( $in_root ) && null !== $manifest && $this->manifest_has_config( $manifest ) ) {
+
+        $in_manifest = false;
+        // Extraction keeps live links, so their config remains authoritative.
+        if ( is_file( $in_root ) && ! is_link( $in_root ) && null !== $manifest ) {
+            try {
+                $in_manifest = $this->manifest_has_config( $manifest );
+            } catch ( \RuntimeException $e ) {
+                $this->debug( '[MainWP Backup] Config includes: manifest_failed=1' );
+            }
+        }
+        if ( $in_manifest ) {
             $state['config'] = 'manifest';
         } elseif ( null !== $config ) {
             $state['config'] = 'live';
@@ -243,7 +258,7 @@ class MainWP_Child_Backup_Config_Includes extends MainWP_Child_Backup_Incrementa
      * @throws \RuntimeException When the manifest cannot be read.
      */
     private function manifest_has_config( $manifest ) {
-        $handle = fopen( $manifest, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- verified local sidecar.
+        $handle = @fopen( $manifest, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen, WordPress.PHP.NoSilencedErrors.Discouraged -- a vanished sidecar falls back to live config without exposing its path.
         if ( false === $handle ) {
             throw new \RuntimeException( 'Could not read the leaf manifest.' );
         }

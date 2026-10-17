@@ -87,11 +87,167 @@ class Test_Backup_Pending_Delete extends WP_UnitTestCase {
         return array( 'name' => $name, 'size' => filesize( $this->dir . $name ), 'mtime' => filemtime( $this->dir . $name ), 'added' => null === $added ? time() : $added );
     }
 
+    private function queue( $name ) {
+        $entry = $this->entry( $name );
+        $this->spine->record_pending_delete( $name, $this->dir, array( 'size' => $entry['size'], 'mtime' => $entry['mtime'] ) );
+    }
+
     private function busy_delete( $name ) {
         $this->assertSame( array(
             'error' => MainWP_Backup_Error::sanitize_message( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ),
             'error_code' => MainWP_Backup_Error::ERR_ALREADY_RUNNING,
         ), MainWP_Child_Callable::get_instance()->delete_backup_reply( $name ) );
+    }
+
+    /** @dataProvider replacement_before_queue_provider */
+    public function test_mutex_refusal_queues_original_identity_and_preserves_replacement( $mode, $name ) {
+        global $wpdb;
+        $path = $this->fixture( $name, 'original' );
+        touch( $path, time() - 60 );
+        clearstatcache( true, $path );
+        $original = $this->entry( $name );
+        if ( 'busy' === $mode ) {
+            $this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'replacement-holder', 300 ) );
+        }
+        $replaced = false;
+        $filter = function ( $query ) use ( &$filter, &$replaced, $mode, $path, $original, $wpdb ) {
+            $at_acquire = 0 === strpos( $query, 'INSERT IGNORE INTO' ) && false !== strpos( $query, MainWP_Child_Backup_Mutex::OPTION_NAME );
+            $at_claims = false !== strpos( $query, "WHERE phase NOT IN ('completed','failed')" );
+            if ( ( 'busy' === $mode && $at_acquire ) || ( 'lost' === $mode && $at_claims ) ) {
+                remove_filter( 'query', $filter );
+                file_put_contents( $path, 'replacement generation is longer' );
+                touch( $path, $original['mtime'] + 60 );
+                clearstatcache( true, $path );
+                $replaced = true;
+                if ( 'lost' === $mode ) {
+                    $wpdb->update( $wpdb->options, array( 'option_value' => 'native|replacement-holder|' . ( time() + 300 ) ), array( 'option_name' => MainWP_Child_Backup_Mutex::OPTION_NAME ) );
+                    wp_cache_delete( MainWP_Child_Backup_Mutex::OPTION_NAME, 'options' );
+                }
+            }
+            return $query;
+        };
+        add_filter( 'query', $filter );
+        try {
+            $this->busy_delete( $name );
+        } finally {
+            remove_filter( 'query', $filter );
+            delete_option( MainWP_Child_Backup_Mutex::OPTION_NAME );
+        }
+        $this->assertTrue( $replaced, 'Replace the file only after delete has captured its original identity.' );
+        $entries = $this->entries();
+        $this->assertCount( 1, $entries );
+        $this->assertSame( $original['size'], $entries[0]['size'] );
+        $this->assertSame( $original['mtime'], $entries[0]['mtime'] );
+        $this->assertNotSame( filesize( $path ), $entries[0]['size'] );
+        $this->assertNotSame( filemtime( $path ), $entries[0]['mtime'] );
+        $this->spine->retry_pending_deletes( $this->dir );
+        $this->assertSame( array(), $this->entries() );
+        $this->assertFileExists( $path );
+        $this->assertSame( 'replacement generation is longer', file_get_contents( $path ) );
+    }
+
+    public static function replacement_before_queue_provider() {
+        return array(
+            'busy archive' => array( 'busy', 'backup-replaced.zip' ),
+            'busy tombstones' => array( 'busy', 'tombstones.list' ),
+            'lost archive' => array( 'lost', 'backup-replaced.zip' ),
+            'lost tombstones' => array( 'lost', 'tombstones.list' ),
+        );
+    }
+
+    public function test_busy_delete_without_initial_identity_does_not_queue_later_file() {
+        $name = 'backup-not-readable-yet.zip';
+        $path = $this->dir . $name;
+        $this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'replacement-holder', 300 ) );
+        $filter = function ( $query ) use ( &$filter, $path ) {
+            if ( 0 === strpos( $query, 'INSERT IGNORE INTO' ) && false !== strpos( $query, MainWP_Child_Backup_Mutex::OPTION_NAME ) ) {
+                remove_filter( 'query', $filter );
+                file_put_contents( $path, 'later generation' );
+                clearstatcache( true, $path );
+            }
+            return $query;
+        };
+        add_filter( 'query', $filter );
+        try {
+            $this->assertFalse( $this->spine->delete_downloaded_backup( $name, $path, $this->dir ) );
+        } finally {
+            remove_filter( 'query', $filter );
+            MainWP_Child_Backup_Mutex::release( 'replacement-holder' );
+        }
+        $this->assertSame( 'later generation', file_get_contents( $path ) );
+        $this->assertFileDoesNotExist( $this->dir . 'pending-delete.json' );
+        $this->assertFileDoesNotExist( $this->dir . 'pending-delete.lock' );
+        $this->assertFalse( wp_next_scheduled( MainWP_Child_Backup_Task::PENDING_DELETE_HOOK ) );
+    }
+
+    /** @dataProvider filtered_pending_entry_point_provider */
+    public function test_filtered_upload_base_is_used_for_pending_entry_points( $entry_point ) {
+        $filtered_base = $this->root . '/filtered';
+        wp_mkdir_p( $filtered_base );
+        $arguments = array();
+        $filter = static function ( $uploads, $subdir, $die_on_error, $direct_access ) use ( $filtered_base, &$arguments ) {
+            $arguments[] = array( $subdir, $die_on_error, $direct_access );
+            $uploads['basedir'] = $filtered_base;
+            return $uploads;
+        };
+        add_filter( 'mainwp_child_get_wp_upload_dir', $filter, 20, 4 );
+        try {
+            $this->dir = MainWP_Helper::get_mainwp_dir( 'backup' )[0];
+            $this->assertSame( $this->root, wp_upload_dir( null, false )['basedir'] );
+            $this->assertSame( $filtered_base . '/mainwp/backup-' . get_option( 'mainwp_backup_dir_hash' ) . '/', $this->dir );
+            $name = 'backup-filtered.zip';
+            $path = $this->fixture( $name );
+            $this->queue( $name );
+            wp_clear_scheduled_hook( MainWP_Child_Backup_Task::PENDING_DELETE_HOOK );
+            $arguments = array();
+            if ( 'request' === $entry_point ) {
+                $this->assertNotFalse( $this->authenticated_request() );
+                $this->assertFileExists( $path );
+            } else {
+                $this->fire_cron();
+                $this->assertFileDoesNotExist( $path );
+                $this->assertSame( array(), $this->entries() );
+            }
+            $this->assertNotEmpty( $arguments );
+            foreach ( $arguments as $args ) {
+                $this->assertSame( array( 'backup', true, true ), $args );
+            }
+        } finally {
+            remove_filter( 'mainwp_child_get_wp_upload_dir', $filter, 20 );
+        }
+    }
+
+    public static function filtered_pending_entry_point_provider() {
+        return array( 'authenticated request' => array( 'request' ), 'cron retry' => array( 'cron' ) );
+    }
+
+    /** @dataProvider retry_throwable_provider */
+    public function test_cron_handler_contains_throwing_retry( $throwable_class ) {
+        $runner = new class() extends MainWP_Child_Backup_Task {
+            public $failure;
+            public $retry_calls = 0;
+
+            public function retry_pending_deletes( $backup_dir ) {
+                ++$this->retry_calls;
+                throw $this->failure;
+            }
+        };
+        $runner->failure = new $throwable_class( 'retry failed' );
+        $runner->run_pending_deletes();
+        $this->assertSame( 1, $runner->retry_calls, 'The cron handler must contain a failure from the retry itself.' );
+    }
+
+    public static function retry_throwable_provider() {
+        return array( 'exception' => array( '\RuntimeException' ), 'error' => array( '\Error' ) );
+    }
+
+    public function test_empty_live_dump_prefix_does_not_claim_every_file() {
+        $id = $this->task( array( 'db_prefix' => '/' ), 'full' );
+        $this->assertFalse( $this->spine->live_task_claims_file( 'backup-unclaimed.zip', $this->dir ) );
+        $row = $this->spine->get_task( $id );
+        $this->assertNotFalse( $this->spine->checkpoint( $id, (int) $row->version, array( 'sub_state' => array( 'db_prefix' => 'dbBackup-live' ) ) ) );
+        $this->assertTrue( $this->spine->live_task_claims_file( 'dbBackup-live-001.sql.zip', $this->dir ) );
+        $this->assertFalse( $this->spine->live_task_claims_file( 'backup-unclaimed.zip', $this->dir ) );
     }
 
     /** @dataProvider busy_mutex_provider */
@@ -186,7 +342,7 @@ class Test_Backup_Pending_Delete extends WP_UnitTestCase {
     public function test_cron_busy_or_live_claim_keeps_one_retry() {
         $name = 'backup-cron-claimed.zip';
         $path = $this->fixture( $name );
-        $this->spine->record_pending_delete( $name, $this->dir );
+        $this->queue( $name );
         $this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'other-worker', 60 ) );
         $this->fire_cron();
         $this->assertNotFalse( wp_next_scheduled( MainWP_Child_Backup_Task::PENDING_DELETE_HOOK ) );
@@ -245,7 +401,7 @@ class Test_Backup_Pending_Delete extends WP_UnitTestCase {
     public function test_reused_name_drops_intent_without_deleting_new_file( $field ) {
         $name = 'backup-reused.zip';
         $path = $this->fixture( $name );
-        $this->spine->record_pending_delete( $name, $this->dir );
+        $this->queue( $name );
         if ( 'size' === $field ) {
             file_put_contents( $path, 'a different longer archive' );
         } else {
@@ -264,7 +420,7 @@ class Test_Backup_Pending_Delete extends WP_UnitTestCase {
     public function test_missing_file_after_crash_drops_entry() {
         $name = 'backup-crash.zip';
         $path = $this->fixture( $name );
-        $this->spine->record_pending_delete( $name, $this->dir );
+        $this->queue( $name );
         unlink( $path );
         $this->spine->retry_pending_deletes( $this->dir );
         $this->assertFileDoesNotExist( $this->dir . 'pending-delete.json' );
@@ -303,7 +459,7 @@ class Test_Backup_Pending_Delete extends WP_UnitTestCase {
         $this->raw_entries( $entries );
         $new = 'backup-newest.zip';
         $this->fixture( $new );
-        $this->spine->record_pending_delete( $new, $this->dir );
+        $this->queue( $new );
         $saved = $this->entries();
         $this->assertCount( 200, $saved );
         $this->assertSame( 'backup-limit-' . ( $count - 199 ) . '.zip', $saved[0]['name'] );
@@ -321,7 +477,7 @@ class Test_Backup_Pending_Delete extends WP_UnitTestCase {
         $this->raw_entries( array( $this->entry( $name, time() - 60 ) ) );
         file_put_contents( $path, 'new longer data' );
         clearstatcache( true, $path );
-        $this->spine->record_pending_delete( $name, $this->dir );
+        $this->queue( $name );
         $entries = $this->entries();
         $this->assertCount( 1, $entries );
         $this->assertSame( filesize( $path ), $entries[0]['size'] );
@@ -342,7 +498,7 @@ class Test_Backup_Pending_Delete extends WP_UnitTestCase {
         $names = array( 'backup-first.zip', 'backup-second.zip', 'backup-third.zip' );
         foreach ( $names as $name ) {
             $this->fixture( $name );
-            $this->spine->record_pending_delete( $name, $this->dir );
+            $this->queue( $name );
         }
         $this->raw_entries( array( $this->entry( $names[0], time() - 3 ), $this->entry( $names[1], time() - 2 ), $this->entry( $names[2], time() - 1 ) ) );
         $deleted = 0;
@@ -375,8 +531,8 @@ class Test_Backup_Pending_Delete extends WP_UnitTestCase {
         $this->fixture( $later );
         $this->fixture( $kept );
         $this->task( array( 'params' => array( 'artifacts' => array( array( 'file' => $kept ) ) ) ) );
-        $this->spine->record_pending_delete( $kept, $this->dir );
-        $this->spine->record_pending_delete( $first, $this->dir );
+        $this->queue( $kept );
+        $this->queue( $first );
         $blocked = false;
         $filter = function ( $query ) use ( &$blocked, &$filter ) {
             if ( false !== strpos( $query, "WHERE phase NOT IN ('completed','failed')" ) ) {
@@ -413,7 +569,7 @@ class Test_Backup_Pending_Delete extends WP_UnitTestCase {
     public function test_failed_unlink_keeps_pending_until_a_later_retry() {
         $name = 'backup-unlink-retry.zip';
         $path = $this->fixture( $name );
-        $this->spine->record_pending_delete( $name, $this->dir );
+        $this->queue( $name );
         // Compare basenames: the deleter passes a resolved path (macOS /var is /private/var).
         $block = static function ( $file ) use ( $path ) {
             return basename( $path ) === basename( $file ) ? '' : $file;

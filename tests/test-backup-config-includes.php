@@ -52,6 +52,8 @@ class BackupConfigIncludesTest extends WP_UnitTestCase {
         $this->dir = sys_get_temp_dir() . '/mainwp-config-includes-' . uniqid();
         $this->root = $this->dir . '/site';
         mkdir( $this->root, 0777, true );
+        $this->dir = realpath( $this->dir );
+        $this->root = $this->dir . '/site';
         $this->scanner = new Testable_Backup_Config_Includes();
     }
 
@@ -127,6 +129,37 @@ class BackupConfigIncludesTest extends WP_UnitTestCase {
         $scan = $this->scanner->scan( $file, $this->root );
         $this->assertSame( array( $this->root . '/x.php', $this->dir . '/x.php', $this->root . '/y.php', $this->root . '/z.php' ), $scan['paths'] );
         $this->assertSame( array( 'x.php', 'y.php', 'z.php' ), $this->scanner->capture( $this->root, null )['paths'] );
+    }
+
+    public static function data_symlinked_config_directories() {
+        return array( 'inside root' => array( true ), 'outside root' => array( false ) );
+    }
+
+    /** @dataProvider data_symlinked_config_directories */
+    public function test_symlinked_config_uses_real_directory_for_magic_constants_and_relative_literals( $inside ) {
+        $directory = ( $inside ? $this->root : $this->dir ) . '/host-config';
+        mkdir( $directory );
+        $target = $directory . '/wp-config.php';
+        file_put_contents( $target, "<?php require __DIR__ . '/dir.php'; require dirname( __FILE__ ) . '/file.php'; require ABSPATH . 'root.php'; require 'relative.php';" );
+        $file = $this->root . '/wp-config.php';
+        if ( ! function_exists( 'symlink' ) || ! @symlink( $target, $file ) ) {
+            $this->markTestSkipped( 'Filesystem does not support symlinks.' );
+        }
+        $scan = $this->scanner->scan( $file, $this->root );
+        $this->assertSame( 0, $scan['unresolved'] );
+        $this->assertSame( array( $directory . '/dir.php', $directory . '/file.php', $this->root . '/root.php', $this->root . '/relative.php', $directory . '/relative.php' ), $scan['paths'] );
+        $expected = $inside ? array( 'host-config/dir.php', 'host-config/file.php', 'host-config/relative.php', 'relative.php', 'root.php' ) : array( 'relative.php', 'root.php' );
+        $this->assertSame( $expected, $this->scanner->capture( $this->root, null )['paths'] );
+    }
+
+    public function test_manifest_read_failure_falls_back_to_live_config_scan() {
+        file_put_contents( $this->root . '/wp-config.php', "<?php require ABSPATH . 'host.php';" );
+        $manifest = $this->manifest( array( 'wp-config.php' ) );
+        unlink( $manifest );
+        $this->scanner->prepend = $this->root . '/prepend.php';
+        $this->assertSame( array( 'paths' => array( 'host.php', 'prepend.php' ), 'config' => 'live' ), $this->scanner->capture( $this->root, $manifest ) );
+        $this->assertSame( 1, $this->scanner->reads );
+        $this->assertSame( array( '[MainWP Backup] Config includes: manifest_failed=1' ), $this->scanner->messages );
     }
 
     public static function data_dynamic_config_includes() {

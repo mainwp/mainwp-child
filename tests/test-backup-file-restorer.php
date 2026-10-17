@@ -1507,7 +1507,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			$result = $this->restorer->apply_tombstones( $tombstones, $this->extract_to, array(), $cursor, $after_change, $state );
 			$this->assertNull( $result['error'] );
 			$this->assertSame( $expected_deleted, $result['deleted'] );
-			$cursor = unserialize( serialize( $cursor ) );
+			$cursor = json_decode( wp_json_encode( $cursor ), true );
 		}
 		$this->assertSame( 2, $changes );
 		foreach ( array( 'host.php', 'sub/host.php', '.htaccess', 'mainwp-htaccess' ) as $path ) {

@@ -1553,7 +1553,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             return true;
         }
         foreach ( $guard['prefixes'] as $prefix ) {
-            if ( 0 === strpos( $name, $prefix ) ) {
+            if ( '' !== $prefix && 0 === strpos( $name, $prefix ) ) {
                 return true;
             }
         }
@@ -1569,9 +1569,11 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * @return bool False when another process still needs the file or mutex.
      */
     public function delete_downloaded_backup( $name, $path, $backup_dir ) {
-        $owner = 'delete-' . strtolower( wp_generate_password( 12, false ) );
+        // A busy holder may replace this name before the refused delete can be queued.
+        $identity = $this->pending_file_identity( $path );
+        $owner    = 'delete-' . strtolower( wp_generate_password( 12, false ) );
         if ( true !== MainWP_Child_Backup_Mutex::acquire( 'native', $owner, self::CLEANUP_MUTEX_TTL ) ) {
-            $this->record_pending_delete( $name, $backup_dir );
+            $this->record_pending_delete( $name, $backup_dir, $identity );
             return false;
         }
         $this->fence = array(
@@ -1586,7 +1588,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             $resolved = $this->download_delete_target( $path );
             if ( false !== $resolved ) {
                 if ( ! $this->fence_holds( true ) ) {
-                    $this->record_pending_delete( $name, $backup_dir );
+                    $this->record_pending_delete( $name, $backup_dir, $identity );
                     return false;
                 }
                 wp_delete_file( $resolved );
@@ -1629,29 +1631,27 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
     /**
      * A database restore replaces options and cron; the retry intent stays on disk.
      *
-     * @param string $name       Requested basename.
-     * @param string $backup_dir Hashed backup directory.
+     * @param string      $name       Requested basename.
+     * @param string      $backup_dir Hashed backup directory.
+     * @param array|false $identity   Size and mtime captured before mutex acquisition.
      */
-    public function record_pending_delete( $name, $backup_dir ) {
+    public function record_pending_delete( $name, $backup_dir, $identity ) {
         if ( ! $this->is_pending_delete_name( $name ) ) {
+            return;
+        }
+        if ( false === $identity ) {
+            MainWP_Helper::log_debug( '[MainWP Backup] Pending delete skipped: original file identity unavailable.' );
             return;
         }
         $this->update_pending_deletes(
             $backup_dir,
-            function ( $entries ) use ( $name ) {
-                $path = MainWP_Helper::locate_backup_file( $name );
-                if ( false === $path ) {
-                    return $entries;
-                }
-                $identity = $this->pending_file_identity( $path );
-                if ( false !== $identity ) {
-                    $entries[ $name ] = array(
-                        'name'  => $name,
-                        'size'  => $identity['size'],
-                        'mtime' => $identity['mtime'],
-                        'added' => time(),
-                    );
-                }
+            function ( $entries ) use ( $name, $identity ) {
+                $entries[ $name ] = array(
+                    'name'  => $name,
+                    'size'  => $identity['size'],
+                    'mtime' => $identity['mtime'],
+                    'added' => time(),
+                );
                 return $entries;
             }
         );
@@ -1854,6 +1854,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             return false;
         }
         $uploads = wp_upload_dir( null, false );
+        $uploads = apply_filters( 'mainwp_child_get_wp_upload_dir', $uploads, 'backup', true, true );
         return trailingslashit( $uploads['basedir'] ) . 'mainwp/backup-' . $hash . '/';
     }
 
@@ -1887,9 +1888,13 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * Cron supplies retries even when the Dashboard sends no further requests.
      */
     public function run_pending_deletes() {
-        $dir = $this->existing_backup_directory();
-        if ( false !== $dir ) {
-            $this->retry_pending_deletes( $dir );
+        try {
+            $dir = $this->existing_backup_directory();
+            if ( false !== $dir ) {
+                $this->retry_pending_deletes( $dir );
+            }
+        } catch ( \Throwable $e ) {
+            MainWP_Helper::log_debug( '[MainWP Backup] Pending delete retry failed.' );
         }
     }
 
