@@ -32,7 +32,10 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 	}
 
 	private static function normalize_backup_status( $value, $key = '' ) {
-		if ( in_array( $key, array( 'task_id', 'started_at', 'last_progress_at', 'max_wall_clock_at', 'version', 'db_prefix', 'parent_manifest_file' ), true ) ) {
+		if ( 'db_prefix' === $key ) {
+			return 'db-dump-prefix';
+		}
+		if ( in_array( $key, array( 'task_id', 'started_at', 'last_progress_at', 'max_wall_clock_at', 'version', 'parent_manifest_file' ), true ) ) {
 			return '<' . $key . '>';
 		}
 		if ( in_array( $key, array( 'size', 'total_bytes', 'bytes_done', 'bytes_total' ), true ) ) {
@@ -98,6 +101,10 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		$this->assertSame( 'completed', $task->phase );
 		$spine = MainWP_Child_Backup_Task::instance();
 		$wire = json_decode( wp_json_encode( $spine->status_payload( $task, $this->backup_dir ) ), true );
+		if ( isset( $wire['sub_state']['db_prefix'] ) ) {
+			$stored = $spine->read_sub_state( $task, $this->backup_dir );
+			$this->assertSame( basename( $stored['db_prefix'] ), $wire['sub_state']['db_prefix'] );
+		}
 		$this->assertSame( $wire, json_decode( wp_json_encode( $spine->status_payload( $spine->get_task( $id ), $this->backup_dir ) ), true ) );
 		$this->assertIsString( $wire['file'] );
 		$this->assertIsInt( $wire['size'] );

@@ -94,6 +94,27 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
     protected $heartbeat_bytes = 0;
 
     /**
+     * Bound disk checks even when one SQL value exceeds the usual batch size.
+     *
+     * @var int Bytes streamed since the last disk-floor check.
+     */
+    private $disk_floor_bytes = 0;
+
+    /**
+     * Short slices still need a check even when they never stream 16 MiB.
+     *
+     * @var bool
+     */
+    private $disk_floor_checked = false;
+
+    /**
+     * Restore snapshots use the restore engine's existing disk margins.
+     *
+     * @var bool Restore aside dumps retain the restore engine's disk policy.
+     */
+    private $enforce_disk_floor = true;
+
+    /**
      * Get the singleton instance.
      *
      * @return MainWP_Backup_Db_Dumper
@@ -258,7 +279,9 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
      */
     public function dump_to_files( $filepath_prefix, $time_budget = null, $heartbeat = null ) { //phpcs:ignore -- NOSONAR - complexity required for cleanup-on-failure semantics.
         $this->assert_supported_topology();
-        $this->heartbeat_bytes = 0;
+        $this->heartbeat_bytes    = 0;
+        $this->disk_floor_bytes   = 0;
+        $this->disk_floor_checked = false;
 
         $start  = time();
         $mysqli = $this->open_dedicated_connection();
@@ -529,8 +552,10 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
      */
     public function dump_tier2_slice( $filepath_prefix, $cursor, $time_budget = 45, $heartbeat = null ) { //phpcs:ignore -- NOSONAR - resumable slice loop.
         global $wpdb;
-        $start                 = time();
-        $this->heartbeat_bytes = 0;
+        $start                    = time();
+        $this->heartbeat_bytes    = 0;
+        $this->disk_floor_bytes   = 0;
+        $this->disk_floor_checked = false;
 
         if ( null === $cursor || ! is_array( $cursor ) ) {
             // A whole-DB Tier-2 dump reads $wpdb, which on a sharded/replicated
@@ -665,7 +690,13 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
                 'first'   => true,
             );
         }
-        return $this->dump_tier2_slice( $filepath_prefix, $cursor, $time_budget );
+        $previous                 = $this->enforce_disk_floor;
+        $this->enforce_disk_floor = false;
+        try {
+            return $this->dump_tier2_slice( $filepath_prefix, $cursor, $time_budget );
+        } finally {
+            $this->enforce_disk_floor = $previous;
+        }
     }
 
     /**
@@ -1033,17 +1064,37 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         if ( null !== $heartbeat ) {
             call_user_func( $heartbeat );
         }
-        $written = @fwrite( $fh, $data ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite, WordPress.PHP.NoSilencedErrors.Discouraged -- failure returns a registered error.
-        if ( false === $written || $written < strlen( $data ) ) {
+        if ( $this->enforce_disk_floor && ! $this->disk_floor_checked ) {
             $meta = stream_get_meta_data( $fh );
-            $free = $this->free_disk_space( dirname( $meta['uri'] ) );
-            $code = false !== $free && $free < max( 4096, strlen( $data ) ) ? MainWP_Backup_Error::ERR_DISK_FULL : MainWP_Backup_Error::ERR_DB_WRITE_FAILED;
-            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( $code ) ), null, $code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message.
+            MainWP_Backup::assert_disk_space_during_backup( dirname( $meta['uri'] ) );
+            $this->disk_floor_checked = true;
         }
-        $this->heartbeat_bytes += $written;
-        while ( null !== $heartbeat && $this->heartbeat_bytes >= 5 * 1024 * 1024 ) {
-            call_user_func( $heartbeat );
-            $this->heartbeat_bytes -= 5 * 1024 * 1024;
+        $length = strlen( $data );
+        $offset = 0;
+        while ( $offset < $length ) {
+            // A large SQL value must not postpone the next check by its entire length.
+            $chunk_bytes = min( $length - $offset, 16 * 1024 * 1024 - $this->disk_floor_bytes );
+            $written     = @fwrite( $fh, substr( $data, $offset, $chunk_bytes ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite, WordPress.PHP.NoSilencedErrors.Discouraged -- failure returns a registered error.
+            if ( false === $written || $written < $chunk_bytes ) {
+                $meta = stream_get_meta_data( $fh );
+                $free = $this->free_disk_space( dirname( $meta['uri'] ) );
+                $code = false !== $free && $free < max( 4096, $chunk_bytes ) ? MainWP_Backup_Error::ERR_DISK_FULL : MainWP_Backup_Error::ERR_DB_WRITE_FAILED;
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( $code ) ), null, $code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message.
+            }
+            $offset                 += $written;
+            $this->disk_floor_bytes += $written;
+            if ( $this->disk_floor_bytes >= 16 * 1024 * 1024 ) {
+                $this->disk_floor_bytes = 0;
+                if ( $this->enforce_disk_floor ) {
+                    $meta = stream_get_meta_data( $fh );
+                    MainWP_Backup::assert_disk_space_during_backup( dirname( $meta['uri'] ) );
+                }
+            }
+            $this->heartbeat_bytes += $written;
+            while ( null !== $heartbeat && $this->heartbeat_bytes >= 5 * 1024 * 1024 ) {
+                call_user_func( $heartbeat );
+                $this->heartbeat_bytes -= 5 * 1024 * 1024;
+            }
         }
     }
 

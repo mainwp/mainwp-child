@@ -292,6 +292,56 @@ class Testable_Task_Runner extends MainWP_Child_Backup_Task_Runner {
  */
 class BackupTaskRunnerTest extends WP_UnitTestCase {
 
+	public function test_disk_floor_failure_is_terminal_and_retries_write_nothing() {
+		if ( ! class_exists( 'ZipArchive' ) ) { $this->markTestSkipped( 'ZipArchive unavailable.' ); }
+		$probe = new ReflectionProperty( MainWP_Backup::class, 'disk_space_probe' );
+		$probe->setAccessible( true );
+		$previous = $probe->getValue();
+		$free = 10 * 1073741824;
+		$probe->setValue( null, static function ( $function ) use ( &$free ) {
+			return 'disk_total_space' === $function ? 20 * 1073741824 : $free;
+		} );
+		$backup = new class extends MainWP_Backup {
+			public function allow( $dir ) { $this->allowed_backup_bases = array( $dir ); }
+			public function heartbeat() {}
+			public function extend_archive_mutex_lease() {}
+		};
+		$backup->allow( $this->backup_dir );
+		$this->runner->stubs['dump_tier1'] = function ( $prefix ) {
+			$file = $prefix . '-fixture.sql.php';
+			file_put_contents( $file, str_repeat( 's', 100 ) );
+			return array( $file );
+		};
+		$this->runner->stubs['archive_db_artifact'] = function ( $files, $prefix ) use ( $backup, &$free ) {
+			$free = 1073741824 + 99;
+			return $backup->archive_db_files( $files, $prefix, 'zip' );
+		};
+		try {
+			$id = $this->create_task( 'db' );
+			$task = $this->advance( $id, 'cron-driver' );
+			$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+			$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+			$this->assertSame( MainWP_Backup_Error::ERR_DISK_FULL, $payload['error_code'] );
+			$this->assertSame(
+				sprintf( 'The backup stopped because the child site ran low on disk space. It had %1$s free and the backup needed at least %2$s. Free up disk space on the child site and try again.', esc_html( size_format( $free, 1 ) ), esc_html( size_format( 1073741824 + 100, 1 ) ) ),
+				$payload['error']
+			);
+			$files = array();
+			foreach ( (array) glob( $this->backup_dir . '/*' ) as $file ) { $files[ basename( $file ) ] = filesize( $file ); }
+			$this->assertSame( array(), glob( $this->backup_dir . '/*.zip' ) );
+			$calls = $this->runner->calls;
+			foreach ( array( 'browser-poll', 'watchdog', 'dashboard-retry' ) as $owner ) {
+				$this->assertSame( $task->version, $this->advance( $id, $owner )->version );
+			}
+			$after = array();
+			foreach ( (array) glob( $this->backup_dir . '/*' ) as $file ) { $after[ basename( $file ) ] = filesize( $file ); }
+			$this->assertSame( $files, $after );
+			$this->assertSame( $calls, $this->runner->calls );
+		} finally {
+			$probe->setValue( null, $previous );
+		}
+	}
+
 	public function test_backup_hash_crash_consumes_attempt_before_read_and_cannot_restart_forever() {
 		global $wpdb;
 		$id = $this->runner->create_task_for_params( 'db', array( 'ext' => 'tar' ) );

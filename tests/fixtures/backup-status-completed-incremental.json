@@ -8,7 +8,7 @@
             "emit_manifest": true,
             "parent_manifest_file": "<parent_manifest_file>"
         },
-        "db_prefix": "<db_prefix>",
+        "db_prefix": "db-dump-prefix",
         "db_tier": 1,
         "tier1_started": 1,
         "woo_meta": {

@@ -801,6 +801,7 @@ class Tar_Archiver {
             return;
         }
 
+        MainWP_Backup::assert_disk_space_during_backup( dirname( (string) $this->archivePath ), null, $len );
         if ( 'tar.gz' === $this->type ) {
             $this->log( 'writing & flushing ' . $len );
             $this->chunk = gzencode( $this->chunk );
@@ -1167,6 +1168,7 @@ class Tar_Archiver {
                     $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
                 }
 
+                MainWP_Backup::assert_disk_space_during_backup( dirname( (string) $this->archivePath ), null, 512 );
                 $this->add_data( $this->tempContent );
 
                 $remainder = 512 - ( strlen( $this->tempContent ) + $alreadyRead );
@@ -1191,6 +1193,8 @@ class Tar_Archiver {
             $read   = strlen( $this->tempContent );
             $divide = $read % 512;
 
+            // A single file can consume the headroom between file-count checks.
+            MainWP_Backup::assert_disk_space_during_backup( dirname( (string) $this->archivePath ), null, $read + ( $divide > 0 ? 512 - $divide : 0 ) );
             $this->add_data( substr( $this->tempContent, 0, $read - $divide ) );
 
             if ( $divide > 0 ) {
@@ -1236,6 +1240,7 @@ class Tar_Archiver {
             }
         }
 
+        MainWP_Backup::assert_disk_space_during_backup( dirname( (string) $this->archivePath ), null, strlen( $content ) + 2048 );
         $prefix = '';
         if ( strlen( $entryName ) > 99 ) {
             $prefix    = substr( $entryName, 0, strpos( $entryName, '/', strlen( $entryName ) - 100 ) + 1 );

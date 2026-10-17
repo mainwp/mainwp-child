@@ -1,0 +1,120 @@
+{
+    "phase": "archiving_files",
+    "type": "full",
+    "cursor": {
+        "params": {
+            "ext": "zip",
+            "excludes": [
+                "wp-content/cache/*",
+                "<ABSPATH>wp-content/private",
+                "/srv/shared/uploads/cache"
+            ],
+            "parent_manifest_file": "parent-files.list"
+        },
+        "db_prefix": "<backup_dir>/db-dump-prefix",
+        "db_files": [
+            "<backup_dir>/db-posts.sql.php"
+        ],
+        "archive_file": "backup-artifact.zip",
+        "failed_add_paths": [
+            "<ABSPATH>wp-content/uploads/failed.jpg",
+            "<ABSPATH>wp-content/plugins/failed.php"
+        ],
+        "failed_add_checked": 2,
+        "unarchived_unlisted": false,
+        "walk_cursor": {
+            "stack": [
+                {
+                    "dir": "<ABSPATH>",
+                    "index": 2,
+                    "is_root": true
+                },
+                {
+                    "dir": "<ABSPATH>wp-content/uploads",
+                    "index": 1,
+                    "is_root": false
+                }
+            ],
+            "runs": [
+                "walk-run-0001"
+            ],
+            "count": 3,
+            "bytes": 100,
+            "phase": "enumerate",
+            "recover_count": 0
+        },
+        "completed_parts": [
+            {
+                "file": "core.status.part1.zip",
+                "size": 100,
+                "entries": 2
+            }
+        ],
+        "manifest": {
+            "file": "files.list",
+            "size": 100
+        },
+        "progress": {
+            "current_file": "backup-artifact.zip",
+            "files_scanned": 3
+        }
+    },
+    "projected": {
+        "params": {
+            "ext": "zip",
+            "excludes": [
+                "wp-content/cache/*",
+                "wp-content/private",
+                "cache"
+            ],
+            "parent_manifest_file": "parent-files.list"
+        },
+        "db_prefix": "db-dump-prefix",
+        "db_files": [
+            "db-posts.sql.php"
+        ],
+        "archive_file": "backup-artifact.zip",
+        "failed_add_paths": [
+            "wp-content/uploads/failed.jpg",
+            "wp-content/plugins/failed.php"
+        ],
+        "failed_add_checked": 2,
+        "unarchived_unlisted": false,
+        "walk_cursor": {
+            "stack": [
+                {
+                    "dir": "",
+                    "index": 2,
+                    "is_root": true
+                },
+                {
+                    "dir": "wp-content/uploads",
+                    "index": 1,
+                    "is_root": false
+                }
+            ],
+            "runs": [
+                "walk-run-0001"
+            ],
+            "count": 3,
+            "bytes": 100,
+            "phase": "enumerate",
+            "recover_count": 0
+        },
+        "completed_parts": [
+            {
+                "file": "core.status.part1.zip",
+                "size": 100,
+                "entries": 2
+            }
+        ],
+        "manifest": {
+            "file": "files.list",
+            "size": 100
+        },
+        "progress": {
+            "current_file": "backup-artifact.zip",
+            "files_scanned": 3
+        }
+    }
+}

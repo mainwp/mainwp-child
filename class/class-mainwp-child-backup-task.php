@@ -1318,9 +1318,9 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * The status array a Dashboard poll or run call consumes.
      *
      * On completion the artifact file name and size surface top-level; on
-     * failure the recorded error message and code do. The resume cursor is
-     * resolved through any sidecar so the Dashboard always sees the full
-     * state.
+     * failure the recorded error message and code do. Dashboard diagnostics
+     * retain polling responses, so local resume paths and restore credentials
+     * must stay on the Child.
      *
      * @param object      $task       Task row.
      * @param string|null $backup_dir Scratch directory, null for the default.
@@ -1333,7 +1333,8 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             $backup_dir = $dirs[0];
         }
 
-        $sub_state = $this->read_sub_state( $task, $backup_dir );
+        $sub_state     = $this->read_sub_state( $task, $backup_dir );
+        $error_message = isset( $sub_state['error']['message'] ) ? $sub_state['error']['message'] : null;
 
         if ( self::is_restore_type( $task->type ) ) {
             // Dashboard diagnostics retain responses, so only polling fields may leave the restore cursor.
@@ -1345,7 +1346,21 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             if ( isset( $sub_state['identity_preserve'] ) || ! empty( $sub_state['identity_preserved'] ) ) {
                 $projected['identity_preserved'] = true;
             }
+            if ( isset( $projected['verification'] ) ) {
+                $projected['verification'] = $this->project_status_paths( $projected['verification'], $backup_dir );
+            }
             $sub_state = $projected;
+        } elseif ( is_array( $sub_state ) ) {
+            // Beta6 downloads and restore reconciliation depend on these artifact and Woo shapes.
+            foreach ( $sub_state as $key => $value ) {
+                if ( ! in_array( $key, array( 'artifact', 'artifacts', 'woo_meta' ), true ) ) {
+                    $sub_state[ $key ] = $this->project_status_paths( $value, $backup_dir );
+                }
+            }
+        }
+
+        if ( is_string( $error_message ) ) {
+            $sub_state['error']['message'] = $this->project_status_error( $error_message, $backup_dir );
         }
 
         if ( is_array( $sub_state ) ) {
@@ -1405,6 +1420,70 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         }
 
         return $payload;
+    }
+
+    /**
+     * Diagnostics retain payloads after cursor paths have served their local purpose.
+     *
+     * @param mixed  $value      Payload value.
+     * @param string $backup_dir Private backup directory.
+     * @return mixed Payload value safe for diagnostics.
+     */
+    private function project_status_paths( $value, $backup_dir ) {
+        if ( is_array( $value ) ) {
+            foreach ( $value as $key => $item ) {
+                $value[ $key ] = $this->project_status_paths( $item, $backup_dir );
+            }
+            return $value;
+        }
+
+        if ( ! is_string( $value ) || '' === $value ) {
+            return $value;
+        }
+
+        $path = wp_normalize_path( $value );
+        if ( '/' !== $path[0] && ! preg_match( '/^[A-Za-z]:\//', $path ) ) {
+            return $value;
+        }
+
+        // Even a site-relative backup path exposes the secret randomized directory name.
+        $backup_root = untrailingslashit( wp_normalize_path( $backup_dir ) );
+        if ( untrailingslashit( $path ) === $backup_root ) {
+            return '';
+        }
+        if ( 0 === strpos( $path, $backup_root . '/' ) ) {
+            return basename( $path );
+        }
+
+        $site_root = trailingslashit( wp_normalize_path( ABSPATH ) );
+        if ( untrailingslashit( $path ) === untrailingslashit( $site_root ) ) {
+            return '';
+        }
+        if ( 0 === strpos( $path, $site_root ) ) {
+            return substr( $path, strlen( $site_root ) );
+        }
+
+        return basename( $path );
+    }
+
+    /**
+     * Host exceptions can expose private paths in retained diagnostics.
+     *
+     * @param string $message    Error message.
+     * @param string $backup_dir Private backup directory.
+     * @return string Error message safe for diagnostics.
+     */
+    private function project_status_error( $message, $backup_dir ) {
+        foreach ( array( $backup_dir, ABSPATH ) as $root ) {
+            $prefix  = trailingslashit( wp_normalize_path( $root ) );
+            $message = str_replace( array( $prefix, str_replace( '/', '\\', $prefix ), untrailingslashit( $root ) . '/', untrailingslashit( $root ) . '\\' ), '', $message );
+        }
+        // A message naming the backup directory itself still carries its secret name; same marker the Dashboard uses.
+        $secret = basename( untrailingslashit( wp_normalize_path( $backup_dir ) ) );
+        if ( 0 === strpos( $secret, 'backup-' ) && strlen( $secret ) > 7 ) {
+            $message = str_replace( $secret, 'backup-[redacted]', $message );
+        }
+        return $message;
     }
 
     /**

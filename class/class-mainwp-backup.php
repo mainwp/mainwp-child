@@ -205,6 +205,27 @@ class MainWP_Backup {
     private $zip_pending_count = 0;
 
     /**
+     * Lazy entries and the close-time rewrite compete with other sites on shared disks.
+     *
+     * @var int
+     */
+    private $zip_pending_bytes = 0;
+
+    /**
+     * Keep host probe failures reproducible without a public filter.
+     *
+     * @var callable|null Disk probe override for isolated tests.
+     */
+    private static $disk_space_probe = null;
+
+    /**
+     * PclZip needs the staged tree's size before creating its temporary copy.
+     *
+     * @var int Bytes copied into the PclZip staging tree.
+     */
+    private $pcl_staged_bytes = 0;
+
+    /**
      * Progress callback forwarded to the archiver.
      *
      * @var callable|null Callback.
@@ -424,8 +445,11 @@ class MainWP_Backup {
             // close_zip_archive() rethrows the archive-lease failure
             // unchanged, and a ValueError from a closed ZipArchive handle
             // would otherwise skip this discard and publish the partial.
-            if ( $this->should_discard_partial_on( $e ) && file_exists( $filepath ) ) {
-                unlink( $filepath ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- cleanup of partial archive.
+            if ( $this->should_discard_partial_on( $e ) ) {
+                $this->discard_archive_handles();
+                if ( file_exists( $filepath ) ) {
+                    unlink( $filepath ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- cleanup of partial archive.
+                }
             }
             throw $e;
         } finally {
@@ -1161,6 +1185,8 @@ class MainWP_Backup {
         $this->zipArchiveFileName  = $archive;
         $this->zip_pending_entries = array();
         $this->zip_pending_count   = 0;
+        clearstatcache( true, $archive );
+        $this->zip_pending_bytes = is_file( $archive ) ? (int) filesize( $archive ) : 0;
 
         $zipRes = $this->zip->open( $archive, \ZipArchive::CREATE );
         if ( $zipRes ) {
@@ -1195,6 +1221,9 @@ class MainWP_Backup {
         $this->extend_archive_mutex_lease();
         foreach ( $files as $file ) {
             $this->heartbeat();
+            clearstatcache( true, $archive );
+            $staged_bytes = (int) filesize( $file ) + ( is_file( $archive ) ? (int) filesize( $archive ) : 0 );
+            static::assert_disk_space_during_backup( dirname( $archive ), null, 2 * $staged_bytes );
             $rslt = $this->zip->add( $file, PCLZIP_OPT_REMOVE_PATH, dirname( $file ) );
             if ( empty( $rslt ) ) {
                 $error = true;
@@ -1506,6 +1535,7 @@ class MainWP_Backup {
                 throw $lease_error;
             }
 
+            $this->assert_zip_disk_space();
             $result = false;
             try {
                 if ( $this->zip instanceof \ZipArchive ) {
@@ -1530,6 +1560,49 @@ class MainWP_Backup {
             $this->zip                 = null;
             $this->zip_pending_entries = array();
             $this->zip_pending_count   = 0;
+            $this->zip_pending_bytes   = 0;
+        }
+    }
+
+    /**
+     * Discard before unlinking because ZipArchive's destructor can flush queued entries.
+     */
+    private function discard_archive_handles() {
+        try {
+            if ( $this->zip instanceof \ZipArchive ) {
+                @$this->zip->unchangeAll(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- an already closed handle warns on PHP 7.4.
+            }
+        } catch ( \Throwable $cleanup_error ) {
+            // Preserve the failure that interrupted the archive.
+        } finally {
+            $this->zip               = null;
+            $this->zip_pending_bytes = 0;
+        }
+        try {
+            if ( null !== $this->archiver && $this->archiver->is_open() ) {
+                $this->archiver->close();
+            }
+        } catch ( \Throwable $cleanup_error ) {
+            // A close failure must not replace the original error.
+        } finally {
+            $this->archiver = null;
+        }
+    }
+
+    /**
+     * Account for data libzip defers until close, including its copy of an existing archive.
+     *
+     * @param int $entry_bytes Bytes about to be queued.
+     * @throws MainWP_Exception When the disk floor refuses the write.
+     */
+    private function assert_zip_disk_space( $entry_bytes = 0 ) {
+        try {
+            static::assert_disk_space_during_backup( dirname( (string) $this->zipArchiveFileName ), null, $this->zip_pending_bytes + $entry_bytes );
+        } catch ( MainWP_Exception $e ) {
+            if ( MainWP_Backup_Error::ERR_DISK_FULL === $e->get_message_error_code() ) {
+                $this->discard_archive_handles();
+            }
+            throw $e;
         }
     }
 
@@ -1688,24 +1761,57 @@ class MainWP_Backup {
      * Hard low-disk floor checked during long archive writes.
      *
      * @param string   $backup_dir Directory the archive is being written to.
-     * @param int|null $min_free   Minimum free bytes, defaults to 100MB.
+     * @param int|null $min_free   Minimum free bytes, or null for the shared-disk floor.
+     * @param int      $pending_bytes Data still to be written.
      *
      * @throws MainWP_Exception When free space drops below the floor.
      */
-    public static function assert_disk_space_during_backup( $backup_dir, $min_free = null ) {
-        if ( null === $min_free ) {
-            $min_free = 100 * 1024 * 1024;
-        }
-        if ( ! function_exists( 'disk_free_space' ) ) {
-            return;
-        }
-        $free = @disk_free_space( $backup_dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- advisory probe, host may disable it.
+    public static function assert_disk_space_during_backup( $backup_dir, $min_free = null, $pending_bytes = 0 ) {
+        $free = self::probe_disk_space( 'disk_free_space', $backup_dir );
         if ( false === $free ) {
             return;
         }
-        if ( $free < $min_free ) {
-            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) ), null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
+        $needed = ( null === $min_free ? self::get_disk_space_floor( $backup_dir ) : $min_free ) + max( 0, $pending_bytes );
+        if ( $free < $needed ) {
+            $message = sprintf(
+                /* translators: 1: free disk space found on the child site, 2: minimum free disk space the backup needed (safety floor plus data still to be written). */
+                esc_html__( 'The backup stopped because the child site ran low on disk space. It had %1$s free and the backup needed at least %2$s. Free up disk space on the child site and try again.', 'mainwp-child' ),
+                esc_html( size_format( $free, 1 ) ),
+                esc_html( size_format( $needed, 1 ) )
+            );
+            throw new MainWP_Exception( $message, null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- format and sizes are escaped above.
         }
+    }
+
+    /**
+     * Reserve headroom for the other sites and processes sharing the disk.
+     *
+     * @param string $backup_dir Target directory.
+     * @return int Minimum free bytes.
+     */
+    public static function get_disk_space_floor( $backup_dir ) {
+        $total = self::probe_disk_space( 'disk_total_space', $backup_dir );
+        if ( false === $total ) {
+            return 100 * 1024 * 1024;
+        }
+        return max( 100 * 1024 * 1024, min( 1024 * 1024 * 1024, (int) ( $total / 10 ) ) );
+    }
+
+    /**
+     * Disabled host functions and failed reads both leave the floor advisory.
+     *
+     * @param string $probe_name Disk function to probe.
+     * @param string $directory Target directory.
+     * @return float|false Bytes, or false when the host cannot report them.
+     */
+    private static function probe_disk_space( $probe_name, $directory ) {
+        if ( null !== self::$disk_space_probe ) {
+            return call_user_func( self::$disk_space_probe, $probe_name, $directory );
+        }
+        if ( ! function_exists( $probe_name ) ) {
+            return false;
+        }
+        return @$probe_name( $directory ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- hosts may disable filesystem probes.
     }
 
     /**
@@ -1843,15 +1949,18 @@ class MainWP_Backup {
         $this->zip_slice_progress  = false;
         $this->zip_pending_entries = array();
         $this->zip_pending_count   = 0;
-        $zipRes                    = $this->zip->open( $filepath, \ZipArchive::CREATE );
+        clearstatcache( true, $filepath );
+        $this->zip_pending_bytes = is_file( $filepath ) ? (int) filesize( $filepath ) : 0;
+        $zipRes                  = $this->zip->open( $filepath, \ZipArchive::CREATE );
         if ( $this->zip_append && ( true !== $zipRes || \ZipArchive::ER_OK !== $this->zip->status ) ) {
             // A killed close can leave a partial that has no usable resume point.
             $this->zip = null;
             if ( file_exists( $filepath ) && ! unlink( $filepath ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- unusable partial archive cleanup.
                 throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ZIP_FAILED ) ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
             }
-            $this->zip = new \ZipArchive();
-            $zipRes    = $this->zip->open( $filepath, \ZipArchive::CREATE );
+            $this->zip               = new \ZipArchive();
+            $zipRes                  = $this->zip->open( $filepath, \ZipArchive::CREATE );
+            $this->zip_pending_bytes = 0;
         }
         if ( true === $zipRes && \ZipArchive::ER_OK === $this->zip->status ) {
             $nodes = glob( ABSPATH . '*' );
@@ -2110,8 +2219,12 @@ class MainWP_Backup {
                         continue;
                     }
 
+                    $size = (int) filesize( $node );
+                    static::assert_disk_space_during_backup( $backupfolder, null, $size );
                     if ( ! @copy( $node, str_replace( ABSPATH, $backupfolder, $node ) ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failure recorded; backup aborts past the failed-add threshold.
                         $this->record_failed_add( $node );
+                    } else {
+                        $this->pcl_staged_bytes += $size;
                     }
                 }
             }
@@ -2129,6 +2242,7 @@ class MainWP_Backup {
      * @param bool   $excludenonwp     Whether or not to exclude any wp core files.
      *
      * @return bool Return true on success.
+     * @throws MainWP_Exception When staging fails or the disk floor refuses a write.
      *
      * @uses \MainWP\Child\MainWP_Helper::delete_dir() Delete wanted directory.
      * @uses \MainWP\Child\MainWP_Helper::starts_with() Check if the String 1 starts with the String 2.
@@ -2143,7 +2257,8 @@ class MainWP_Backup {
      */
     public function create_zip_pcl_full_backup2( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp ) {
         // Create backup folder.
-        $backupFolder = dirname( $filepath ) . DIRECTORY_SEPARATOR . 'backup' . DIRECTORY_SEPARATOR;
+        $backupFolder           = dirname( $filepath ) . DIRECTORY_SEPARATOR . 'backup' . DIRECTORY_SEPARATOR;
+        $this->pcl_staged_bytes = 0;
 
         mkdir( $backupFolder ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated.
 
@@ -2198,8 +2313,13 @@ class MainWP_Backup {
             $this->copy_dir( $nodes, $excludes, $backupFolder, $excludenonwp, true );
 
             foreach ( $db_files as $db_file ) {
-                copy( $db_file, $backupFolder . basename( WP_CONTENT_DIR ) . '/' . ( '.sql' === substr( $db_file, -4 ) ? 'dbBackup.sql' : basename( $db_file ) ) ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated // NOSONAR .
-                wp_delete_file( $db_file ); // phpcs:ignore -- required to achieve desired results. Pull requests appreciated // NOSONAR.
+                $size = (int) filesize( $db_file );
+                static::assert_disk_space_during_backup( $backupFolder, null, $size );
+                if ( ! @copy( $db_file, $backupFolder . basename( WP_CONTENT_DIR ) . '/' . ( '.sql' === substr( $db_file, -4 ) ? 'dbBackup.sql' : basename( $db_file ) ) ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- preserve the source on a failed staging copy.
+                    throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ZIP_FAILED ) ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message.
+                }
+                $this->pcl_staged_bytes += $size;
+                wp_delete_file( $db_file );
             }
 
             unset( $nodes );
@@ -2208,6 +2328,8 @@ class MainWP_Backup {
             require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
             $this->zip = new \PclZip( $filepath );
             $this->extend_archive_mutex_lease();
+            // PclZip needs room for both its temporary file and the output.
+            static::assert_disk_space_during_backup( dirname( $filepath ), null, 2 * $this->pcl_staged_bytes );
             $this->zip->create( $backupFolder, PCLZIP_OPT_REMOVE_PATH, $backupFolder );
             if ( $addConfig ) {
 
@@ -2280,6 +2402,7 @@ class MainWP_Backup {
             $entry = rtrim( str_replace( ABSPATH, '', $path ), '/' ) . '/';
             // Existing directories still need traversal to reach their unfinished children.
             if ( ! $this->zip_append || false === $this->zip->locateName( $entry ) ) {
+                $this->assert_zip_disk_space();
                 if ( $this->zip->addEmptyDir( $entry ) ) {
                     $this->record_pending_zip_entry( $entry );
                     $this->zip_slice_progress = true;
@@ -2347,9 +2470,11 @@ class MainWP_Backup {
      * @return bool true|false.
      */
     public function add_file_from_string_to_zip( $file, $str ) {
+        $this->assert_zip_disk_space( strlen( $str ) );
         $added = $this->zip->addFromString( $file, $str );
         if ( $added ) {
             $this->record_pending_zip_entry( $file );
+            $this->zip_pending_bytes += strlen( $str );
         }
         return $added;
     }
@@ -2367,19 +2492,26 @@ class MainWP_Backup {
         $file        = preg_replace( '/(?:\.|\/)*(.*)/', '$1', $file );
         $localpath   = dirname( $file );
         $tmpfilename = dirname( $filepath ) . '/' . basename( $file );
-        if ( false !== MainWP_Helper::file_put_contents( $tmpfilename, $str ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions
-            $this->zip->delete( PCLZIP_OPT_BY_NAME, $file );
-            $add = $this->zip->add(
-                $tmpfilename,
-                PCLZIP_OPT_REMOVE_PATH,
-                dirname( $filepath ),
-                PCLZIP_OPT_ADD_PATH,
-                $localpath
-            );
-            wp_delete_file( $tmpfilename ); // NOSONAR .
-            if ( ! empty( $add ) ) {
-                return true;
+        static::assert_disk_space_during_backup( dirname( $filepath ), null, strlen( $str ) );
+        try {
+            if ( false !== MainWP_Helper::file_put_contents( $tmpfilename, $str ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions
+                clearstatcache( true, $filepath );
+                $staged_bytes = strlen( $str ) + ( is_file( $filepath ) ? (int) filesize( $filepath ) : 0 );
+                static::assert_disk_space_during_backup( dirname( $filepath ), null, 2 * $staged_bytes );
+                $this->zip->delete( PCLZIP_OPT_BY_NAME, $file );
+                $add = $this->zip->add(
+                    $tmpfilename,
+                    PCLZIP_OPT_REMOVE_PATH,
+                    dirname( $filepath ),
+                    PCLZIP_OPT_ADD_PATH,
+                    $localpath
+                );
+                if ( ! empty( $add ) ) {
+                    return true;
+                }
             }
+        } finally {
+            wp_delete_file( $tmpfilename );
         }
 
         return false;
@@ -2430,19 +2562,15 @@ class MainWP_Backup {
                 return true;
             }
         }
-        $this->zipArchiveSizeCount += filesize( $path );
+        $size                       = (int) filesize( $path );
+        $this->zipArchiveSizeCount += $size;
         ++$this->gcCnt;
-
-        // Hard low-disk floor every 100 files - a full disk mid-archive
-        // corrupts the backup silently otherwise.
-        if ( 0 === $this->zipArchiveFileCount % 100 && ! empty( $this->backup_dir_in_use ) ) {
-            static::assert_disk_space_during_backup( $this->backup_dir_in_use );
-        }
 
         // Always stream files into the archive - the old loadFilesBeforeZip
         // branch loaded files under 5MB fully into memory.
         ++$this->zipArchiveFileCount;
         if ( $this->zip instanceof \ZipArchive ) {
+            $this->assert_zip_disk_space( $size );
             $added = $this->zip->addFile( $path, $zipEntryName );
         } else {
             $added = $this->zip->add_file( $path, $zipEntryName );
@@ -2452,6 +2580,7 @@ class MainWP_Backup {
             $this->record_failed_add( $path );
         } elseif ( $this->zip instanceof \ZipArchive ) {
             $this->record_pending_zip_entry( $zipEntryName );
+            $this->zip_pending_bytes += $size;
             $this->zip_slice_progress = true;
             if ( null !== $this->slice_deadline && time() >= $this->slice_deadline ) {
                 $this->close_zip_archive();
@@ -2485,6 +2614,8 @@ class MainWP_Backup {
             if ( true !== $this->zip->open( $this->zipArchiveFileName ) ) {
                 throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ZIP_FAILED ) ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
             }
+            clearstatcache( true, $this->zipArchiveFileName );
+            $this->zip_pending_bytes   = (int) filesize( $this->zipArchiveFileName );
             $this->zipArchiveFileCount = 0;
             $this->zipArchiveSizeCount = 0;
         }
@@ -2577,22 +2708,7 @@ class MainWP_Backup {
         try {
             $archived = $this->zip_file( $db_files, $archivefilePath );
         } catch ( \Throwable $e ) {
-            try {
-                if ( 'zip' === $archiveExt && $this->zip instanceof \ZipArchive ) {
-                    // PHP 7.4 warns on a handle m_zip_file() already closed; PHP 8 throws ValueError.
-                    if ( true === @$this->zip->unchangeAll() ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- see above.
-                        @$this->zip->close(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- see above.
-                    }
-                } elseif ( null !== $this->archiver && $this->archiver->is_open() ) {
-                    $this->archiver->close();
-                }
-            } catch ( \Throwable $cleanup_error ) {
-                // Cleanup must preserve the failure that interrupted the archive.
-            } finally {
-                // ZipArchive's destructor can write pending entries, so release it before unlinking.
-                $this->zip      = null;
-                $this->archiver = null;
-            }
+            $this->discard_archive_handles();
             try {
                 if ( file_exists( $archivefilePath ) ) {
                     wp_delete_file( $archivefilePath );

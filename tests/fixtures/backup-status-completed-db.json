@@ -7,7 +7,7 @@
             "ext": "tar",
             "emit_manifest": true
         },
-        "db_prefix": "<db_prefix>",
+        "db_prefix": "db-dump-prefix",
         "db_tier": 1,
         "tier1_started": 1,
         "woo_meta": {

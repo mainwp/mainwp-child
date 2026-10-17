@@ -107,6 +107,13 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
     protected $byte_count = 0;
 
     /**
+     * Deferred output competes with other sites on the same disk.
+     *
+     * @var int Source bytes queued plus the existing part's close-time copy.
+     */
+    private $pending_bytes = 0;
+
+    /**
      * Capture the walk's containment policy for pack-time revalidation.
      *
      * @var string[]
@@ -182,9 +189,11 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
             return false; // Entries past (or short of) the checkpoint.
         }
 
-        $this->zip         = $zip;
-        $this->part_index  = (int) $index;
-        $this->entry_count = (int) $expected_entries;
+        $this->zip = $zip;
+        clearstatcache( true, $path );
+        $this->pending_bytes = (int) filesize( $path );
+        $this->part_index    = (int) $index;
+        $this->entry_count   = (int) $expected_entries;
         // The threshold counts SOURCE bytes, so resume from the total the
         // cursor accumulated. filesize() here is the COMPRESSED part, which
         // would mix metrics and let a resumed part run past max_bytes.
@@ -212,10 +221,11 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ZIP_FAILED ) ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
         }
 
-        $this->zip         = $zip;
-        $this->part_index  = (int) $index;
-        $this->entry_count = 0;
-        $this->byte_count  = 0;
+        $this->zip           = $zip;
+        $this->part_index    = (int) $index;
+        $this->entry_count   = 0;
+        $this->byte_count    = 0;
+        $this->pending_bytes = 0;
     }
 
     /**
@@ -272,12 +282,14 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
             $this->open_new_part( $result['closed']['index'] + 1 );
         }
 
+        $this->assert_disk_space( $size );
         if ( ! $this->zip->addFile( $abs_path, $relpath ) ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ZIP_FAILED ) ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
         }
 
         ++$this->entry_count;
-        $this->byte_count += (int) $size;
+        $this->byte_count    += (int) $size;
+        $this->pending_bytes += (int) $size;
 
         return $result;
     }
@@ -300,8 +312,10 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
         $entries = $this->entry_count;
         $path    = $this->part_path( $index );
 
-        $closed    = @$this->zip->close(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failure converted to a coded exception below.
-        $this->zip = null;
+        $this->assert_disk_space();
+        $closed              = @$this->zip->close(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failure converted to a coded exception below.
+        $this->zip           = null;
+        $this->pending_bytes = 0;
 
         if ( true !== $closed ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ZIP_FAILED ) ), null, MainWP_Backup_Error::ERR_ZIP_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
@@ -319,6 +333,39 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
             'entries' => (int) $entries,
             'index'   => (int) $index,
         );
+    }
+
+    /**
+     * Discard before task cleanup unlinks the part; a live destructor would flush it.
+     */
+    public function discard() {
+        try {
+            if ( null !== $this->zip ) {
+                @$this->zip->unchangeAll(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- already closed handles warn on PHP 7.4.
+            }
+        } catch ( \Throwable $cleanup_error ) {
+            // Preserve the failure that interrupted the archive.
+        } finally {
+            $this->zip           = null;
+            $this->pending_bytes = 0;
+        }
+    }
+
+    /**
+     * Libzip rewrites an appended part into a full temporary copy at close.
+     *
+     * @param int $entry_bytes Source bytes about to be queued.
+     * @throws MainWP_Exception When the floor refuses a write.
+     */
+    private function assert_disk_space( $entry_bytes = 0 ) {
+        try {
+            MainWP_Backup::assert_disk_space_during_backup( $this->backup_dir, null, $this->pending_bytes + $entry_bytes );
+        } catch ( MainWP_Exception $e ) {
+            if ( MainWP_Backup_Error::ERR_DISK_FULL === $e->get_message_error_code() ) {
+                $this->discard();
+            }
+            throw $e;
+        }
     }
 
     /**

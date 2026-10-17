@@ -1117,6 +1117,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @param string $backup_dir Scratch directory.
      *
      * @throws MainWP_Exception When changes.list cannot be read.
+     * @throws \Throwable After discarding queued ZIP entries.
      *
      * @return array { done: bool, sub_state: array }
      */
@@ -1131,111 +1132,118 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         }
 
         $writer = null;
-        if ( '' !== $cursor['component'] && $cursor['part_index'] > 0 ) {
-            $writer    = new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, $cursor['component'], null, null, $this->current_task_id, array_merge( MainWP_Backup::default_backup_bases(), array( $this->site_root() ) ) );
-            $accounted = isset( $cursor['part_byte_count'] ) ? (int) $cursor['part_byte_count'] : 0;
-            if ( $cursor['part_entry_count'] > 0 && ! $writer->open_for_append( $cursor['part_index'], $cursor['part_entry_count'], $accounted ) ) {
-                // Torn part - rebuild it from its first file.
-                $cursor['line']             = $cursor['part_start_line'];
-                $cursor['part_entry_count'] = 0;
-                $cursor['part_byte_count']  = 0;
-                $writer->open_new_part( $cursor['part_index'] );
-            } elseif ( 0 === (int) $cursor['part_entry_count'] ) {
-                $writer->open_new_part( $cursor['part_index'] );
-            }
-        }
-
-        $line_no = 0;
-        while ( $line_no < $cursor['line'] && false !== fgets( $handle ) ) {
-            ++$line_no;
-        }
-
-        $heartbeat = $this->dump_heartbeat();
-        $done      = true;
-        while ( true ) {
-            $heartbeat();
-            if ( $this->pack_budget_exhausted( $deadline ) ) {
-                if ( null !== $writer && $writer->is_open() ) {
-                    // Close the part so the checkpointed entry count has a
-                    // central directory behind it; the next slice appends.
-                    $cursor['part_entry_count'] = $writer->current_entries();
-                    $cursor['part_byte_count']  = $writer->current_bytes();
-                    $writer->close_part();
+        try {
+            if ( '' !== $cursor['component'] && $cursor['part_index'] > 0 ) {
+                $writer    = new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, $cursor['component'], null, null, $this->current_task_id, array_merge( MainWP_Backup::default_backup_bases(), array( $this->site_root() ) ) );
+                $accounted = isset( $cursor['part_byte_count'] ) ? (int) $cursor['part_byte_count'] : 0;
+                if ( $cursor['part_entry_count'] > 0 && ! $writer->open_for_append( $cursor['part_index'], $cursor['part_entry_count'], $accounted ) ) {
+                    // Torn part - rebuild it from its first file.
+                    $cursor['line']             = $cursor['part_start_line'];
+                    $cursor['part_entry_count'] = 0;
+                    $cursor['part_byte_count']  = 0;
+                    $writer->open_new_part( $cursor['part_index'] );
+                } elseif ( 0 === (int) $cursor['part_entry_count'] ) {
+                    $writer->open_new_part( $cursor['part_index'] );
                 }
-                $done = false;
-                break;
             }
 
-            $line = fgets( $handle );
-            if ( false === $line ) {
-                break;
+            $line_no = 0;
+            while ( $line_no < $cursor['line'] && false !== fgets( $handle ) ) {
+                ++$line_no;
             }
-            $line = rtrim( $line, "\r\n" );
-            if ( '' === $line ) {
+
+            $heartbeat = $this->dump_heartbeat();
+            $done      = true;
+            while ( true ) {
+                $heartbeat();
+                if ( $this->pack_budget_exhausted( $deadline ) ) {
+                    if ( null !== $writer && $writer->is_open() ) {
+                        // Close the part so the checkpointed entry count has a
+                        // central directory behind it; the next slice appends.
+                        $cursor['part_entry_count'] = $writer->current_entries();
+                        $cursor['part_byte_count']  = $writer->current_bytes();
+                        $writer->close_part();
+                    }
+                    $done = false;
+                    break;
+                }
+
+                $line = fgets( $handle );
+                if ( false === $line ) {
+                    break;
+                }
+                $line = rtrim( $line, "\r\n" );
+                if ( '' === $line ) {
+                    ++$line_no;
+                    $cursor['line'] = $line_no;
+                    continue;
+                }
+
+                $fields  = explode( "\t", $line );
+                $relpath = $fields[0];
+
+                $component = MainWP_Child_Backup_File_Walker::classify_component( $relpath );
+                if ( null === $writer || ! $writer->is_open() || $component !== $cursor['component'] ) {
+                    if ( null !== $writer && $writer->is_open() ) {
+                        $record = $writer->close_part();
+                        if ( null !== $record && $record['entries'] > 0 ) {
+                            $completed[]                                  = $record;
+                            $cursor['next_index'][ $cursor['component'] ] = $record['index'] + 1;
+                        }
+                    }
+                    $index  = isset( $cursor['next_index'][ $component ] ) ? (int) $cursor['next_index'][ $component ] : 1;
+                    $writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, $component, null, null, $this->current_task_id, array_merge( MainWP_Backup::default_backup_bases(), array( $this->site_root() ) ) );
+                    $writer->open_new_part( $index );
+                    $cursor['component']        = $component;
+                    $cursor['part_index']       = $index;
+                    $cursor['part_start_line']  = $line_no;
+                    $cursor['part_entry_count'] = 0;
+                    $cursor['part_byte_count']  = 0;
+                }
+
+                $added = $writer->add_file( $this->site_root() . $relpath, $relpath );
+                if ( $added['skipped'] ) {
+                    $path = $this->site_root() . $relpath;
+                    $this->merge_skipped_path( $sub_state, $path, $added['skip_reason'] );
+                    $relative = $this->skipped_relpath( $path );
+                    if ( null === $relative ) {
+                        $sub_state['_pack_skips']['unlisted'] = true;
+                    } elseif ( count( $sub_state['_pack_skips']['paths'] ?? array() ) < 1001 ) {
+                        $sub_state['_pack_skips']['paths'][ substr( hash( 'sha256', $path ), 0, 32 ) ] = $relative;
+                    }
+                }
+                if ( $added['rotated'] && null !== $added['closed'] ) {
+                    $completed[]                                  = $added['closed'];
+                    $cursor['next_index'][ $cursor['component'] ] = $added['closed']['index'] + 1;
+                    $cursor['part_index']                         = $writer->current_index();
+                    $cursor['part_start_line']                    = $line_no;
+                    $cursor['part_entry_count']                   = 0;
+                    $cursor['part_byte_count']                    = 0;
+                }
+
                 ++$line_no;
                 $cursor['line'] = $line_no;
-                continue;
             }
 
-            $fields  = explode( "\t", $line );
-            $relpath = $fields[0];
-
-            $component = MainWP_Child_Backup_File_Walker::classify_component( $relpath );
-            if ( null === $writer || ! $writer->is_open() || $component !== $cursor['component'] ) {
+            if ( $done ) {
                 if ( null !== $writer && $writer->is_open() ) {
                     $record = $writer->close_part();
                     if ( null !== $record && $record['entries'] > 0 ) {
-                        $completed[]                                  = $record;
-                        $cursor['next_index'][ $cursor['component'] ] = $record['index'] + 1;
+                        $completed[] = $record;
                     }
                 }
-                $index  = isset( $cursor['next_index'][ $component ] ) ? (int) $cursor['next_index'][ $component ] : 1;
-                $writer = new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, $component, null, null, $this->current_task_id, array_merge( MainWP_Backup::default_backup_bases(), array( $this->site_root() ) ) );
-                $writer->open_new_part( $index );
-                $cursor['component']        = $component;
-                $cursor['part_index']       = $index;
-                $cursor['part_start_line']  = $line_no;
+                $cursor['component']        = '';
+                $cursor['part_index']       = 0;
                 $cursor['part_entry_count'] = 0;
                 $cursor['part_byte_count']  = 0;
             }
-
-            $added = $writer->add_file( $this->site_root() . $relpath, $relpath );
-            if ( $added['skipped'] ) {
-                $path = $this->site_root() . $relpath;
-                $this->merge_skipped_path( $sub_state, $path, $added['skip_reason'] );
-                $relative = $this->skipped_relpath( $path );
-                if ( null === $relative ) {
-                    $sub_state['_pack_skips']['unlisted'] = true;
-                } elseif ( count( $sub_state['_pack_skips']['paths'] ?? array() ) < 1001 ) {
-                    $sub_state['_pack_skips']['paths'][ substr( hash( 'sha256', $path ), 0, 32 ) ] = $relative;
-                }
+        } catch ( \Throwable $e ) {
+            if ( null !== $writer ) {
+                $writer->discard();
             }
-            if ( $added['rotated'] && null !== $added['closed'] ) {
-                $completed[]                                  = $added['closed'];
-                $cursor['next_index'][ $cursor['component'] ] = $added['closed']['index'] + 1;
-                $cursor['part_index']                         = $writer->current_index();
-                $cursor['part_start_line']                    = $line_no;
-                $cursor['part_entry_count']                   = 0;
-                $cursor['part_byte_count']                    = 0;
-            }
-
-            ++$line_no;
-            $cursor['line'] = $line_no;
-        }
-
-        fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list read.
-
-        if ( $done ) {
-            if ( null !== $writer && $writer->is_open() ) {
-                $record = $writer->close_part();
-                if ( null !== $record && $record['entries'] > 0 ) {
-                    $completed[] = $record;
-                }
-            }
-            $cursor['component']        = '';
-            $cursor['part_index']       = 0;
-            $cursor['part_entry_count'] = 0;
-            $cursor['part_byte_count']  = 0;
+            throw $e;
+        } finally {
+            fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list read.
         }
 
         $sub_state['pack_cursor']     = $cursor;
