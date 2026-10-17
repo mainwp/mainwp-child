@@ -120,6 +120,7 @@ class BackupRestoreTaskSpineTest extends WP_UnitTestCase {
 			if ( 0 === strpos( $query, "DELETE FROM {$table} WHERE task_id =" ) ) {
 				remove_filter( 'query', $race );
 				$attempted = true;
+				// nosemgrep: AIK_tainted-sql-string -- $change comes only from the static data provider below.
 				$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET {$change} WHERE task_id = %s", $task_id ) );
 			}
 			return $query;

@@ -557,6 +557,11 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         if ( self::PHASE_FAILED !== $task->phase ) {
             return false;
         }
+        // A tombstone's cursor is inline, so read it before resolving the backup folder, which can die on an unwritable uploads dir.
+        $inline = json_decode( (string) $task->sub_state, true );
+        if ( is_array( $inline ) && empty( $inline['_sidecar'] ) ) {
+            return isset( $inline['error']['code'] ) && MainWP_Backup_Error::ERR_RESTORE_CANCELLED_BEFORE_START === $inline['error']['code'];
+        }
         if ( null === $backup_dir ) {
             $dirs       = MainWP_Helper::get_mainwp_dir( 'backup' );
             $backup_dir = $dirs[0];

@@ -6909,6 +6909,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 				$lines = file( $method->getFileName() );
 				$methods .= str_replace( 'MainWP_Helper', '\\Restore_Cancel_Response_Helper', implode( '', array_slice( $lines, $method->getStartLine() - 1, $method->getEndLine() - $method->getStartLine() + 1 ) ) );
 			}
+			// nosemgrep: AIK_eval-use -- test fixture; evaluates source copied from this repo's own MainWP_Child_Callable methods.
 			eval( 'namespace MainWP\\Child; class Restore_Task_Callable_Fixture extends MainWP_Child_Callable {' . $methods . '}' );
 		}
 		$previous_post = $_POST;
