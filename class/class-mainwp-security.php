@@ -211,18 +211,24 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      * @return bool true|false If the PHP error reporting has been disabled, return true, if not, return false.
      */
     public static function remove_php_reporting_ok() {
-        $is_ok       = true;
-        $display_off = ini_get( 'display_errors' );
-        if ( ! empty( $display_off ) ) {
-            $display_off = strtolower( $display_off );
-            $is_ok       = ( $is_ok || 'off' === $display_off );
+        return self::ini_value_is_off( ini_get( 'display_errors' ) ) && self::ini_value_is_off( ini_get( 'display_startup_errors' ) );
+    }
+
+    /**
+     * Method ini_value_is_off()
+     *
+     * Check whether an ini value is one of PHP's recognised off values.
+     * Anything else, including "stderr", counts as on.
+     *
+     * @param string|false $value Value returned by ini_get().
+     *
+     * @return bool true if the value is off, false otherwise.
+     */
+    private static function ini_value_is_off( $value ) {
+        if ( false === $value || '' === $value ) {
+            return true;
         }
-        $display_startup_off = ini_get( 'display_startup_errors' );
-        if ( ! empty( $display_startup_off ) ) {
-            $display_startup_off = strtolower( $display_startup_off );
-            $is_ok               = ( $is_ok || 'off' === $display_startup_off );
-        }
-        return $is_ok;
+        return in_array( strtolower( trim( (string) $value ) ), array( '0', 'off', 'no', 'false', 'none' ), true );
     }
 
     /**
