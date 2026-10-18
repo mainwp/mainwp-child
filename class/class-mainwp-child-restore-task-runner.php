@@ -1729,7 +1729,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
         }
 
-        if ( ! isset( $sub_state['mu_plugins_preserve'] ) || ! isset( $sub_state['config_include'] ) ) {
+        if ( ! isset( $sub_state['mu_plugins_preserve'] ) || ! isset( $sub_state['config_include'] ) || ! isset( $sub_state['unreadable_cover'] ) ) {
             $options = isset( $sub_state['params']['reconcile'] ) ? MainWP_Child_Backup_Reconciler::sanitize_options( $sub_state['params']['reconcile'] ) : array();
             $named   = ! empty( $options['manifest'] );
             $chain   = $archive_count > 1 || $has_tombstones;
@@ -1758,6 +1758,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             if ( ! isset( $sub_state['config_include'] ) ) {
                 // Older cursors can capture late: extraction never replaces these live config sources.
                 $sub_state['config_include'] = $this->config_includes()->capture( $this->site_root(), $manifest );
+            }
+            if ( ! isset( $sub_state['unreadable_cover'] ) ) {
+                // Params are immutable, so older cursors capture the same leaf coverage even after a partial restore.
+                $sub_state['unreadable_cover'] = array(
+                    'all'      => in_array( $options['skip_reason'] ?? '', array( 'unarchived_overflow', 'unarchived_invalid' ), true ),
+                    'prefixes' => $options['walk']['unarchived'] ?? array(),
+                );
             }
             // A crash before this checkpoint must leave extraction entirely untouched.
             return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
@@ -1810,7 +1817,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             $path = $scratch . $op['file'];
 
             if ( 'tombstones' === $op['role'] ) {
-                $outcome = $restorer->apply_tombstones( $path, $this->site_root(), $sub_state['mu_plugins_preserve'], $cursor['part_cursor'], $after_change, $sub_state['config_include'] );
+                $outcome = $restorer->apply_tombstones( $path, $this->site_root(), $sub_state['mu_plugins_preserve'], $cursor['part_cursor'], $after_change, $sub_state['config_include'], $sub_state['unreadable_cover'] );
                 if ( null !== $outcome['error'] ) {
                     throw new MainWP_Exception( esc_html( $outcome['error'] ), null, $outcome['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
                 }

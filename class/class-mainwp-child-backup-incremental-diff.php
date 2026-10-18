@@ -139,12 +139,14 @@ class MainWP_Child_Backup_Incremental_Diff { // phpcs:ignore Generic.Classes.Ope
      * @param array  $parent_map              Parent map (consumed).
      * @param string $changes_path            changes.list output path.
      * @param string $tombstones_path         tombstones.list output path.
+     * @param array  $unarchived              Relative unreadable prefixes.
+     * @param bool   $suppress_tombstones     Whether unreadable coverage is unlistable.
      *
      * @throws MainWP_Exception When an output file cannot be written.
      *
      * @return array Counts: changes, tombstones, carried.
      */
-    public function stream_diff( $current_files_list_path, $parent_map, $changes_path, $tombstones_path ) {
+    public function stream_diff( $current_files_list_path, $parent_map, $changes_path, $tombstones_path, $unarchived = array(), $suppress_tombstones = false ) {
         $current = fopen( $current_files_list_path, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list read.
         $changes = fopen( $changes_path, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list write.
         if ( false === $current || false === $changes ) {
@@ -183,6 +185,14 @@ class MainWP_Child_Backup_Incremental_Diff { // phpcs:ignore Generic.Classes.Ope
         fclose( $current ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list read.
         fclose( $changes ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list write.
 
+        $prefixes = MainWP_Child_Backup_Path_Cover::prefix_set( $unarchived );
+        foreach ( $parent_map as $path => $entry ) {
+            if ( $suppress_tombstones || MainWP_Child_Backup_Path_Cover::contains( $path, $prefixes ) ) {
+                // Missing bytes under unreadable coverage do not establish that the live file was deleted.
+                ++$counts['carried'];
+                unset( $parent_map[ $path ] );
+            }
+        }
         $counts['tombstones'] = $this->emit_tombstones( array_keys( $parent_map ), $tombstones_path );
 
         return $counts;
@@ -196,13 +206,15 @@ class MainWP_Child_Backup_Incremental_Diff { // phpcs:ignore Generic.Classes.Ope
      * @param string $current_files_list_path Current files.list (sorted by relpath).
      * @param string $changes_path            changes.list output path.
      * @param string $tombstones_path         tombstones.list output path.
+     * @param array  $unarchived              Relative unreadable prefixes.
+     * @param bool   $suppress_tombstones     Whether unreadable coverage is unlistable.
      *
      * @throws MainWP_Exception When an output file cannot be written.
      *
      * @return array Counts (changes, tombstones, carried) plus valid: false
      *               when the parent list is missing or malformed.
      */
-    public function sorted_merge_diff( $parent_files_list_path, $current_files_list_path, $changes_path, $tombstones_path ) { // phpcs:ignore -- NOSONAR - two-pointer merge.
+    public function sorted_merge_diff( $parent_files_list_path, $current_files_list_path, $changes_path, $tombstones_path, $unarchived = array(), $suppress_tombstones = false ) { // phpcs:ignore -- NOSONAR - two-pointer merge.
         $result = array(
             'changes'    => 0,
             'tombstones' => 0,
@@ -223,9 +235,10 @@ class MainWP_Child_Backup_Incremental_Diff { // phpcs:ignore Generic.Classes.Ope
             return $result; // Unreadable parent - the caller forces a full backup.
         }
 
-        $corrupt = false;
-        $p       = $this->next_entry( $parent, $corrupt );
-        $c       = $this->next_entry( $current );
+        $prefixes = MainWP_Child_Backup_Path_Cover::prefix_set( $unarchived );
+        $corrupt  = false;
+        $p        = $this->next_entry( $parent, $corrupt );
+        $c        = $this->next_entry( $current );
 
         while ( null !== $p || null !== $c ) {
             if ( $corrupt ) {
@@ -250,8 +263,12 @@ class MainWP_Child_Backup_Incremental_Diff { // phpcs:ignore Generic.Classes.Ope
                 $p = $this->next_entry( $parent, $corrupt );
                 $c = $this->next_entry( $current );
             } elseif ( $cmp < 0 ) {
-                $this->write_line( $tombs, $p[0] . "\n" );
-                ++$result['tombstones'];
+                if ( $suppress_tombstones || MainWP_Child_Backup_Path_Cover::contains( $p[0], $prefixes ) ) {
+                    ++$result['carried'];
+                } else {
+                    $this->write_line( $tombs, $p[0] . "\n" );
+                    ++$result['tombstones'];
+                }
                 $p = $this->next_entry( $parent, $corrupt );
             } else {
                 $this->write_line( $changes, $c[0] . "\t" . $c[1] . "\t" . $c[2] . "\n" );

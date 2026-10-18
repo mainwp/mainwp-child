@@ -34,6 +34,50 @@ class MainWP_Backup {
     const PID_LOCK_FRESH_SECONDS = 160;
 
     /**
+     * Native tasks can report partial content; legacy responses cannot.
+     *
+     * @var bool
+     */
+    protected $native_task = false;
+
+    /**
+     * Limit partial-directory handling to the native task invocation.
+     *
+     * @param bool $native Whether the caller publishes partial content status.
+     */
+    public function set_native_task( $native ) {
+        $this->native_task = (bool) $native;
+    }
+
+    /**
+     * Tar shares the caller's failure policy through its backup instance.
+     *
+     * @return bool Whether directory skips can complete as partial.
+     */
+    public function is_native_task() {
+        return $this->native_task;
+    }
+
+    /**
+     * Preserve glob's dotfile policy while detecting unreadable native roots.
+     *
+     * @param string $dir Absolute directory.
+     * @return array|false Glob results, including legacy failure behavior.
+     */
+    public function glob_backup_nodes( $dir ) {
+        $dir   = trailingslashit( $dir );
+        $nodes = glob( $dir . '*' );
+        // glob without GLOB_ERR also returns an empty array for an unreadable root.
+        if ( $this->native_task && ( false === $nodes || false === @scandir( $dir, SCANDIR_SORT_NONE ) ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- native listing failure is reported through coverage.
+            if ( is_dir( $dir ) ) {
+                static::record_skipped_path( rtrim( $dir, '/' ), 'unreadable' );
+            }
+            return array();
+        }
+        return $nodes;
+    }
+
+    /**
      * Nested legacy entry points share the outer request's lock.
      *
      * @var string
@@ -1992,7 +2036,7 @@ class MainWP_Backup {
             $this->zip_pending_bytes = 0;
         }
         if ( true === $zipRes && \ZipArchive::ER_OK === $this->zip->status ) {
-            $nodes = glob( ABSPATH . '*' );
+            $nodes = $this->glob_backup_nodes( ABSPATH );
             if ( file_exists( ABSPATH . '.htaccess' ) ) {
                 $nodes[] = ABSPATH . '.htaccess';
             }
@@ -2237,7 +2281,7 @@ class MainWP_Backup {
                         throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_PERMISSIONS ) ), null, MainWP_Backup_Error::ERR_PERMISSIONS ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
                     }
 
-                    $newnodes = glob( $node . DIRECTORY_SEPARATOR . '*' );
+                    $newnodes = $this->glob_backup_nodes( $node );
                     if ( file_exists( $node . '/.htaccess' ) ) {
                         $newnodes[] = $node . '/.htaccess';
                     }
@@ -2296,7 +2340,7 @@ class MainWP_Backup {
             $db_files = $this->get_or_create_db_dump_files( $this->db_dump_prefix( $backupFolder ) );
 
             // Copy installation to backup folder.
-            $nodes = glob( ABSPATH . '*' );
+            $nodes = $this->glob_backup_nodes( ABSPATH );
             if ( file_exists( ABSPATH . '.htaccess' ) ) {
                 $nodes[] = ABSPATH . '.htaccess';
             }
@@ -2400,6 +2444,7 @@ class MainWP_Backup {
      * @param array      $ancestors Directories on the current descent chain.
      *
      * @throws MainWP_Backup_Budget_Exception After closing a slice that made progress.
+     * @throws \UnexpectedValueException When a legacy directory cannot be listed.
      *
      * @uses \MainWP\Child\MainWP_Helper::in_excludes() Check if the value is in the excludes list.
      */
@@ -2446,36 +2491,44 @@ class MainWP_Backup {
         }
 
         // Explicit recursion handles descent; a recursive iterator would revisit each subtree.
-        $iterator = new \FilesystemIterator( $path );
+        $directory = $path;
+        try {
+            $iterator = new \FilesystemIterator( $path );
 
-        foreach ( $iterator as $path ) {
-            $name = $path->__toString();
-            if ( ( '.' === basename( $name ) ) || ( '..' === basename( $name ) ) ) {
-                continue;
-            }
+            foreach ( $iterator as $path ) {
+                $name = $path->__toString();
+                if ( ( '.' === basename( $name ) ) || ( '..' === basename( $name ) ) ) {
+                    continue;
+                }
 
-            $descent_chain = $ancestors;
-            if ( static::is_file_link( $name ) || ! static::is_safe_backup_path( $name, $this->allowed_backup_bases, $descent_chain ) ) {
-                // An excluded path was never meant to be in the backup, so it is not a skip.
+                $descent_chain = $ancestors;
+                if ( static::is_file_link( $name ) || ! static::is_safe_backup_path( $name, $this->allowed_backup_bases, $descent_chain ) ) {
+                    // An excluded path was never meant to be in the backup, so it is not a skip.
+                    if ( ! static::excluded_by_path_or_target( $excludes, $name ) ) {
+                        static::record_skipped_path( $name, static::is_file_link( $name ) ? 'link' : 'unsafe' );
+                    }
+                    continue;
+                }
+
                 if ( ! static::excluded_by_path_or_target( $excludes, $name ) ) {
-                    static::record_skipped_path( $name, static::is_file_link( $name ) ? 'link' : 'unsafe' );
+                    if ( $path->isDir() ) {
+                        $this->zip_add_dir( $name, $excludes, null, $descent_chain );
+                    } else {
+                        $this->add_file_to_zipp( $name, str_replace( ABSPATH, '', $name ) );
+                    }
                 }
-                continue;
+                $name = null;
+                unset( $name );
             }
-
-            if ( ! static::excluded_by_path_or_target( $excludes, $name ) ) {
-                if ( $path->isDir() ) {
-                    $this->zip_add_dir( $name, $excludes, null, $descent_chain );
-                } else {
-                    $this->add_file_to_zipp( $name, str_replace( ABSPATH, '', $name ) );
-                }
+        } catch ( \UnexpectedValueException $e ) {
+            if ( ! $this->native_task ) {
+                // Legacy callers cannot publish partial content, so their listing failures must still fail the backup.
+                throw $e;
             }
-            $name = null;
-            unset( $name );
+            if ( is_dir( $directory ) ) {
+                static::record_skipped_path( rtrim( $directory, '/' ), 'unreadable' );
+            }
         }
-
-        $iterator = null;
-        unset( $iterator );
     }
 
     /**

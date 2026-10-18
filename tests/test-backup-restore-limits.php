@@ -232,9 +232,10 @@ class BackupRestoreLimitsTest extends WP_UnitTestCase {
 		$state = array( 'params' => array( 'artifacts' => array( array(
 			'role' => 'part', 'file' => basename( $part ), 'sha256' => hash_file( 'sha256', $part ),
 		) ) ),
-			// Both restore-start sets are already captured, so this call starts extracting instead of yielding after the capture.
+			// Every restore-start set is already captured, so this call starts extracting instead of yielding after the capture.
 			'mu_plugins_preserve' => array( 'directory' => null, 'mode' => 'set', 'paths' => array() ),
 			'config_include'      => array( 'paths' => array(), 'config' => 'none' ),
+			'unreadable_cover'    => array( 'all' => false, 'prefixes' => array() ),
 			// Already recorded, so the only checkpoints counted are extraction's own.
 			'files_touched'       => true,
 		);
@@ -295,9 +296,10 @@ class BackupRestoreLimitsTest extends WP_UnitTestCase {
 		$state = array( 'params' => array( 'artifacts' => array( array(
 			'role' => 'part', 'file' => basename( $part ), 'sha256' => hash_file( 'sha256', $part ),
 		) ) ),
-			// Both restore-start sets are already captured, so this call starts extracting instead of yielding after the capture.
+			// Every restore-start set is already captured, so this call starts extracting instead of yielding after the capture.
 			'mu_plugins_preserve' => array( 'directory' => null, 'mode' => 'set', 'paths' => array() ),
 			'config_include'      => array( 'paths' => array(), 'config' => 'none' ),
+			'unreadable_cover'    => array( 'all' => false, 'prefixes' => array() ),
 			// Already recorded, so the only checkpoints counted are extraction's own.
 			'files_touched'       => true,
 		);

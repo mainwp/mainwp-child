@@ -607,17 +607,28 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
      * @return string[] Absolute child node paths, strcmp-sorted.
      */
     protected function enumerate_children( $dir, $is_root ) {
+        if ( ! is_dir( $dir ) ) {
+            return array();
+        }
+        // Every resume re-lists the stack, so a later failure must protect the remaining children too.
         if ( $is_root ) {
             $children = glob( $dir . '*' );
-            if ( false === $children ) {
-                $children = array();
+            // glob without GLOB_ERR cannot distinguish an empty root from an unreadable one.
+            if ( false === $children || false === @scandir( $dir, SCANDIR_SORT_NONE ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- listing failure becomes partial coverage.
+                if ( is_dir( $dir ) ) {
+                    MainWP_Backup::record_skipped_path( rtrim( $dir, '/' ), 'unreadable' );
+                }
+                return array();
             }
             if ( file_exists( $dir . '.htaccess' ) ) {
                 $children[] = $dir . '.htaccess';
             }
         } else {
-            $items = scandir( $dir, SCANDIR_SORT_NONE );
+            $items = @scandir( $dir, SCANDIR_SORT_NONE ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- listing failure becomes partial coverage.
             if ( false === $items ) {
+                if ( is_dir( $dir ) ) {
+                    MainWP_Backup::record_skipped_path( rtrim( $dir, '/' ), 'unreadable' );
+                }
                 return array();
             }
             $children = array();

@@ -216,12 +216,12 @@ class Testable_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 	 *
 	 * @return array Diff result.
 	 */
-	protected function run_incremental_diff( $parent_path, $current_path, $changes_path, $tombstones_path ) {
+	protected function run_incremental_diff( $parent_path, $current_path, $changes_path, $tombstones_path, $unreadable = array() ) {
 		if ( isset( $this->stubs['run_incremental_diff'] ) ) {
 			return $this->stub( 'run_incremental_diff', array( $parent_path, $current_path, $changes_path, $tombstones_path ) );
 		}
 		$this->calls[] = array( 'run_incremental_diff', $parent_path, $current_path, $changes_path, $tombstones_path );
-		return parent::run_incremental_diff( $parent_path, $current_path, $changes_path, $tombstones_path );
+		return parent::run_incremental_diff( $parent_path, $current_path, $changes_path, $tombstones_path, $unreadable );
 	}
 
 	/**

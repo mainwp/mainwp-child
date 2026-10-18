@@ -806,10 +806,11 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @param array         $cursor             Cumulative kept-link counts and paths.
      * @param callable|null $after_file_change Live deletion callback.
      * @param array         $config_include Persisted config dependencies.
+     * @param array         $unreadable_cover Leaf snapshot coverage shared by every chain operation.
      *
      * @return array { deleted: int, error: string|null, error_code: string|null }
      */
-    public function apply_tombstones( $tombstones_file, $extract_to, $mu_plugins_preserve = array(), &$cursor = array(), $after_file_change = null, $config_include = array() ) {
+    public function apply_tombstones( $tombstones_file, $extract_to, $mu_plugins_preserve = array(), &$cursor = array(), $after_file_change = null, $config_include = array(), $unreadable_cover = array() ) {
         $lines = file( $tombstones_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- local sidecar read.
         if ( false === $lines ) {
             return array(
@@ -821,6 +822,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
 
         $real_root = realpath( $extract_to );
         $deleted   = 0;
+        $prefixes  = MainWP_Child_Backup_Path_Cover::prefix_set( $unreadable_cover['prefixes'] ?? array() );
+        $keep_all  = ! empty( $unreadable_cover['all'] );
 
         foreach ( $lines as $line ) {
             $relpath = trim( $line );
@@ -868,8 +871,9 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 continue;
             }
 
-            // A host deployment may have replaced a preserved link since the first check.
-            if ( MainWP_Child_Backup_Mu_Plugins::preserves( $relpath, $mu_plugins_preserve ) || MainWP_Child_Backup_Config_Includes::contains( $mapped, $config_include ) ) {
+            // A host deployment may have replaced a preserved link since the first check. Unreadable coverage is
+            // checked here, after the link and containment checks, so kept-link reporting and hostile-entry aborts stay unchanged.
+            if ( MainWP_Child_Backup_Mu_Plugins::preserves( $relpath, $mu_plugins_preserve ) || MainWP_Child_Backup_Config_Includes::contains( $mapped, $config_include ) || $keep_all || MainWP_Child_Backup_Path_Cover::contains( $mapped, $prefixes ) ) {
                 continue;
             }
 

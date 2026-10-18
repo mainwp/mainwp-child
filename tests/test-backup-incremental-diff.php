@@ -19,6 +19,53 @@ use MainWP\Child\MainWP_Child_Backup_Incremental_Diff;
  */
 class BackupIncrementalDiffTest extends WP_UnitTestCase {
 
+	public static function unreadable_diff_cases() {
+		return array(
+			'prefixes' => array( array( 'a/b', 'Uploads/Locked' ), false, 3, array( array( 'a/bc/x' ), array( 'outside.txt' ) ) ),
+			'root failure' => array( array(), true, 5, array() ),
+			'overflow' => array( array( 'a/b' ), true, 5, array() ),
+			'invalid relative coverage' => array( array(), true, 5, array() ),
+			'pre-change snapshot' => array( array(), false, 0, array( array( 'a/b' ), array( 'a/b/x' ), array( 'a/bc/x' ), array( 'outside.txt' ), array( 'uploads/locked/f.txt' ) ) ),
+		);
+	}
+
+	/** @dataProvider unreadable_diff_cases */
+	public function test_unreadable_coverage_diff_algorithms_agree( $prefixes, $all, $carried, $tombstones ) {
+		$parent = $this->write_list( 'parent.list', array(
+			array( 'a/b', 1, 1 ), array( 'a/b/x', 2, 2 ), array( 'a/bc/x', 3, 3 ),
+			array( 'outside.txt', 4, 4 ), array( 'uploads/locked/f.txt', 5, 5 ),
+		) );
+		$current = $this->write_list( 'current.list', array( array( 'new.txt', 6, 6 ) ) );
+		$before = file_get_contents( $current );
+		$map = $this->diff->load_parent_map( $parent );
+		$stream = $this->diff->stream_diff( $current, $map['map'], $this->dir . '/changes-map', $this->dir . '/tombs-map', $prefixes, $all );
+		$sorted = $this->diff->sorted_merge_diff( $parent, $current, $this->dir . '/changes-sorted', $this->dir . '/tombs-sorted', $prefixes, $all );
+		$this->assertTrue( $sorted['valid'] );
+		unset( $sorted['valid'] );
+		$this->assertSame( array( 'changes' => 1, 'tombstones' => count( $tombstones ), 'carried' => $carried ), $stream );
+		$this->assertSame( $stream, $sorted );
+		$this->assertSame( array( array( 'new.txt', '6', '6' ) ), $this->read_list( $this->dir . '/changes-map' ) );
+		$this->assertSame( $tombstones, $this->read_list( $this->dir . '/tombs-map' ) );
+		$this->assertSame( file_get_contents( $this->dir . '/changes-map' ), file_get_contents( $this->dir . '/changes-sorted' ) );
+		$this->assertSame( file_get_contents( $this->dir . '/tombs-map' ), file_get_contents( $this->dir . '/tombs-sorted' ) );
+		$this->assertSame( $before, file_get_contents( $current ), 'Carried parent rows never enter the current manifest.' );
+	}
+
+	public function test_unreadable_suppression_covers_current_exhausted_tail_and_still_archives_changes() {
+		$parent = $this->write_list( 'parent.list', array( array( 'a.txt', 1, 1 ), array( 'locked/last.txt', 2, 2 ), array( 'z.txt', 3, 3 ) ) );
+		$current = $this->write_list( 'current.list', array( array( 'a.txt', 9, 1 ) ) );
+		foreach ( array( false, true ) as $all ) {
+			$map = $this->diff->load_parent_map( $parent );
+			$a = $this->diff->stream_diff( $current, $map['map'], $this->dir . '/changes-map', $this->dir . '/tombs-map', array( 'LOCKED' ), $all );
+			$b = $this->diff->sorted_merge_diff( $parent, $current, $this->dir . '/changes-sorted', $this->dir . '/tombs-sorted', array( 'LOCKED' ), $all );
+			unset( $b['valid'] );
+			$this->assertSame( $a, $b );
+			$this->assertSame( $all ? 2 : 1, $a['carried'] );
+			$this->assertSame( $all ? '' : "z.txt\n", file_get_contents( $this->dir . '/tombs-map' ) );
+			$this->assertSame( "a.txt\t9\t1\n", file_get_contents( $this->dir . '/changes-map' ) );
+		}
+	}
+
 	/**
 	 * Scratch dir for list fixtures.
 	 *

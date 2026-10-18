@@ -1517,6 +1517,40 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $this->extract_to . '/gone.php' );
 	}
 
+	public function test_unreadable_tombstones_keep_case_folded_prefixes_and_mapped_names_on_retry() {
+		foreach ( array( 'a/b', 'a/bc', 'uploads/locked' ) as $dir ) { mkdir( $this->extract_to . '/' . $dir, 0755, true ); }
+		foreach ( array( 'a/b/x', 'a/bc/x', 'uploads/locked/f.txt', 'mainwp-htaccess' ) as $path ) {
+			file_put_contents( $this->extract_to . '/' . $path, 'live bytes' );
+		}
+		$tombstones = $this->dir . '/unreadable-tombstones.list';
+		file_put_contents( $tombstones, "./a//b/x\na/bc/x\nuploads/locked/f.txt\nmainwp-htaccess\n" );
+		$cover = array( 'all' => false, 'prefixes' => array( 'a/B', 'Uploads/Locked', '.htaccess' ) );
+		$cursor = array();
+		$changes = 0;
+		foreach ( array( 1, 0 ) as $deleted ) {
+			$out = $this->restorer->apply_tombstones( $tombstones, $this->extract_to, array(), $cursor, static function () use ( &$changes ) { ++$changes; }, array(), $cover );
+			$this->assertNull( $out['error'] );
+			$this->assertSame( $deleted, $out['deleted'] );
+			$cursor = json_decode( wp_json_encode( $cursor ), true );
+		}
+		$this->assertSame( 1, $changes );
+		$this->assertFileDoesNotExist( $this->extract_to . '/a/bc/x' );
+		foreach ( array( 'a/b/x', 'uploads/locked/f.txt', 'mainwp-htaccess' ) as $path ) { $this->assertSame( 'live bytes', file_get_contents( $this->extract_to . '/' . $path ) ); }
+	}
+
+	public function test_unreadable_all_suppresses_deletion_but_still_rejects_hostile_tombstone_lines() {
+		file_put_contents( $this->extract_to . '/live.txt', 'keep' );
+		$tombstones = $this->dir . '/all-tombstones.list';
+		$cursor = array();
+		foreach ( array( "../escape.txt", '/absolute.txt', "bad\0name" ) as $hostile ) {
+			file_put_contents( $tombstones, "live.txt\n" . $hostile . "\n" );
+			$out = $this->restorer->apply_tombstones( $tombstones, $this->extract_to, array(), $cursor, null, array(), array( 'all' => true, 'prefixes' => array() ) );
+			$this->assertSame( 0, $out['deleted'] );
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $out['error_code'] );
+			$this->assertSame( 'keep', file_get_contents( $this->extract_to . '/live.txt' ) );
+		}
+	}
+
 	/**
 	 * A manifest transition must not delete config bytes extraction preserves.
 	 */

@@ -1020,7 +1020,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                     $parent_path,
                     $dir . MainWP_Child_Backup_File_Walker::FILES_LIST . MainWP_Child_Backup_File_Walker::STAGED_SUFFIX,
                     $dir . MainWP_Child_Backup_Incremental_Diff::CHANGES_LIST,
-                    $dir . MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST
+                    $dir . MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST,
+                    $sub_state['_unreadable'] ?? array()
                 );
 
                 if ( ! empty( $diff['force_full'] ) ) {
@@ -1315,17 +1316,20 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @param string $current_path    Current walk's staged files.list path.
      * @param string $changes_path    changes.list output path.
      * @param string $tombstones_path tombstones.list output path.
+     * @param array  $unreadable      Persisted directory coverage.
      *
      * @return array { changes: int, tombstones: int, force_full: bool }
      */
-    protected function run_incremental_diff( $parent_path, $current_path, $changes_path, $tombstones_path ) {
+    protected function run_incremental_diff( $parent_path, $current_path, $changes_path, $tombstones_path, $unreadable = array() ) {
         $diff             = new MainWP_Child_Backup_Incremental_Diff();
         $parent_had_files = file_exists( $parent_path ) && filesize( $parent_path ) > 0;
+        $prefixes         = array_values( $unreadable['paths'] ?? array() );
+        $suppress         = ! empty( $unreadable['unlisted'] ) || count( $prefixes ) > 1000;
 
         // Past ~100k parent entries (~4 MiB of list) the per-file map
         // presses on shared-host memory limits - use the sorted merge.
         if ( $parent_had_files && filesize( $parent_path ) > 4 * 1024 * 1024 ) {
-            $merged = $diff->sorted_merge_diff( $parent_path, $current_path, $changes_path, $tombstones_path );
+            $merged = $diff->sorted_merge_diff( $parent_path, $current_path, $changes_path, $tombstones_path, $prefixes, $suppress );
             return array(
                 'changes'    => (int) $merged['changes'],
                 'tombstones' => (int) $merged['tombstones'],
@@ -1342,7 +1346,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             );
         }
 
-        $counts = $diff->stream_diff( $current_path, $loaded['map'], $changes_path, $tombstones_path );
+        $counts = $diff->stream_diff( $current_path, $loaded['map'], $changes_path, $tombstones_path, $prefixes, $suppress );
         return array(
             'changes'    => (int) $counts['changes'],
             'tombstones' => (int) $counts['tombstones'],
@@ -1517,6 +1521,24 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @param string $reason Traversal refusal.
      */
     protected function merge_skipped_path( &$sub_state, $path, $reason ) {
+        // Coverage must survive replay even if an earlier skip already counted this path for another reason.
+        if ( 'unreadable' === $reason && is_dir( $path ) ) {
+            $relative = $this->skipped_relpath( $path );
+            $key      = substr( hash( 'sha256', $path ), 0, 32 );
+            if ( ! isset( $sub_state['_unreadable'] ) ) {
+                $sub_state['_unreadable'] = array(
+                    'paths'    => array(),
+                    'unlisted' => false,
+                );
+            }
+            if ( null === $relative ) {
+                $sub_state['_unreadable']['unlisted'] = true;
+            } elseif ( isset( $sub_state['_unreadable']['paths'][ $key ] ) || count( $sub_state['_unreadable']['paths'] ) < 1001 ) {
+                $sub_state['_unreadable']['paths'][ $key ] = $relative;
+            } else {
+                $sub_state['_unreadable']['unlisted'] = true;
+            }
+        }
         if ( ! isset( $sub_state['_skip_report'] ) || 'inventory_depth' === $reason ) {
             return;
         }
@@ -2006,6 +2028,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             $backup->set_prepared_db_files( $db_files );
         }
         $backup->set_slice_deadline( $deadline );
+        $backup->set_native_task( true );
 
         $backup->set_progress_callback( $this->dump_heartbeat() );
 
@@ -2030,6 +2053,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             $backup->set_prepared_db_files( null );
             $backup->set_slice_deadline( null );
             $backup->set_progress_callback( null );
+            $backup->set_native_task( false );
         }
 
         if ( ! $res || empty( $res['file'] ) ) {
@@ -2104,8 +2128,9 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 $unarchived[] = substr( $path, strlen( $root ) );
             }
         }
-        $unarchived = array_values( array_unique( array_merge( $unarchived, array_values( $sub_state['_pack_skips']['paths'] ?? array() ) ) ) );
-        $unlisted   = $unlisted || ! empty( $sub_state['_pack_skips']['unlisted'] );
+        // A separate walk key would bypass the beta6 reconcile_unarchived_support gate.
+        $unarchived = array_values( array_unique( array_merge( $unarchived, array_values( $sub_state['_pack_skips']['paths'] ?? array() ), array_values( $sub_state['_unreadable']['paths'] ?? array() ) ) ) );
+        $unlisted   = $unlisted || ! empty( $sub_state['_pack_skips']['unlisted'] ) || ! empty( $sub_state['_unreadable']['unlisted'] );
         if ( isset( $sub_state['_skip_report'] ) ) {
             $walk = array_merge( $walk, array_intersect_key( $sub_state['_skip_report'], array_flip( array( 'skipped_count', 'skipped_paths', 'skipped_by_reason' ) ) ) );
         }

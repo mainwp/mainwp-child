@@ -453,7 +453,7 @@ class Tar_Archiver {
         }
 
         if ( $this->archive ) {
-            $nodes = glob( ABSPATH . '*' );
+            $nodes = $this->backup->glob_backup_nodes( ABSPATH );
             if ( file_exists( ABSPATH . '.htaccess' ) ) {
                 $nodes[] = ABSPATH . '.htaccess';
             }
@@ -647,7 +647,7 @@ class Tar_Archiver {
      * @param array      $ancestors Directories on the current descent chain.
      * @param array|null $bases Containment bases retained through linked-directory descent.
      *
-     * @throws MainWP_Exception When traversal exceeds the directory depth limit.
+     * @throws MainWP_Exception|\UnexpectedValueException When traversal exceeds the depth limit or a legacy top-level directory cannot be listed.
      *
      * @uses \MainWP\Child\Tar_Archiver::add_empty_dir() Add empty directory to the backup archive file.
      * @uses \MainWP\Child\Tar_Archiver::add_file() Add file to the backup archive file.
@@ -680,7 +680,18 @@ class Tar_Archiver {
 
         $this->add_empty_dir( $path, str_replace( ABSPATH, '', $path ) );
 
-        $iterator = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $path ), \RecursiveIteratorIterator::SELF_FIRST, \RecursiveIteratorIterator::CATCH_GET_CHILD );
+        try {
+            $iterator = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $path ), \RecursiveIteratorIterator::SELF_FIRST, \RecursiveIteratorIterator::CATCH_GET_CHILD );
+        } catch ( \UnexpectedValueException $e ) {
+            if ( null === $this->backup || ! $this->backup->is_native_task() ) {
+                // Legacy callers cannot publish partial content, so top-level listing failures still fail the backup.
+                throw $e;
+            }
+            if ( is_dir( $path ) ) {
+                MainWP_Backup::record_skipped_path( rtrim( $path, '/' ), 'unreadable' );
+            }
+            return;
+        }
 
         foreach ( $iterator as $path ) {
             $this->assert_within_budget();
@@ -716,6 +727,10 @@ class Tar_Archiver {
                     // RecursiveDirectoryIterator does not follow linked directories.
                     $this->add_dir( $name, $excludes, $descent_chain, $bases );
                 } elseif ( $path->isDir() ) {
+                    // CATCH_GET_CHILD silently omits unreadable descendants in both native and legacy archives.
+                    if ( false === @scandir( $name, SCANDIR_SORT_NONE ) && is_dir( $name ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- preserve the existing archive tolerance and report missing content.
+                        MainWP_Backup::record_skipped_path( rtrim( $name, '/' ), 'unreadable' );
+                    }
                     $this->add_empty_dir( $name, str_replace( ABSPATH, '', $name ) );
                 } else {
                     $this->add_file( $name, str_replace( ABSPATH, '', $name ), $bases );

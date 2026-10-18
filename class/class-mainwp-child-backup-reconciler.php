@@ -31,7 +31,7 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
     private $mu_plugins_relpath = null;
 
     /**
-     * Exact manifest keys whose snapshot has no archived bytes.
+     * Prefix coverage keeps live files when the snapshot has no archived bytes.
      *
      * @var array
      */
@@ -138,7 +138,7 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
      * @return array Cursor, outcome and completion flags.
      */
     public function reconcile_slice( $cursor, $config, $deadline ) {
-        $this->unarchived_paths     = array_fill_keys( $config['walk']['unarchived'] ?? array(), true );
+        $this->unarchived_paths     = MainWP_Child_Backup_Path_Cover::prefix_set( $config['walk']['unarchived'] ?? array() );
         $this->config_include_paths = array_fill_keys( $config['config_include']['paths'] ?? array(), true );
         $this->mu_plugins_relpath   = isset( $config['root'] ) ? MainWP_Child_Backup_Mu_Plugins::relative_directory( $config['root'], isset( $config['mu_plugins_directory'] ) ? $config['mu_plugins_directory'] : null ) : null;
         $this->uploads_relpath      = null;
@@ -421,7 +421,7 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
             $reason = 'mu_plugins';
         } elseif ( isset( $this->config_include_paths[ $path ] ) ) {
             $reason = 'config_include';
-        } elseif ( isset( $this->unarchived_paths[ $path ] ) ) {
+        } elseif ( MainWP_Child_Backup_Path_Cover::contains( $path, $this->unarchived_paths ) ) {
             $reason = 'unarchived';
         }
         if ( null !== $reason ) {

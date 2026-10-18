@@ -12,6 +12,7 @@ use MainWP\Child\MainWP_Child_Backup_Task;
 use MainWP\Child\MainWP_Exception;
 
 require_once __DIR__ . '/test-backup-task-runner.php';
+require_once __DIR__ . '/test-backup-unreadable-dirs.php';
 
 /**
  * Tests for the incremental backup type on the task machine: type
@@ -21,13 +22,193 @@ require_once __DIR__ . '/test-backup-task-runner.php';
  */
 class BackupTaskIncrementalTest extends WP_UnitTestCase {
 
+	public static function unreadable_backup_cases() {
+		return array(
+			'full top-level chmod' => array( 'full', 'a-locked', 'chmod' ),
+			'incremental top-level chmod' => array( 'incremental', 'a-locked', 'chmod' ),
+			'full nested chmod' => array( 'full', 'wp-content/plugins/locked', 'chmod' ),
+			'incremental nested chmod' => array( 'incremental', 'wp-content/plugins/locked', 'chmod' ),
+			'rehydrate remains unreadable' => array( 'incremental', 'a-locked', 'resume' ),
+			'one rehydrate then readable' => array( 'incremental', 'a-locked', 'transient' ),
+		);
+	}
+
+	/** @dataProvider unreadable_backup_cases */
+	public function test_unreadable_directory_backup_is_partial_and_diff_keeps_parent_files( $type, $prefix, $mode ) {
+		$this->arrange_incremental_fixtures();
+		$locked = $this->site . '/' . $prefix;
+		mkdir( $locked, 0755, true );
+		file_put_contents( $locked . '/a.txt', 'first live file' );
+		file_put_contents( $locked . '/b.txt', 'second live file' );
+		$parent = $this->parent_manifest_content() . $prefix . "/a.txt\t15\t1\n" . $prefix . "/b.txt\t16\t1\n";
+		$rows = explode( "\n", trim( $parent ) );
+		sort( $rows, SORT_STRING );
+		$attempt = 0;
+		$this->runner->stubs['walk_manifest_slice'] = function ( $params, $dir, $cursor, $deadline ) use ( $mode, &$attempt ) {
+			++$attempt;
+			$walker = new Unreadable_Sliced_Walker( $this->site );
+			$walker->steps = 'chmod' === $mode ? 1000 : ( 1 === $attempt ? 2 : 3 );
+			return $walker->emit_sidecars_slice( $dir, $cursor, $deadline );
+		};
+		try {
+			if ( 'chmod' === $mode ) {
+				if ( function_exists( 'posix_geteuid' ) && 0 === posix_geteuid() ) { $this->markTestSkipped( 'Root can list chmod 000 directories.' ); }
+				$this->assertTrue( chmod( $locked, 0000 ) );
+				if ( false !== @scandir( $locked ) ) { $this->markTestSkipped( 'This filesystem still permits listing chmod 000 directories.' ); }
+			}
+			$id = $this->create_report_task( $type, 'incremental' === $type ? array( 'parent_manifest_b64' => base64_encode( implode( "\n", $rows ) . "\n" ) ) : array() );
+			$task = $this->advance( $id );
+			if ( 'chmod' !== $mode ) {
+				$sub = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $this->backup_dir );
+				$this->assertSame( 1, $sub['walk_cursor']['count'] );
+				\MainWP\Child\Backup_Unreadable_Test_FS::$scandir_fail[ $locked ] = true;
+				$task = $this->advance( $id );
+				if ( 'transient' === $mode ) { \MainWP\Child\Backup_Unreadable_Test_FS::$scandir_fail = array(); }
+			}
+			for ( $i = 0; 'completed' !== $task->phase && 'failed' !== $task->phase && $i < 30; ++$i ) { $task = $this->advance( $id ); }
+			$this->assertSame( 'completed', $task->phase );
+			$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+			$walk = $this->artifacts_by_role( $payload )['manifest']['walk'];
+			$this->assertSame( 'partial', $payload['content_status'] );
+			$this->assertSame( array( $prefix ), $walk['unarchived'] );
+			$this->assertSame( 1, $walk['skipped_count'] );
+			$this->assertSame( array( 'unreadable' => 1 ), $walk['skipped_by_reason'] );
+			$this->assertArrayNotHasKey( '_unreadable', $payload['sub_state'] );
+			if ( 'incremental' === $type ) {
+				$this->assertSame( "deleted.php\n", file_get_contents( $this->backup_dir . '/tombstones.list' ) );
+				$current = file_get_contents( $this->backup_dir . '/files.list.staged' );
+				$this->assertStringNotContainsString( $prefix . "/b.txt\t", $current );
+				if ( 'chmod' !== $mode ) { $this->assertStringContainsString( $prefix . "/a.txt\t", $current ); }
+			}
+		} finally {
+			chmod( $locked, 0755 );
+			\MainWP\Child\Backup_Unreadable_Test_FS::$scandir_fail = array();
+		}
+	}
+
+	public static function unreadable_root_backup_cases() { return array( 'full' => array( 'full' ), 'incremental' => array( 'incremental' ) ); }
+
+	public function test_exact_unreadable_diff_then_pack_skips_publish_combined_overflow() {
+		$this->arrange_incremental_fixtures();
+		mkdir( $this->site . '/locked' );
+		$walk = $this->runner->stubs['walk_manifest_slice'];
+		$this->runner->stubs['walk_manifest_slice'] = function ( $params, $dir, $cursor, $deadline ) use ( $walk ) {
+			\MainWP\Child\MainWP_Backup::record_skipped_path( $this->site . '/locked', 'unreadable' );
+			return $walk( $params, $dir, $cursor, $deadline );
+		};
+		$parent = $this->parent_manifest_content() . "locked/live.txt\t1\t1\n";
+		$id = $this->create_report_task( 'incremental', array( 'parent_manifest_b64' => base64_encode( $parent ) ) );
+		$this->advance( $id );
+		$this->assertSame( "deleted.php\n", file_get_contents( $this->backup_dir . '/tombstones.list' ) );
+		$handle = fopen( $this->backup_dir . '/changes.list', 'ab' );
+		for ( $i = 0; $i < 1000; ++$i ) { fwrite( $handle, 'missing-' . $i . "\t1\t1\n" ); }
+		// A component run of only skipped files closes an empty part (pre-existing writer gap), so end on a real file.
+		file_put_contents( $this->site . '/zz-real.php', 'real' );
+		fwrite( $handle, "zz-real.php\t4\t1\n" );
+		fclose( $handle );
+		$task = $this->advance( $id );
+		$this->assertSame( 'completed', $task->phase );
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+		$walk = $this->artifacts_by_role( $payload )['manifest']['walk'];
+		$this->assertTrue( $walk['unarchived_overflow'] );
+		$this->assertArrayNotHasKey( 'unarchived', $walk );
+		$this->assertSame( 'partial', $payload['content_status'] );
+		$this->assertSame( array( 'unreadable' => 1, 'unstatable' => 1000 ), $walk['skipped_by_reason'] );
+		$this->assertSame( "deleted.php\n", file_get_contents( $this->backup_dir . '/tombstones.list' ) );
+	}
+
+	public static function unreadable_unlisted_task_cases() { return array( '1002 directories' => array( false ), 'invalid relpath' => array( true ) ); }
+
+	/** @dataProvider unreadable_unlisted_task_cases */
+	public function test_unreadable_unlisted_backup_is_partial_and_suppresses_all_tombstones( $invalid ) {
+		$this->arrange_incremental_fixtures();
+		$paths = array();
+		if ( $invalid ) { $paths[] = $this->site . '/../'; }
+		else {
+			for ( $i = 0; $i < 1002; ++$i ) {
+				$paths[] = $this->site . '/locked-' . $i;
+				mkdir( end( $paths ) );
+			}
+		}
+		$walk = $this->runner->stubs['walk_manifest_slice'];
+		$this->runner->stubs['walk_manifest_slice'] = static function ( $params, $dir, $cursor, $deadline ) use ( $paths, $walk ) {
+			foreach ( $paths as $path ) { \MainWP\Child\MainWP_Backup::record_skipped_path( $path, 'unreadable' ); }
+			return $walk( $params, $dir, $cursor, $deadline );
+		};
+		$id = $this->create_report_task( 'incremental', array( 'parent_manifest_b64' => base64_encode( $this->parent_manifest_content() ) ) );
+		$this->advance( $id );
+		$this->assertSame( '', file_get_contents( $this->backup_dir . '/tombstones.list' ) );
+		$task = $this->advance( $id );
+		$this->assertSame( 'completed', $task->phase );
+		$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+		$walk = $this->artifacts_by_role( $payload )['manifest']['walk'];
+		$this->assertSame( 'partial', $payload['content_status'] );
+		$this->assertTrue( $walk['unarchived_overflow'] );
+		$this->assertArrayNotHasKey( 'unarchived', $walk );
+		$this->assertSame( array( 'unreadable' => count( $paths ) ), $walk['skipped_by_reason'] );
+	}
+
+	public function test_unreadable_backup_retry_from_lost_walk_checkpoint_counts_once() {
+		global $wpdb;
+		$this->arrange_incremental_fixtures();
+		mkdir( $this->site . '/locked' );
+		$spine = MainWP_Child_Backup_Task::instance();
+		$id = $this->create_report_task( 'incremental', array( 'parent_manifest_b64' => base64_encode( $this->parent_manifest_content() . "locked/live.txt\t1\t1\n" ) ) );
+		$walk = $this->runner->stubs['walk_manifest_slice'];
+		$attempt = 0;
+		$this->runner->stubs['walk_manifest_slice'] = function ( $params, $dir, $cursor, $deadline ) use ( $spine, $id, $wpdb, $walk, &$attempt ) {
+			\MainWP\Child\MainWP_Backup::record_skipped_path( $this->site . '/locked', 'unreadable' );
+			if ( 1 === ++$attempt ) {
+				$before = $spine->get_task( $id );
+				$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $id ) );
+				$this->assertTrue( $spine->acquire_lease( $id, 'retry-owner', (int) $before->version ) );
+			}
+			return $walk( $params, $dir, $cursor, $deadline );
+		};
+		$task = $this->advance( $id );
+		$this->assertArrayNotHasKey( '_unreadable', $spine->read_sub_state( $task, $this->backup_dir ) );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s', $id ) );
+		$this->advance( $id );
+		$task = $this->advance( $id );
+		$this->assertSame( 'completed', $task->phase );
+		$this->assertSame( 2, $attempt );
+		$payload = $spine->status_payload( $task, $this->backup_dir );
+		$walk = $this->artifacts_by_role( $payload )['manifest']['walk'];
+		$this->assertSame( 1, $walk['skipped_count'] );
+		$this->assertSame( array( 'locked' ), $walk['unarchived'] );
+		$this->assertSame( "deleted.php\n", file_get_contents( $this->backup_dir . '/tombstones.list' ) );
+	}
+
+	/** @dataProvider unreadable_root_backup_cases */
+	public function test_unreadable_root_backup_completes_partial_without_tombstones( $type ) {
+		$this->arrange_incremental_fixtures();
+		$this->runner->stubs['walk_manifest_slice'] = function ( $params, $dir, $cursor, $deadline ) {
+			return ( new \MainWP\Child\MainWP_Child_Backup_File_Walker( $this->site ) )->emit_sidecars_slice( $dir, $cursor, $deadline );
+		};
+		\MainWP\Child\Backup_Unreadable_Test_FS::$scandir_fail[ $this->site ] = true;
+		try {
+			$id = $this->create_report_task( $type, 'incremental' === $type ? array( 'parent_manifest_b64' => base64_encode( $this->parent_manifest_content() ) ) : array() );
+			for ( $i = 0; $i < 10; ++$i ) { $task = $this->advance( $id ); if ( 'completed' === $task->phase || 'failed' === $task->phase ) { break; } }
+			$this->assertSame( 'completed', $task->phase );
+			$payload = MainWP_Child_Backup_Task::instance()->status_payload( $task, $this->backup_dir );
+			$walk = $this->artifacts_by_role( $payload )['manifest']['walk'];
+			$this->assertSame( 'partial', $payload['content_status'] );
+			$this->assertTrue( $walk['unarchived_overflow'] );
+			$this->assertArrayNotHasKey( 'unarchived', $walk );
+			$this->assertSame( array( 'unreadable' => 1 ), $walk['skipped_by_reason'] );
+			if ( 'incremental' === $type ) { $this->assertSame( '', file_get_contents( $this->backup_dir . '/tombstones.list' ) ); }
+		} finally {
+			\MainWP\Child\Backup_Unreadable_Test_FS::$scandir_fail = array();
+		}
+	}
+
 	private function create_report_task( $type, $extra = array() ) {
 		$this->runner->test_content_roots = array();
 		return $this->runner->create_task_for_params( $type, array_merge( array( 'ext' => 'tar', 'emit_manifest' => true ), $extra ) );
 	}
 
 	public static function backup_status_fixture_cases() {
-		$cases = array( 'full', 'files', 'db', 'incremental', 'full-hash-skipped' );
+		$cases = array( 'full', 'files', 'db', 'incremental', 'full-hash-skipped', 'files-unreadable' );
 		return array_combine( $cases, array_map( static function ( $case ) { return array( $case ); }, $cases ) );
 	}
 
@@ -76,7 +257,15 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 	public function test_backup_status_response_fixture_and_beta6_compatibility( $case ) {
 		$this->arrange_incremental_fixtures();
 		$this->runner->stubs['woo_backup_meta'] = array( 'has_wc_orders' => false, 'woocommerce_db_version' => '' );
-		$type = 'full-hash-skipped' === $case ? 'full' : $case;
+		$type = 'full-hash-skipped' === $case ? 'full' : ( 'files-unreadable' === $case ? 'files' : $case );
+		if ( 'files-unreadable' === $case ) {
+			$locked = $this->site . '/locked';
+			mkdir( $locked );
+			$this->runner->stubs['run_file_archiver'] = static function () use ( $locked ) {
+				\MainWP\Child\MainWP_Backup::record_skipped_path( $locked, 'unreadable' );
+				return array( 'file' => 'backup-artifact.tar', 'filesize' => 2048 );
+			};
+		}
 		if ( 'full' === $case ) {
 			$link = $this->site . '/host-link.php';
 			$this->assertTrue( symlink( $this->site . '/carried.php', $link ) );

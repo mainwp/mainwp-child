@@ -15,6 +15,8 @@ use MainWP\Child\MainWP_Child_Callable;
 use MainWP\Child\MainWP_Child_Restore_Task_Runner;
 use MainWP\Child\MainWP_Exception;
 
+require_once __DIR__ . '/test-backup-unreadable-dirs.php';
+
 class Restore_Cancel_Response extends RuntimeException {
 	public $payload;
 
@@ -571,6 +573,7 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 	public $test_config_includes;
 	public $config_include_checkpoint_crash = false;
 	public $legacy_config_checkpoints = false;
+	public $legacy_unreadable_checkpoints = false;
 
 	protected function config_includes() {
 		return $this->test_config_includes ? $this->test_config_includes : parent::config_includes();
@@ -595,6 +598,9 @@ class Testable_Restore_Task_Runner extends MainWP_Child_Restore_Task_Runner {
 		}
 		if ( $this->legacy_config_checkpoints && ! empty( $sub_state['file_restore']['part_cursor']['entry_index'] ) ) {
 			unset( $sub_state['config_include'] );
+		}
+		if ( $this->legacy_unreadable_checkpoints && ! empty( $sub_state['file_restore']['part_cursor']['entry_index'] ) ) {
+			unset( $sub_state['unreadable_cover'] );
 		}
 		if ( $this->mu_plugins_checkpoint_crash && isset( $sub_state['mu_plugins_preserve'] ) ) {
 			$this->mu_plugins_checkpoint_crash = false;
@@ -2349,6 +2355,158 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( 1, $sub['verification']['reconcile']['kept'] );
 		$this->assertSame( array( 'unarchived' => 1 ), $sub['verification']['reconcile']['kept_by_reason'] );
 		$this->assertSame( array( $path ), $sub['verification']['reconcile']['kept_paths'] );
+	}
+
+	public static function unreadable_chain_cases() {
+		return array(
+			'prefix' => array( 'prefix', true, true, false ),
+			'case folded prefix' => array( 'case', true, true, false ),
+			'overflow' => array( 'overflow', true, true, true ),
+			'root failure' => array( 'root', true, true, true ),
+			'combined pack overflow' => array( 'pack-overflow', true, true, true ),
+			'invalid unarchived' => array( 'invalid', true, true, true ),
+			'withheld reconcile' => array( 'withheld', false, false, false ),
+			'pre-change no unarchived' => array( 'old', false, false, false ),
+			'pre-change pack file' => array( 'pack-file', true, false, false ),
+		);
+	}
+
+	/** @dataProvider unreadable_chain_cases */
+	public function test_leaf_unreadable_coverage_protects_every_chain_tombstone( $mode, $first, $second, $outside ) {
+		$this->prepare_reconcile_fixture();
+		mkdir( $this->site . '/locked' );
+		foreach ( array( 'locked/recreated.txt', 'locked/second.txt', 'outside.txt', 'locked-sibling.txt' ) as $path ) {
+			file_put_contents( $this->site . '/' . $path, 'recreated live bytes' );
+		}
+		$options = $this->reconcile_options();
+		if ( in_array( $mode, array( 'overflow', 'root', 'pack-overflow' ), true ) ) { $options['reconcile']['walk']['unarchived_overflow'] = true; }
+		elseif ( 'invalid' === $mode ) { $options['reconcile']['walk']['unarchived'] = array( '../locked' ); }
+		elseif ( 'withheld' === $mode ) { $options = array(); }
+		elseif ( 'old' !== $mode ) { $options['reconcile']['walk']['unarchived'] = array( 'pack-file' === $mode ? 'locked/recreated.txt' : ( 'case' === $mode ? 'LOCKED' : 'locked' ) ); }
+		$artifacts = array(
+			$this->make_named_zip_artifact( 'base.zip', array( 'snapshot.txt' => 'base' ) ),
+			$this->make_named_tombstones_artifact( 'ancestor-tombstones.list', "locked/recreated.txt\noutside.txt\nlocked-sibling.txt\n" ),
+			$this->make_named_zip_artifact( 'middle.zip', array( 'middle.txt' => 'middle' ) ),
+			$this->make_named_tombstones_artifact( 'leaf-tombstones.list', "locked/second.txt\n" ),
+			$this->make_named_zip_artifact( 'leaf.zip', array( 'snapshot.txt' => 'leaf' ) ),
+			$this->make_manifest_artifact( array( 'snapshot.txt', 'middle.txt' ) ),
+		);
+		$task = $this->drive( $this->make_task( 'files', $artifacts, $options ) );
+		$this->assertSame( 'completed', $task->phase );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		foreach ( array( 'locked/recreated.txt' => $first, 'locked/second.txt' => $second, 'outside.txt' => $outside, 'locked-sibling.txt' => $outside ) as $path => $keep ) {
+			$this->assertSame( $keep, is_file( $this->site . '/' . $path ), $mode . ': ' . $path );
+			if ( $keep ) { $this->assertSame( 'recreated live bytes', file_get_contents( $this->site . '/' . $path ) ); }
+		}
+		$this->assertSame( 'leaf', file_get_contents( $this->site . '/snapshot.txt' ) );
+		$all = in_array( $mode, array( 'overflow', 'root', 'pack-overflow', 'invalid' ), true );
+		$cover = $sub['unreadable_cover'] ?? array( 'all' => false, 'prefixes' => array() );
+		$this->assertSame( $all, $cover['all'] );
+		if ( $all ) {
+			$this->assertSame( 'skipped', $sub['verification']['reconcile']['status'] );
+			$this->assertSame( 'invalid' === $mode ? 'unarchived_invalid' : 'unarchived_overflow', $sub['verification']['reconcile']['reason'] );
+		} elseif ( $first ) {
+			$this->assertSame( array( 'unarchived' => $second ? 2 : 1 ), $sub['verification']['reconcile']['kept_by_reason'] );
+		} else { $this->assertSame( array(), $cover['prefixes'] ); }
+	}
+
+	public function test_unreadable_full_restore_reconcile_keeps_prefix_and_deletes_boundary_sibling() {
+		$this->prepare_reconcile_fixture();
+		mkdir( $this->site . '/locked/sub', 0755, true );
+		mkdir( $this->site . '/locked-sibling' );
+		file_put_contents( $this->site . '/locked/sub/live.txt', 'keep' );
+		file_put_contents( $this->site . '/locked-sibling/live.txt', 'remove' );
+		$options = $this->reconcile_options();
+		$options['reconcile']['walk']['unarchived'] = array( 'LOCKED' );
+		$this->assertSame( $options['reconcile'], MainWP_Child_Backup_Reconciler::sanitize_options( $options['reconcile'] ) );
+		$task = $this->drive( $this->make_task( 'full', array( $this->make_part_artifact(), $this->make_db_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $options ) );
+		$this->assertSame( 'completed', $task->phase );
+		$this->assertSame( 'keep', file_get_contents( $this->site . '/locked/sub/live.txt' ) );
+		$this->assertFileDoesNotExist( $this->site . '/locked-sibling/live.txt' );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( array( 'unarchived' => 1 ), $sub['verification']['reconcile']['kept_by_reason'] );
+	}
+
+	public function test_reconcile_unreadable_live_directory_is_left_untouched_without_listener() {
+		$this->prepare_reconcile_fixture();
+		$locked = $this->site . '/locked';
+		mkdir( $locked );
+		file_put_contents( $locked . '/live.txt', 'keep' );
+		$artifacts = array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) );
+		\MainWP\Child\Backup_Unreadable_Test_FS::$scandir_fail[ $locked ] = true;
+		try {
+			$task = $this->drive( $this->make_task( 'files', $artifacts, $this->reconcile_options() ) );
+			$this->assertSame( 'completed', $task->phase );
+			$sub = $this->spine->read_sub_state( $task, $this->dir );
+			$this->assertSame( 'done', $sub['verification']['reconcile']['status'] );
+			$this->assertFileDoesNotExist( $this->site . '/wp-content/plugins/persist.php' );
+		} finally {
+			\MainWP\Child\Backup_Unreadable_Test_FS::$scandir_fail = array();
+		}
+		$this->assertSame( 'keep', file_get_contents( $locked . '/live.txt' ) );
+	}
+
+	public function test_unreadable_cover_capture_crash_retries_before_any_file_change() {
+		$this->prepare_reconcile_fixture();
+		mkdir( $this->site . '/locked' );
+		file_put_contents( $this->site . '/locked/live.txt', 'keep' );
+		file_put_contents( $this->site . '/stale.txt', 'not yet deleted' );
+		$options = $this->reconcile_options();
+		$options['reconcile']['walk']['unarchived'] = array( 'locked' );
+		$artifacts = array(
+			$this->make_named_tombstones_artifact( 'ancestor.list', "locked/live.txt\nstale.txt\n" ),
+			$this->make_named_zip_artifact( 'leaf.zip', array( 'snapshot.txt' => 'snapshot' ) ),
+			$this->make_manifest_artifact( array( 'snapshot.txt' ) ),
+		);
+		$id = $this->make_task( 'files', $artifacts, $options );
+		$this->runner->config_include_checkpoint_crash = true;
+		list( $task, $sub ) = $this->advance_until( $id, function () { return ! $this->runner->config_include_checkpoint_crash; } );
+		$this->assertArrayNotHasKey( 'unreadable_cover', $sub );
+		$this->assertEmpty( $sub['files_touched'] ?? false );
+		$this->assertFileDoesNotExist( $this->site . '/snapshot.txt' );
+		$this->assertFileExists( $this->site . '/stale.txt' );
+		$task = $this->runner->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_WATCHDOG );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( array( 'all' => false, 'prefixes' => array( 'locked' ) ), $sub['unreadable_cover'] );
+		$this->assertFileDoesNotExist( $this->site . '/snapshot.txt' );
+		$this->assertFileExists( $this->site . '/stale.txt' );
+		$task = $this->drive( $id );
+		$this->assertSame( 'completed', $task->phase );
+		$this->assertSame( 'keep', file_get_contents( $this->site . '/locked/live.txt' ) );
+		$this->assertFileDoesNotExist( $this->site . '/stale.txt' );
+	}
+
+	public static function unreadable_resume_cases() { return array( 'persisted' => array( false ), 'older cursor' => array( true ) ); }
+
+	/** @dataProvider unreadable_resume_cases */
+	public function test_unreadable_cover_survives_restore_slices_and_older_cursor_capture( $older ) {
+		$this->prepare_reconcile_fixture();
+		mkdir( $this->site . '/locked' );
+		file_put_contents( $this->site . '/locked/live.txt', 'keep' );
+		$this->slice_one_file_at_a_time();
+		$this->runner->legacy_unreadable_checkpoints = $older;
+		$options = $this->reconcile_options();
+		$options['reconcile']['walk']['unarchived'] = array( 'locked' );
+		$id = $this->make_task( 'files', array(
+			$this->make_named_zip_artifact( 'base.zip', array( 'first.txt' => 'first', 'snapshot.txt' => 'base' ) ),
+			$this->make_named_tombstones_artifact( 'ancestor.list', "locked/live.txt\n" ),
+			$this->make_named_zip_artifact( 'leaf.zip', array( 'snapshot.txt' => 'leaf' ) ),
+			$this->make_manifest_artifact( array( 'first.txt', 'snapshot.txt' ) ),
+		), $options );
+		list( $task, $sub ) = $this->advance_until( $id, static function ( $sub ) { return ! empty( $sub['file_restore']['part_cursor']['entry_index'] ); } );
+		$mu = $sub['mu_plugins_preserve'];
+		$config = $sub['config_include'];
+		if ( $older ) { $this->assertArrayNotHasKey( 'unreadable_cover', $sub ); }
+		else { $this->assertSame( array( 'all' => false, 'prefixes' => array( 'locked' ) ), $sub['unreadable_cover'] ); }
+		$this->runner->legacy_unreadable_checkpoints = false;
+		$this->runner->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_WATCHDOG );
+		$task = $this->drive( $id );
+		$this->assertSame( 'completed', $task->phase );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( $mu, $sub['mu_plugins_preserve'] );
+		$this->assertSame( $config, $sub['config_include'] );
+		$this->assertSame( array( 'all' => false, 'prefixes' => array( 'locked' ) ), $sub['unreadable_cover'] );
+		$this->assertSame( 'keep', file_get_contents( $this->site . '/locked/live.txt' ) );
 	}
 
 	public function test_unarchived_sanitization_preserves_valid_list_and_is_idempotent() {

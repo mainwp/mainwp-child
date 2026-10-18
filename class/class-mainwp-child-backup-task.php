@@ -1366,7 +1366,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         }
 
         if ( is_array( $sub_state ) ) {
-            unset( $sub_state['_skip_report'], $sub_state['_hash_attempts'], $sub_state['_pack_skips'] );
+            unset( $sub_state['_skip_report'], $sub_state['_hash_attempts'], $sub_state['_pack_skips'], $sub_state['_unreadable'] );
         }
 
         $payload = array(

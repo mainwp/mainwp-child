@@ -664,6 +664,12 @@ class TarArchiverIntegrityTest extends WP_UnitTestCase {
 			public function get_or_create_db_dump_files( $prefix, $archiver ) {
 				return $this->files;
 			}
+			public function glob_backup_nodes( $dir ) {
+				return glob( trailingslashit( $dir ) . '*' );
+			}
+			public function is_native_task() {
+				return false;
+			}
 		};
 		$archiver = new Tar_Archiver( $backup, $type );
 		try {
