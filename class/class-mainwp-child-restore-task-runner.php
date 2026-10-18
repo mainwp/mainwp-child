@@ -2830,6 +2830,11 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                         $sub_state['identity_dump_count'] = self::identity_count( $table );
                     }
                     foreach ( self::IDENTITY_OPTIONS as $name ) {
+                        // The live site always has this row while a restore runs, so a capture without it came
+                        // from an older build; deleting the restored row would re-key the backup directory.
+                        if ( ! isset( $saved[ $name ] ) && 'mainwp_backup_dir_hash' === $name ) {
+                            continue;
+                        }
                         if ( ! isset( $saved[ $name ] ) ) {
                             $result = $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name = %s', $name ) ); // phpcs:ignore WordPress.DB -- remove a dump-only identity row.
                         } else {

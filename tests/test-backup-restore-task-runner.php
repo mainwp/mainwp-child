@@ -4167,6 +4167,18 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( -7, $state['identity_preserve_delta'] );
 	}
 
+	public function test_capture_without_backup_dir_hash_keeps_restored_hash_row() {
+		global $wpdb;
+		$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'mainwp_backup_dir_hash', 'option_value' => 'LiveHash12345678', 'autoload' => 'no' ) ) );
+		$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'mainwp_child_pubkey', 'option_value' => 'dump-key', 'autoload' => 'yes' ) ) );
+		$state = array( 'identity_preserve' => array( array( 'option_name' => 'mainwp_child_pubkey', 'option_value' => 'live-key', 'autoload' => 'yes' ) ) );
+		$restore = new ReflectionMethod( MainWP_Child_Restore_Task_Runner::class, 'restore_connection_identity' );
+		$restore->setAccessible( true );
+		$restore->invokeArgs( $this->runner, array( &$state ) );
+		$this->assertSame( array( 'option_value' => 'LiveHash12345678', 'autoload' => 'no' ), $wpdb->get_row( "SELECT option_value, autoload FROM `rt_options` WHERE option_name = 'mainwp_backup_dir_hash'", ARRAY_A ) );
+		$this->assertSame( 'live-key', $wpdb->get_var( "SELECT option_value FROM `rt_options` WHERE option_name = 'mainwp_child_pubkey'" ) );
+	}
+
 	public static function committed_swap_answers() {
 		return array( 'committed' => array( array( true ) ), 'transient read failure' => array( array( null, true ) ) );
 	}
