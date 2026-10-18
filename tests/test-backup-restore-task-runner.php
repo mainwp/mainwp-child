@@ -2366,7 +2366,9 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			'combined pack overflow' => array( 'pack-overflow', true, true, true ),
 			'invalid unarchived' => array( 'invalid', true, true, true ),
 			'withheld reconcile' => array( 'withheld', false, false, false ),
+			'pre-change missing walk' => array( 'no-walk', false, false, false ),
 			'pre-change no unarchived' => array( 'old', false, false, false ),
+			'single empty exclude' => array( 'empty-exclude', true, true, false ),
 			'pre-change pack file' => array( 'pack-file', true, false, false ),
 		);
 	}
@@ -2382,7 +2384,9 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		if ( in_array( $mode, array( 'overflow', 'root', 'pack-overflow' ), true ) ) { $options['reconcile']['walk']['unarchived_overflow'] = true; }
 		elseif ( 'invalid' === $mode ) { $options['reconcile']['walk']['unarchived'] = array( '../locked' ); }
 		elseif ( 'withheld' === $mode ) { $options = array(); }
+		elseif ( 'no-walk' === $mode ) { unset( $options['reconcile']['walk'] ); }
 		elseif ( 'old' !== $mode ) { $options['reconcile']['walk']['unarchived'] = array( 'pack-file' === $mode ? 'locked/recreated.txt' : ( 'case' === $mode ? 'LOCKED' : 'locked' ) ); }
+		if ( 'empty-exclude' === $mode ) { $options['reconcile']['walk']['excludes'] = array( '' ); }
 		$artifacts = array(
 			$this->make_named_zip_artifact( 'base.zip', array( 'snapshot.txt' => 'base' ) ),
 			$this->make_named_tombstones_artifact( 'ancestor-tombstones.list', "locked/recreated.txt\noutside.txt\nlocked-sibling.txt\n" ),
@@ -2402,6 +2406,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$all = in_array( $mode, array( 'overflow', 'root', 'pack-overflow', 'invalid' ), true );
 		$cover = $sub['unreadable_cover'] ?? array( 'all' => false, 'prefixes' => array() );
 		$this->assertSame( $all, $cover['all'] );
+		if ( 'no-walk' === $mode ) { $this->assertSame( 'no_walk_params', $sub['verification']['reconcile']['reason'] ); }
 		if ( $all ) {
 			$this->assertSame( 'skipped', $sub['verification']['reconcile']['status'] );
 			$this->assertSame( 'invalid' === $mode ? 'unarchived_invalid' : 'unarchived_overflow', $sub['verification']['reconcile']['reason'] );
@@ -3066,8 +3071,61 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->prepare_reconcile_fixture();
 		$task = $this->drive( $this->make_task( 'files', array( $this->make_part_artifact(), $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) ) ), $options ) );
 		$sub = $this->spine->read_sub_state( $task, $this->dir );
-		$this->assertSame( array( 'status' => 'skipped', 'reason' => 'no_walk_params' ), $sub['verification']['reconcile'] );
+		$this->assertSame( array( 'status' => 'skipped', 'reason' => 'walk_invalid' ), $sub['verification']['reconcile'] );
 		$this->assertFileExists( $this->site . '/wp-content/plugins/persist.php' );
+	}
+
+	public static function invalid_reconcile_walk_cases() {
+		$walk = array( 'excludes' => array( '' ), 'excludenonwp' => 0, 'excludezip' => '0', 'unarchived' => array( 'locked' ) );
+		$cases = array();
+		foreach ( array( 'tag' => array( 'bad<exclude' ), 'octet' => array( 'bad%20exclude' ), 'non-string' => array( 4 ), 'scalar excludes' => 'locked' ) as $name => $excludes ) {
+			$cases[ $name ] = array( array_merge( $walk, array( 'excludes' => $excludes ) ) );
+		}
+		foreach ( array( 'excludes', 'excludenonwp', 'excludezip' ) as $key ) {
+			$missing = $walk;
+			unset( $missing[ $key ] );
+			$cases[ 'missing ' . $key ] = array( $missing );
+		}
+		foreach ( array( 'excludenonwp', 'excludezip' ) as $key ) {
+			foreach ( array( 2, true, null, array() ) as $index => $value ) {
+				$cases[ 'invalid ' . $key . ' ' . $index ] = array( array_merge( $walk, array( $key => $value ) ) );
+			}
+		}
+		$cases['scalar walk'] = array( 'invalid' );
+		$cases['null walk'] = array( null );
+		return $cases;
+	}
+
+	/** @dataProvider invalid_reconcile_walk_cases */
+	public function test_invalid_walk_keeps_all_chain_tombstones_and_records_refusal( $walk ) {
+		$this->prepare_reconcile_fixture();
+		mkdir( $this->site . '/locked' );
+		foreach ( array( 'locked/ancestor.txt', 'locked/leaf.txt', 'outside.txt', 'reconcile-only.txt' ) as $path ) {
+			file_put_contents( $this->site . '/' . $path, 'live bytes' );
+		}
+		$raw = array( 'manifest' => 's1-files.list', 'walk' => $walk );
+		$clean = MainWP_Child_Backup_Reconciler::sanitize_options( $raw );
+		$options = array( 'reconcile' => MainWP_Child_Backup_Reconciler::sanitize_options( $clean ) );
+		$artifacts = array(
+			$this->make_named_zip_artifact( 'base.zip', array( 'snapshot.txt' => 'base' ) ),
+			$this->make_named_tombstones_artifact( 'ancestor-tombstones.list', "locked/ancestor.txt\noutside.txt\n" ),
+			$this->make_named_zip_artifact( 'middle.zip', array( 'middle.txt' => 'middle' ) ),
+			$this->make_named_tombstones_artifact( 'leaf-tombstones.list', "locked/leaf.txt\n" ),
+			$this->make_named_zip_artifact( 'leaf.zip', array( 'snapshot.txt' => 'leaf' ) ),
+			$this->make_manifest_artifact( array( 'snapshot.txt', 'middle.txt' ) ),
+		);
+		$task = $this->drive( $this->make_task( 'files', $artifacts, $options ) );
+		$this->assertSame( 'completed', $task->phase );
+		foreach ( array( 'locked/ancestor.txt', 'locked/leaf.txt', 'outside.txt', 'reconcile-only.txt' ) as $path ) {
+			$this->assertFileExists( $this->site . '/' . $path );
+			$this->assertSame( 'live bytes', file_get_contents( $this->site . '/' . $path ) );
+		}
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertTrue( $sub['unreadable_cover']['all'] );
+		$this->assertSame( array( 'status' => 'skipped', 'reason' => 'walk_invalid' ), $sub['verification']['reconcile'] );
+		$this->assertSame( array( 'manifest' => 's1-files.list', 'skip_reason' => 'walk_invalid' ), $clean );
+		$this->assertSame( $clean, $options['reconcile'] );
+		$this->assertSame( 'leaf', file_get_contents( $this->site . '/snapshot.txt' ) );
 	}
 
 	public function test_reconcile_keeps_recorded_user_exclude() {
@@ -3484,6 +3542,88 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			'FK inserts exceed deletes'   => array( true, 1 ),
 			'FK deletes exceed inserts'   => array( true, -1 ),
 		);
+	}
+
+	public static function backup_directory_restore_cases() {
+		return array(
+			'swap foreign hash' => array( false, 'ForeignHash12345' ),
+			'swap missing hash' => array( false, null ),
+			'FK foreign hash'   => array( true, 'ForeignHash12345' ),
+			'FK missing hash'   => array( true, null ),
+		);
+	}
+
+	/** @dataProvider backup_directory_restore_cases */
+	public function test_database_restore_preserves_backup_directory_across_slices( $fk, $dump_hash ) {
+		global $wpdb;
+		$live_hash = 'LiveHash12345678';
+		$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'mainwp_backup_dir_hash', 'option_value' => $live_hash, 'autoload' => 'no' ) ) );
+		$this->reconcile_fixture_root = $this->dir;
+		$this->dir .= '/backup-' . $live_hash;
+		mkdir( $this->dir );
+		$runner = new class extends Testable_Restore_Task_Runner {
+			public $resolved_directories = array();
+			protected function backup_dir() {
+				global $wpdb;
+				// The fixture options table stands in for the live WordPress options table.
+				$hash = $wpdb->get_var( "SELECT option_value FROM `rt_options` WHERE option_name = 'mainwp_backup_dir_hash'" );
+				$directory = $this->test_backup_dir . '/backup-' . $hash;
+				$this->resolved_directories[] = $directory;
+				return $directory;
+			}
+			protected function checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, $then_yield ) {
+				$sub_state['padding'] = str_repeat( 'x', MainWP_Child_Backup_Task::SUB_STATE_INLINE_MAX );
+				return parent::checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, $then_yield );
+			}
+		};
+		$runner->test_backup_dir = $this->reconcile_fixture_root;
+		$runner->test_site_root = $this->site;
+		$runner->test_content_roots = $this->runner->test_content_roots;
+		$runner->fake_engine = $this->runner->fake_engine;
+		$runner->yield_before_url_rewrite = true;
+		$this->runner = $runner;
+		$engine = $runner->fake_engine;
+		$engine->tables = array( 'options' => array( 'status' => 'ok', 'rows' => null === $dump_hash ? 0 : 1 ) );
+		$became_live = 0;
+		$engine->on_database_live = function () use ( $wpdb, $dump_hash, &$became_live ) {
+			++$became_live;
+			$this->assertNotFalse( $wpdb->query( 'DELETE FROM `rt_options`' ) );
+			if ( null !== $dump_hash ) {
+				$this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => 'mainwp_backup_dir_hash', 'option_value' => $dump_hash, 'autoload' => 'yes' ) ) );
+			}
+		};
+		$artifact = $this->make_db_artifact( $fk );
+		$id = $this->make_task( 'db', array( $artifact ), $fk ? array( 'source_prefix' => 'rt_' ) : array() );
+		if ( ! $fk ) {
+			$initial = $this->spine->read_sub_state( $this->spine->get_task( $id ), $this->dir );
+			$tmp = $engine->tmp_prefix( $initial['params']['restore_id'] ) . 'options';
+			$this->identity_fixture_tables[] = $tmp;
+			$this->assertNotFalse( $wpdb->query( 'CREATE TABLE `' . $tmp . '` LIKE `rt_options`' ) );
+			if ( null !== $dump_hash ) {
+				$this->assertSame( 1, $wpdb->insert( $tmp, array( 'option_name' => 'mainwp_backup_dir_hash', 'option_value' => $dump_hash, 'autoload' => 'yes' ) ) );
+			}
+		}
+		$task = $this->spine->get_task( $id );
+		for ( $slice = 0; $slice < 30 && 0 === $became_live && ! MainWP_Child_Backup_Task::is_terminal_phase( $task->phase ); ++$slice ) {
+			$task = $runner->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
+		}
+		$this->assertSame( 1, $became_live );
+		$this->assertSame( 'rewriting_urls', $task->phase );
+		$this->assertSame( array( 'option_value' => $live_hash, 'autoload' => 'no' ), $wpdb->get_row( "SELECT option_value, autoload FROM `rt_options` WHERE option_name = 'mainwp_backup_dir_hash'", ARRAY_A ) );
+		$this->assertTrue( json_decode( $task->sub_state, true )['_sidecar'] );
+		$state = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertIsArray( $state );
+		$scratch = $this->dir . '/restore-' . $id;
+		file_put_contents( $scratch . '/resume-marker.txt', 'same scratch' );
+		$runner->yield_before_url_rewrite = true;
+		$task = $runner->advance_one_slice( $task, MainWP_Child_Backup_Task_Runner::LEASE_OWNER_DASHBOARD );
+		$this->assertSame( 'rewriting_urls', $task->phase );
+		$this->assertSame( $state['params'], $this->spine->read_sub_state( $task, $this->dir )['params'] );
+		$this->assertSame( array( $this->dir ), array_values( array_unique( $runner->resolved_directories ) ) );
+		$this->assertSame( 'same scratch', file_get_contents( $scratch . '/resume-marker.txt' ) );
+		$this->assertFileExists( $this->dir . '/' . $artifact['file'] );
+		$this->assertSame( 'completed', $this->drive( $id )->phase );
+		$this->assertSame( $live_hash, $wpdb->get_var( "SELECT option_value FROM `rt_options` WHERE option_name = 'mainwp_backup_dir_hash'" ) );
 	}
 
 	/**
@@ -4476,6 +4616,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			'mainwp_child_auth'                   => str_repeat( 'a', 128 ),
 			'mainwp_child_openssl_sign_algo'       => '7',
 			'mainwp_child_backup_task_db_version' => '1',
+			'mainwp_backup_dir_hash'              => 'LiveHash12345678',
 		);
 		$this->assertSame( MainWP_Child_Restore_Task_Runner::IDENTITY_OPTIONS, array_keys( $identity ) );
 		foreach ( $identity as $name => $value ) {
@@ -4489,7 +4630,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $task->phase );
 		$state = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertIsArray( $state );
-		$this->assertCount( 3 * $limit + 8, $state['identity_preserve'] );
+		$this->assertCount( 3 * $limit + 9, $state['identity_preserve'] );
 		$this->assertTrue( $state['db_replay']['snapshot_done'] );
 		$this->assertNotEmpty( $state['fk_snapshot']['files'] );
 		$this->assertArrayHasKey( 'params', $state );

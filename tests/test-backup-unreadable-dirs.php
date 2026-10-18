@@ -9,6 +9,7 @@ namespace MainWP\Child {
     class Backup_Unreadable_Test_FS {
         public static $glob_fail = array();
         public static $scandir_fail = array();
+        public static $opendir_fail = array();
     }
 
     function glob( $pattern, $flags = 0 ) {
@@ -21,6 +22,13 @@ namespace MainWP\Child {
         }
         return null === $context ? \scandir( $directory, $sorting_order ) : \scandir( $directory, $sorting_order, $context );
     }
+
+    function opendir( $directory, $context = null ) {
+        if ( isset( Backup_Unreadable_Test_FS::$opendir_fail[ rtrim( $directory, '/' ) ] ) ) {
+            return false;
+        }
+        return null === $context ? \opendir( $directory ) : \opendir( $directory, $context );
+    }
 }
 
 namespace {
@@ -30,6 +38,12 @@ namespace {
     use MainWP\Child\MainWP_Child_Backup_Path_Cover;
     use MainWP\Child\MainWP_Child_Backup_Task_Runner;
     use MainWP\Child\Tar_Archiver;
+
+    class Unreadable_Config_Task_Runner extends MainWP_Child_Backup_Task_Runner {
+        public $directory;
+        protected function backup_dir() { return $this->directory; }
+        protected function dump_heartbeat() { return static function () {}; }
+    }
 
     class Unreadable_Cover_Runner extends MainWP_Child_Backup_Task_Runner {
         public $root;
@@ -56,6 +70,10 @@ namespace {
         private $runner;
         private $skips;
         private $listener;
+        private $config_directory;
+        private $config_prefix;
+        private $config_task_id;
+        private $config_created_dirs = array();
 
         public function set_up() {
             parent::set_up();
@@ -74,8 +92,20 @@ namespace {
         public function tear_down() {
             Backup_Unreadable_Test_FS::$glob_fail = array();
             Backup_Unreadable_Test_FS::$scandir_fail = array();
+            Backup_Unreadable_Test_FS::$opendir_fail = array();
             remove_action( 'mainwp_child_backup_skipped_path', $this->listener, 10 );
             MainWP_Backup::reset_skipped_paths();
+            if ( $this->config_task_id ) {
+                \MainWP\Child\MainWP_Child_Backup_Mutex::release( $this->config_task_id );
+                global $wpdb;
+                $spine = \MainWP\Child\MainWP_Child_Backup_Task::instance();
+                $spine->delete_sidecar( $this->config_task_id, $this->config_directory );
+                $wpdb->delete( $spine->get_table_name(), array( 'task_id' => $this->config_task_id ) );
+            }
+            if ( $this->config_directory ) {
+                foreach ( glob( $this->config_directory . '/*' . $this->config_prefix . '*' ) as $file ) { unlink( $file ); }
+            }
+            foreach ( $this->config_created_dirs as $directory ) { rmdir( $directory ); }
             $this->remove_tree( $this->dir );
             parent::tear_down();
         }
@@ -92,6 +122,152 @@ namespace {
 
         private function state() {
             return array( '_skip_report' => array( 'seen' => array(), 'skipped_count' => 0, 'skipped_paths' => array(), 'skipped_by_reason' => array() ) );
+        }
+
+        private function config_backup( $engine, $duplicate_path = '' ) {
+            if ( 'zip' === $engine && ! class_exists( 'ZipArchive' ) ) { $this->markTestSkipped( 'ZipArchive is unavailable.' ); }
+            foreach ( array( 'plugins', 'themes' ) as $name ) {
+                $directory = WP_CONTENT_DIR . '/' . $name;
+                if ( ! is_dir( $directory ) ) {
+                    $this->assertTrue( mkdir( $directory ) );
+                    $this->config_created_dirs[] = $directory;
+                }
+            }
+            $this->config_directory = rtrim( \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup', false )[0], '/' );
+            $this->config_prefix = 'config-unreadable-' . uniqid();
+            $backup = new class extends MainWP_Backup {
+                public $duplicate_path = '';
+                public function glob_backup_nodes( $dir ) {
+                    if ( '' !== $this->duplicate_path ) {
+                        ( new Unreadable_Sliced_Walker( ABSPATH ) )->list_directory( $this->duplicate_path );
+                    }
+                    return array();
+                }
+                public function heartbeat() {}
+                public function extend_archive_mutex_lease() {}
+                public function get_or_create_db_dump_files( $prefix, &$archiver = null ) { return array(); }
+            };
+            $backup->duplicate_path = $duplicate_path;
+            return $backup;
+        }
+
+        private function create_config_archive( $backup, $engine ) {
+            return $backup->create_full_backup( array( '.htaccess' ), '', true, true, 0, $this->config_prefix . '.' . $engine, false, false, true, $engine, false, true );
+        }
+
+        private function archive_config( $file, $engine ) {
+            if ( 'zip' === $engine ) {
+                $zip = new \ZipArchive();
+                $this->assertTrue( $zip->open( $file ) );
+                $json = $zip->getFromName( 'clone/config.txt' );
+                $zip->close();
+            } else {
+                $bytes = file_get_contents( $file );
+                $json = false;
+                for ( $offset = 0; $offset + 512 <= strlen( $bytes ); ) {
+                    $header = substr( $bytes, $offset, 512 );
+                    $size = octdec( trim( substr( $header, 124, 12 ), " \0" ) );
+                    if ( 'clone/config.txt' === rtrim( substr( $header, 0, 100 ), "\0" ) ) {
+                        $json = substr( $bytes, $offset + 512, $size );
+                        break;
+                    }
+                    $offset += 512 + (int) ( ceil( $size / 512 ) * 512 );
+                }
+            }
+            $this->assertNotFalse( $json, 'The real config writer must be included in the archive.' );
+            $config = json_decode( $json, true );
+            $this->assertIsArray( $config );
+            return $config;
+        }
+
+        private function config_inventory( $name ) {
+            $directory = WP_CONTENT_DIR . '/' . $name;
+            $entries = array();
+            foreach ( scandir( $directory ) as $entry ) {
+                if ( '.' !== $entry && '..' !== $entry && is_dir( $directory . '/' . $entry ) ) { $entries[] = $entry; }
+            }
+            sort( $entries, SORT_STRING );
+            return $entries;
+        }
+
+        public static function config_directory_cases() {
+            return array( 'zip plugins' => array( 'zip', 'plugins' ), 'zip themes' => array( 'zip', 'themes' ), 'tar plugins' => array( 'tar', 'plugins' ), 'tar themes' => array( 'tar', 'themes' ) );
+        }
+
+        public static function native_config_directory_cases() {
+            $cases = array();
+            foreach ( self::config_directory_cases() as $name => $case ) {
+                $cases[ $name ] = array( $case[0], $case[1], false );
+                $cases[ $name . ' also walked' ] = array( $case[0], $case[1], true );
+            }
+            return $cases;
+        }
+
+        /** @dataProvider native_config_directory_cases */
+        public function test_native_config_unreadable_directory_completes_partial_once( $engine, $name, $also_walked ) {
+            $path = WP_CONTENT_DIR . '/' . $name;
+            $backup = $this->config_backup( $engine, $also_walked ? $path : '' );
+            $other = 'plugins' === $name ? 'themes' : 'plugins';
+            $expected_other = $this->config_inventory( $other );
+            Backup_Unreadable_Test_FS::$opendir_fail[ $path ] = true;
+            if ( $also_walked ) { Backup_Unreadable_Test_FS::$scandir_fail[ $path ] = true; }
+            $instance = new \ReflectionProperty( MainWP_Backup::class, 'instance' );
+            $instance->setAccessible( true );
+            $previous = $instance->getValue();
+            try {
+                $instance->setValue( null, $backup );
+                $runner = new Unreadable_Config_Task_Runner();
+                $runner->directory = $this->config_directory;
+                $this->config_task_id = $runner->create_task_for_params( 'files', array( 'ext' => $engine, 'file' => $this->config_prefix, 'excludes' => array( '.htaccess' ) ) );
+                $spine = \MainWP\Child\MainWP_Child_Backup_Task::instance();
+                $task = $spine->get_task( $this->config_task_id );
+                for ( $slice = 0; $slice < 20 && ! $spine::is_terminal_phase( $task->phase ); ++$slice ) {
+                    $task = $runner->advance_one_slice( $task, 'config-test' );
+                }
+                $this->assertSame( 'completed', $task->phase );
+                $state = $spine->read_sub_state( $task, $this->config_directory );
+                $payload = $spine->status_payload( $task, $this->config_directory );
+                $relative = substr( $path, strlen( ABSPATH ) );
+                $this->assertSame( 'partial', $payload['content_status'] );
+                $this->assertSame( 1, $state['_skip_report']['skipped_count'] );
+                $this->assertSame( array( 'unreadable' => 1 ), $state['_skip_report']['skipped_by_reason'] );
+                $this->assertSame( array( $relative ), $state['_skip_report']['skipped_paths'] );
+                $this->assertSame( array( $relative ), array_values( $state['_unreadable']['paths'] ) );
+                $this->assertFalse( $state['_unreadable']['unlisted'] );
+                $this->assertSame( array( $path ), MainWP_Backup::get_skipped_paths() );
+                $this->assertCount( $also_walked ? 2 : 1, $this->skips );
+                $this->assertSame( 0, $backup->get_failed_add_count() );
+                $config = $this->archive_config( $this->config_directory . '/' . $state['artifact']['file'], $engine );
+                $this->assertSame( array(), $config[ $name ] );
+                sort( $config[ $other ], SORT_STRING );
+                $this->assertSame( $expected_other, $config[ $other ] );
+            } finally {
+                $instance->setValue( null, $previous );
+            }
+        }
+
+        /** @dataProvider config_directory_cases */
+        public function test_legacy_config_unreadable_directory_throws_exception( $engine, $name ) {
+            $backup = $this->config_backup( $engine );
+            Backup_Unreadable_Test_FS::$opendir_fail[ WP_CONTENT_DIR . '/' . $name ] = true;
+            $this->expectException( \UnexpectedValueException::class );
+            $this->create_config_archive( $backup, $engine );
+        }
+
+        /** @dataProvider root_archive_engines */
+        public function test_readable_config_keeps_plugin_and_theme_lists( $engine ) {
+            $backup = $this->config_backup( $engine );
+            $expected = array( 'plugins' => $this->config_inventory( 'plugins' ), 'themes' => $this->config_inventory( 'themes' ) );
+            $backup->set_native_task( true );
+            $result = $this->create_config_archive( $backup, $engine );
+            $this->assertIsArray( $result );
+            $config = $this->archive_config( $this->config_directory . '/' . $result['file'], $engine );
+            foreach ( $expected as $name => $entries ) {
+                sort( $config[ $name ], SORT_STRING );
+                $this->assertSame( $entries, $config[ $name ] );
+            }
+            $this->assertSame( array(), MainWP_Backup::get_skipped_paths() );
+            $this->assertSame( 0, $backup->get_failed_add_count() );
         }
 
         private function lock_directory( $path ) {

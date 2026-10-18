@@ -56,11 +56,15 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
         }
         $clean = array( 'manifest' => $raw['manifest'] );
         // The callable and restore slices sanitize separately; a refusal must survive both.
-        if ( isset( $raw['skip_reason'] ) && in_array( $raw['skip_reason'], array( 'unarchived_invalid', 'unarchived_overflow' ), true ) ) {
+        if ( isset( $raw['skip_reason'] ) && in_array( $raw['skip_reason'], array( 'unarchived_invalid', 'unarchived_overflow', 'walk_invalid' ), true ) ) {
             $clean['skip_reason'] = $raw['skip_reason'];
             return $clean;
         }
-        if ( ! isset( $raw['walk'] ) || ! is_array( $raw['walk'] ) ) {
+        if ( ! array_key_exists( 'walk', $raw ) ) {
+            return $clean;
+        }
+        if ( ! is_array( $raw['walk'] ) ) {
+            $clean['skip_reason'] = 'walk_invalid';
             return $clean;
         }
         $walk = $raw['walk'];
@@ -93,20 +97,24 @@ class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Dif
             }
         }
         if ( ! isset( $walk['excludes'], $walk['excludenonwp'], $walk['excludezip'] ) || ! is_array( $walk['excludes'] ) ) {
+            $clean['skip_reason'] = 'walk_invalid';
             return $clean;
         }
         foreach ( array( 'excludenonwp', 'excludezip' ) as $flag ) {
             if ( ! in_array( $walk[ $flag ], array( 0, 1, '0', '1' ), true ) ) {
+                $clean['skip_reason'] = 'walk_invalid';
                 return $clean;
             }
         }
         $excludes = array();
         foreach ( $walk['excludes'] as $exclude ) {
             if ( ! is_string( $exclude ) ) {
+                $clean['skip_reason'] = 'walk_invalid';
                 return $clean;
             }
             $sanitized = sanitize_text_field( rtrim( $exclude, '/' ) );
             if ( rtrim( $exclude, '/' ) !== $sanitized ) {
+                $clean['skip_reason'] = 'walk_invalid';
                 return $clean;
             }
             // An empty user exclude list arrives as one empty entry; it excludes nothing and must not void the block.

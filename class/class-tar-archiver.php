@@ -586,6 +586,7 @@ class Tar_Archiver {
      * @see https://developer.wordpress.org/reference/functions/get_bloginfo/
      *
      * @used-by Tar_Archiver::create_full_backup() Create full backup.
+     * @throws \UnexpectedValueException When a legacy backup cannot report incomplete configuration.
      */
     private function add_config() {
 
@@ -598,31 +599,49 @@ class Tar_Archiver {
 
         $plugins = array();
         $dir     = WP_CONTENT_DIR . '/plugins/';
-        $fh      = opendir( $dir );
-        while ( $entry = readdir( $fh ) ) {
-            if ( ! is_dir( $dir . $entry ) ) {
-                continue;
+        $fh      = @opendir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- listing failures follow the native partial-content policy.
+        if ( false === $fh ) {
+            if ( null === $this->backup || ! $this->backup->is_native_task() ) {
+                throw new \UnexpectedValueException( 'The backup configuration directory could not be listed.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message contains no path or external input.
             }
-            if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
-                continue;
+            if ( is_dir( $dir ) ) {
+                MainWP_Backup::record_skipped_path( rtrim( $dir, '/' ), 'unreadable' );
             }
-            $plugins[] = $entry;
+        } else {
+            while ( $entry = readdir( $fh ) ) {
+                if ( ! is_dir( $dir . $entry ) ) {
+                    continue;
+                }
+                if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
+                    continue;
+                }
+                $plugins[] = $entry;
+            }
+            closedir( $fh );
         }
-        closedir( $fh );
 
         $themes = array();
         $dir    = WP_CONTENT_DIR . '/themes/';
-        $fh     = opendir( $dir );
-        while ( $entry = readdir( $fh ) ) {
-            if ( ! is_dir( $dir . $entry ) ) {
-                continue;
+        $fh     = @opendir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- listing failures follow the native partial-content policy.
+        if ( false === $fh ) {
+            if ( null === $this->backup || ! $this->backup->is_native_task() ) {
+                throw new \UnexpectedValueException( 'The backup configuration directory could not be listed.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message contains no path or external input.
             }
-            if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
-                continue;
+            if ( is_dir( $dir ) ) {
+                MainWP_Backup::record_skipped_path( rtrim( $dir, '/' ), 'unreadable' );
             }
-            $themes[] = $entry;
+        } else {
+            while ( $entry = readdir( $fh ) ) {
+                if ( ! is_dir( $dir . $entry ) ) {
+                    continue;
+                }
+                if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
+                    continue;
+                }
+                $themes[] = $entry;
+            }
+            closedir( $fh );
         }
-        closedir( $fh );
 
         $string = wp_json_encode(
             array(

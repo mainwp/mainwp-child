@@ -1476,7 +1476,7 @@ class MainWP_Backup {
      * @param string $reason Traversal refusal.
      */
     public static function record_skipped_path( $path, $reason = 'unsafe' ) {
-        if ( count( static::$skipped_paths ) < 100 ) {
+        if ( count( static::$skipped_paths ) < 100 && ( 'unreadable' !== $reason || ! in_array( (string) $path, static::$skipped_paths, true ) ) ) {
             static::$skipped_paths[] = (string) $path;
         }
         /**
@@ -2148,6 +2148,7 @@ class MainWP_Backup {
      *
      * @uses get_option() Get option by name.
      * @see https://developer.wordpress.org/reference/functions/get_option/
+     * @throws \UnexpectedValueException When a legacy backup cannot report incomplete configuration.
      */
     public function add_config() {
 
@@ -2160,31 +2161,49 @@ class MainWP_Backup {
 
         $plugins = array();
         $dir     = WP_CONTENT_DIR . '/plugins/';
-        $fh      = opendir( $dir );
-        while ( $entry = readdir( $fh ) ) {
-            if ( ! is_dir( $dir . $entry ) ) {
-                continue;
+        $fh      = @opendir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- listing failures follow the native partial-content policy.
+        if ( false === $fh ) {
+            if ( ! $this->native_task ) {
+                throw new \UnexpectedValueException( 'The backup configuration directory could not be listed.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message contains no path or external input.
             }
-            if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
-                continue;
+            if ( is_dir( $dir ) ) {
+                static::record_skipped_path( rtrim( $dir, '/' ), 'unreadable' );
             }
-            $plugins[] = $entry;
+        } else {
+            while ( $entry = readdir( $fh ) ) {
+                if ( ! is_dir( $dir . $entry ) ) {
+                    continue;
+                }
+                if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
+                    continue;
+                }
+                $plugins[] = $entry;
+            }
+            closedir( $fh );
         }
-        closedir( $fh );
 
         $themes = array();
         $dir    = WP_CONTENT_DIR . '/themes/';
-        $fh     = opendir( $dir );
-        while ( $entry = readdir( $fh ) ) {
-            if ( ! is_dir( $dir . $entry ) ) {
-                continue;
+        $fh     = @opendir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- listing failures follow the native partial-content policy.
+        if ( false === $fh ) {
+            if ( ! $this->native_task ) {
+                throw new \UnexpectedValueException( 'The backup configuration directory could not be listed.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message contains no path or external input.
             }
-            if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
-                continue;
+            if ( is_dir( $dir ) ) {
+                static::record_skipped_path( rtrim( $dir, '/' ), 'unreadable' );
             }
-            $themes[] = $entry;
+        } else {
+            while ( $entry = readdir( $fh ) ) {
+                if ( ! is_dir( $dir . $entry ) ) {
+                    continue;
+                }
+                if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
+                    continue;
+                }
+                $themes[] = $entry;
+            }
+            closedir( $fh );
         }
-        closedir( $fh );
         $string = wp_json_encode(
             array(
                 'siteurl' => get_option( 'siteurl' ),

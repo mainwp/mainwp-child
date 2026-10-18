@@ -230,6 +230,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         'mainwp_child_auth',
         'mainwp_child_openssl_sign_algo',
         'mainwp_child_backup_task_db_version',
+        'mainwp_backup_dir_hash',
     );
 
     /**
@@ -1762,7 +1763,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             if ( ! isset( $sub_state['unreadable_cover'] ) ) {
                 // Params are immutable, so older cursors capture the same leaf coverage even after a partial restore.
                 $sub_state['unreadable_cover'] = array(
-                    'all'      => in_array( $options['skip_reason'] ?? '', array( 'unarchived_overflow', 'unarchived_invalid' ), true ),
+                    'all'      => isset( $options['skip_reason'] ),
                     'prefixes' => $options['walk']['unarchived'] ?? array(),
                 );
             }
