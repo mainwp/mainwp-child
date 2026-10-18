@@ -600,14 +600,13 @@ class Tar_Archiver {
         $plugins = array();
         $dir     = WP_CONTENT_DIR . '/plugins/';
         $fh      = @opendir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- listing failures follow the native partial-content policy.
-        if ( false === $fh ) {
+        // A missing folder has nothing to list; only an existing one that cannot be read is a skip or a legacy failure.
+        if ( false === $fh && is_dir( $dir ) ) {
             if ( null === $this->backup || ! $this->backup->is_native_task() ) {
                 throw new \UnexpectedValueException( 'The backup configuration directory could not be listed.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message contains no path or external input.
             }
-            if ( is_dir( $dir ) ) {
-                MainWP_Backup::record_skipped_path( rtrim( $dir, '/' ), 'unreadable' );
-            }
-        } else {
+            MainWP_Backup::record_skipped_path( rtrim( $dir, '/' ), 'unreadable' );
+        } elseif ( false !== $fh ) {
             while ( $entry = readdir( $fh ) ) {
                 if ( ! is_dir( $dir . $entry ) ) {
                     continue;
@@ -623,14 +622,13 @@ class Tar_Archiver {
         $themes = array();
         $dir    = WP_CONTENT_DIR . '/themes/';
         $fh     = @opendir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- listing failures follow the native partial-content policy.
-        if ( false === $fh ) {
+        // A missing folder has nothing to list; only an existing one that cannot be read is a skip or a legacy failure.
+        if ( false === $fh && is_dir( $dir ) ) {
             if ( null === $this->backup || ! $this->backup->is_native_task() ) {
                 throw new \UnexpectedValueException( 'The backup configuration directory could not be listed.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message contains no path or external input.
             }
-            if ( is_dir( $dir ) ) {
-                MainWP_Backup::record_skipped_path( rtrim( $dir, '/' ), 'unreadable' );
-            }
-        } else {
+            MainWP_Backup::record_skipped_path( rtrim( $dir, '/' ), 'unreadable' );
+        } elseif ( false !== $fh ) {
             while ( $entry = readdir( $fh ) ) {
                 if ( ! is_dir( $dir . $entry ) ) {
                     continue;
