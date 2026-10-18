@@ -507,6 +507,41 @@ class Test_Backup_Pending_Delete extends WP_UnitTestCase {
         $this->assertFalse( wp_next_scheduled( MainWP_Child_Backup_Task::PENDING_DELETE_HOOK ) );
     }
 
+    /** @dataProvider linked_retry_provider */
+    public function test_retry_of_a_name_that_became_a_link_drops_entry_without_deleting( $link_directory ) {
+        if ( ! function_exists( 'symlink' ) ) {
+            $this->markTestSkipped( 'symlink() is unavailable.' );
+        }
+        $name = 'backup-linked-later.zip';
+        $path = $this->fixture( $name );
+        $this->queue( $name );
+        $outside_dir = $this->root . '/outside';
+        wp_mkdir_p( $outside_dir );
+        // rename() keeps size and mtime, so only the link checks can refuse the retry.
+        if ( $link_directory ) {
+            $hashed = rtrim( $this->dir, '/' );
+            $this->assertTrue( rename( $hashed, $outside_dir . '/moved' ) );
+            $this->assertTrue( symlink( $outside_dir . '/moved', $hashed ) );
+            $target = $outside_dir . '/moved/' . $name;
+        } else {
+            $target = $outside_dir . '/' . $name;
+            $this->assertTrue( rename( $path, $target ) );
+            $this->assertTrue( symlink( $target, $path ) );
+        }
+        clearstatcache();
+        $this->spine->retry_pending_deletes( $this->dir );
+        clearstatcache();
+        $this->assertFileExists( $target );
+        $this->assertSame( array(), $this->entries() );
+        if ( $link_directory ) {
+            unlink( rtrim( $this->dir, '/' ) );
+        }
+    }
+
+    public static function linked_retry_provider() {
+        return array( 'name is a link' => array( false ), 'backup directory is a link' => array( true ) );
+    }
+
     /** @dataProvider corrupt_list_provider */
     public function test_corrupt_or_hostile_list_cannot_delete_other_files( $json ) {
         $protected = $this->fixture( 'wp-config.php', 'protected' );

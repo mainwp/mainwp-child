@@ -584,6 +584,32 @@ class Test_MainWP_Child_Delete_Backup_Filename extends WP_UnitTestCase {
         return array( 'stolen' => array( false ), 'expired' => array( true ) );
     }
 
+    /** @dataProvider backup_directory_provider */
+    public function test_link_or_directory_is_refused_before_the_mutex_and_never_queued( $legacy ) {
+        if ( ! function_exists( 'symlink' ) ) {
+            $this->markTestSkipped( 'symlink() is unavailable.' );
+        }
+        $backupdir = $legacy ? $this->legacy_backupdir : $this->backupdir;
+        $target    = $backupdir . 'original.zip';
+        $link      = $backupdir . 'linked.zip';
+        $directory = $backupdir . 'directory.zip';
+        $this->create_fixture( $target );
+        $this->assertTrue( symlink( $target, $link ) );
+        $this->fixture_files[] = $link;
+        $this->assertTrue( wp_mkdir_p( $directory ) );
+        $this->assertTrue( MainWP_Child_Backup_Mutex::acquire( 'native', 'busy-holder', 600 ) );
+        try {
+            $this->assert_ok_reply( 'linked.zip' );
+            $this->assert_ok_reply( 'directory.zip' );
+        } finally {
+            MainWP_Child_Backup_Mutex::release( 'busy-holder' );
+        }
+        $this->assertFileExists( $target );
+        $this->assertTrue( is_link( $link ) );
+        $this->assertDirectoryExists( $directory );
+        $this->assertFileDoesNotExist( $this->backupdir . 'pending-delete.json' );
+    }
+
     public function test_unreadable_live_cursor_refuses_download_delete() {
         global $wpdb;
         $name = 'backup-unknown-claim.zip';

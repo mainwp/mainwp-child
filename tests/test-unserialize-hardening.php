@@ -531,8 +531,6 @@ class UnserializeHardeningTest extends WP_UnitTestCase {
 		$allowed = array(
 			'class-mainwp-child.php'               => 1, // local wp_options row; mirrors WP core; not dashboard-fed.
 			'class-mainwp-client-report-base.php'  => 1, // local activity-log author_meta; not dashboard-fed.
-			'class-mainwp-child-plugins-check.php' => 1, // third-party update-API body; needs the live object; external trust boundary.
-			'class-mainwp-child-themes-check.php'  => 1, // third-party update-API body; needs the live object; external trust boundary.
 			'class-mainwp-child-back-up-buddy.php' => 1, // BackupBuddy's own scan result; not dashboard-fed.
 		);
 

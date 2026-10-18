@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 6.2.2
+Stable tag: 6.3
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -156,6 +156,16 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 * Added: Multisite network backup and restore.
 * Added: Backup and restore capability reporting so the Dashboard can refuse an operation this version does not support instead of failing it midway.
 * Updated: File backups and restores are refused on sites where wp-content lives outside the WordPress core folder (Pressable, WordPress.com, Bedrock layouts). Database backups still run.
+
+= 6.3 - 10-13-2026 =
+
+* Fixed: WordPress core update activity logs now show the correct versions before and after an update.
+* Fixed: Premium updates no longer remain listed after they have already been installed on the Child site and synchronized.
+* Fixed: User role-change activity logs now record the previous and new roles correctly.
+* Fixed: Prevented background asset checks and HTML Regression synchronization from failing before WordPress asset handling was initialized.
+* Fixed: Comment moderation now reports only changes completed by WordPress and continues bulk actions when comments are missing or invalid.
+* Fixed: Downloads opened through one-click login no longer fail as unauthorized, including UpdraftPlus backups and other protected links.
+* Updated: Upgraded the bundled PHPSecLib library to address upstream security issues and improve compatibility.
 
 = 6.2.2 - 10-5-2026 =
 

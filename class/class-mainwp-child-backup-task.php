@@ -1615,7 +1615,7 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * @param string $path Located path.
      * @return string|false
      */
-    private function download_delete_target( $path ) {
+    public function download_delete_target( $path ) {
         if ( is_link( $path ) || is_link( dirname( $path ) ) ) {
             return false;
         }

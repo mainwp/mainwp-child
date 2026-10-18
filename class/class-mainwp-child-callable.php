@@ -1820,7 +1820,8 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             return $ok;
         }
         $path = MainWP_Helper::locate_backup_file( $file );
-        if ( false === $path ) {
+        // A link, a non-file or a name outside its directory is refused before the native lock, so it is never queued for retry.
+        if ( false === $path || false === MainWP_Child_Backup_Task::instance()->download_delete_target( $path ) ) {
             return $ok;
         }
         $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
