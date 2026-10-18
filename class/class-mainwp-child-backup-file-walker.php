@@ -614,7 +614,7 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
         if ( $is_root ) {
             $children = glob( $dir . '*' );
             // glob without GLOB_ERR cannot distinguish an empty root from an unreadable one.
-            if ( false === $children || false === @scandir( $dir, SCANDIR_SORT_NONE ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- listing failure becomes partial coverage.
+            if ( false === $children || ( array() === $children && false === @scandir( $dir, SCANDIR_SORT_NONE ) ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- listing failure becomes partial coverage.
                 if ( is_dir( $dir ) ) {
                     MainWP_Backup::record_skipped_path( rtrim( $dir, '/' ), 'unreadable' );
                 }

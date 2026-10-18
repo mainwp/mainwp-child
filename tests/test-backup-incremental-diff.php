@@ -51,6 +51,28 @@ class BackupIncrementalDiffTest extends WP_UnitTestCase {
 		$this->assertSame( $before, file_get_contents( $current ), 'Carried parent rows never enter the current manifest.' );
 	}
 
+	public function test_unreadable_backslash_prefix_diff_algorithms_agree() {
+		$parent = $this->write_list( 'parent.list', array(
+			array( 'outside.txt', 1, 1 ),
+			array( 'uploads/locked\\set/f.txt', 2, 2 ),
+			array( 'uploads/locked\\set/g.txt', 3, 3 ),
+			array( 'uploads/locked\\sets/sibling.txt', 4, 4 ),
+		) );
+		$current = $this->write_list( 'current.list', array( array( 'new.txt', 5, 5 ) ) );
+		$prefixes = array( 'uploads/locked\\set' );
+		$map = $this->diff->load_parent_map( $parent );
+		$stream = $this->diff->stream_diff( $current, $map['map'], $this->dir . '/changes-map', $this->dir . '/tombs-map', $prefixes );
+		$sorted = $this->diff->sorted_merge_diff( $parent, $current, $this->dir . '/changes-sorted', $this->dir . '/tombs-sorted', $prefixes );
+		$this->assertTrue( $sorted['valid'] );
+		unset( $sorted['valid'] );
+		$this->assertSame( array( 'changes' => 1, 'tombstones' => 2, 'carried' => 2 ), $stream );
+		$this->assertSame( $stream, $sorted );
+		$this->assertSame( array( array( 'outside.txt' ), array( 'uploads/locked\\sets/sibling.txt' ) ), $this->read_list( $this->dir . '/tombs-map' ) );
+		$this->assertSame( array( array( 'new.txt', '5', '5' ) ), $this->read_list( $this->dir . '/changes-map' ) );
+		$this->assertSame( file_get_contents( $this->dir . '/changes-map' ), file_get_contents( $this->dir . '/changes-sorted' ) );
+		$this->assertSame( file_get_contents( $this->dir . '/tombs-map' ), file_get_contents( $this->dir . '/tombs-sorted' ) );
+	}
+
 	public function test_unreadable_suppression_covers_current_exhausted_tail_and_still_archives_changes() {
 		$parent = $this->write_list( 'parent.list', array( array( 'a.txt', 1, 1 ), array( 'locked/last.txt', 2, 2 ), array( 'z.txt', 3, 3 ) ) );
 		$current = $this->write_list( 'current.list', array( array( 'a.txt', 9, 1 ) ) );

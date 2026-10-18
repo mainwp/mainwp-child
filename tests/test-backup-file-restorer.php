@@ -1538,6 +1538,30 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		foreach ( array( 'a/b/x', 'uploads/locked/f.txt', 'mainwp-htaccess' ) as $path ) { $this->assertSame( 'live bytes', file_get_contents( $this->extract_to . '/' . $path ) ); }
 	}
 
+	public static function unreadable_htaccess_prefixes() {
+		return array(
+			'original name' => array( 'wp-content/mainwp-htaccess' ),
+			'mapped name' => array( 'wp-content/.htaccess' ),
+		);
+	}
+
+	/** @dataProvider unreadable_htaccess_prefixes */
+	public function test_unreadable_tombstones_keep_original_and_mapped_htaccess_coverage( $prefix ) {
+		mkdir( $this->extract_to . '/wp-content' );
+		$path = $this->extract_to . '/wp-content/mainwp-htaccess';
+		file_put_contents( $path, 'live bytes' );
+		file_put_contents( $this->extract_to . '/wp-content/uncovered.txt', 'remove' );
+		$tombstones = $this->dir . '/htaccess-tombstones.list';
+		file_put_contents( $tombstones, "wp-content/mainwp-htaccess\nwp-content/uncovered.txt\n" );
+		$cursor = array();
+		$cover = array( 'all' => false, 'prefixes' => array( $prefix ) );
+		$out = $this->restorer->apply_tombstones( $tombstones, $this->extract_to, array(), $cursor, null, array(), $cover );
+		$this->assertNull( $out['error'] );
+		$this->assertSame( 1, $out['deleted'] );
+		$this->assertSame( 'live bytes', file_get_contents( $path ) );
+		$this->assertFileDoesNotExist( $this->extract_to . '/wp-content/uncovered.txt' );
+	}
+
 	public function test_unreadable_all_suppresses_deletion_but_still_rejects_hostile_tombstone_lines() {
 		file_put_contents( $this->extract_to . '/live.txt', 'keep' );
 		$tombstones = $this->dir . '/all-tombstones.list';

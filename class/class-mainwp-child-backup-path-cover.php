@@ -18,10 +18,17 @@ class MainWP_Child_Backup_Path_Cover {
      * Prepare a lookup once for a potentially site-sized deletion pass.
      *
      * @param string[] $paths Validated relative paths.
-     * @return array Case-folded prefix set.
+     * @return array Normalized, case-folded prefix set.
      */
     public static function prefix_set( $paths ) {
-        return array_fill_keys( array_map( 'strtolower', $paths ), true );
+        $prefixes = array();
+        foreach ( $paths as $path ) {
+            $path = self::normalize( $path );
+            if ( '' !== $path ) {
+                $prefixes[ $path ] = true;
+            }
+        }
+        return $prefixes;
     }
 
     /**
@@ -32,7 +39,7 @@ class MainWP_Child_Backup_Path_Cover {
      * @return bool Whether deletion would cross unreadable coverage.
      */
     public static function contains( $path, $prefixes ) {
-        $path = strtolower( implode( '/', array_diff( explode( '/', wp_normalize_path( $path ) ), array( '', '.' ) ) ) );
+        $path = self::normalize( $path );
         while ( '' !== $path ) {
             if ( isset( $prefixes[ $path ] ) ) {
                 return true;
@@ -44,5 +51,15 @@ class MainWP_Child_Backup_Path_Cover {
             $path = substr( $path, 0, $slash );
         }
         return false;
+    }
+
+    /**
+     * Keep prefixes and candidates comparable across path aliases.
+     *
+     * @param string $path Relative path.
+     * @return string Normalized comparison key.
+     */
+    private static function normalize( $path ) {
+        return strtolower( implode( '/', array_diff( explode( '/', wp_normalize_path( $path ) ), array( '', '.' ) ) ) );
     }
 }

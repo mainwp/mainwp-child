@@ -185,7 +185,7 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 		$this->runner->stubs['walk_manifest_slice'] = function ( $params, $dir, $cursor, $deadline ) {
 			return ( new \MainWP\Child\MainWP_Child_Backup_File_Walker( $this->site ) )->emit_sidecars_slice( $dir, $cursor, $deadline );
 		};
-		\MainWP\Child\Backup_Unreadable_Test_FS::$scandir_fail[ $this->site ] = true;
+		\MainWP\Child\Backup_Unreadable_Test_FS::$glob_fail[ $this->site . '/*' ] = true;
 		try {
 			$id = $this->create_report_task( $type, 'incremental' === $type ? array( 'parent_manifest_b64' => base64_encode( $this->parent_manifest_content() ) ) : array() );
 			for ( $i = 0; $i < 10; ++$i ) { $task = $this->advance( $id ); if ( 'completed' === $task->phase || 'failed' === $task->phase ) { break; } }
@@ -198,7 +198,7 @@ class BackupTaskIncrementalTest extends WP_UnitTestCase {
 			$this->assertSame( array( 'unreadable' => 1 ), $walk['skipped_by_reason'] );
 			if ( 'incremental' === $type ) { $this->assertSame( '', file_get_contents( $this->backup_dir . '/tombstones.list' ) ); }
 		} finally {
-			\MainWP\Child\Backup_Unreadable_Test_FS::$scandir_fail = array();
+			\MainWP\Child\Backup_Unreadable_Test_FS::$glob_fail = array();
 		}
 	}
 

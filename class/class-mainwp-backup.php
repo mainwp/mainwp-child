@@ -68,7 +68,7 @@ class MainWP_Backup {
         $dir   = trailingslashit( $dir );
         $nodes = glob( $dir . '*' );
         // glob without GLOB_ERR also returns an empty array for an unreadable root.
-        if ( $this->native_task && ( false === $nodes || false === @scandir( $dir, SCANDIR_SORT_NONE ) ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- native listing failure is reported through coverage.
+        if ( $this->native_task && ( false === $nodes || ( array() === $nodes && false === @scandir( $dir, SCANDIR_SORT_NONE ) ) ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- native listing failure is reported through coverage.
             if ( is_dir( $dir ) ) {
                 static::record_skipped_path( rtrim( $dir, '/' ), 'unreadable' );
             }

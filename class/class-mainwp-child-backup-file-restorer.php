@@ -873,7 +873,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
 
             // A host deployment may have replaced a preserved link since the first check. Unreadable coverage is
             // checked here, after the link and containment checks, so kept-link reporting and hostile-entry aborts stay unchanged.
-            if ( MainWP_Child_Backup_Mu_Plugins::preserves( $relpath, $mu_plugins_preserve ) || MainWP_Child_Backup_Config_Includes::contains( $mapped, $config_include ) || $keep_all || MainWP_Child_Backup_Path_Cover::contains( $mapped, $prefixes ) ) {
+            if ( MainWP_Child_Backup_Mu_Plugins::preserves( $relpath, $mu_plugins_preserve ) || MainWP_Child_Backup_Config_Includes::contains( $mapped, $config_include ) || $keep_all || MainWP_Child_Backup_Path_Cover::contains( $relpath, $prefixes ) || MainWP_Child_Backup_Path_Cover::contains( $mapped, $prefixes ) ) {
                 continue;
             }
 

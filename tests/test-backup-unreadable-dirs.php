@@ -114,12 +114,18 @@ namespace {
                 'case alias' => array( 'A/B/f.txt', true ),
                 'case sibling' => array( 'A/BC/f.txt', false ),
                 'path aliases' => array( './a//b/x', true ),
+                'backslash prefix' => array( 'uploads/locked\\set/f.txt', true, 'uploads/locked\\set' ),
+                'dot-segment prefix' => array( 'uploads/locked/f.txt', true, './uploads//./locked/.' ),
             );
         }
 
         /** @dataProvider prefix_cases */
-        public function test_unreadable_prefix_is_slash_anchored_and_case_folded( $path, $covered ) {
-            $this->assertSame( $covered, MainWP_Child_Backup_Path_Cover::contains( $path, MainWP_Child_Backup_Path_Cover::prefix_set( array( 'a/B' ) ) ) );
+        public function test_unreadable_prefix_is_slash_anchored_and_case_folded( $path, $covered, $prefix = 'a/B' ) {
+            $this->assertSame( $covered, MainWP_Child_Backup_Path_Cover::contains( $path, MainWP_Child_Backup_Path_Cover::prefix_set( array( $prefix ) ) ) );
+        }
+
+        public function test_unreadable_prefix_set_omits_empty_normalized_paths() {
+            $this->assertSame( array( 'uploads/locked' => true ), MainWP_Child_Backup_Path_Cover::prefix_set( array( '', '././/', './Uploads//Locked/.' ) ) );
         }
 
         public function test_walker_chmod_top_level_and_nested_directories_are_skips() {
@@ -144,9 +150,10 @@ namespace {
 
         /** @dataProvider root_failures */
         public function test_unreadable_root_records_skip_in_walker_and_native_archivers( $failure ) {
-            file_put_contents( $this->root . '/live.txt', 'keep' );
-            if ( 'glob' === $failure ) { Backup_Unreadable_Test_FS::$glob_fail[ $this->root . '/*' ] = true; }
-            else { Backup_Unreadable_Test_FS::$scandir_fail[ $this->root ] = true; }
+            if ( 'glob' === $failure ) {
+                file_put_contents( $this->root . '/live.txt', 'keep' );
+                Backup_Unreadable_Test_FS::$glob_fail[ $this->root . '/*' ] = true;
+            } else { Backup_Unreadable_Test_FS::$scandir_fail[ $this->root ] = true; }
             ( new MainWP_Child_Backup_File_Walker( $this->root ) )->emit_sidecars( $this->out );
             $backup = new MainWP_Backup();
             $backup->set_native_task( true );
@@ -223,7 +230,7 @@ namespace {
                 $this->assertTrue( $out['done'] );
                 $this->assertStringContainsString( "locked/a.txt\t", file_get_contents( $this->out . '/files.list.staged' ) );
                 $this->assertStringNotContainsString( "locked/b.txt\t", file_get_contents( $this->out . '/files.list.staged' ) );
-                Backup_Unreadable_Test_FS::$scandir_fail[ $this->root ] = true;
+                Backup_Unreadable_Test_FS::$glob_fail[ $this->root . '/*' ] = true;
                 $walker->recover( $this->out );
                 $walker->recover( $this->out );
                 $this->assertSame( 2, $state['_skip_report']['skipped_count'] );
