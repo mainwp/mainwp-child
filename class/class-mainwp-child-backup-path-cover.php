@@ -39,6 +39,9 @@ class MainWP_Child_Backup_Path_Cover {
      * @return bool Whether deletion would cross unreadable coverage.
      */
     public static function contains( $path, $prefixes ) {
+        if ( empty( $prefixes ) ) {
+            return false;
+        }
         $path = self::normalize( $path );
         while ( '' !== $path ) {
             if ( isset( $prefixes[ $path ] ) ) {
@@ -60,6 +63,7 @@ class MainWP_Child_Backup_Path_Cover {
      * @return string Normalized comparison key.
      */
     private static function normalize( $path ) {
-        return strtolower( implode( '/', array_diff( explode( '/', wp_normalize_path( $path ) ), array( '', '.' ) ) ) );
+        // Not wp_normalize_path(): WordPress 7.0+ caches every distinct input in a static array, and this runs once per deletion candidate.
+        return strtolower( implode( '/', array_diff( explode( '/', str_replace( '\\', '/', (string) $path ) ), array( '', '.' ) ) ) );
     }
 }
