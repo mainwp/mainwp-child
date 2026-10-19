@@ -63,7 +63,7 @@ class Changes_Handle_WP_Menus {
     public static function init_hooks() {
         add_action( 'admin_init', array( __CLASS__, 'callback_change_admin_init' ) );
         add_action( 'admin_menu', array( __CLASS__, 'change_manage_menu_locations' ) );
-        add_action( 'customize_register', array( __CLASS__, 'change_customize_init' ) );
+        add_action( 'customize_save', array( __CLASS__, 'change_customize_init' ) );
         add_action( 'customize_save_after', array( __CLASS__, 'change_customize_save' ) );
         add_action( 'wp_create_nav_menu', array( __CLASS__, 'callback_change_create_menu' ), 10, 2 );
         add_action( 'wp_delete_nav_menu', array( __CLASS__, 'callback_change_delete_menu' ), 10, 1 );
