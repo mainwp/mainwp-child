@@ -236,6 +236,62 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 		}
 	}
 
+	public static function data_clone_unzip_file_paths() {
+		return array( 'protected entries' => array( 'protected' ), 'linked parent' => array( 'parent' ) );
+	}
+
+	/**
+	 * @dataProvider data_clone_unzip_file_paths
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_clone_unzip_file_path_keeps_protected_destinations( $case ) {
+		$root = sys_get_temp_dir() . '/mainwp-clone-unzip-' . uniqid() . '/';
+		mkdir( $root . 'site', 0777, true );
+		mkdir( $root . 'outside' );
+		define( 'MainWP\\Child\\ABSPATH', $root . 'site/' );
+		file_put_contents( $root . 'outside/secret.txt', 'original' );
+		symlink( $root . 'outside/secret.txt', $root . 'site/linked.txt' );
+		symlink( $root . 'outside', $root . 'site/linked' );
+		$path = $root . 'archive.zip';
+		$zip = new ZipArchive();
+		$this->assertTrue( $zip->open( $path, ZipArchive::CREATE ) );
+		$zip->addFromString( 'protected' === $case ? 'linked.txt' : 'linked/escape.txt', 'archive content' );
+		$zip->addFromString( './wp-config.php', 'source config' );
+		$zip->addFromString( 'after.txt', 'later entry' );
+		$zip->close();
+		$clone = new class( $path ) extends MainWP_Clone_Install {
+			public function __construct( $file ) { $this->file = $file; }
+		};
+		try {
+			$error = null;
+			$result = null;
+			try {
+				$result = $clone->extract_wp_zip_backup();
+			} catch ( Throwable $caught ) {
+				$error = $caught;
+			}
+			if ( 'protected' === $case ) {
+				$this->assertNull( $error, $error ? $error->getMessage() : '' );
+				$this->assertTrue( $result );
+				$this->assertSame( 'later entry', file_get_contents( $root . 'site/after.txt' ) );
+				$this->assertFileDoesNotExist( $root . 'site/wp-config.php' );
+			} else {
+				$this->assertInstanceOf( Exception::class, $error );
+				$this->assertFileDoesNotExist( $root . 'site/after.txt' );
+			}
+			$this->assertTrue( is_link( $root . 'site/linked.txt' ) );
+			$this->assertSame( 'original', file_get_contents( $root . 'outside/secret.txt' ) );
+			$this->assertSame( array( '.', '..', 'secret.txt' ), scandir( $root . 'outside' ) );
+		} finally {
+			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+			foreach ( $iterator as $file ) {
+				$file->isLink() || ! $file->isDir() ? unlink( $file->getPathname() ) : rmdir( $file->getPathname() );
+			}
+			rmdir( $root );
+		}
+	}
+
 	public static function data_clone_zip_paths() {
 		return array(
 			'traversal' => array( 'traversal' ),
@@ -245,6 +301,7 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 			'linked directory' => array( 'directory' ),
 			'linked config' => array( 'config link' ),
 			'linked parent traversal' => array( 'linked traversal' ),
+			'dot-suffixed directory' => array( 'dot directory' ),
 			'normal' => array( 'normal' ),
 		);
 	}
@@ -271,10 +328,10 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 			file_put_contents( $root . 'secret.txt', 'original' );
 			symlink( $root . 'secret.txt', $root . 'site/linked.txt' );
 			$name = 'linked.txt';
-		} elseif ( 'directory' === $case || 'linked traversal' === $case ) {
+		} elseif ( in_array( $case, array( 'directory', 'linked traversal', 'dot directory' ), true ) ) {
 			mkdir( $root . 'outside' );
 			symlink( $root . 'outside', $root . 'site/linked' );
-			$name = 'directory' === $case ? 'linked/' : 'linked/../victim.php';
+			$name = array( 'directory' => 'linked/', 'linked traversal' => 'linked/../victim.php', 'dot directory' => 'safe./linked/payload.php' )[ $case ];
 		} elseif ( 'config link' === $case ) {
 			file_put_contents( $root . 'secret.txt', 'original' );
 			symlink( $root . 'secret.txt', $root . 'site/wp-config.php' );
@@ -289,6 +346,7 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 		}
 		$zip->addFromString( './wp-config.php', 'source config' );
 		$zip->addFromString( './/wp-config.php', 'source config' );
+		$zip->addFromString( 'safe./wp-config.php', 'source config' );
 		$zip->addFromString( 'after.txt', 'later entry' );
 		$zip->close();
 		$clone = new class( $root . 'archive.zip' ) extends MainWP_Clone_Install {
@@ -302,7 +360,7 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 			} catch ( Throwable $caught ) {
 				$error = $caught;
 			}
-			if ( ! in_array( $case, array( 'normal', 'leaf', 'directory', 'config link' ), true ) ) {
+			if ( ! in_array( $case, array( 'normal', 'leaf', 'directory', 'config link', 'dot directory' ), true ) ) {
 				$this->assertInstanceOf( Exception::class, $error );
 				$this->assertFileDoesNotExist( $root . 'site/after.txt' );
 			} else {
@@ -322,7 +380,10 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 				$this->assertTrue( is_link( $root . 'site/' . ( 'leaf' === $case ? 'linked.txt' : 'wp-config.php' ) ) );
 				$this->assertSame( 'original', file_get_contents( $root . 'secret.txt' ) );
 			}
-			if ( 'directory' === $case || 'linked traversal' === $case ) {
+			if ( 'dot directory' === $case ) {
+				$this->assertSame( 'archive content', file_get_contents( $root . 'site/safe./linked/payload.php' ) );
+			}
+			if ( in_array( $case, array( 'directory', 'linked traversal', 'dot directory' ), true ) ) {
 				$this->assertTrue( is_link( $root . 'site/linked' ) );
 				$this->assertSame( array( '.', '..' ), scandir( $root . 'outside' ) );
 				$this->assertFileDoesNotExist( $root . 'victim.php' );
@@ -362,10 +423,10 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 			file_put_contents( $root . 'secret.txt', 'original' );
 			symlink( $root . 'secret.txt', $root . 'site/linked.txt' );
 			$name = 'linked.txt';
-		} elseif ( 'directory' === $case || 'linked traversal' === $case ) {
+		} elseif ( in_array( $case, array( 'directory', 'linked traversal', 'dot directory' ), true ) ) {
 			mkdir( $root . 'outside' );
 			symlink( $root . 'outside', $root . 'site/linked' );
-			$name = 'directory' === $case ? 'linked/' : 'linked/../victim.php';
+			$name = array( 'directory' => 'linked/', 'linked traversal' => 'linked/../victim.php', 'dot directory' => 'safe./linked/payload.php' )[ $case ];
 		} elseif ( 'config link' === $case ) {
 			file_put_contents( $root . 'secret.txt', 'original' );
 			symlink( $root . 'secret.txt', $root . 'site/wp-config.php' );
@@ -380,6 +441,7 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 		}
 		$zip->addFromString( './wp-config.php', 'source config' );
 		$zip->addFromString( './/wp-config.php', 'source config' );
+		$zip->addFromString( 'safe./wp-config.php', 'source config' );
 		$zip->addFromString( 'after.txt', 'later entry' );
 		$zip->close();
 		$clone = new class( $root . 'archive.zip' ) extends MainWP_Clone_Install {
@@ -393,7 +455,7 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 			} catch ( Throwable $caught ) {
 				$error = $caught;
 			}
-			if ( ! in_array( $case, array( 'normal', 'leaf', 'directory', 'config link', 'linked traversal' ), true ) ) {
+			if ( ! in_array( $case, array( 'normal', 'leaf', 'directory', 'config link', 'linked traversal', 'dot directory' ), true ) ) {
 				$this->assertInstanceOf( Exception::class, $error );
 				$this->assertFileDoesNotExist( $root . 'site/after.txt' );
 			} else {
@@ -413,7 +475,10 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 				$this->assertTrue( is_link( $root . 'site/' . ( 'leaf' === $case ? 'linked.txt' : 'wp-config.php' ) ) );
 				$this->assertSame( 'original', file_get_contents( $root . 'secret.txt' ) );
 			}
-			if ( 'directory' === $case || 'linked traversal' === $case ) {
+			if ( 'dot directory' === $case ) {
+				$this->assertSame( 'archive content', file_get_contents( $root . 'site/safe./linked/payload.php' ) );
+			}
+			if ( in_array( $case, array( 'directory', 'linked traversal', 'dot directory' ), true ) ) {
 				$this->assertTrue( is_link( $root . 'site/linked' ) );
 				$this->assertSame( array( '.', '..' ), scandir( $root . 'outside' ) );
 				$this->assertFileDoesNotExist( $root . 'victim.php' );

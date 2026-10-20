@@ -32,13 +32,7 @@ function mainwp_child_clone_pclzip_pre_extract( $p_event, &$p_header ) {
     if ( 0 !== strpos( $p_header['filename'], $prefix ) ) {
         throw new \Exception( 'Archive entry is outside the site root. Extraction aborted.' );
     }
-    $name   = substr( $p_header['filename'], strlen( $prefix ) );
-    $target = MainWP_Child_Backup_File_Restorer::validate_extract_path( $name, ABSPATH );
-    if ( 'wp-config.php' === MainWP_Clone_Install::normalize_entry_name( $name ) || is_link( rtrim( $target, '/' ) ) ) {
-        return 0;
-    }
-
-    return 1;
+    return MainWP_Clone_Install::is_protected_entry( substr( $p_header['filename'], strlen( $prefix ) ) ) ? 0 : 1;
 }
 
 // phpcs:disable Universal.Files.SeparateFunctionsFromOO.Mixed -- PclZip requires a named function callback.
@@ -187,10 +181,18 @@ class MainWP_Clone_Install {
 
             return false;
         } else {
-            $zip   = new \PclZip( $this->file );
-            $list  = $zip->delete( PCLZIP_OPT_BY_NAME, 'wp-config.php' );
-            $list2 = $zip->delete( PCLZIP_OPT_BY_NAME, 'clone' );
-            if ( 0 === $list ) {
+            $zip     = new \PclZip( $this->file );
+            $entries = $zip->listContent();
+            if ( ! is_array( $entries ) ) {
+                return false;
+            }
+            $drop = array();
+            foreach ( $entries as $entry ) {
+                if ( in_array( self::normalize_entry_name( $entry['filename'] ), array( 'wp-config.php', 'clone' ), true ) ) {
+                    $drop[] = $entry['index'];
+                }
+            }
+            if ( ! empty( $drop ) && 0 === $zip->delete( PCLZIP_OPT_BY_INDEX, implode( ',', $drop ) ) ) {
                 return false;
             }
 
@@ -619,6 +621,19 @@ class MainWP_Clone_Install {
     }
 
     /**
+     * Whether a clone must leave an entry's destination alone: the root wp-config.php, or a
+     * host-managed symlink, which is kept and never written through.
+     *
+     * @param string $name Archive entry name, relative to ABSPATH.
+     * @return bool True when the entry is skipped.
+     * @throws \Exception When the entry could escape ABSPATH.
+     */
+    public static function is_protected_entry( $name ) {
+        $target = MainWP_Child_Backup_File_Restorer::validate_extract_path( $name, ABSPATH );
+        return 'wp-config.php' === self::normalize_entry_name( $name ) || is_link( rtrim( $target, '/' ) );
+    }
+
+    /**
      * Extract backup using default PHP zip library.
      *
      * @return bool true|false.
@@ -629,19 +644,41 @@ class MainWP_Clone_Install {
         $zipRes = $zip->open( $this->file );
         if ( true === $zipRes ) {
             try {
-                $names = array();
+                $targets = array();
                 for ( $index = 0; $index < $zip->numFiles; ++$index ) {
                     $name = $zip->getNameIndex( $index );
                     if ( false === $name ) {
                         throw new \Exception( 'Could not read archive entry. Extraction aborted.' );
                     }
-                    $target = MainWP_Child_Backup_File_Restorer::validate_extract_path( $name, ABSPATH );
-                    if ( 'wp-config.php' === self::normalize_entry_name( $name ) || is_link( rtrim( $target, '/' ) ) ) {
+                    if ( ! self::is_protected_entry( $name ) ) {
+                        $targets[ $name ] = MainWP_Child_Backup_File_Restorer::validate_extract_path( $name, ABSPATH );
+                    }
+                }
+                // extractTo() normalizes names again (it drops directory components ending in '.'),
+                // so each member is written to the path that was validated instead.
+                foreach ( $targets as $name => $target ) {
+                    if ( '/' === substr( $target, -1 ) ) {
+                        if ( ! is_dir( $target ) && ! wp_mkdir_p( $target ) ) {
+                            return false;
+                        }
                         continue;
                     }
-                    $names[] = $name;
+                    $in = $zip->getStream( $name );
+                    if ( false === $in ) {
+                        return false;
+                    }
+                    $out = fopen( $target, 'wb' );
+                    if ( false === $out ) {
+                        fclose( $in );
+                        return false;
+                    }
+                    $copied = stream_copy_to_stream( $in, $out );
+                    fclose( $in );
+                    if ( ! fclose( $out ) || false === $copied ) {
+                        return false;
+                    }
                 }
-                return empty( $names ) || $zip->extractTo( ABSPATH, $names );
+                return true;
             } finally {
                 $zip->close();
             }
@@ -674,7 +711,58 @@ class MainWP_Clone_Install {
             $tmpdir  = str_replace( ABSPATH, $ftpBase, $tmpdir );
         }
 
+        $this->drop_protected_zip_entries();
+
         return ! is_wp_error( \unzip_file( $this->file, $tmpdir ) ); // NOSONAR.
+    }
+
+    /**
+     * Removes entries the clone must not write, because unzip_file() writes every member it
+     * reads. unzip_file() reads through ZipArchive when it exists and through PclZip otherwise,
+     * so the names are listed by the same library.
+     *
+     * @throws \Exception When the archive cannot be listed or an entry could escape ABSPATH.
+     */
+    private function drop_protected_zip_entries() {
+        if ( $this->check_zip_support() ) {
+            $zip = new \ZipArchive();
+            if ( true !== $zip->open( $this->file ) ) {
+                throw new \Exception( 'Could not read archive entries. Extraction aborted.' );
+            }
+            try {
+                $drop = array();
+                for ( $index = 0; $index < $zip->numFiles; ++$index ) {
+                    $name = $zip->getNameIndex( $index );
+                    if ( false === $name ) {
+                        throw new \Exception( 'Could not read archive entry. Extraction aborted.' );
+                    }
+                    if ( self::is_protected_entry( $name ) ) {
+                        $drop[] = $index;
+                    }
+                }
+                foreach ( $drop as $index ) {
+                    $zip->deleteIndex( $index );
+                }
+            } finally {
+                $zip->close();
+            }
+            return;
+        }
+
+        $zip     = new \PclZip( $this->file );
+        $entries = $zip->listContent();
+        if ( ! is_array( $entries ) ) {
+            throw new \Exception( 'Could not read archive entries. Extraction aborted.' );
+        }
+        $drop = array();
+        foreach ( $entries as $entry ) {
+            if ( self::is_protected_entry( $entry['filename'] ) ) {
+                $drop[] = $entry['index'];
+            }
+        }
+        if ( ! empty( $drop ) && 0 === $zip->delete( PCLZIP_OPT_BY_INDEX, implode( ',', $drop ) ) ) {
+            throw new \Exception( 'Could not remove protected archive entries. Extraction aborted.' );
+        }
     }
 
     /**

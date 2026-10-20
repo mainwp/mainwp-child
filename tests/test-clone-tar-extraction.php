@@ -19,6 +19,7 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 			'linked config' => array( 'config link' ),
 			'late traversal' => array( 'late traversal' ),
 			'late longname traversal' => array( 'late longname traversal' ),
+			'link entry with data' => array( 'link payload' ),
 			'normal' => array( 'normal' ),
 		);
 	}
@@ -52,6 +53,9 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 			file_put_contents( $root . '/outside/secret.txt', 'original' );
 			symlink( $root . '/outside/secret.txt', $root . '/site/wp-config.php' );
 			$name = 'wp-config.php';
+		} elseif ( 'link payload' === $case ) {
+			// A link entry's data is never a header, even when it is shaped like one.
+			$before = $this->tar_entry_bytes( 'before.txt', 'before' ) . $this->tar_entry_bytes( 'link', $this->tar_entry_bytes( '../victim.txt' ), '2' );
 		} elseif ( 'late traversal' === $case || 'late longname traversal' === $case ) {
 			$before = $this->tar_entry_bytes( 'before.txt', str_repeat( 'a', 513 ) );
 			$name = '../outside.txt';
@@ -71,7 +75,7 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 			} catch ( Exception $caught ) {
 				$error = $caught;
 			}
-			if ( in_array( $case, array( 'normal', 'leaf', 'directory', 'config', 'config separators', 'config link' ), true ) ) {
+			if ( in_array( $case, array( 'normal', 'leaf', 'directory', 'config', 'config separators', 'config link', 'link payload' ), true ) ) {
 				$this->assertNull( $error );
 				if ( 'normal' === $case ) {
 					$this->assertSame( 'archive content', file_get_contents( $root . '/site/nested/inside.txt' ) );
@@ -84,6 +88,10 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 				$this->assertInstanceOf( Exception::class, $error, 'Unsafe entries must abort the extraction.' );
 				$this->assertFileDoesNotExist( $root . '/site/before.txt' );
 				$this->assertFileDoesNotExist( $root . '/site/after.txt' );
+			}
+			if ( 'link payload' === $case ) {
+				$this->assertSame( 'before', file_get_contents( $root . '/site/before.txt' ) );
+				$this->assertFileDoesNotExist( $root . '/victim.txt' );
 			}
 			$this->assertFileDoesNotExist( $root . '/outside.txt' );
 			$this->assertFileDoesNotExist( $root . '/absolute.txt' );
@@ -116,13 +124,14 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 		$root = sys_get_temp_dir() . '/mainwp-clone-bz2-' . uniqid();
 		mkdir( $root . '/site', 0777, true );
 		$path = $root . '/archive.tar.bz2';
-		file_put_contents( $path, bzcompress( $this->tar_entry_bytes( 'nested/inside.txt', str_repeat( 'a', 513 ) ) . $this->tar_entry_bytes( 'after.txt', 'later entry' ) . str_repeat( "\0", 1024 ) ) );
+		file_put_contents( $path, bzcompress( $this->tar_entry_bytes( 'nested/inside.txt', str_repeat( 'a', 513 ) ) . $this->tar_entry_bytes( './wp-config.php', str_repeat( 'c', 700 ) ) . $this->tar_entry_bytes( 'after.txt', 'later entry' ) . str_repeat( "\0", 1024 ) ) );
 		$archiver = new Tar_Archiver( null, 'tar.bz2' );
 		$archiver->read( $path );
 		try {
 			$archiver->extract_to( $root . '/site' );
 			$this->assertSame( str_repeat( 'a', 513 ), file_get_contents( $root . '/site/nested/inside.txt' ) );
 			$this->assertSame( 'later entry', file_get_contents( $root . '/site/after.txt' ) );
+			$this->assertFileDoesNotExist( $root . '/site/wp-config.php' );
 		} finally {
 			$archiver->close();
 			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );

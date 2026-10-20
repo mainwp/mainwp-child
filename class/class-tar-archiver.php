@@ -2066,7 +2066,7 @@ class Tar_Archiver {
                 }
                 $target = MainWP_Child_Backup_File_Restorer::validate_extract_path( $file['name'], $to );
                 if ( $validate_only || 'wp-config.php' === MainWP_Clone_Install::normalize_entry_name( $file['name'] ) || is_link( rtrim( $target, '/' ) ) ) {
-                    fseek( $this->archive, (int) ( ceil( $file['stat'][7] / 512 ) * 512 ), SEEK_CUR );
+                    $this->skip_entry_payload( $file['stat'][7] );
                     continue;
                 }
                 if ( 5 === (int) $file['type'] ) {
@@ -2122,12 +2122,35 @@ class Tar_Archiver {
                             fclose( $new );
                         }
                     }
+                } else {
+                    $this->skip_entry_payload( $file['stat'][7] );
                 }
                 unset( $file );
             }
         }
 
         return null;
+    }
+
+    /**
+     * Skips an entry's padded data. Both extract_to() passes advance this way for every entry
+     * they do not write, so the write pass reads the same headers the validation pass checked.
+     *
+     * @param int $size Entry size from its header.
+     * @throws \Exception When the archive ends inside the entry.
+     */
+    private function skip_entry_payload( $size ) {
+        $skip = (int) ( ceil( $size / 512 ) * 512 );
+        if ( $skip <= 0 || 0 === fseek( $this->archive, $skip, SEEK_CUR ) ) {
+            return;
+        }
+        while ( $skip > 0 ) {
+            $chunk = fread( $this->archive, min( 8192, $skip ) );
+            if ( false === $chunk || '' === $chunk ) {
+                throw new \Exception( 'Archive ended inside an entry. Extraction aborted.' );
+            }
+            $skip -= strlen( $chunk );
+        }
     }
 
     /**
