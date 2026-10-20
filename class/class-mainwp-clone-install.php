@@ -19,11 +19,37 @@ if ( ! defined( 'ABSPATH' ) ) {
 // phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- Required to achieve desired results, pull request solutions appreciated.
 
 /**
+ * PclZip writes the callback's filename, which can differ from its archive listing.
+ *
+ * @param int   $p_event  PclZip callback event.
+ * @param array $p_header Extraction header, including the destination filename.
+ *
+ * @return int Zero to preserve a destination file or link, one to extract.
+ * @throws \Exception When the destination is outside the site root.
+ */
+function mainwp_child_clone_pclzip_pre_extract( $p_event, &$p_header ) {
+    $prefix = rtrim( ABSPATH, '/' ) . '/';
+    if ( 0 !== strpos( $p_header['filename'], $prefix ) ) {
+        throw new \Exception( 'Archive entry is outside the site root. Extraction aborted.' );
+    }
+    $name   = substr( $p_header['filename'], strlen( $prefix ) );
+    $target = MainWP_Child_Backup_File_Restorer::validate_extract_path( $name, ABSPATH );
+    if ( 'wp-config.php' === MainWP_Clone_Install::normalize_entry_name( $name ) || is_link( rtrim( $target, '/' ) ) ) {
+        return 0;
+    }
+
+    return 1;
+}
+
+// phpcs:disable Universal.Files.SeparateFunctionsFromOO.Mixed -- PclZip requires a named function callback.
+
+/**
  * Class MainWP_Clone_Install
  *
  * This file handles installing a cloned child site.
  */
 class MainWP_Clone_Install {
+    // phpcs:enable Universal.Files.SeparateFunctionsFromOO.Mixed
 
     /**
      * Maximum recursion depth accepted while processing serialized clone data.
@@ -148,8 +174,12 @@ class MainWP_Clone_Install {
             $zip    = new \ZipArchive();
             $zipRes = $zip->open( $this->file );
             if ( $zipRes ) {
-                $zip->deleteName( 'wp-config.php' );
-                $zip->deleteName( 'clone' );
+                for ( $index = 0; $index < $zip->numFiles; ++$index ) {
+                    $name = $zip->getNameIndex( $index );
+                    if ( false !== $name && in_array( self::normalize_entry_name( $name ), array( 'wp-config.php', 'clone' ), true ) ) {
+                        $zip->deleteIndex( $index );
+                    }
+                }
                 $zip->close();
 
                 return true;
@@ -579,6 +609,16 @@ class MainWP_Clone_Install {
     }
 
     /**
+     * Redundant separators and dot segments must not hide reserved root names.
+     *
+     * @param string $name Archive entry name.
+     * @return string Name without empty or single-dot segments.
+     */
+    public static function normalize_entry_name( $name ) {
+        return implode( '/', array_diff( explode( '/', $name ), array( '', '.' ) ) );
+    }
+
+    /**
      * Extract backup using default PHP zip library.
      *
      * @return bool true|false.
@@ -589,17 +629,19 @@ class MainWP_Clone_Install {
         $zipRes = $zip->open( $this->file );
         if ( true === $zipRes ) {
             try {
+                $names = array();
                 for ( $index = 0; $index < $zip->numFiles; ++$index ) {
                     $name = $zip->getNameIndex( $index );
                     if ( false === $name ) {
                         throw new \Exception( 'Could not read archive entry. Extraction aborted.' );
                     }
                     $target = MainWP_Child_Backup_File_Restorer::validate_extract_path( $name, ABSPATH );
-                    if ( is_link( rtrim( $target, '/' ) ) ) {
-                        throw new \Exception( 'Archive entry targets a symbolic link. Extraction aborted.' );
+                    if ( 'wp-config.php' === self::normalize_entry_name( $name ) || is_link( rtrim( $target, '/' ) ) ) {
+                        continue;
                     }
+                    $names[] = $name;
                 }
-                return $zip->extractTo( ABSPATH );
+                return empty( $names ) || $zip->extractTo( ABSPATH, $names );
             } finally {
                 $zip->close();
             }
@@ -632,9 +674,7 @@ class MainWP_Clone_Install {
             $tmpdir  = str_replace( ABSPATH, $ftpBase, $tmpdir );
         }
 
-        \unzip_file( $this->file, $tmpdir ); // NOSONAR.
-
-        return true;
+        return ! is_wp_error( \unzip_file( $this->file, $tmpdir ) ); // NOSONAR.
     }
 
     /**
@@ -650,12 +690,9 @@ class MainWP_Clone_Install {
             throw new \Exception( 'Could not read archive entries. Extraction aborted.' );
         }
         foreach ( $entries as $entry ) {
-            $target = MainWP_Child_Backup_File_Restorer::validate_extract_path( $entry['filename'], ABSPATH );
-            if ( is_link( rtrim( $target, '/' ) ) ) {
-                throw new \Exception( 'Archive entry targets a symbolic link. Extraction aborted.' );
-            }
+            MainWP_Child_Backup_File_Restorer::validate_extract_path( $entry['filename'], ABSPATH );
         }
-        if ( 0 === (int) $zip->extract( PCLZIP_OPT_PATH, ABSPATH, PCLZIP_OPT_REPLACE_NEWER ) ) {
+        if ( 0 === (int) $zip->extract( PCLZIP_OPT_PATH, ABSPATH, PCLZIP_OPT_REPLACE_NEWER, PCLZIP_CB_PRE_EXTRACT, __NAMESPACE__ . '\\mainwp_child_clone_pclzip_pre_extract' ) ) {
             return false;
         }
         if ( PCLZIP_ERR_NO_ERROR !== $zip->error_code ) {

@@ -410,6 +410,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $this->extract_to, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::SELF_FIRST );
 		foreach ( $iterator as $file ) {
 			$this->assertFalse( $file->isLink(), 'Extraction must not leave a link to an external target.' );
+			$this->assertNotSame( fileinode( $this->dir . '/outside/g' ), fileinode( $file->getPathname() ), 'Extraction must not hardlink an external target.' );
 		}
 	}
 

@@ -55,6 +55,13 @@ class Tar_Archiver {
     protected $archivePath;
 
     /**
+     * Path of the archive opened by read().
+     *
+     * @var string|null
+     */
+    protected $readPath = null;
+
+    /**
      * Whether the current handle can write archive data.
      *
      * @var bool
@@ -1765,6 +1772,7 @@ class Tar_Archiver {
      */
     public function read( $filepath ) {
         $this->archiveWriting = false;
+        $this->readPath       = $filepath;
         $this->log( 'Reading ' . $filepath );
         $this->archiveSize = false;
 
@@ -2008,106 +2016,115 @@ class Tar_Archiver {
         global $wp_filesystem;
 
         $to = trailingslashit( $to );
-        fseek( $this->archive, 0 );
-        while ( $block = fread( $this->archive, 512 ) ) {
-            $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
-            if ( 'L' === $temp['type'] ) {
-                $fname          = trim( fread( $this->archive, 512 ) );
-                $block          = fread( $this->archive, 512 );
-                $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
-                $temp['prefix'] = '';
-                $temp['name']   = $fname;
-            }
-            $file = array(
-                'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
-                'stat'     => array(
-                    2 => $temp['mode'],
-                    4 => octdec( $temp['uid'] ),
-                    5 => octdec( $temp['gid'] ),
-                    7 => octdec( $temp['size'] ),
-                    9 => octdec( $temp['mtime'] ),
-                ),
-                'checksum' => octdec( $temp['checksum'] ),
-                'type'     => $temp['type'],
-                'magic'    => $temp['magic'],
-            );
-
-            if ( 0x00000000 === $file['checksum'] ) {
-                break;
-            } elseif ( 'ustar' !== substr( $file['magic'], 0, 5 ) ) {
-                break;
-            }
-            $block    = substr_replace( $block, '        ', 148, 8 );
-            $checksum = 0;
-            for ( $i = 0; $i < 512; $i++ ) {
-                $checksum += ord( substr( $block, $i, 1 ) );
-            }
-            $target = MainWP_Child_Backup_File_Restorer::validate_extract_path( $file['name'], $to );
-            // The shared path guard checks parents; clone writes also follow a leaf symlink.
-            if ( is_link( rtrim( $target, '/' ) ) ) {
-                throw new \Exception( 'Archive entry targets a symbolic link. Extraction aborted.' );
-            }
-            if ( 5 === (int) $file['type'] ) {
-                if ( ! is_dir( $target ) ) {
-                    if ( ! empty( $wp_filesystem ) ) {
-                        $wp_filesystem->mkdir( $target, FS_CHMOD_DIR );
-                    } else {
-                        mkdir( $target, 0777, true );
-                    }
+        foreach ( array( true, false ) as $validate_only ) {
+            $meta = stream_get_meta_data( $this->archive );
+            if ( empty( $meta['seekable'] ) ) {
+                // bzip2 streams cannot seek, so each pass reopens the archive.
+                if ( empty( $this->readPath ) ) {
+                    throw new \Exception( 'Could not rewind the archive. Extraction aborted.' );
                 }
-            } elseif ( 0 === (int) $file['type'] ) {
-                if ( ! is_dir( dirname( $target ) ) ) {
-                    if ( ! empty( $wp_filesystem ) ) {
-                        $wp_filesystem->mkdir( dirname( $target ), FS_CHMOD_DIR );
-                    } else {
-                        mkdir( dirname( $target ), 0777, true );
-                    }
+                'tar.bz2' === $this->type ? bzclose( $this->archive ) : fclose( $this->archive );
+                $this->read( $this->readPath );
+                if ( ! $this->archive ) {
+                    throw new \Exception( 'Could not reopen the archive. Extraction aborted.' );
                 }
+            } else {
+                fseek( $this->archive, 0 );
+            }
+            while ( $block = fread( $this->archive, 512 ) ) {
+                $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
+                if ( 'L' === $temp['type'] ) {
+                    $fname          = trim( fread( $this->archive, 512 ) );
+                    $block          = fread( $this->archive, 512 );
+                    $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
+                    $temp['prefix'] = '';
+                    $temp['name']   = $fname;
+                }
+                $file = array(
+                    'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
+                    'stat'     => array(
+                        2 => $temp['mode'],
+                        4 => octdec( $temp['uid'] ),
+                        5 => octdec( $temp['gid'] ),
+                        7 => octdec( $temp['size'] ),
+                        9 => octdec( $temp['mtime'] ),
+                    ),
+                    'checksum' => octdec( $temp['checksum'] ),
+                    'type'     => $temp['type'],
+                    'magic'    => $temp['magic'],
+                );
 
-                if ( ! empty( $wp_filesystem ) && ( $file['stat'][7] < 2000000 ) ) {
-                    $contents    = '';
-                    $bytesToRead = $file['stat'][7];
-                    while ( $bytesToRead > 0 ) {
-                        $readNow      = $bytesToRead > 1024 ? 1024 : $bytesToRead;
-                        $contents    .= fread( $this->archive, $readNow );
-                        $bytesToRead -= $readNow;
-                    }
-
-                    $toRead = ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
-                    if ( $toRead > 0 ) {
-                        fread( $this->archive, ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 ) );
-                    }
-
-                    if ( 'wp-config.php' !== $file['name'] ) {
-                        $wp_filesystem->put_contents( $target, $contents, FS_CHMOD_FILE );
-                    }
-                } else {
-                    if ( 'wp-config.php' !== $file['name'] ) {
-                        $new = fopen( $target, 'wb+' );
-                    } else {
-                        $new = false;
-                    }
-                    $bytesToRead = $file['stat'][7];
-                    while ( $bytesToRead > 0 ) {
-                        $readNow = $bytesToRead > 1024 ? 1024 : $bytesToRead;
-                        if ( false !== $new ) {
-                            fwrite( $new, fread( $this->archive, $readNow ) );
+                if ( 0x00000000 === $file['checksum'] ) {
+                    break;
+                } elseif ( 'ustar' !== substr( $file['magic'], 0, 5 ) ) {
+                    break;
+                }
+                $block    = substr_replace( $block, '        ', 148, 8 );
+                $checksum = 0;
+                for ( $i = 0; $i < 512; $i++ ) {
+                    $checksum += ord( substr( $block, $i, 1 ) );
+                }
+                $target = MainWP_Child_Backup_File_Restorer::validate_extract_path( $file['name'], $to );
+                if ( $validate_only || 'wp-config.php' === MainWP_Clone_Install::normalize_entry_name( $file['name'] ) || is_link( rtrim( $target, '/' ) ) ) {
+                    fseek( $this->archive, (int) ( ceil( $file['stat'][7] / 512 ) * 512 ), SEEK_CUR );
+                    continue;
+                }
+                if ( 5 === (int) $file['type'] ) {
+                    if ( ! is_dir( $target ) ) {
+                        if ( ! empty( $wp_filesystem ) ) {
+                            $wp_filesystem->mkdir( $target, FS_CHMOD_DIR );
                         } else {
-                            fread( $this->archive, $readNow );
+                            mkdir( $target, 0777, true );
                         }
-                        $bytesToRead -= $readNow;
+                    }
+                } elseif ( 0 === (int) $file['type'] ) {
+                    if ( ! is_dir( dirname( $target ) ) ) {
+                        if ( ! empty( $wp_filesystem ) ) {
+                            $wp_filesystem->mkdir( dirname( $target ), FS_CHMOD_DIR );
+                        } else {
+                            mkdir( dirname( $target ), 0777, true );
+                        }
                     }
 
-                    $toRead = ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
-                    if ( $toRead > 0 ) {
-                        fread( $this->archive, ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 ) );
-                    }
-                    if ( false !== $new ) {
-                        fclose( $new );
+                    if ( ! empty( $wp_filesystem ) && ( $file['stat'][7] < 2000000 ) ) {
+                        $contents    = '';
+                        $bytesToRead = $file['stat'][7];
+                        while ( $bytesToRead > 0 ) {
+                            $readNow      = $bytesToRead > 1024 ? 1024 : $bytesToRead;
+                            $contents    .= fread( $this->archive, $readNow );
+                            $bytesToRead -= $readNow;
+                        }
+
+                        $toRead = ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
+                        if ( $toRead > 0 ) {
+                            fread( $this->archive, ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 ) );
+                        }
+
+                        $wp_filesystem->put_contents( $target, $contents, FS_CHMOD_FILE );
+                    } else {
+                        $new         = fopen( $target, 'wb+' );
+                        $bytesToRead = $file['stat'][7];
+                        while ( $bytesToRead > 0 ) {
+                            $readNow = $bytesToRead > 1024 ? 1024 : $bytesToRead;
+                            if ( false !== $new ) {
+                                fwrite( $new, fread( $this->archive, $readNow ) );
+                            } else {
+                                fread( $this->archive, $readNow );
+                            }
+                            $bytesToRead -= $readNow;
+                        }
+
+                        $toRead = ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
+                        if ( $toRead > 0 ) {
+                            fread( $this->archive, ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 ) );
+                        }
+                        if ( false !== $new ) {
+                            fclose( $new );
+                        }
                     }
                 }
+                unset( $file );
             }
-            unset( $file );
         }
 
         return null;
