@@ -115,47 +115,13 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 
 == Changelog ==
 
-= 6.3-beta6 - 10-16-2026 =
+= 6.4-rc.1 - 10-20-2026 =
 
-* Security: Deleting a backup file removes only backup archives inside the backup folders and never follows a symbolic link.
-* Security: A restore refuses download links that point at IPv4-mapped forms of private addresses or at cloud metadata addresses, including the AWS IPv6 metadata address.
-* Fixed: Native backups skip file symlinks, and a restore never replaces a live symlink, so mu-plugins that hosts link into the site survive.
-* Fixed: A restore never deletes a file through a linked folder.
-* Fixed: A backup no longer stores clone/config.txt twice when a leftover clone folder sits in the site root.
-* Fixed: The database backup no longer loops on a table whose primary key is a generated column.
-* Fixed: A database archive that cannot be added to the backup is removed instead of being left behind.
-* Fixed: A custom post import that refuses a serialized meta value reports the result as partial instead of dropping the value silently.
-* Changed: When the backup folder cannot be created or protected, the error says which step failed, names the folder, and points to a security or folder-lock plugin or the folder permissions as the likely cause.
-
-= 6.3-beta5 - 10-15-2026 =
-
-* Fixed: A restore no longer deletes or overwrites mu-plugins files that are not in the backup, such as host security plugins and the files they load.
-* Added: Backups record the files they could not read, and a restore keeps those files instead of deleting them.
-* Fixed: A file that could not be backed up and whose name ends in * no longer hides other files that start with the same name.
-* Added: After a files or full restore, or a rollback, the page cache is purged when Cache Control auto-purge is turned on. A failed purge does not fail the restore.
-* Fixed: A restore whose file list fails verification stops before changing any file, and an incremental restore without a file list keeps the site's current mu-plugins files.
-* Fixed: A backup whose database dump cannot be added to the archive now fails instead of finishing without its database.
-* Fixed: A restore stops when it cannot read the WooCommerce customer data it preserves.
-* Fixed: Files with two consecutive dots in their name, such as report..pdf, restore normally.
-
-= 6.3-beta4 - 10-14-2026 =
-
-* Fixed: A cancelled, failed or timed-out restore removes the database dump files it extracted. If restoring the previous database fails, they stay with the recovery files.
-* Fixed: A restore step that timed out and was not picked up again still records its failure instead of leaving the restore stuck.
-* Fixed: Backups refuse table names containing a NUL character and directory trees nested deeper than 64 levels.
-
-= 6.3-beta1 - 10-8-2026 =
-
-* Added: Native Backups (beta): a resumable backup engine that archives files and the database in slices, so backups complete on hosts with short request limits.
-* Added: Incremental backups that record only the files changed since the last run, with chains that restore as complete points in time.
-* Added: Resumable restores with an atomic database switch where the table schema allows it, an optional pre-restore safety backup, and rollback from that safety backup.
-* Added: Full and files-only restores remove files added to the site after the backup was taken, when the backup was made by this version or later and carries its file list. A files-only restore keeps uploads, because the database still refers to them.
-* Added: Restores preserve the site's connection to the Dashboard.
-* Added: Direct backup download from S3-compatible and Google Cloud Storage destinations during a restore, when the Dashboard hands over signed links.
-* Added: WooCommerce order preservation during restore.
-* Added: Multisite network backup and restore.
-* Added: Backup and restore capability reporting so the Dashboard can refuse an operation this version does not support instead of failing it midway.
-* Updated: File backups and restores are refused on sites where wp-content lives outside the WordPress core folder (Pressable, WordPress.com, Bedrock layouts). Database backups still run.
+* Added: Support for MainWP Native Backups (beta), enabling Dashboard-managed full, database-only, files-only, and incremental backups, resumable transfers, and snapshot restores without an additional backup plugin.
+* Fixed: Registered the System Monitor’s one-minute cron schedule before initialization to prevent scheduling errors.
+* Fixed: Viewing the Menus page no longer captures unnecessary snapshots of every navigation menu. Menu and Customizer changes continue to be captured when saved.
+* Fixed: Change logging now preserves the existing database error-suppression setting after checking for a table.
+* Fixed: The PHP Error Reporting hardening check now correctly detects enabled error display, including during signed Dashboard requests. Both display_errors and display_startup_errors must be disabled for the check to pass.
 
 = 6.3 - 10-13-2026 =
 
