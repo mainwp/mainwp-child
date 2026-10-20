@@ -1661,13 +1661,13 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         $cron_status                                   = $config->get_option( 'wptc_own_cron_status' );
 
         if ( ! empty( $cron_status ) ) {
-            $return_array['wptc_own_cron_status']          = unserialize( $cron_status ); // phpcs:ignore -- safe internal value, third party.
+            $return_array['wptc_own_cron_status']          = unserialize( $cron_status, array( 'allowed_classes' => false ) ); // phpcs:ignore -- WPTC option wptc_own_cron_status, restricted unserialize.
             $return_array['wptc_own_cron_status_notified'] = (int) $config->get_option( 'wptc_own_cron_status_notified' );
         }
 
         $start_backups_failed_server = $config->get_option( 'start_backups_failed_server' );
         if ( ! empty( $start_backups_failed_server ) ) {
-            $return_array['start_backups_failed_server'] = unserialize( $start_backups_failed_server ); // phpcs:ignore -- safe internal value, third party.
+            $return_array['start_backups_failed_server'] = unserialize( $start_backups_failed_server, array( 'allowed_classes' => false ) ); // phpcs:ignore -- WPTC option start_backups_failed_server, restricted unserialize.
             $config->set_option( 'start_backups_failed_server', false );
         }
 
@@ -1707,7 +1707,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         $status      = array();
         $cron_status = $config->get_option( 'wptc_own_cron_status' );
         if ( ! empty( $cron_status ) ) {
-            $cron_status = unserialize( $cron_status ); // phpcs:ignore -- safe internal value, third party.
+            $cron_status = unserialize( $cron_status, array( 'allowed_classes' => false ) ); // phpcs:ignore -- WPTC option wptc_own_cron_status, restricted unserialize.
 
             if ( 'success' === $cron_status['status'] ) {
                 $status['status'] = 'success';
@@ -1992,7 +1992,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
                     }
                 }
                 $html     .= '<tr class="act-tr">';
-                $Ldata     = unserialize( $rec->log_data ); // phpcs:ignore -- safe internal value, third party.
+                $Ldata     = unserialize( $rec->log_data, array( 'allowed_classes' => false ) ); // phpcs:ignore -- WPTC wptc_activity_log row, restricted unserialize.
                 $user_time = \WPTC_Factory::get( 'config' )->cnvt_UTC_to_usrTime( $Ldata['log_time'] );
                 \WPTC_Factory::get( 'processed-files' )->modify_schedule_backup_time( $user_time );
                 $user_tz_now = date( 'M d, Y @ g:i:s a', $user_time ); // phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
@@ -2050,7 +2050,7 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
         $detailed = '';
         $timezone = \WPTC_Factory::get( 'config' )->get_option( 'wptc_timezone' );
         foreach ( $sub_records as $srec ) {
-            $Moredata = unserialize( $srec->log_data ); // phpcs:ignore -- safe internal value, third party.
+            $Moredata = unserialize( $srec->log_data, array( 'allowed_classes' => false ) ); // phpcs:ignore -- WPTC wptc_activity_log row, restricted unserialize.
             $user_tmz = new \DateTime( '@' . $Moredata['log_time'], new \DateTimeZone( date_default_timezone_get() ) );
             $user_tmz->setTimeZone( new \DateTimeZone( $timezone ) );
             $user_tmz_now = $user_tmz->format( 'M d @ g:i:s a' );
@@ -2859,8 +2859,8 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
     private function save_settings_backup_auto_tab( $config, $data, $is_general ) {
         $config->set_option( 'backup_before_update_setting', $data['backup_before_update_setting'] );
         $current                              = $config->get_option( 'wptc_auto_update_settings' );
-        $current = unserialize( $current ); // phpcs:ignore -- safe internal value, third party.
-        $new     = unserialize( $data['wptc_auto_update_settings'] ); // phpcs:ignore -- compatible third party // NOSONARR .
+        $current = unserialize( $current, array( 'allowed_classes' => false ) ); // phpcs:ignore -- WPTC option wptc_auto_update_settings, restricted unserialize.
+        $new     = unserialize( $data['wptc_auto_update_settings'], array( 'allowed_classes' => false ) ); // phpcs:ignore -- dashboard payload wptc_auto_update_settings, restricted unserialize. // NOSONARR .
         $current['update_settings']['status'] = $new['update_settings']['status'];
         $current['update_settings']['schedule']['enabled']     = $new['update_settings']['schedule']['enabled'];
         $current['update_settings']['schedule']['time']        = $new['update_settings']['schedule']['time'];
@@ -2894,8 +2894,10 @@ class MainWP_Child_Timecapsule { //phpcs:ignore -- NOSONAR - multi methods.
      */
     private function save_settings_vulns_update_tab( $config, $data, $is_general ) {
         $current = $config->get_option( 'vulns_settings' );
-        $current = unserialize( $current ); // phpcs:ignore -- safe internal value, third party.
-        $new     = unserialize( $data['vulns_settings'] ); // phpcs:ignore -- third party compatible // NOSONARR .
+        // nosemgrep: AIK_unserialize-use -- The local WPTC option is decoded with allowed_classes false, so no classes are instantiated.
+        $current = unserialize( $current, array( 'allowed_classes' => false ) ); // phpcs:ignore -- WPTC option vulns_settings, restricted unserialize.
+        // nosemgrep: AIK_unserialize-use -- The signed Dashboard payload is decoded with allowed_classes false, so no classes are instantiated.
+        $new     = unserialize( $data['vulns_settings'], array( 'allowed_classes' => false ) ); // phpcs:ignore -- dashboard payload vulns_settings, restricted unserialize. // NOSONARR .
 
         $current['status']            = $new['status'];
         $current['core']['status']    = $new['core']['status'];

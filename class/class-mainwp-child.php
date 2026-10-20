@@ -36,7 +36,7 @@ class MainWP_Child {
      *
      * @var string MainWP Child plugin version.
      */
-    public static $version = '6.3'; // NOSONAR - not IP.
+    public static $version = '6.3-beta8'; // NOSONAR - not IP.
 
     /**
      * Private variable containing the latest MainWP Child update version.
@@ -118,6 +118,14 @@ class MainWP_Child {
         // Initialize essential components.
         MainWP_Pages::get_instance()->init();
         MainWP_Child_Assets::instance()->init();
+
+        // Backup task watchdog and runner - the watchdog cron re-enters
+        // stalled backup tasks when the Dashboard goes away mid-run, and the
+        // runner subscribes to its resume signal to advance the work.
+        MainWP_Child_Backup_Watchdog::instance()->init();
+        MainWP_Child_Backup_Task::instance()->register_pending_delete_hook();
+        MainWP_Child_Backup_Task_Runner::instance()->register_hooks();
+        MainWP_Child_Restore_Task_Runner::instance()->register_hooks();
 
         // Initialize admin-specific components.
         $this->init_admin_components();

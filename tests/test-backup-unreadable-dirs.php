@@ -1,0 +1,613 @@
+<?php
+/**
+ * Unreadable coverage and archive traversal regressions.
+ *
+ * @package Mainwp_Child
+ */
+
+namespace MainWP\Child {
+    class Backup_Unreadable_Test_FS {
+        public static $glob_fail = array();
+        public static $scandir_fail = array();
+        public static $opendir_fail = array();
+    }
+
+    function glob( $pattern, $flags = 0 ) {
+        return isset( Backup_Unreadable_Test_FS::$glob_fail[ $pattern ] ) ? false : \glob( $pattern, $flags );
+    }
+
+    function scandir( $directory, $sorting_order = SCANDIR_SORT_ASCENDING, $context = null ) {
+        if ( isset( Backup_Unreadable_Test_FS::$scandir_fail[ rtrim( $directory, '/' ) ] ) ) {
+            return false;
+        }
+        return null === $context ? \scandir( $directory, $sorting_order ) : \scandir( $directory, $sorting_order, $context );
+    }
+
+    function opendir( $directory, $context = null ) {
+        if ( isset( Backup_Unreadable_Test_FS::$opendir_fail[ rtrim( $directory, '/' ) ] ) ) {
+            return false;
+        }
+        return null === $context ? \opendir( $directory ) : \opendir( $directory, $context );
+    }
+}
+
+namespace {
+    use MainWP\Child\Backup_Unreadable_Test_FS;
+    use MainWP\Child\MainWP_Backup;
+    use MainWP\Child\MainWP_Child_Backup_File_Walker;
+    use MainWP\Child\MainWP_Child_Backup_Path_Cover;
+    use MainWP\Child\MainWP_Child_Backup_Task_Runner;
+    use MainWP\Child\Tar_Archiver;
+
+    class Unreadable_Config_Task_Runner extends MainWP_Child_Backup_Task_Runner {
+        public $directory;
+        protected function backup_dir() { return $this->directory; }
+        protected function dump_heartbeat() { return static function () {}; }
+    }
+
+    class Unreadable_Cover_Runner extends MainWP_Child_Backup_Task_Runner {
+        public $root;
+        protected function site_root() { return $this->root . '/'; }
+        protected function dump_heartbeat() { return static function () {}; }
+        public function record( &$state, $path, $reason = 'unreadable' ) { $this->merge_skipped_path( $state, $path, $reason ); }
+        public function walk_options( $state ) { return $this->manifest_walk_params( array(), array(), false, $state ); }
+        public function diff_lists( $parent, $current, $changes, $tombs, $state ) { return $this->run_incremental_diff( $parent, $current, $changes, $tombs, $state['_unreadable'] ?? array() ); }
+        public function archive() { return $this->run_file_archiver( array(), 'fixture.zip', false, time() + 60, array(), true ); }
+    }
+
+    class Unreadable_Sliced_Walker extends MainWP_Child_Backup_File_Walker {
+        public $steps = 3;
+        protected function chunk_size() { return 1; }
+        protected function walk_budget_exhausted( $deadline ) { return PHP_INT_MAX !== $deadline && --$this->steps < 0; }
+        public function list_directory( $path, $root = false ) { return $this->enumerate_children( $path, $root ); }
+        public function recover( $dir ) { $this->reset_for_recovery( $dir . '/files.list.staged', $dir . '/paths.cache.staged' ); }
+    }
+
+    class BackupUnreadableDirsTest extends \WP_UnitTestCase {
+        private $dir;
+        private $root;
+        private $out;
+        private $runner;
+        private $skips;
+        private $listener;
+        private $config_directory;
+        private $config_prefix;
+        private $config_task_id;
+        private $config_created_dirs = array();
+
+        public function set_up() {
+            parent::set_up();
+            $this->dir = sys_get_temp_dir() . '/mainwp-unreadable-' . uniqid();
+            $this->root = $this->dir . '/site';
+            $this->out = $this->dir . '/out';
+            mkdir( $this->root, 0755, true );
+            mkdir( $this->out );
+            $this->runner = new Unreadable_Cover_Runner();
+            $this->runner->root = $this->root;
+            $this->skips = array();
+            $this->listener = function ( $path, $reason ) { $this->skips[] = array( $path, $reason ); };
+            add_action( 'mainwp_child_backup_skipped_path', $this->listener, 10, 2 );
+        }
+
+        public function tear_down() {
+            Backup_Unreadable_Test_FS::$glob_fail = array();
+            Backup_Unreadable_Test_FS::$scandir_fail = array();
+            Backup_Unreadable_Test_FS::$opendir_fail = array();
+            remove_action( 'mainwp_child_backup_skipped_path', $this->listener, 10 );
+            MainWP_Backup::reset_skipped_paths();
+            if ( $this->config_task_id ) {
+                \MainWP\Child\MainWP_Child_Backup_Mutex::release( $this->config_task_id );
+                global $wpdb;
+                $spine = \MainWP\Child\MainWP_Child_Backup_Task::instance();
+                $spine->delete_sidecar( $this->config_task_id, $this->config_directory );
+                $wpdb->delete( $spine->get_table_name(), array( 'task_id' => $this->config_task_id ) );
+            }
+            if ( $this->config_directory ) {
+                foreach ( glob( $this->config_directory . '/*' . $this->config_prefix . '*' ) as $file ) { unlink( $file ); }
+            }
+            foreach ( $this->config_created_dirs as $directory ) { rmdir( $directory ); }
+            $this->remove_tree( $this->dir );
+            parent::tear_down();
+        }
+
+        private function remove_tree( $dir ) {
+            chmod( $dir, 0755 );
+            foreach ( scandir( $dir ) as $name ) {
+                if ( '.' === $name || '..' === $name ) { continue; }
+                $path = $dir . '/' . $name;
+                if ( is_dir( $path ) && ! is_link( $path ) ) { $this->remove_tree( $path ); } else { unlink( $path ); }
+            }
+            rmdir( $dir );
+        }
+
+        private function state() {
+            return array( '_skip_report' => array( 'seen' => array(), 'skipped_count' => 0, 'skipped_paths' => array(), 'skipped_by_reason' => array() ) );
+        }
+
+        private function config_backup( $engine, $duplicate_path = '' ) {
+            if ( 'zip' === $engine && ! class_exists( 'ZipArchive' ) ) { $this->markTestSkipped( 'ZipArchive is unavailable.' ); }
+            foreach ( array( 'plugins', 'themes' ) as $name ) {
+                $directory = WP_CONTENT_DIR . '/' . $name;
+                if ( ! is_dir( $directory ) ) {
+                    $this->assertTrue( mkdir( $directory ) );
+                    $this->config_created_dirs[] = $directory;
+                }
+            }
+            $this->config_directory = rtrim( \MainWP\Child\MainWP_Helper::get_mainwp_dir( 'backup', false )[0], '/' );
+            $this->config_prefix = 'config-unreadable-' . uniqid();
+            $backup = new class extends MainWP_Backup {
+                public $duplicate_path = '';
+                public function glob_backup_nodes( $dir ) {
+                    if ( '' !== $this->duplicate_path ) {
+                        ( new Unreadable_Sliced_Walker( ABSPATH ) )->list_directory( $this->duplicate_path );
+                    }
+                    return array();
+                }
+                public function heartbeat() {}
+                public function extend_archive_mutex_lease() {}
+                public function get_or_create_db_dump_files( $prefix, &$archiver = null ) { return array(); }
+            };
+            $backup->duplicate_path = $duplicate_path;
+            return $backup;
+        }
+
+        private function create_config_archive( $backup, $engine ) {
+            return $backup->create_full_backup( array( '.htaccess' ), '', true, true, 0, $this->config_prefix . '.' . $engine, false, false, true, $engine, false, true );
+        }
+
+        private function archive_config( $file, $engine ) {
+            if ( 'zip' === $engine ) {
+                $zip = new \ZipArchive();
+                $this->assertTrue( $zip->open( $file ) );
+                $json = $zip->getFromName( 'clone/config.txt' );
+                $zip->close();
+            } else {
+                $bytes = file_get_contents( $file );
+                $json = false;
+                for ( $offset = 0; $offset + 512 <= strlen( $bytes ); ) {
+                    $header = substr( $bytes, $offset, 512 );
+                    $size = octdec( trim( substr( $header, 124, 12 ), " \0" ) );
+                    if ( 'clone/config.txt' === rtrim( substr( $header, 0, 100 ), "\0" ) ) {
+                        $json = substr( $bytes, $offset + 512, $size );
+                        break;
+                    }
+                    $offset += 512 + (int) ( ceil( $size / 512 ) * 512 );
+                }
+            }
+            $this->assertNotFalse( $json, 'The real config writer must be included in the archive.' );
+            $config = json_decode( $json, true );
+            $this->assertIsArray( $config );
+            return $config;
+        }
+
+        private function config_inventory( $name ) {
+            $directory = WP_CONTENT_DIR . '/' . $name;
+            $entries = array();
+            foreach ( scandir( $directory ) as $entry ) {
+                if ( '.' !== $entry && '..' !== $entry && is_dir( $directory . '/' . $entry ) ) { $entries[] = $entry; }
+            }
+            sort( $entries, SORT_STRING );
+            return $entries;
+        }
+
+        public static function config_directory_cases() {
+            return array( 'zip plugins' => array( 'zip', 'plugins' ), 'zip themes' => array( 'zip', 'themes' ), 'tar plugins' => array( 'tar', 'plugins' ), 'tar themes' => array( 'tar', 'themes' ) );
+        }
+
+        public static function native_config_directory_cases() {
+            $cases = array();
+            foreach ( self::config_directory_cases() as $name => $case ) {
+                $cases[ $name ] = array( $case[0], $case[1], false );
+                $cases[ $name . ' also walked' ] = array( $case[0], $case[1], true );
+            }
+            return $cases;
+        }
+
+        /** @dataProvider native_config_directory_cases */
+        public function test_native_config_unreadable_directory_completes_partial_once( $engine, $name, $also_walked ) {
+            $path = WP_CONTENT_DIR . '/' . $name;
+            $backup = $this->config_backup( $engine, $also_walked ? $path : '' );
+            $other = 'plugins' === $name ? 'themes' : 'plugins';
+            $expected_other = $this->config_inventory( $other );
+            Backup_Unreadable_Test_FS::$opendir_fail[ $path ] = true;
+            if ( $also_walked ) { Backup_Unreadable_Test_FS::$scandir_fail[ $path ] = true; }
+            $instance = new \ReflectionProperty( MainWP_Backup::class, 'instance' );
+            $instance->setAccessible( true );
+            $previous = $instance->getValue();
+            try {
+                $instance->setValue( null, $backup );
+                $runner = new Unreadable_Config_Task_Runner();
+                $runner->directory = $this->config_directory;
+                $this->config_task_id = $runner->create_task_for_params( 'files', array( 'ext' => $engine, 'file' => $this->config_prefix, 'excludes' => array( '.htaccess' ) ) );
+                $spine = \MainWP\Child\MainWP_Child_Backup_Task::instance();
+                $task = $spine->get_task( $this->config_task_id );
+                for ( $slice = 0; $slice < 20 && ! $spine::is_terminal_phase( $task->phase ); ++$slice ) {
+                    $task = $runner->advance_one_slice( $task, 'config-test' );
+                }
+                $this->assertSame( 'completed', $task->phase );
+                $state = $spine->read_sub_state( $task, $this->config_directory );
+                $payload = $spine->status_payload( $task, $this->config_directory );
+                $relative = substr( $path, strlen( ABSPATH ) );
+                $this->assertSame( 'partial', $payload['content_status'] );
+                $this->assertSame( 1, $state['_skip_report']['skipped_count'] );
+                $this->assertSame( array( 'unreadable' => 1 ), $state['_skip_report']['skipped_by_reason'] );
+                $this->assertSame( array( $relative ), $state['_skip_report']['skipped_paths'] );
+                $this->assertSame( array( $relative ), array_values( $state['_unreadable']['paths'] ) );
+                $this->assertFalse( $state['_unreadable']['unlisted'] );
+                $this->assertSame( array( $path ), MainWP_Backup::get_skipped_paths() );
+                $this->assertCount( $also_walked ? 2 : 1, $this->skips );
+                $this->assertSame( 0, $backup->get_failed_add_count() );
+                $config = $this->archive_config( $this->config_directory . '/' . $state['artifact']['file'], $engine );
+                $this->assertSame( array(), $config[ $name ] );
+                sort( $config[ $other ], SORT_STRING );
+                $this->assertSame( $expected_other, $config[ $other ] );
+            } finally {
+                $instance->setValue( null, $previous );
+            }
+        }
+
+        /** @dataProvider config_directory_cases */
+        public function test_legacy_config_unreadable_directory_throws_exception( $engine, $name ) {
+            $backup = $this->config_backup( $engine );
+            Backup_Unreadable_Test_FS::$opendir_fail[ WP_CONTENT_DIR . '/' . $name ] = true;
+            $this->expectException( \UnexpectedValueException::class );
+            $this->create_config_archive( $backup, $engine );
+        }
+
+        /** @dataProvider root_archive_engines */
+        public function test_readable_config_keeps_plugin_and_theme_lists( $engine ) {
+            $backup = $this->config_backup( $engine );
+            $expected = array( 'plugins' => $this->config_inventory( 'plugins' ), 'themes' => $this->config_inventory( 'themes' ) );
+            $backup->set_native_task( true );
+            $result = $this->create_config_archive( $backup, $engine );
+            $this->assertIsArray( $result );
+            $config = $this->archive_config( $this->config_directory . '/' . $result['file'], $engine );
+            foreach ( $expected as $name => $entries ) {
+                sort( $config[ $name ], SORT_STRING );
+                $this->assertSame( $entries, $config[ $name ] );
+            }
+            $this->assertSame( array(), MainWP_Backup::get_skipped_paths() );
+            $this->assertSame( 0, $backup->get_failed_add_count() );
+        }
+
+        private function lock_directory( $path ) {
+            if ( function_exists( 'posix_geteuid' ) && 0 === posix_geteuid() ) { $this->markTestSkipped( 'Root can list chmod 000 directories.' ); }
+            $this->assertTrue( chmod( $path, 0000 ) );
+            clearstatcache( true, $path );
+            if ( false !== @scandir( $path ) ) {
+                chmod( $path, 0755 );
+                $this->markTestSkipped( 'This filesystem still permits listing chmod 000 directories.' );
+            }
+        }
+
+        public static function prefix_cases() {
+            return array(
+                'itself' => array( 'a/b', true ),
+                'child' => array( 'a/b/x', true ),
+                'deep child' => array( 'a/b/c/d', true ),
+                'sibling' => array( 'a/bc/x', false ),
+                'parent' => array( 'a', false ),
+                'case alias' => array( 'A/B/f.txt', true ),
+                'case sibling' => array( 'A/BC/f.txt', false ),
+                'path aliases' => array( './a//b/x', true ),
+                'backslash prefix' => array( 'uploads/locked\\set/f.txt', true, 'uploads/locked\\set' ),
+                'dot-segment prefix' => array( 'uploads/locked/f.txt', true, './uploads//./locked/.' ),
+            );
+        }
+
+        /** @dataProvider prefix_cases */
+        public function test_unreadable_prefix_is_slash_anchored_and_case_folded( $path, $covered, $prefix = 'a/B' ) {
+            $this->assertSame( $covered, MainWP_Child_Backup_Path_Cover::contains( $path, MainWP_Child_Backup_Path_Cover::prefix_set( array( $prefix ) ) ) );
+        }
+
+        public function test_unreadable_prefix_set_omits_empty_normalized_paths() {
+            $this->assertSame( array( 'uploads/locked' => true ), MainWP_Child_Backup_Path_Cover::prefix_set( array( '', '././/', './Uploads//Locked/.' ) ) );
+        }
+
+        public function test_walker_chmod_top_level_and_nested_directories_are_skips() {
+            mkdir( $this->root . '/top' );
+            mkdir( $this->root . '/readable/nested', 0755, true );
+            file_put_contents( $this->root . '/top/hidden.txt', 'keep' );
+            file_put_contents( $this->root . '/readable/nested/hidden.txt', 'keep' );
+            try {
+                $this->lock_directory( $this->root . '/top' );
+                $this->lock_directory( $this->root . '/readable/nested' );
+                $walker = new MainWP_Child_Backup_File_Walker( $this->root );
+                $walker->emit_sidecars( $this->out );
+                $this->assertSame( array( array( $this->root . '/readable/nested', 'unreadable' ), array( $this->root . '/top', 'unreadable' ) ), $this->skips );
+                $this->assertSame( '', file_get_contents( $this->out . '/files.list.staged' ) );
+            } finally {
+                chmod( $this->root . '/top', 0755 );
+                chmod( $this->root . '/readable/nested', 0755 );
+            }
+        }
+
+        public static function root_failures() { return array( 'glob false' => array( 'glob' ), 'scandir false' => array( 'scandir' ) ); }
+
+        /** @dataProvider root_failures */
+        public function test_unreadable_root_records_skip_in_walker_and_native_archivers( $failure ) {
+            if ( 'glob' === $failure ) {
+                file_put_contents( $this->root . '/live.txt', 'keep' );
+                Backup_Unreadable_Test_FS::$glob_fail[ $this->root . '/*' ] = true;
+            } else { Backup_Unreadable_Test_FS::$scandir_fail[ $this->root ] = true; }
+            ( new MainWP_Child_Backup_File_Walker( $this->root ) )->emit_sidecars( $this->out );
+            $backup = new MainWP_Backup();
+            $backup->set_native_task( true );
+            $this->assertSame( array(), $backup->glob_backup_nodes( $this->root ) );
+            $this->assertSame( array_fill( 0, 2, array( $this->root, 'unreadable' ) ), $this->skips );
+            $state = $this->state();
+            foreach ( $this->skips as $skip ) { $this->runner->record( $state, $skip[0], $skip[1] ); }
+            $this->assertTrue( $state['_unreadable']['unlisted'] );
+            $this->assertTrue( $this->runner->walk_options( $state )['unarchived_overflow'] );
+            $this->assertSame( 1, $state['_skip_report']['skipped_count'] );
+        }
+
+        public static function root_archive_engines() { return array( 'ZIP' => array( 'zip' ), 'tar' => array( 'tar' ) ); }
+
+        /** @dataProvider root_archive_engines */
+        public function test_native_archive_root_glob_failure_records_and_completes( $engine ) {
+            if ( 'zip' === $engine && ! class_exists( 'ZipArchive' ) ) { $this->markTestSkipped( 'ZipArchive is unavailable.' ); }
+            $backup = new class() extends MainWP_Backup {
+                public $fixture_root;
+                public function glob_backup_nodes( $dir ) { return parent::glob_backup_nodes( $this->fixture_root ); }
+                public function get_or_create_db_dump_files( $prefix, &$archiver = null ) { return array(); }
+                public function add_config() { $this->zip->addFromString( 'clone/config.txt', 'fixture marker' ); }
+            };
+            $backup->fixture_root = $this->root;
+            $backup->set_native_task( true );
+            Backup_Unreadable_Test_FS::$glob_fail[ $this->root . '/*' ] = true;
+            if ( 'zip' === $engine ) {
+                $this->assertTrue( $backup->create_zip_full_backup( $this->out . '/root.zip', array( '.htaccess' ), true, true, false, false ) );
+            } else {
+                $tar = new Tar_Archiver( $backup );
+                $this->assertTrue( $tar->create_full_backup( $this->out . '/root.tar', array( '.htaccess' ), false, true, false, false ) );
+            }
+            $this->assertSame( array( array( $this->root, 'unreadable' ) ), $this->skips );
+            $this->assertSame( 0, $backup->get_failed_add_count() );
+            $this->assertFileExists( $this->out . '/root.' . $engine );
+        }
+
+        public function test_walker_vanished_directory_and_readable_empty_root_are_not_skips() {
+            $walker = new Unreadable_Sliced_Walker( $this->root );
+            Backup_Unreadable_Test_FS::$scandir_fail[ $this->root . '/vanished' ] = true;
+            $this->assertSame( array(), $walker->list_directory( $this->root . '/vanished' ) );
+            $this->assertSame( array(), $walker->list_directory( $this->root . '/', true ) );
+            $this->assertSame( array(), $this->skips );
+        }
+
+        public function test_chmod_unreadable_root_is_distinguished_from_empty_root() {
+            try {
+                $this->lock_directory( $this->root );
+                ( new MainWP_Child_Backup_File_Walker( $this->root ) )->emit_sidecars( $this->out );
+                $this->assertSame( array( array( $this->root, 'unreadable' ) ), $this->skips );
+            } finally {
+                chmod( $this->root, 0755 );
+            }
+        }
+
+        public function test_resumed_walk_transient_unreadability_keeps_earlier_rows_and_recovery_dedupes() {
+            mkdir( $this->root . '/locked' );
+            foreach ( array( 'a.txt', 'b.txt', 'c.txt' ) as $file ) { file_put_contents( $this->root . '/locked/' . $file, 'live' ); }
+            $state = $this->state();
+            $bridge = function ( $path, $reason ) use ( &$state ) { $this->runner->record( $state, $path, $reason ); };
+            add_action( 'mainwp_child_backup_skipped_path', $bridge, 10, 2 );
+            try {
+                $walker = new Unreadable_Sliced_Walker( $this->root );
+                $walker->steps = 2;
+                $out = $walker->emit_sidecars_slice( $this->out, null, time() + 60 );
+                $this->assertFalse( $out['done'] );
+                $this->assertSame( 1, $out['cursor']['count'] );
+                Backup_Unreadable_Test_FS::$scandir_fail[ $this->root . '/locked' ] = true;
+                $out = ( new Unreadable_Sliced_Walker( $this->root ) )->emit_sidecars_slice( $this->out, $out['cursor'], time() + 60 );
+                Backup_Unreadable_Test_FS::$scandir_fail = array();
+                for ( $i = 0; empty( $out['done'] ) && $i < 20; ++$i ) {
+                    $out = ( new Unreadable_Sliced_Walker( $this->root ) )->emit_sidecars_slice( $this->out, $out['cursor'], time() + 60 );
+                }
+                $this->assertTrue( $out['done'] );
+                $this->assertStringContainsString( "locked/a.txt\t", file_get_contents( $this->out . '/files.list.staged' ) );
+                $this->assertStringNotContainsString( "locked/b.txt\t", file_get_contents( $this->out . '/files.list.staged' ) );
+                Backup_Unreadable_Test_FS::$glob_fail[ $this->root . '/*' ] = true;
+                $walker->recover( $this->out );
+                $walker->recover( $this->out );
+                $this->assertSame( 2, $state['_skip_report']['skipped_count'] );
+                $this->assertSame( array( 'locked' ), array_values( $state['_unreadable']['paths'] ) );
+                $this->assertTrue( $state['_unreadable']['unlisted'] );
+            } finally {
+                remove_action( 'mainwp_child_backup_skipped_path', $bridge, 10 );
+            }
+        }
+
+        public function test_unreadable_store_is_bounded_deduped_and_independent_of_skip_seen() {
+            $state = $this->state();
+            for ( $i = 0; $i < 1002; ++$i ) {
+                $path = $this->root . '/dir-' . $i;
+                mkdir( $path );
+                $this->runner->record( $state, $path );
+                $this->runner->record( $state, $path );
+            }
+            $this->assertCount( 1001, $state['_unreadable']['paths'] );
+            $this->assertTrue( $state['_unreadable']['unlisted'] );
+            $this->assertSame( 1002, $state['_skip_report']['skipped_count'] );
+            $this->assertCount( 100, $state['_skip_report']['skipped_paths'] );
+            $this->assertSame( array( 'unreadable' => 1002 ), $state['_skip_report']['skipped_by_reason'] );
+            $this->assertTrue( $this->runner->walk_options( $state )['unarchived_overflow'] );
+            $path = $this->root . '/seen';
+            mkdir( $path );
+            $state = $this->state();
+            $this->runner->record( $state, $path, 'unsafe' );
+            $this->runner->record( $state, $path );
+            $this->assertSame( 1, $state['_skip_report']['skipped_count'] );
+            $this->assertSame( array( 'seen' ), array_values( $state['_unreadable']['paths'] ) );
+        }
+
+        public function test_unreadable_invalid_relative_directory_sets_unlisted() {
+            mkdir( $this->dir . '/outside' );
+            foreach ( array( $this->root, $this->dir . '/outside', $this->root . '/../outside' ) as $path ) {
+                $state = $this->state();
+                $this->runner->record( $state, $path );
+                $this->assertTrue( $state['_unreadable']['unlisted'], $path );
+                $walk = $this->runner->walk_options( $state );
+                $this->assertTrue( $walk['unarchived_overflow'] );
+                $this->assertArrayNotHasKey( 'unarchived', $walk );
+            }
+        }
+
+        public function test_unreadable_non_utf8_directory_sets_unlisted_without_exposing_path() {
+            $path = $this->root . "/bad-\xff";
+            if ( ! @mkdir( $path ) ) { $this->markTestSkipped( 'This filesystem rejects non-UTF-8 names.' ); }
+            $state = $this->state();
+            $this->runner->record( $state, $path );
+            $this->assertTrue( $state['_unreadable']['unlisted'] );
+            $this->assertSame( array(), $state['_unreadable']['paths'] );
+            $this->assertSame( array(), $state['_skip_report']['skipped_paths'] );
+            $this->assertIsString( wp_json_encode( $state ) );
+        }
+
+        public static function diff_selection_cases() {
+            $cases = array();
+            foreach ( array( 'map', 'sorted' ) as $algorithm ) {
+                foreach ( array( 'prefix', '1001 prefixes', 'unlisted', 'combined pack overflow' ) as $coverage ) {
+                    $cases[ $algorithm . ' ' . $coverage ] = array( $algorithm, $coverage );
+                }
+            }
+            return $cases;
+        }
+
+        /** @dataProvider diff_selection_cases */
+        public function test_task_diff_uses_unreadable_coverage_before_combined_walk_overflow( $algorithm, $coverage ) {
+            $state = $this->state();
+            $state['_unreadable'] = array( 'paths' => array( 'locked' ), 'unlisted' => 'unlisted' === $coverage );
+            if ( '1001 prefixes' === $coverage ) {
+                for ( $i = 0; $i < 1000; ++$i ) { $state['_unreadable']['paths'][] = 'other-' . $i; }
+            }
+            if ( 'combined pack overflow' === $coverage ) {
+                for ( $i = 0; $i < 1000; ++$i ) { $state['_pack_skips']['paths'][] = 'pack-' . $i; }
+            }
+            $parent = $this->out . '/parent.list';
+            $handle = fopen( $parent, 'wb' );
+            fwrite( $handle, "locked/live.txt\t1\t1\n" );
+            $count = 'sorted' === $algorithm ? 40000 : 1;
+            for ( $i = 0; $i < $count; ++$i ) { fwrite( $handle, 'outside/' . sprintf( '%06d', $i ) . str_repeat( 'x', 100 ) . "\t1\t1\n" ); }
+            fclose( $handle );
+            $this->assertSame( 'sorted' === $algorithm, filesize( $parent ) > 4 * 1024 * 1024 );
+            file_put_contents( $this->out . '/current.list', '' );
+            $result = $this->runner->diff_lists( $parent, $this->out . '/current.list', $this->out . '/changes', $this->out . '/tombs', $state );
+            $all = in_array( $coverage, array( '1001 prefixes', 'unlisted' ), true );
+            $this->assertFalse( $result['force_full'] );
+            $this->assertSame( $all ? 0 : $count, $result['tombstones'] );
+            $this->assertStringNotContainsString( 'locked/live.txt', file_get_contents( $this->out . '/tombs' ) );
+            $this->assertSame( '', file_get_contents( $this->out . '/changes' ) );
+            $walk = $this->runner->walk_options( $state );
+            if ( 'prefix' === $coverage ) { $this->assertSame( array( 'locked' ), $walk['unarchived'] ); }
+            else { $this->assertTrue( $walk['unarchived_overflow'] ); $this->assertArrayNotHasKey( 'unarchived', $walk ); }
+        }
+
+        public static function archive_modes() { return array( 'native' => array( true ), 'legacy' => array( false ) ); }
+
+        /** @dataProvider archive_modes */
+        public function test_tar_nested_unreadable_is_recorded_in_both_modes( $native ) {
+            mkdir( $this->root . '/locked' );
+            file_put_contents( $this->root . '/readable.txt', 'readable payload' );
+            file_put_contents( $this->root . '/locked/hidden.txt', 'hidden payload' );
+            $backup = new MainWP_Backup();
+            if ( $native ) { $backup->set_native_task( true ); }
+            $tar = new Tar_Archiver( $backup );
+            try {
+                $this->lock_directory( $this->root . '/locked' );
+                $tar->create( $this->out . '/nested.tar' );
+                $tar->add_dir( $this->root, array() );
+            } finally {
+                chmod( $this->root . '/locked', 0755 );
+                $tar->close();
+            }
+            $this->assertSame( array( array( $this->root . '/locked', 'unreadable' ) ), $this->skips );
+            $bytes = file_get_contents( $this->out . '/nested.tar' );
+            $this->assertStringContainsString( 'readable payload', $bytes );
+            $this->assertStringNotContainsString( 'hidden payload', $bytes );
+            $this->assertSame( 0, $backup->get_failed_add_count() );
+        }
+
+        /** @dataProvider archive_modes */
+        public function test_tar_top_level_unreadable_only_native_continues( $native ) {
+            mkdir( $this->root . '/locked' );
+            $backup = new MainWP_Backup();
+            if ( $native ) { $backup->set_native_task( true ); }
+            $tar = new Tar_Archiver( $backup );
+            $thrown = false;
+            try {
+                $this->lock_directory( $this->root . '/locked' );
+                $tar->create( $this->out . '/top.tar' );
+                try { $tar->add_dir( $this->root . '/locked', array() ); }
+                catch ( \UnexpectedValueException $e ) { $thrown = true; }
+            } finally {
+                chmod( $this->root . '/locked', 0755 );
+                $tar->close();
+            }
+            $this->assertSame( ! $native, $thrown );
+            $this->assertSame( $native ? array( array( $this->root . '/locked', 'unreadable' ) ) : array(), $this->skips );
+            $this->assertSame( 0, $backup->get_failed_add_count() );
+        }
+
+        /** @dataProvider archive_modes */
+        public function test_zip_unreadable_only_native_continues( $native ) {
+            mkdir( $this->root . '/locked' );
+            $backup = new class() extends MainWP_Backup {
+                public function __construct() { $this->zip = new class() { public function add_empty_dir( $path ) {} }; }
+            };
+            if ( $native ) { $backup->set_native_task( true ); }
+            $thrown = false;
+            try {
+                $this->lock_directory( $this->root . '/locked' );
+                try { $backup->zip_add_dir( $this->root . '/locked', array() ); }
+                catch ( \UnexpectedValueException $e ) { $thrown = true; }
+            } finally {
+                chmod( $this->root . '/locked', 0755 );
+            }
+            $this->assertSame( ! $native, $thrown );
+            $this->assertSame( $native ? array( array( $this->root . '/locked', 'unreadable' ) ) : array(), $this->skips );
+            $this->assertSame( 0, $backup->get_failed_add_count() );
+        }
+
+        public function test_native_pcl_copy_unreadable_directory_is_recorded_without_failed_add() {
+            mkdir( $this->root . '/locked' );
+            $backup = new MainWP_Backup();
+            $backup->set_native_task( true );
+            $bases = new \ReflectionProperty( MainWP_Backup::class, 'allowed_backup_bases' );
+            $bases->setAccessible( true );
+            $bases->setValue( $backup, array( $this->root ) );
+            try {
+                $this->lock_directory( $this->root . '/locked' );
+                $backup->copy_dir( array( $this->root . '/locked' ), array(), $this->out, false, array( $this->root ) );
+            } finally {
+                chmod( $this->root . '/locked', 0755 );
+            }
+            $this->assertSame( array( array( $this->root . '/locked', 'unreadable' ) ), $this->skips );
+            $this->assertSame( 0, $backup->get_failed_add_count() );
+        }
+
+        public function test_native_task_flag_reaches_backup_and_tar_and_is_reset_after_throw() {
+            $instance = new \ReflectionProperty( MainWP_Backup::class, 'instance' );
+            $instance->setAccessible( true );
+            $old = $instance->getValue();
+            $backup = new class() extends MainWP_Backup {
+                public $observed;
+                public function create_full_backup( $excludes, $filePrefix = '', $addConfig = false, $includeCoreFiles = false, $file_descriptors = 0, $fileSuffix = false, $excludezip = false, $excludenonwp = false, $loadFilesBeforeZip = true, $ext = 'zip', $pid = false, $append = false ) {
+                    $tar = new Tar_Archiver( $this );
+                    $owner = new \ReflectionProperty( Tar_Archiver::class, 'backup' );
+                    $owner->setAccessible( true );
+                    $this->observed = $owner->getValue( $tar )->is_native_task();
+                    throw new \RuntimeException( 'Archive boundary.' );
+                }
+            };
+            try {
+                $instance->setValue( null, $backup );
+                try { $this->runner->archive(); $this->fail( 'Expected archive boundary exception.' ); }
+                catch ( \RuntimeException $e ) { $this->assertSame( 'Archive boundary.', $e->getMessage() ); }
+                $this->assertTrue( $backup->observed );
+                $this->assertFalse( $backup->is_native_task() );
+            } finally {
+                $instance->setValue( null, $old );
+            }
+        }
+    }
+}

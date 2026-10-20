@@ -539,21 +539,42 @@ class MainWP_Clone_Install {
             return false;
         }
 
-        if ( null !== $this->archiver ) {
-            if ( ! $this->archiver->is_open() ) {
-                $this->archiver->read( $this->file );
+        $htaccess = ABSPATH . '.htaccess';
+        $original = file_exists( $htaccess ) ? file_get_contents( $htaccess ) : null; //phpcs:ignore WordPress.WP.AlternativeFunctions
+        if ( false === $original ) {
+            throw new \Exception( esc_html__( 'Could not read the destination .htaccess before clone extraction.', 'mainwp-child' ) );
+        }
+
+        try {
+            if ( null !== $this->archiver ) {
+                if ( ! $this->archiver->is_open() ) {
+                    $this->archiver->read( $this->file );
+                }
+                return $this->archiver->extract_to( ABSPATH );
+            } elseif ( ( filesize( $this->file ) >= 50000000 ) && $this->check_wp_zip() ) { // NOSONAR.
+                return $this->extract_wp_zip_backup();
+            } elseif ( $this->check_zip_console() ) {
+                return $this->extract_zip_console_backup();
+            } elseif ( $this->check_zip_support() ) {
+                return $this->extract_zip_backup();
+            } elseif ( ( filesize( $this->file ) < 50000000 ) && $this->check_wp_zip() ) { // NOSONAR.
+                return $this->extract_wp_zip_backup();
+            } else {
+                return $this->extract_zip_pcl_backup();
             }
-            return $this->archiver->extract_to( ABSPATH );
-        } elseif ( ( filesize( $this->file ) >= 50000000 ) && $this->check_wp_zip() ) { // NOSONAR.
-            return $this->extract_wp_zip_backup();
-        } elseif ( $this->check_zip_console() ) {
-            return $this->extract_zip_console_backup();
-        } elseif ( $this->check_zip_support() ) {
-            return $this->extract_zip_backup();
-        } elseif ( ( filesize( $this->file ) < 50000000 ) && $this->check_wp_zip() ) { // NOSONAR.
-            return $this->extract_wp_zip_backup();
-        } else {
-            return $this->extract_zip_pcl_backup();
+        } finally {
+            try {
+                if ( null !== $original ) {
+                    $current = file_exists( $htaccess ) ? file_get_contents( $htaccess ) : null; //phpcs:ignore WordPress.WP.AlternativeFunctions
+                    if ( $current !== $original && false === file_put_contents( $htaccess, $original ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions
+                        error_log( 'Could not restore the destination .htaccess after clone extraction.' ); //phpcs:ignore -- NOSONAR - for dev.
+                    }
+                } elseif ( file_exists( $htaccess ) && ! unlink( $htaccess ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions
+                    error_log( 'Could not remove the cloned root .htaccess.' ); //phpcs:ignore -- NOSONAR - for dev.
+                }
+            } catch ( \Throwable $error ) {
+                error_log( 'Could not preserve the destination .htaccess after clone extraction.' ); //phpcs:ignore -- NOSONAR - for dev.
+            }
         }
     }
 

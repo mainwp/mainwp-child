@@ -533,7 +533,7 @@ class MainWP_Child_Pagespeed {
         }
 
         $data_typestocheck = self::get_filter_options( 'all' ); // @wordpress-security:ignore UnescapedDBParameter -- SQL fragment built from hardcoded type = %s patterns with validated post type values.
-        $cache_key         = 'pagespeed_data_' . md5( $strategy . serialize( $data_typestocheck ) );
+        $cache_key         = 'pagespeed_data_' . md5( $strategy . serialize( $data_typestocheck ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- serialize() only feeds an md5() cache-key hash; the value is never persisted or unserialized.
         $cached_result     = wp_cache_get( $cache_key, 'mainwp_pagespeed' );
         if ( false !== $cached_result ) {
             return $cached_result;
@@ -543,14 +543,14 @@ class MainWP_Child_Pagespeed {
             'desktop' => 'desktop_score',
             'mobile'  => 'mobile_score',
         );
-        $score_column = $allowed_score_columns[ $strategy ];
+        $score_column          = $allowed_score_columns[ $strategy ];
 
         $gpi_page_stats = $wpdb->prefix . 'gpi_page_stats'; // @wordpress-security:ignore UnescapedDBParameter -- Table name is safe: wpdb->prefix + constant.
         if ( ! empty( $data_typestocheck ) ) {
 
             $allpagedata = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,PluginCheck.Security.DirectDB.UnescapedDBParameter -- Direct query required for GPI plugin integration; results are cached via wp_cache_get/set. $score_column is whitelisted (line 541), $gpi_page_stats is safe constant (line 543), $data_typestocheck[0] is validated SQL fragment (line 530).
                 $wpdb->prepare(
-					"SELECT ID, URL, $score_column FROM $gpi_page_stats WHERE ( $data_typestocheck[0] )",
+                    "SELECT ID, URL, $score_column FROM $gpi_page_stats WHERE ( $data_typestocheck[0] )", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Interpolated tokens are safe: $score_column whitelisted (L542), $gpi_page_stats is wpdb->prefix+constant, $data_typestocheck[0] is a hardcoded "type = %s" fragment whose values bind via $data_typestocheck[1].
                     $data_typestocheck[1]
                 ),
                 ARRAY_A
@@ -566,7 +566,7 @@ class MainWP_Child_Pagespeed {
 
             $allpagereports = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,PluginCheck.Security.DirectDB.UnescapedDBParameter -- Direct query required for GPI plugin integration; results are cached via wp_cache_get/set. $gpi_page_stats and $gpi_page_reports are safe constants (lines 543, 558), $reports_typestocheck[0] is validated SQL fragment (line 557).
                 $wpdb->prepare(
-					"SELECT     r.rule_key, r.rule_name FROM $gpi_page_stats d INNER JOIN $gpi_page_reports r ON r.page_id = d.ID AND r.strategy = %s WHERE ( $reports_typestocheck[0] )",
+                    "SELECT     r.rule_key, r.rule_name FROM $gpi_page_stats d INNER JOIN $gpi_page_reports r ON r.page_id = d.ID AND r.strategy = %s WHERE ( $reports_typestocheck[0] )", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Interpolated tokens are safe: $gpi_page_stats/$gpi_page_reports are wpdb->prefix+constant, $reports_typestocheck[0] is a hardcoded "type = %s" fragment whose values bind via $reports_typestocheck[1]; r.strategy uses a %s placeholder.
                     array_merge( array( $strategy ), $reports_typestocheck[1] )
                 ),
                 ARRAY_A
@@ -601,7 +601,7 @@ class MainWP_Child_Pagespeed {
 
         if ( ! is_null( $reports_typestocheck ) ) {
             $gpi_page_stats = $wpdb->prefix . 'gpi_page_stats'; // @wordpress-security:ignore UnescapedDBParameter -- Table name is safe: wpdb->prefix + constant.
-				$data           = $wpdb->get_results( $wpdb->prepare( "SELECT $_select FROM $gpi_page_stats WHERE ( $reports_typestocheck[0] ) AND $nullcheck", $reports_typestocheck[1] ), ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,PluginCheck.Security.DirectDB.UnescapedDBParameter -- $_select is hardcoded from switch statement (lines 589, 593), $gpi_page_stats is safe constant (line 598), $reports_typestocheck[0] is validated SQL fragment (line 557), $nullcheck is hardcoded (lines 588, 592).
+                $data       = $wpdb->get_results( $wpdb->prepare( "SELECT $_select FROM $gpi_page_stats WHERE ( $reports_typestocheck[0] ) AND $nullcheck", $reports_typestocheck[1] ), ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $_select is hardcoded from the switch (L594/598), $gpi_page_stats is wpdb->prefix+constant, $reports_typestocheck[0] is a hardcoded "type = %s" fragment bound via $reports_typestocheck[1], $nullcheck is hardcoded (L593/597).
         }
 
         $result = array(
@@ -647,7 +647,7 @@ class MainWP_Child_Pagespeed {
         if ( $gpi_options['cpt_whitelist'] && ( 'all' === $restrict_type || 'ignored' === $restrict_type || stristr( $restrict_type, 'gpi_custom_posts' ) ) ) {
             $cpt_whitelist_arr = false;
             if ( ! empty( $gpi_options['cpt_whitelist'] ) ) {
-                $cpt_whitelist_arr = unserialize( $gpi_options['cpt_whitelist'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- unserialize usage required to achieve desired results, pull request solutions appreciated.
+                $cpt_whitelist_arr = unserialize( $gpi_options['cpt_whitelist'], array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- restricted unserialize, no classes instantiated.
             }
             $args              = array(
                 'public'   => true,
@@ -682,7 +682,7 @@ class MainWP_Child_Pagespeed {
              */
             global $wpdb;
 
-            $cache_key = 'custom_url_types';
+            $cache_key        = 'custom_url_types';
             $custom_url_types = wp_cache_get( $cache_key, 'mainwp_pagespeed' );
             if ( false === $custom_url_types ) {
                 $custom_url_types = $wpdb->get_col( 'SELECT DISTINCT type FROM ' . $wpdb->prefix . 'gpi_custom_urls ' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- @wordpress-security:ignore UnescapedDBParameter -- Query result is cached; table name is safe constant (wpdb->prefix + constant).
