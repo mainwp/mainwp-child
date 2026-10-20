@@ -3166,14 +3166,21 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			}
 		}
 		$this->assertTrue( $sub['reconcile']['walk_done'] );
-		// Extraction deliberately sweeps dump litter; isolate reconciliation's exemption.
-		file_put_contents( $this->site . '/wp-content/dbBackup-keep.sql.php', 'keep' );
-		$paths[] = 'wp-content/dbBackup-keep.sql.php';
+		// Extraction and the terminal cleanup both sweep dump litter, so check
+		// reconciliation's exemption once it finishes and before verify_site runs.
+		$dump = $this->site . '/wp-content/dbBackup-keep.sql.php';
+		file_put_contents( $dump, 'keep' );
+		for ( $i = 0; $i < 20 && MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY !== $task->phase; ++$i ) {
+			$task = $this->runner->advance_one_slice( $task, 'dashboard' );
+		}
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY, $task->phase );
+		$this->assertFileExists( $dump, 'Reconciliation must not delete database dump files.' );
 		$task = $this->drive( $task_id );
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
 		foreach ( $paths as $path ) {
 			$this->assertFileExists( $this->site . '/' . $path, $path );
 		}
+		$this->assertFileDoesNotExist( $dump, 'A successful files restore sweeps dump litter.' );
 	}
 
 	public function test_reconcile_without_options_skips_and_keeps_extra_file() {
@@ -6766,6 +6773,86 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $this->site . '/dbBackup-old.sql.php' );
 		$this->assertFileDoesNotExist( $this->site . '/dbBackup.sql' );
 		$this->assertFileDoesNotExist( $this->site . '/wp-content/dbBackup-options.sql.php' );
+	}
+
+	public static function data_successful_restore_dump_cleanup() {
+		return array(
+			'files only' => array( 'files', '' ),
+			'delete refused' => array( 'files', 'refused' ),
+			'delete throws' => array( 'files', 'throws' ),
+			'full restore' => array( 'full', '' ),
+		);
+	}
+
+	/**
+	 * @dataProvider data_successful_restore_dump_cleanup
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_successful_restore_cleans_embedded_dumps( $type, $failure ) {
+		define( 'MainWP\\Child\\MAINWP_CHILD_DEBUG', true );
+		$artifact = $this->make_full_archive_with_embedded_dump();
+		$zip = new ZipArchive();
+		$this->assertTrue( $zip->open( $this->dir . '/full001.zip' ) );
+		$zip->addFromString( 'dbBackup-root.sql.php', $zip->getFromName( 'wp-content/dbBackup-bn_items.sql.php' ) );
+		$zip->addFromString( 'dbBackup.sql', '' );
+		$zip->close();
+		$artifact['size'] = filesize( $this->dir . '/full001.zip' );
+		$artifact['sha256'] = hash_file( 'sha256', $this->dir . '/full001.zip' );
+		$task_id = $this->make_task( $type, array( $artifact ), array( 'source_prefix' => 'bn_' ) );
+		$task = $this->spine->get_task( $task_id );
+		for ( $i = 0; $i < 20 && 'verify_site' !== $task->phase; ++$i ) {
+			$task = $this->runner->advance_one_slice( $task, 'restore-cleanup' );
+		}
+		$this->assertSame( 'verify_site', $task->phase );
+		$dumps = array( '/dbBackup-root.sql.php', '/dbBackup.sql', '/wp-content/dbBackup-bn_items.sql.php', '/wp-content/dbBackup.sql' );
+		foreach ( $dumps as $dump ) {
+			if ( 'files' === $type ) {
+				$this->assertFileExists( $this->site . $dump );
+			} else {
+				$this->assertFileDoesNotExist( $this->site . $dump, 'Full restores still sweep dumps after replay.' );
+			}
+		}
+		$attempts = 0;
+		$prevent_delete = function ( $file ) use ( $failure, &$attempts ) {
+			if ( false !== strpos( $file, '/dbBackup' ) ) {
+				++$attempts;
+				if ( 'throws' === $failure ) {
+					throw new RuntimeException( 'deletion failed' );
+				}
+				if ( 'refused' === $failure ) {
+					return '';
+				}
+			}
+			return $file;
+		};
+		$previous_log = ini_set( 'error_log', $this->dir . '/cleanup.log' );
+		add_filter( 'wp_delete_file', $prevent_delete );
+		try {
+			$task = $this->drive( $task_id );
+		} finally {
+			remove_filter( 'wp_delete_file', $prevent_delete );
+			ini_set( 'error_log', (string) $previous_log );
+		}
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_COMPLETED, $task->phase );
+		$this->assertNull( $task->active_slot );
+		$this->assertSame( 'restored-content', file_get_contents( $this->site . '/wp-content/uploads/restored.txt' ) );
+		foreach ( $dumps as $dump ) {
+			if ( '' === $failure ) {
+				$this->assertFileDoesNotExist( $this->site . $dump );
+			} else {
+				$this->assertFileExists( $this->site . $dump );
+			}
+		}
+		if ( 'files' === $type ) {
+			$this->assertGreaterThan( 0, $attempts, 'The success path must attempt dump cleanup.' );
+			$this->assertNull( $this->runner->fake_engine->last_replay_config );
+		} else {
+			$this->assertNotNull( $this->runner->fake_engine->last_replay_config );
+		}
+		if ( '' !== $failure ) {
+			$this->assertStringContainsString( 'Warning: restore dump cleanup failed for task ' . $task_id, file_get_contents( $this->dir . '/cleanup.log' ) );
+		}
 	}
 
 	public function test_dump_litter_is_swept_before_embedded_replay() {

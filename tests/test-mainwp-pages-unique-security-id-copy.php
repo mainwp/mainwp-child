@@ -31,6 +31,8 @@ class Test_MainWP_Pages_Unique_Security_Id_Copy extends WP_UnitTestCase {
 		wp_set_current_user( $this->user_id );
 		delete_option( 'mainwp_child_uniqueId' );
 		delete_user_option( $this->user_id, 'mainwp_child_user_enable_passwd_auth_connect' );
+		// The test bootstrap has already printed output, so a real redirect header would warn.
+		add_filter( 'wp_redirect', '__return_false' );
 	}
 
 	/**

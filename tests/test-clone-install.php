@@ -173,4 +173,135 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 		}
 	}
 
+	public static function data_clone_zip_paths() {
+		return array( 'traversal' => array( 'traversal' ), 'absolute' => array( 'absolute' ), 'linked parent' => array( 'parent' ), 'linked file' => array( 'leaf' ), 'normal' => array( 'normal' ) );
+	}
+
+	/**
+	 * @dataProvider data_clone_zip_paths
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_clone_zip_validates_entries_before_extraction( $case ) {
+		$root = sys_get_temp_dir() . '/mainwp-clone-zip-' . uniqid() . '/';
+		mkdir( $root . 'site', 0777, true );
+		define( 'MainWP\\Child\\ABSPATH', $root . 'site/' );
+		$name = 'nested/inside.txt';
+		if ( 'traversal' === $case ) {
+			$name = '../outside.txt';
+		} elseif ( 'absolute' === $case ) {
+			$name = $root . 'outside.txt';
+		} elseif ( 'parent' === $case ) {
+			mkdir( $root . 'outside' );
+			symlink( $root . 'outside', $root . 'site/linked' );
+			$name = 'linked/escape.txt';
+		} elseif ( 'leaf' === $case ) {
+			file_put_contents( $root . 'secret.txt', 'original' );
+			symlink( $root . 'secret.txt', $root . 'site/linked.txt' );
+			$name = 'linked.txt';
+		}
+		$zip = new ZipArchive();
+		$this->assertTrue( $zip->open( $root . 'archive.zip', ZipArchive::CREATE ) );
+		$zip->addFromString( $name, 'archive content' );
+		$zip->addFromString( 'after.txt', 'later entry' );
+		$zip->close();
+		$clone = new class( $root . 'archive.zip' ) extends MainWP_Clone_Install {
+			public function __construct( $file ) { $this->file = $file; }
+		};
+		try {
+			$error = null;
+			$result = null;
+			try {
+				$result = $clone->extract_zip_backup();
+			} catch ( Throwable $caught ) {
+				$error = $caught;
+			}
+			if ( 'normal' !== $case ) {
+				$this->assertInstanceOf( Exception::class, $error );
+				$this->assertFileDoesNotExist( $root . 'site/after.txt' );
+			} else {
+				$this->assertNull( $error, $error ? $error->getMessage() : '' );
+				$this->assertTrue( $result );
+				$this->assertSame( 'archive content', file_get_contents( $root . 'site/nested/inside.txt' ) );
+				$this->assertSame( 'later entry', file_get_contents( $root . 'site/after.txt' ) );
+			}
+			$this->assertFileDoesNotExist( $root . 'outside.txt' );
+			$this->assertFileDoesNotExist( $root . 'outside/escape.txt' );
+			if ( 'leaf' === $case ) {
+				$this->assertSame( 'original', file_get_contents( $root . 'secret.txt' ) );
+			}
+		} finally {
+			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+			foreach ( $iterator as $file ) {
+				$file->isLink() || ! $file->isDir() ? unlink( $file->getPathname() ) : rmdir( $file->getPathname() );
+			}
+			rmdir( $root );
+		}
+	}
+
+	/**
+	 * @dataProvider data_clone_zip_paths
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_clone_zip_pcl_validates_entries_before_extraction( $case ) {
+		if ( ! class_exists( 'PclZip', false ) ) {
+			require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
+		}
+		$root = sys_get_temp_dir() . '/mainwp-clone-pcl-' . uniqid() . '/';
+		mkdir( $root . 'site', 0777, true );
+		define( 'MainWP\\Child\\ABSPATH', $root . 'site/' );
+		$name = 'nested/inside.txt';
+		if ( 'traversal' === $case ) {
+			$name = '../outside.txt';
+		} elseif ( 'absolute' === $case ) {
+			$name = $root . 'outside.txt';
+		} elseif ( 'parent' === $case ) {
+			mkdir( $root . 'outside' );
+			symlink( $root . 'outside', $root . 'site/linked' );
+			$name = 'linked/escape.txt';
+		} elseif ( 'leaf' === $case ) {
+			file_put_contents( $root . 'secret.txt', 'original' );
+			symlink( $root . 'secret.txt', $root . 'site/linked.txt' );
+			$name = 'linked.txt';
+		}
+		$zip = new ZipArchive();
+		$this->assertTrue( $zip->open( $root . 'archive.zip', ZipArchive::CREATE ) );
+		$zip->addFromString( $name, 'archive content' );
+		$zip->addFromString( 'after.txt', 'later entry' );
+		$zip->close();
+		$clone = new class( $root . 'archive.zip' ) extends MainWP_Clone_Install {
+			public function __construct( $file ) { $this->file = $file; }
+		};
+		try {
+			$error = null;
+			$result = null;
+			try {
+				$result = $clone->extract_zip_pcl_backup();
+			} catch ( Throwable $caught ) {
+				$error = $caught;
+			}
+			if ( 'normal' !== $case ) {
+				$this->assertInstanceOf( Exception::class, $error );
+				$this->assertFileDoesNotExist( $root . 'site/after.txt' );
+			} else {
+				$this->assertNull( $error, $error ? $error->getMessage() : '' );
+				$this->assertTrue( $result );
+				$this->assertSame( 'archive content', file_get_contents( $root . 'site/nested/inside.txt' ) );
+				$this->assertSame( 'later entry', file_get_contents( $root . 'site/after.txt' ) );
+			}
+			$this->assertFileDoesNotExist( $root . 'outside.txt' );
+			$this->assertFileDoesNotExist( $root . 'outside/escape.txt' );
+			if ( 'leaf' === $case ) {
+				$this->assertSame( 'original', file_get_contents( $root . 'secret.txt' ) );
+			}
+		} finally {
+			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+			foreach ( $iterator as $file ) {
+				$file->isLink() || ! $file->isDir() ? unlink( $file->getPathname() ) : rmdir( $file->getPathname() );
+			}
+			rmdir( $root );
+		}
+	}
+
 }

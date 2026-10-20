@@ -582,15 +582,27 @@ class MainWP_Clone_Install {
      * Extract backup using default PHP zip library.
      *
      * @return bool true|false.
+     * @throws \Exception When an archive entry could escape the destination.
      */
     public function extract_zip_backup() {
         $zip    = new \ZipArchive();
         $zipRes = $zip->open( $this->file );
-        if ( $zipRes ) {
-            $zip->extract_to( ABSPATH );
-            $zip->close();
-
-            return true;
+        if ( true === $zipRes ) {
+            try {
+                for ( $index = 0; $index < $zip->numFiles; ++$index ) {
+                    $name = $zip->getNameIndex( $index );
+                    if ( false === $name ) {
+                        throw new \Exception( 'Could not read archive entry. Extraction aborted.' );
+                    }
+                    $target = MainWP_Child_Backup_File_Restorer::validate_extract_path( $name, ABSPATH );
+                    if ( is_link( rtrim( $target, '/' ) ) ) {
+                        throw new \Exception( 'Archive entry targets a symbolic link. Extraction aborted.' );
+                    }
+                }
+                return $zip->extractTo( ABSPATH );
+            } finally {
+                $zip->close();
+            }
         }
 
         return false;
@@ -632,7 +644,17 @@ class MainWP_Clone_Install {
      * @throws \Exception Error on failure.
      */
     public function extract_zip_pcl_backup() {
-        $zip = new \PclZip( $this->file );
+        $zip     = new \PclZip( $this->file );
+        $entries = $zip->listContent();
+        if ( ! is_array( $entries ) ) {
+            throw new \Exception( 'Could not read archive entries. Extraction aborted.' );
+        }
+        foreach ( $entries as $entry ) {
+            $target = MainWP_Child_Backup_File_Restorer::validate_extract_path( $entry['filename'], ABSPATH );
+            if ( is_link( rtrim( $target, '/' ) ) ) {
+                throw new \Exception( 'Archive entry targets a symbolic link. Extraction aborted.' );
+            }
+        }
         if ( 0 === (int) $zip->extract( PCLZIP_OPT_PATH, ABSPATH, PCLZIP_OPT_REPLACE_NEWER ) ) {
             return false;
         }

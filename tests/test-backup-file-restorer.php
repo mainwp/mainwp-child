@@ -11,6 +11,8 @@ use MainWP\Child\MainWP_Child_Backup_Task_Runner;
 use MainWP\Child\MainWP_Child_Backup_Task;
 use MainWP\Child\MainWP_Child_Restore_Task_Runner;
 
+require_once __DIR__ . '/includes/trait-tar-entry-fixture.php';
+
 /** Filesystem fault injection for the extraction matrix, backed by real files. */
 class ExtractionMatrixStream {
 	public $context;
@@ -220,6 +222,7 @@ class ShortCopyRestorer extends CopyFallbackRestorer {
  * yields; tombstones delete files through the same path guard.
  */
 class BackupFileRestorerTest extends WP_UnitTestCase {
+	use Tar_Entry_Fixture;
 
 	/**
 	 * Scratch dir holding archives and the extraction root.
@@ -360,6 +363,54 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			++$guard;
 		} while ( ! $result['done'] && null === $result['error'] && $guard < 100 );
 		return $result;
+	}
+
+	public static function data_tar_link_and_name_edges() {
+		return array(
+			'symlink' => array( 'symlink' ),
+			'hardlink' => array( 'hardlink' ),
+			'GNU long name' => array( 'longname' ),
+			'pax path' => array( 'pax' ),
+		);
+	}
+
+	/** @dataProvider data_tar_link_and_name_edges */
+	public function test_tar_link_and_extended_names_cannot_escape( $case ) {
+		mkdir( $this->dir . '/outside' );
+		file_put_contents( $this->dir . '/outside/g', 'original' );
+		if ( 'symlink' === $case ) {
+			$bytes = $this->tar_entry_bytes( 'linked', '', '2', $this->dir . '/outside' )
+				. $this->tar_entry_bytes( 'linked/escaped.txt', 'escaped' );
+		} elseif ( 'hardlink' === $case ) {
+			$bytes = $this->tar_entry_bytes( 'linked.txt', '', '1', $this->dir . '/outside/g' );
+		} elseif ( 'longname' === $case ) {
+			$bytes = $this->tar_entry_bytes( '././@LongLink', "../outside/escaped.txt\0", 'L' )
+				. $this->tar_entry_bytes( 'placeholder.txt', 'escaped' );
+		} else {
+			$record = ' path=../outside/escaped.txt' . "\n";
+			$length = strlen( $record ) + 2;
+			while ( strlen( (string) $length ) + strlen( $record ) !== $length ) {
+				$length = strlen( (string) $length ) + strlen( $record );
+			}
+			$bytes = $this->tar_entry_bytes( 'PaxHeader', $length . $record, 'x' )
+				. $this->tar_entry_bytes( 'placeholder.txt', 'escaped' );
+		}
+		$path = $this->dir . '/edges.tar';
+		file_put_contents( $path, $bytes . $this->tar_entry_bytes( 'normal.txt', 'inside' ) . str_repeat( "\0", 1024 ) );
+		$result = $this->run_all( $this->config( array( $path ) ) );
+		$this->assertSame( array( '.', '..', 'g' ), scandir( $this->dir . '/outside' ), $case );
+		$this->assertSame( 'original', file_get_contents( $this->dir . '/outside/g' ) );
+		if ( null === $result['error'] ) {
+			$this->assertTrue( $result['done'] );
+			$this->assertSame( 'inside', file_get_contents( $this->extract_to . '/normal.txt' ) );
+		} else {
+			$this->assertFalse( $result['done'] );
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		}
+		$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $this->extract_to, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::SELF_FIRST );
+		foreach ( $iterator as $file ) {
+			$this->assertFalse( $file->isLink(), 'Extraction must not leave a link to an external target.' );
+		}
 	}
 
 	protected function run_sliced( $config ) {

@@ -3488,6 +3488,16 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $this->restore_engine()->drop_old_tables( $sub_state['params']['restore_id'] );
         $this->remove_scratch_dir( $task, $backup_dir );
 
+        if ( 'restore_files' === $task->type ) {
+            $owner = $this->current_lease_owner;
+            $this->sweep_terminal_dump_litter(
+                $task,
+                function () use ( $task, $owner ) {
+                    return $this->terminal_dump_lease_holds( $task->task_id, $owner );
+                }
+            );
+        }
+
         return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
     }
 

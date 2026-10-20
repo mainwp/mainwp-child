@@ -1996,6 +1996,7 @@ class Tar_Archiver {
      * @param string $to Desired location to extract file.
      *
      * @return null
+     * @throws \Exception When an archive entry could escape the destination.
      */
     public function extract_to( $to ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
@@ -2041,20 +2042,25 @@ class Tar_Archiver {
             for ( $i = 0; $i < 512; $i++ ) {
                 $checksum += ord( substr( $block, $i, 1 ) );
             }
+            $target = MainWP_Child_Backup_File_Restorer::validate_extract_path( $file['name'], $to );
+            // The shared path guard checks parents; clone writes also follow a leaf symlink.
+            if ( is_link( rtrim( $target, '/' ) ) ) {
+                throw new \Exception( 'Archive entry targets a symbolic link. Extraction aborted.' );
+            }
             if ( 5 === (int) $file['type'] ) {
-                if ( ! is_dir( $to . $file['name'] ) ) {
+                if ( ! is_dir( $target ) ) {
                     if ( ! empty( $wp_filesystem ) ) {
-                        $wp_filesystem->mkdir( $to . $file['name'], FS_CHMOD_DIR );
+                        $wp_filesystem->mkdir( $target, FS_CHMOD_DIR );
                     } else {
-                        mkdir( $to . $file['name'], 0777, true );
+                        mkdir( $target, 0777, true );
                     }
                 }
             } elseif ( 0 === (int) $file['type'] ) {
-                if ( ! is_dir( dirname( $to . $file['name'] ) ) ) {
+                if ( ! is_dir( dirname( $target ) ) ) {
                     if ( ! empty( $wp_filesystem ) ) {
-                        $wp_filesystem->mkdir( dirname( $to . $file['name'] ), FS_CHMOD_DIR );
+                        $wp_filesystem->mkdir( dirname( $target ), FS_CHMOD_DIR );
                     } else {
-                        mkdir( dirname( $to . $file['name'] ), 0777, true );
+                        mkdir( dirname( $target ), 0777, true );
                     }
                 }
 
@@ -2073,11 +2079,11 @@ class Tar_Archiver {
                     }
 
                     if ( 'wp-config.php' !== $file['name'] ) {
-                        $wp_filesystem->put_contents( $to . $file['name'], $contents, FS_CHMOD_FILE );
+                        $wp_filesystem->put_contents( $target, $contents, FS_CHMOD_FILE );
                     }
                 } else {
                     if ( 'wp-config.php' !== $file['name'] ) {
-                        $new = fopen( $to . $file['name'], 'wb+' );
+                        $new = fopen( $target, 'wb+' );
                     } else {
                         $new = false;
                     }
