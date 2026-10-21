@@ -403,6 +403,57 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertSame( array( '.', '..' ), scandir( $this->extract_to ) );
 	}
 
+	public function test_pax_path_cannot_hide_a_prefix_split_member() {
+		$prefix = str_repeat( 'beta/', 21 );
+		$bytes = $this->tar_entry_bytes( 'PaxHeader', $this->pax_record( 'path', 'normal.txt' ), 'x' )
+			. $this->prefix_tar_bytes( $prefix )
+			. $this->tar_entry_bytes( 'normal.txt', 'normal content' ) . str_repeat( "\0", 1024 );
+		$path = $this->dir . '/pax-hidden-prefix.tar';
+		file_put_contents( $path, $bytes );
+		$result = $this->run_all( $this->config( array( $path ) ) );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertFalse( $result['done'] );
+		$this->assertStringContainsString( $prefix . '/lost.txt', $result['error'] );
+		$this->assertSame( array( '.', '..' ), scandir( $this->extract_to ) );
+	}
+
+	public function test_tar_header_walk_skips_large_pax_payload_without_allocating_it() {
+		$path = $this->dir . '/large-pax.tar';
+		file_put_contents( $path, $this->tar_entry_bytes( 'PaxHeader', $this->pax_record( 'comment', str_repeat( 'x', 8 * 1024 * 1024 ) ), 'x' )
+			. $this->tar_entry_bytes( 'normal.txt', 'normal content' ) . str_repeat( "\0", 1024 ) );
+		$script = 'define( "ABSPATH", __DIR__ ); require ' . var_export( dirname( __DIR__ ) . '/class/class-mainwp-child-backup-file-restorer.php', true ) . ';'
+			. '$restorer = new \MainWP\Child\MainWP_Child_Backup_File_Restorer();'
+			. '$method = new ReflectionMethod( $restorer, "tar_listing_error" ); $method->setAccessible( true );'
+			. '$error = $method->invoke( $restorer, $argv[1], array( array( "name" => "normal.txt", "dir" => false ) ) );'
+			. 'if ( null !== $error ) { fwrite( STDERR, $error ); exit( 1 ); }';
+		exec( escapeshellarg( PHP_BINARY ) . ' -d memory_limit=4M -r ' . escapeshellarg( $script ) . ' ' . escapeshellarg( $path ) . ' 2>&1', $output, $status );
+		$this->assertSame( 0, $status, implode( "\n", $output ) );
+	}
+
+	public function test_tar_header_walk_refuses_oversized_gnu_long_name() {
+		$name = str_repeat( 'x', 65537 );
+		$bytes = $this->tar_entry_bytes( '././@LongLink', $name, 'L' )
+			. $this->tar_entry_bytes( 'placeholder.txt', 'content' );
+		$error = $this->inspect_tar_bytes( $bytes, array( array( 'name' => $name, 'dir' => false ) ) );
+		$this->assertIsString( $error );
+		$this->assertStringContainsString( 'malformed or truncated', $error );
+	}
+
+	public static function tar_root_directory_names() {
+		return array( 'empty' => array( '' ), 'dot slash' => array( './' ), 'dot' => array( '.' ), 'slash' => array( '/' ) );
+	}
+
+	/** @dataProvider tar_root_directory_names */
+	public function test_tar_root_directory_is_not_a_missing_member( $name ) {
+		$path = $this->dir . '/root-directory.tar';
+		file_put_contents( $path, $this->tar_entry_bytes( $name, '', '5' )
+			. $this->tar_entry_bytes( 'normal.txt', 'normal content' ) . str_repeat( "\0", 1024 ) );
+		$result = $this->run_all( $this->config( array( $path ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( 'normal content', file_get_contents( $this->extract_to . '/normal.txt' ) );
+	}
+
 	public static function current_tar_formats() {
 		return array( array( false ), array( true ) );
 	}
@@ -515,7 +566,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			. $this->prefix_tar_bytes( 'unlisted/', 'hardlink', '1' )
 			. str_repeat( "\0", 1024 ) . $this->prefix_tar_bytes( 'after-end/' );
 		$entries = array();
-		foreach ( array( $long, 'pax/named.txt', 'binary.txt', 'slash/file.txt' ) as $name ) {
+		foreach ( array( $long, 'placeholder.txt', 'binary.txt', 'slash/file.txt' ) as $name ) {
 			$entries[] = array( 'name' => $name, 'dir' => false );
 		}
 		$entries[] = array( 'name' => '.\\folder\\', 'dir' => true );
@@ -558,7 +609,6 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			'symlink' => array( 'symlink' ),
 			'hardlink' => array( 'hardlink' ),
 			'GNU long name' => array( 'longname' ),
-			'pax path' => array( 'pax' ),
 		);
 	}
 
@@ -571,16 +621,8 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 				. $this->tar_entry_bytes( 'linked/escaped.txt', 'escaped' );
 		} elseif ( 'hardlink' === $case ) {
 			$bytes = $this->tar_entry_bytes( 'linked.txt', '', '1', $this->dir . '/outside/g' );
-		} elseif ( 'longname' === $case ) {
-			$bytes = $this->tar_entry_bytes( '././@LongLink', "../outside/escaped.txt\0", 'L' )
-				. $this->tar_entry_bytes( 'placeholder.txt', 'escaped' );
 		} else {
-			$record = ' path=../outside/escaped.txt' . "\n";
-			$length = strlen( $record ) + 2;
-			while ( strlen( (string) $length ) + strlen( $record ) !== $length ) {
-				$length = strlen( (string) $length ) + strlen( $record );
-			}
-			$bytes = $this->tar_entry_bytes( 'PaxHeader', $length . $record, 'x' )
+			$bytes = $this->tar_entry_bytes( '././@LongLink', "../outside/escaped.txt\0", 'L' )
 				. $this->tar_entry_bytes( 'placeholder.txt', 'escaped' );
 		}
 		$path = $this->dir . '/edges.tar';

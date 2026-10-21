@@ -242,6 +242,7 @@ class MainWP_Child_Api_Backups {
             return 1;
         }
         $result = 1;
+        // nosemgrep: AIK_exec-use -- build_dump_command() passes every argument through escapeshellarg(); no request input reaches it.
         @exec( $command, $output, $result ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.system_calls_exec -- cPanel database exports require the external client.
         return $result;
     }

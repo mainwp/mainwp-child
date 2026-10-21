@@ -68,10 +68,14 @@ class MainWP_Child_Backup_Manifest_Chunk_Receiver { // phpcs:ignore Generic.Clas
      */
     protected function backup_dir() {
         $dirs = MainWP_Helper::get_mainwp_dir( 'backup', false );
+        // A failed lookup must not turn the protection filenames into relative paths.
+        if ( ! is_array( $dirs ) || ! isset( $dirs[0] ) ) {
+            return '';
+        }
         MainWP_Helper::protect_backup_path( $dirs[0] );
         MainWP_Helper::protect_backup_path( $dirs[0] . 'index.php' );
         MainWP_Helper::protect_backup_path( $dirs[0] . '.htaccess' );
-        return is_array( $dirs ) && isset( $dirs[0] ) ? $dirs[0] : '';
+        return $dirs[0];
     }
 
     /**

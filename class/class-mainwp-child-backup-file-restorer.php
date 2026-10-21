@@ -827,7 +827,6 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         $first     = '';
         $count     = 0;
         $long_name = null;
-        $pax_path  = null;
         try {
             $stat = fstat( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- size bound for every header and payload.
             if ( false === $stat ) {
@@ -857,7 +856,11 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                     return $malformed;
                 }
                 $type = $header[156];
-                if ( 'L' === $type || 'x' === $type ) {
+                if ( 'L' === $type ) {
+                    // Match Tar_Archiver's long-name bound before allocating metadata from the archive.
+                    if ( $size > 65536 ) {
+                        return $malformed;
+                    }
                     $payload = '';
                     $unread  = $size;
                     while ( $unread > 0 ) {
@@ -868,59 +871,38 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                         $payload .= $chunk;
                         $unread  -= strlen( $chunk );
                     }
-                    if ( 'L' === $type ) {
-                        $long_name = explode( "\0", $payload, 2 )[0];
-                    } else {
-                        $offset = 0;
-                        while ( $offset < $size ) {
-                            $space = strpos( $payload, ' ', $offset );
-                            if ( false === $space ) {
-                                return $malformed;
-                            }
-                            $digits = substr( $payload, $offset, $space - $offset );
-                            if ( '' === $digits || ! ctype_digit( $digits ) ) {
-                                return $malformed;
-                            }
-                            $record_length = (int) $digits;
-                            if ( $record_length <= $space - $offset + 1 || $record_length > $size - $offset || "\n" !== $payload[ $offset + $record_length - 1 ] ) {
-                                return $malformed;
-                            }
-                            $record = substr( $payload, $space + 1, $record_length - ( $space - $offset ) - 2 );
-                            if ( 0 === strpos( $record, 'path=' ) ) {
-                                $pax_path = substr( $record, 5 );
-                            }
-                            $offset += $record_length;
-                        }
-                    }
-                    $skip = $padding;
+                    $long_name = explode( "\0", $payload, 2 )[0];
+                    $skip      = $padding;
                 } else {
                     $skip = $size + $padding;
-                    // Global pax headers and GNU long-link metadata do not name a file to restore.
-                    if ( 'g' !== $type && 'K' !== $type ) {
+                    // PharData ignores pax records, including path overrides; seek past them without allocating their payloads.
+                    // GNU long-link metadata does not name a file to restore either.
+                    if ( 'x' !== $type && 'g' !== $type && 'K' !== $type ) {
                         ++$count;
                         if ( $count > $limits['entries'] ) {
                             return 'Restore entry count limit exceeded while checking backup archive headers.';
                         }
-                        $name   = explode( "\0", substr( $header, 0, 100 ), 2 )[0];
-                        $prefix = "ustar\0" === substr( $header, 257, 6 ) ? explode( "\0", substr( $header, 345, 155 ), 2 )[0] : '';
-                        $name   = '' === $prefix ? $name : $prefix . '/' . $name;
-                        $name   = null !== $long_name ? $long_name : $name;
-                        $name   = null !== $pax_path && '' !== $pax_path ? $pax_path : $name;
-                        if ( in_array( $type, array( '0', "\0", '5', '7' ), true ) && ! isset( $listed[ $this->tar_comparison_name( $name, '5' === $type ) ] ) ) {
+                        $name       = explode( "\0", substr( $header, 0, 100 ), 2 )[0];
+                        $prefix     = "ustar\0" === substr( $header, 257, 6 ) ? explode( "\0", substr( $header, 345, 155 ), 2 )[0] : '';
+                        $name       = '' === $prefix ? $name : $prefix . '/' . $name;
+                        $name       = null !== $long_name ? $long_name : $name;
+                        $comparison = $this->tar_comparison_name( $name, '5' === $type );
+                        // PharData never lists the archive root, including an empty-name directory from Tar_Archiver.
+                        $root = '5' === $type && in_array( $comparison, array( '', '.' ), true );
+                        if ( ! $root && in_array( $type, array( '0', "\0", '5', '7' ), true ) && ! isset( $listed[ $comparison ] ) ) {
                             ++$missing;
                             if ( 1 === $missing ) {
                                 $first = $name;
                             }
                         }
                         $long_name = null;
-                        $pax_path  = null;
                     }
                 }
                 if ( 0 !== fseek( $stream, $skip, SEEK_CUR ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- skip payloads without reading or extracting files.
                     return $malformed;
                 }
             }
-            if ( null !== $long_name || null !== $pax_path ) {
+            if ( null !== $long_name ) {
                 return $malformed;
             }
         } finally {

@@ -868,6 +868,7 @@ class DbDumperTest extends WP_UnitTestCase {
 		try {
 			$this->assertNotFalse( $wpdb->query( "DROP TABLE `{$this->fixture_table}`" ), $wpdb->last_error );
 			$this->assertNotFalse( $wpdb->query( "CREATE TABLE `{$this->fixture_table}` (id INT PRIMARY KEY, value VARCHAR(40) CHARACTER SET $charset)" ), $wpdb->last_error );
+			// nosemgrep: AIK_tainted-sql-string -- fixture table, charset and hex come from the test's own data provider.
 			$this->assertSame( 1, $wpdb->query( "INSERT INTO `{$this->fixture_table}` VALUES (1, _$charset 0x$hex)" ), $wpdb->last_error );
 			$wpdb->set_charset( $wpdb->dbh, $charset, $collation );
 			$session = $wpdb->get_row( 'SELECT @@character_set_client AS charset, @@collation_connection AS collation', ARRAY_A );

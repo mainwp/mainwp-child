@@ -153,6 +153,13 @@ class MainWP_Backup_Sql_Prefix_Rewriter { // phpcs:ignore Generic.Classes.Openin
             return false;
         }
 
+        // scan_comments() lexes with the sql_mode and utf8mb4 connection the restore engine sets;
+        // NO_BACKSLASH_ESCAPES, ANSI_QUOTES or a multibyte client charset such as gbk would make
+        // the server end later strings and comments elsewhere. The plugin's dumps set neither.
+        if ( preg_match( '/sql_mode|character_set|character\s+set|charset|collation|\bnames\b/i', $head ) ) {
+            return false;
+        }
+
         return 1 === preg_match( '/^SET\s+(?:(?:NAMES|CHARACTER\s+SET|CHARSET|SESSION|LOCAL)\b|@|[A-Za-z_][A-Za-z0-9_]*\s*(?::=|=))/i', $head );
     }
 
