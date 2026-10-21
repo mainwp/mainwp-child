@@ -321,4 +321,96 @@ class BackupSqlPrefixRewriterTest extends WP_UnitTestCase {
 		return $rows;
 	}
 
+
+	/**
+	 * Every comment shape the shared executable-comment rule lists, in the positions a Child
+	 * dump can put it. A refusal must name the shape and never come back as a statement; a
+	 * drop returns null with no refusal; anything else must come back byte-for-byte as expected.
+	 *
+	 * @dataProvider executable_comment_shapes
+	 *
+	 * @param string             $sql      Statement.
+	 * @param string|null|false  $expected Rewritten statement, null for a drop, false for a refusal.
+	 */
+	public function test_executable_comment_shape_matrix( $sql, $expected ) {
+		$out = $this->rewriter->rewrite( $sql );
+		if ( false === $expected ) {
+			$this->assertNull( $out, $sql );
+			$this->assertIsString( $this->rewriter->refusal(), 'A refused shape must say why: ' . $sql );
+			return;
+		}
+		$this->assertSame( $expected, $out, $sql );
+		$this->assertNull( $this->rewriter->refusal(), 'Only refused shapes carry a refusal: ' . $sql );
+	}
+
+	/**
+	 * Rows follow the matrix in sql-executable-comment-rule.md; the Child adds the positions
+	 * where an accepted executable comment is still dropped, because only a leading session SET
+	 * and CREATE TABLE options after the column list ever carry one in a real dump.
+	 */
+	public static function executable_comment_shapes() {
+		$create = 'CREATE TABLE `wp_a` (id INT)';
+		$out    = 'CREATE TABLE `tmp1234_a` (id INT)';
+		return array(
+			'1 plain comment'                          => array( '/* x */ ' . $create, '/* x */ ' . $out ),
+			'2 M without bang is plain'                => array( '/*M x */ ' . $create, '/*M x */ ' . $out ),
+			'3 bang, session SET'                      => array( '/*! SET NAMES utf8mb4 */', '/*! SET NAMES utf8mb4 */' ),
+			'3 bang, other statement'                  => array( '/*! DROP TABLE wp_users */', null ),
+			'3 bang before a statement'                => array( '/*! DROP TABLE live_users */ ' . $create, null ),
+			'3 bang inside INSERT'                     => array( 'INSERT INTO `wp_a` VALUES (1) /*! , (2) */', null ),
+			'4 bang 5 digits, session SET'             => array( '/*!50001 SET NAMES utf8mb4 */', '/*!50001 SET NAMES utf8mb4 */' ),
+			'4 bang 5 digits, CREATE options'          => array( $create . ' /*!50100 PARTITION BY HASH (id) */', $out . ' /*!50100 PARTITION BY HASH (id) */' ),
+			'5 bang 6 digits, session SET'             => array( '/*!100100 SET NAMES utf8mb4 */', '/*!100100 SET NAMES utf8mb4 */' ),
+			'6 M bang, session SET'                    => array( '/*M! SET NAMES utf8mb4 */', '/*M! SET NAMES utf8mb4 */' ),
+			'6 M bang before a statement'              => array( '/*M! DROP TABLE live_users */ ' . $create, null ),
+			'6 M bang inside INSERT'                   => array( 'INSERT INTO `wp_a` /*M! SELECT * FROM otherdb.users */', null ),
+			'7 M bang 6 digits, session SET'           => array( '/*M!100100 SET NAMES utf8mb4 */', '/*M!100100 SET NAMES utf8mb4 */' ),
+			'7 M bang 6 digits before a statement'     => array( "/*M!100100 DROP TABLE live_users */\n" . $create, null ),
+			'7 M bang 5 digits, CREATE options'        => array( $create . ' /*M!50100 PAGE_CHECKSUM=1 */', $out . ' /*M!50100 PAGE_CHECKSUM=1 */' ),
+			'7 M bang inside ALTER'                    => array( 'ALTER TABLE `wp_a` /*M!100100 RENAME TO wp_users */', null ),
+			'7 M bang inside DROP'                     => array( 'DROP TABLE IF EXISTS `wp_a` /*M!100100 , live_users */', null ),
+			'8 lowercase m bang, session SET'          => array( '/*m!100100 SET NAMES utf8mb4 */', '/*m!100100 SET NAMES utf8mb4 */' ),
+			'8 lowercase m bang before a statement'    => array( '/*m!100100 DROP TABLE live_users */ ' . $create, null ),
+			'9 empty executable alone'                 => array( '/*!*/', null ),
+			'9 empty executable, CREATE options'       => array( $create . ' /*M!*/', $out . ' /*M!*/' ),
+			'10 digits glued to body'                  => array( '/*!500011x */', false ),
+			'10 five digits glued to SET'              => array( '/*!50001SET NAMES utf8mb4 */', false ),
+			'10 mariadb-dump sandbox line'             => array( '/*M!999999\- enable the sandbox mode */', false ),
+			'11 four digits'                           => array( '/*!4010 SET NAMES utf8mb4 */', false ),
+			'11 seven digits'                          => array( '/*!1001001 x */', false ),
+			'11 seven digits, CREATE options'          => array( $create . ' /*M!1001001 x */', false ),
+			'12 quote closes inside body'              => array( $create . " /*M!100100 COMMENT='a;b' */", $out . " /*M!100100 COMMENT='a;b' */" ),
+			'13 quote spans the first close'           => array( "/*! '*/' x */", false ),
+			'13 quote spans the close, CREATE options' => array( $create . " /*!50100 COMMENT='*/' */", false ),
+			'14 backtick spans the first close'        => array( '/*! `a*/b` */', false ),
+			'15 nested plain in executable'            => array( '/*! /* n */ x */', false ),
+			'16 quoted opener in executable'           => array( "/*!99999 '/*' */", false ),
+			'17 hash line comment in executable'       => array( "/*! # */\n" . $create, false ),
+			'17 dash line comment in executable'       => array( $create . " /*!50100 -- */\n", false ),
+			'18 nested executable'                     => array( '/*! /*! x */ */', false ),
+			'19 nested plain in plain'                 => array( '/* a /* b */ ' . $create, '/* a /* b */ ' . $out ),
+			'20 optimizer hint'                        => array( "INSERT /*+ SET_VAR(a='*/') */ INTO `wp_a` VALUES (1)", false ),
+			'20 hint after the table'                  => array( 'INSERT INTO `wp_a` VALUES (1) /*+ x */', false ),
+			'21 unterminated plain comment'            => array( $create . ' /* y', false ),
+			'22 unterminated executable'               => array( '/*M! x', false ),
+			'23 unterminated quote'                    => array( "INSERT INTO `wp_a` VALUES ('abc", false ),
+			'23 unterminated backtick'                 => array( 'INSERT INTO `wp_a', false ),
+			'quoted markers are data'                  => array( "INSERT INTO `wp_a` VALUES ('/*M! x */', \"-- */\", '\\'/*!')", "INSERT INTO `tmp1234_a` VALUES ('/*M! x */', \"-- */\", '\\'/*!')" ),
+			'line comment hides markers'               => array( $create . " # /*M! x\n", $out . " # /*M! x\n" ),
+			'dash comment hides markers'               => array( "-- /*M! x\n" . $create, "-- /*M! x\n" . $out ),
+			'control byte after dash dash'             => array( "--\x0b/*M! x */\n" . $create, false ),
+			'executable before the column list'        => array( 'CREATE TABLE `wp_a` /*!50100 . users */ (id INT)', null ),
+			'executable inside the table name'         => array( 'CREATE TABLE /*!50100 `wp_a` */ (id INT)', null ),
+			'qualifier after whitespace'               => array( 'CREATE TABLE `wp_a` . users (id INT)', null ),
+			'qualifier after a plain comment'          => array( 'INSERT INTO wp_a /* c */.users VALUES (1)', null ),
+			'leading SET then a statement'             => array( '/*!40101 SET NAMES utf8mb4 */ DROP TABLE wp_a', null ),
+			'leading SET then a second executable'     => array( '/*!40101 SET @a = 1 */ /*!40101 , @@global.general_log = 1 */', null ),
+			'leading SET with a trailing plain'        => array( '/*!40101 SET NAMES utf8mb4 */ /* trailer */', '/*!40101 SET NAMES utf8mb4 */ /* trailer */' ),
+			'second DROP table after a comment'        => array( 'DROP TABLE `wp_a`, /* c */ live_users', null ),
+			'second LOCK table after a comment'        => array( 'LOCK TABLES `wp_a` WRITE, /**/ live_users READ', null ),
+			'RENAME pair after a comment'              => array( 'RENAME TABLE `wp_a` TO `wp_b` /* c */, live_users TO wp_c', null ),
+			'RENAME with a trailing plain comment'     => array( 'RENAME TABLE `wp_a` TO `wp_b` /* c */', 'RENAME TABLE `tmp1234_a` TO `tmp1234_b` /* c */' ),
+		);
+	}
+
 }

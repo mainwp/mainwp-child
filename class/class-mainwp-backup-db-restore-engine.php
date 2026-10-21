@@ -240,6 +240,12 @@ class MainWP_Backup_Db_Restore_Engine { // phpcs:ignore Generic.Classes.OpeningB
     private function process_statement( &$conn, $statement, &$cursor, $rewriter, $insert_split, $replacement, $packet_budget ) {
         $rewritten = $rewriter->rewrite( $statement );
         if ( null === $rewritten ) {
+            // No dump this plugin writes contains a refused shape, so the file was altered or
+            // written elsewhere; stopping keeps a half-replayed copy from being swapped in.
+            $refusal = $rewriter->refusal();
+            if ( null !== $refusal ) {
+                return 'The database dump was refused because it contains ' . $refusal . '.';
+            }
             ++$cursor['dropped'];
             return null;
         }
