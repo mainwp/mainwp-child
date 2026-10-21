@@ -121,6 +121,7 @@ class InvalidTarDecompressRestorer extends MainWP_Child_Backup_File_Restorer {
 		return array(
 			'members'  => array(),
 			'prefixed' => array(),
+			'dirs'     => array(),
 		);
 	}
 
@@ -417,6 +418,13 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertSame( array( '.', '..' ), scandir( $this->extract_to ) );
 	}
 
+	public function test_tar_header_walk_accepts_the_largest_gnu_long_name() {
+		$name = str_repeat( 'x', 65536 );
+		$bytes = $this->tar_entry_bytes( '././@LongLink', $name, 'L' )
+			. $this->tar_entry_bytes( 'placeholder.txt', 'content' );
+		$this->assertNull( $this->inspect_tar_bytes( $bytes, array( array( 'name' => $name, 'dir' => false ) ) ) );
+	}
+
 	public function test_tar_header_walk_refuses_oversized_gnu_long_name() {
 		$name = str_repeat( 'x', 65537 );
 		$bytes = $this->tar_entry_bytes( '././@LongLink', $name, 'L' )
@@ -460,8 +468,26 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			'root slash'     => '/',
 		);
 		$deep    = str_repeat( 'wp-content/plugins/', 7 ) . 'deep';
+		$after   = '';
 		if ( isset( $size[ $shape ] ) ) {
 			$bytes = $this->patch_tar_header( $carrier, 124, $size[ $shape ] );
+		} elseif ( 'type NUL' === $shape ) {
+			$bytes = $this->patch_tar_header( $carrier, 156, "\0" );
+		} elseif ( 'GNU magic' === $shape ) {
+			$bytes = $this->patch_tar_header( $carrier, 257, "ustar  \0" );
+		} elseif ( 'signed checksum' === $shape || 'checksum leading NUL' === $shape ) {
+			$bytes = substr_replace( $carrier, 'signed checksum' === $shape ? "\xff\xff" : '', 265, 'signed checksum' === $shape ? 2 : 0 );
+			$bytes = substr_replace( $bytes, '        ', 148, 8 );
+			$block = substr( $bytes, 0, 512 );
+			$field = 'signed checksum' === $shape ? sprintf( "%06o\0 ", array_sum( unpack( 'c*', $block ) ) ) : "\0" . sprintf( '%06o ', array_sum( unpack( 'C*', $block ) ) );
+			$bytes = substr_replace( $bytes, $field, 148, 8 );
+		} elseif ( 'zero-length long name' === $shape ) {
+			$bytes = $this->tar_entry_bytes( '././@LongLink', '', 'L' ) . $this->tar_entry_bytes( 'a.txt', 'a' );
+		} elseif ( 'dangling long name' === $shape ) {
+			$bytes = '';
+			$after = $long( 'tail.txt' );
+		} elseif ( 'file and directory' === $shape ) {
+			$bytes = $this->tar_entry_bytes( 'a', 'file content' ) . $dir( 'a' );
 		} elseif ( isset( $roots[ $shape ] ) ) {
 			$bytes = $this->tar_entry_bytes( $roots[ $shape ], '', '5' );
 		} elseif ( 'Child shape' === $shape ) {
@@ -482,7 +508,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			$bytes = $this->tar_entry_bytes( 'meta', $hidden, substr( $shape, 5 ), 'a.txt' );
 		}
 		$path   = $this->dir . '/shape-' . md5( $shape ) . '.tar';
-		file_put_contents( $path, $bytes . $this->tar_entry_bytes( 'safe.sql', 'SELECT 1;' ) . str_repeat( "\0", 1024 ) );
+		file_put_contents( $path, $bytes . $this->tar_entry_bytes( 'safe.sql', 'SELECT 1;' ) . $after . str_repeat( "\0", 1024 ) );
 		$result = $this->run_all( $this->config( array( $path ) ) );
 		if ( 'accept' === $expected ) {
 			$this->assertNull( $result['error'] );
@@ -516,6 +542,14 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			'Child shape'         => array( 'Child shape', 'accept' ),
 			'size leading spaces' => array( 'size leading spaces', 'accept' ),
 			'size trailing space' => array( 'size trailing space', 'accept' ),
+			'type NUL'            => array( 'type NUL', 'accept' ),
+			'GNU magic'           => array( 'GNU magic', 'accept' ),
+			// The walk takes the signed sum like the Dashboard; PharData checks only the unsigned one and refuses at open.
+			'signed checksum'     => array( 'signed checksum', 'refuse' ),
+			'checksum leading NUL' => array( 'checksum leading NUL', 'malformed' ),
+			'zero-length long name' => array( 'zero-length long name', 'malformed' ),
+			'dangling long name'  => array( 'dangling long name', 'malformed' ),
+			'file and directory'  => array( 'file and directory', 'malformed' ),
 			'size base-256'       => array( 'size base-256', 'malformed' ),
 			'size leading NUL'    => array( 'size leading NUL', 'malformed' ),
 			'size space then NUL' => array( 'size space then NUL', 'malformed' ),
@@ -532,7 +566,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			// The Dashboard refuses this name at its walk; the Child refuses it as unlisted or at its path check.
 			'long unsafe'         => array( 'long unsafe', 'refuse' ),
 		);
-		foreach ( array( '1', '2', '7', 'x', 'g', 'K', 'S' ) as $type ) {
+		foreach ( array( '1', '2', '3', '4', '6', '7', 'x', 'g', 'K', 'S', 'V', 'M' ) as $type ) {
 			$rows[ 'type ' . $type ] = array( 'type ' . $type, 'malformed' );
 		}
 		return $rows;

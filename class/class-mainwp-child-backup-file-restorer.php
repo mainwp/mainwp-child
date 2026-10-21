@@ -825,8 +825,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * Dashboard test restore applies the same rule, so an archive one side accepts the other does.
      *
      * @param string $plain Uncompressed archive.
-     * @return array|string Members as array{members: array<string,int>, prefixed: array<string,bool>}
-     *                      keyed by comparison name, or a refusal message.
+     * @return array|string Members as array{members: array<string,int>, prefixed: array<string,bool>,
+     *                      dirs: array<string,bool>} keyed by comparison name, or a refusal message.
      */
     protected function tar_header_members( $plain ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- one bounded header walk over the accepted shapes.
         $stream = fopen( $plain, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- inspect headers without extracting members.
@@ -836,6 +836,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         $limits     = $this->extraction_limits();
         $members    = array();
         $prefixed   = array();
+        $dirs       = array();
         $long_name  = null;
         $count      = 0;
         $name_bytes = 0;
@@ -903,8 +904,13 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                     $field  = explode( "\0", substr( $header, 0, 100 ), 2 )[0];
                     $prefix = null === $long_name ? explode( "\0", substr( $header, 345, 155 ), 2 )[0] : '';
                     $name   = null !== $long_name ? $long_name : ( '' === $prefix ? $field : $prefix . '/' . $field );
-                    $key    = $this->tar_comparison_name( $name, '5' === $type );
+                    $is_dir = '5' === $type;
+                    $key    = $this->tar_comparison_name( $name, $is_dir );
                     if ( isset( $members[ $key ] ) ) {
+                        // PharData keeps one entry per name, so a file and a directory sharing one would drop the file.
+                        if ( isset( $dirs[ $key ] ) !== $is_dir ) {
+                            return self::TAR_MALFORMED;
+                        }
                         ++$members[ $key ];
                         if ( '' === $prefix ) {
                             unset( $prefixed[ $key ] );
@@ -915,6 +921,9 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                             return self::TAR_MALFORMED;
                         }
                         $members[ $key ] = 1;
+                        if ( $is_dir ) {
+                            $dirs[ $key ] = true;
+                        }
                         if ( '' !== $prefix ) {
                             $prefixed[ $key ] = true;
                         }
@@ -937,6 +946,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         return array(
             'members'  => $members,
             'prefixed' => $prefixed,
+            'dirs'     => $dirs,
         );
     }
 
@@ -953,8 +963,11 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         $unlisted = $members['members'];
         foreach ( $entries as $entry ) {
             $key = $this->tar_comparison_name( $entry['name'], $entry['dir'] );
-            // PharData adds parent directories itself, but every listed file needs a header.
+            // PharData adds parent directories itself, but every listed file needs a header, and a listed name keeps the walk's kind.
             if ( ! $entry['dir'] && ! isset( $unlisted[ $key ] ) ) {
+                return self::TAR_MALFORMED;
+            }
+            if ( isset( $members['members'][ $key ] ) && isset( $members['dirs'][ $key ] ) !== (bool) $entry['dir'] ) {
                 return self::TAR_MALFORMED;
             }
             unset( $unlisted[ $key ] );
