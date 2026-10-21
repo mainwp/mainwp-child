@@ -26,6 +26,9 @@ class Tar_Archiver {
     const APPEND = 1;
     const CREATE = 2;
 
+    // PharData keeps member sizes and their 512-byte rounding in 32 bits.
+    const MAX_MEMBER_SIZE = 4294966784;
+
     /**
      * Whether to exclude zip archives.
      *
@@ -1111,6 +1114,17 @@ class Tar_Archiver {
 
         $stat = stat( $path ); // NOSONAR .
 
+        if ( ! isset( $rslt['bytesRead'] ) && $stat['size'] > self::MAX_MEMBER_SIZE ) {
+            fclose( $fp );
+            $this->log( 'Skipping oversized file ' . $path );
+            if ( $this->backup instanceof MainWP_Backup ) {
+                $this->backup->record_failed_add( $path, 'too_large' );
+            } else {
+                MainWP_Backup::record_skipped_path( $path, 'too_large' );
+            }
+            return false;
+        }
+
         $prefix = '';
         // PharData (the native restore) joins a ustar prefix to the name with a slash of its own,
         // and its iterator then skips the entry, so every longer name goes in a long-name entry.
@@ -1184,12 +1198,19 @@ class Tar_Archiver {
             $this->add_data( $this->block );
         }
 
-        if ( isset( $rslt['bytesRead'] ) ) {
-            fseek( $fp, $rslt['bytesRead'] );
-
-            $alreadyRead = ( $rslt['bytesRead'] % 512 );
-            $toRead      = 512 - $alreadyRead;
-            if ( $toRead > 0 ) {
+        // The archived header fixes the next member's offset even if the source changes.
+        $declaredSize = isset( $rslt['bytesRead'] ) ? $rslt['size'] : $stat['size'];
+        $position     = isset( $rslt['bytesRead'] ) ? $rslt['bytesRead'] : 0;
+        $payloadArea  = $declaredSize + ( 512 - $declaredSize % 512 ) % 512;
+        $sourceEnded  = false;
+        if ( $position < $declaredSize ) {
+            fseek( $fp, $position );
+        }
+        while ( $position < $payloadArea ) {
+            $toWrite           = min( 1024000 * 5, $payloadArea - $position );
+            $this->tempContent = '';
+            if ( $position < $declaredSize && ! $sourceEnded ) {
+                $toRead            = min( $toWrite, $declaredSize - $position );
                 $this->tempContent = $this->read_source_data( $fp, $toRead );
                 if ( false === $this->tempContent ) {
                     fclose( $fp );
@@ -1199,40 +1220,19 @@ class Tar_Archiver {
                     // A compressed entry cannot be rolled back after its header was written.
                     $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
                 }
-
-                MainWP_Backup::assert_disk_space_during_backup( dirname( (string) $this->archivePath ), null, 512 );
-                $this->add_data( $this->tempContent );
-
-                $remainder = 512 - ( strlen( $this->tempContent ) + $alreadyRead );
-                $this->log( 'DEBUG-Added ' . strlen( $this->tempContent ) . '(before: ' . $alreadyRead . ') will pack: ' . $remainder . ' (packed: ' . strlen( pack( 'a' . $remainder, '' ) ) );
-                if ( $remainder > 0 ) {
-                    $this->add_data( pack( 'a' . $remainder, '' ) );
+                if ( '' === $this->tempContent || ( strlen( $this->tempContent ) < $toRead && feof( $fp ) ) ) {
+                    $sourceEnded = true;
+                    MainWP_Backup::record_skipped_path( $path, 'changed' );
                 }
             }
-        }
-
-        while ( ! feof( $fp ) ) {
-            $this->tempContent = $this->read_source_data( $fp, 1024000 * 5 );
-            if ( false === $this->tempContent ) {
-                fclose( $fp );
-                if ( $this->backup instanceof MainWP_Backup ) {
-                    $this->backup->record_failed_add( $path );
-                }
-                // A compressed entry cannot be rolled back after its header was written.
-                $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+            if ( $sourceEnded || $position + strlen( $this->tempContent ) >= $declaredSize ) {
+                $this->tempContent = str_pad( $this->tempContent, $toWrite, "\0" );
             }
-
-            $read   = strlen( $this->tempContent );
-            $divide = $read % 512;
-
+            $written = strlen( $this->tempContent );
             // A single file can consume the headroom between file-count checks.
-            MainWP_Backup::assert_disk_space_during_backup( dirname( (string) $this->archivePath ), null, $read + ( $divide > 0 ? 512 - $divide : 0 ) );
-            $this->add_data( substr( $this->tempContent, 0, $read - $divide ) );
-
-            if ( $divide > 0 ) {
-                $this->add_data( pack( 'a512', substr( $this->tempContent, - 1 * $divide ) ) );
-            }
-
+            MainWP_Backup::assert_disk_space_during_backup( dirname( (string) $this->archivePath ), null, $written );
+            $this->add_data( $this->tempContent );
+            $position += $written;
             $this->update_pid_file();
         }
 
@@ -1438,7 +1438,10 @@ class Tar_Archiver {
                 $readOffset = $rslt['readOffset'];
                 $bytesRead  = $rslt['bytesRead'];
 
-                $out = array( 'bytesRead' => $bytesRead );
+                $out = array(
+                    'bytesRead' => $bytesRead,
+                    'size'      => $rslt['size'],
+                );
             }
         } elseif ( false === $rslt ) {
             if ( 'tar' === $this->type ) {
@@ -1611,6 +1614,7 @@ class Tar_Archiver {
 
                 $rslt['bytesRead']  = $bytesRead;
                 $rslt['readOffset'] = $previousFtell;
+                $rslt['size']       = $file['stat'][7];
 
                 $this->log( 'Will append this: ' . print_r( $rslt, 1 ) ); // phpcs:ignore -- debug feature.
 

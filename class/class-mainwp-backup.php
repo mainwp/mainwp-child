@@ -1517,14 +1517,15 @@ class MainWP_Backup {
      * A handful of unreadable files is survivable and reported; past the
      * threshold the archive is too incomplete to pass off as a backup.
      *
-     * @param string $path File that failed to be added.
+     * @param string $path   File that failed to be added.
+     * @param string $reason Reason the file could not be added.
      *
      * @throws MainWP_Exception When the failed-add threshold is exceeded.
      */
-    public function record_failed_add( $path ) {
+    public function record_failed_add( $path, $reason = 'unreadable' ) {
         ++$this->failed_add_count;
         $this->failed_add_paths[] = (string) $path;
-        static::record_skipped_path( $path, 'unreadable' );
+        static::record_skipped_path( $path, $reason );
         if ( $this->failed_add_count > self::MAX_FAILED_ADDS ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_TOO_MANY_SKIPPED ) ), null, MainWP_Backup_Error::ERR_TOO_MANY_SKIPPED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
         }
