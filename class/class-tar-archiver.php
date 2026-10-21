@@ -1444,12 +1444,12 @@ class Tar_Archiver {
                     'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
                     'stat'     => array(
                         2 => $temp['mode'],
-                        4 => octdec( $temp['uid'] ),
-                        5 => octdec( $temp['gid'] ),
-                        7 => octdec( $temp['size'] ),
-                        9 => octdec( $temp['mtime'] ),
+                        4 => octdec( trim( $temp['uid'], "\0 " ) ),
+                        5 => octdec( trim( $temp['gid'], "\0 " ) ),
+                        7 => octdec( trim( $temp['size'], "\0 " ) ),
+                        9 => octdec( trim( $temp['mtime'], "\0 " ) ),
                     ),
-                    'checksum' => octdec( $temp['checksum'] ),
+                    'checksum' => octdec( trim( $temp['checksum'], "\0 " ) ),
                     'type'     => $temp['type'],
                     'magic'    => $temp['magic'],
                 );
@@ -1886,12 +1886,12 @@ class Tar_Archiver {
                 'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
                 'stat'     => array(
                     2 => $temp['mode'],
-                    4 => octdec( $temp['uid'] ),
-                    5 => octdec( $temp['gid'] ),
-                    7 => octdec( $temp['size'] ),
-                    9 => octdec( $temp['mtime'] ),
+                    4 => octdec( trim( $temp['uid'], "\0 " ) ),
+                    5 => octdec( trim( $temp['gid'], "\0 " ) ),
+                    7 => octdec( trim( $temp['size'], "\0 " ) ),
+                    9 => octdec( trim( $temp['mtime'], "\0 " ) ),
                 ),
-                'checksum' => octdec( $temp['checksum'] ),
+                'checksum' => octdec( trim( $temp['checksum'], "\0 " ) ),
                 'type'     => $temp['type'],
                 'magic'    => $temp['magic'],
             );
@@ -1957,12 +1957,12 @@ class Tar_Archiver {
                 'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
                 'stat'     => array(
                     2 => $temp['mode'],
-                    4 => octdec( $temp['uid'] ),
-                    5 => octdec( $temp['gid'] ),
-                    7 => octdec( $temp['size'] ),
-                    9 => octdec( $temp['mtime'] ),
+                    4 => octdec( trim( $temp['uid'], "\0 " ) ),
+                    5 => octdec( trim( $temp['gid'], "\0 " ) ),
+                    7 => octdec( trim( $temp['size'], "\0 " ) ),
+                    9 => octdec( trim( $temp['mtime'], "\0 " ) ),
                 ),
-                'checksum' => octdec( $temp['checksum'] ),
+                'checksum' => octdec( trim( $temp['checksum'], "\0 " ) ),
                 'type'     => $temp['type'],
                 'magic'    => $temp['magic'],
             );
@@ -2032,24 +2032,39 @@ class Tar_Archiver {
                 fseek( $this->archive, 0 );
             }
             while ( $block = fread( $this->archive, 512 ) ) {
+                if ( 512 !== strlen( $block ) ) {
+                    throw new \Exception( 'Archive ended inside a header. Extraction aborted.' );
+                }
                 $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
                 if ( 'L' === $temp['type'] ) {
-                    $fname          = trim( fread( $this->archive, 512 ) );
-                    $block          = fread( $this->archive, 512 );
+                    $length = octdec( trim( $temp['size'], "\0 " ) );
+                    $fname  = 0 === $length ? '' : stream_get_contents( $this->archive, $length );
+                    if ( false === $fname || strlen( $fname ) !== $length ) {
+                        throw new \Exception( 'Archive ended inside an entry. Extraction aborted.' );
+                    }
+                    $padding = ( 512 - $length % 512 ) % 512;
+                    if ( $padding > 0 && strlen( fread( $this->archive, $padding ) ) !== $padding ) {
+                        throw new \Exception( 'Archive ended inside an entry. Extraction aborted.' );
+                    }
+                    $fname = rtrim( $fname, "\0" );
+                    $block = fread( $this->archive, 512 );
+                    if ( false === $block || 512 !== strlen( $block ) ) {
+                        throw new \Exception( 'Archive ended inside a header. Extraction aborted.' );
+                    }
                     $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
                     $temp['prefix'] = '';
                     $temp['name']   = $fname;
                 }
                 $file = array(
-                    'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
+                    'name'     => rtrim( $temp['prefix'], "\0" ) . rtrim( $temp['name'], "\0" ),
                     'stat'     => array(
                         2 => $temp['mode'],
-                        4 => octdec( $temp['uid'] ),
-                        5 => octdec( $temp['gid'] ),
-                        7 => octdec( $temp['size'] ),
-                        9 => octdec( $temp['mtime'] ),
+                        4 => octdec( trim( $temp['uid'], "\0 " ) ),
+                        5 => octdec( trim( $temp['gid'], "\0 " ) ),
+                        7 => octdec( trim( $temp['size'], "\0 " ) ),
+                        9 => octdec( trim( $temp['mtime'], "\0 " ) ),
                     ),
-                    'checksum' => octdec( $temp['checksum'] ),
+                    'checksum' => octdec( trim( $temp['checksum'], "\0 " ) ),
                     'type'     => $temp['type'],
                     'magic'    => $temp['magic'],
                 );
@@ -2064,64 +2079,23 @@ class Tar_Archiver {
                 for ( $i = 0; $i < 512; $i++ ) {
                     $checksum += ord( substr( $block, $i, 1 ) );
                 }
-                $target = MainWP_Child_Backup_File_Restorer::validate_extract_path( $file['name'], $to );
-                if ( $validate_only || 'wp-config.php' === MainWP_Clone_Install::normalize_entry_name( $file['name'] ) || is_link( rtrim( $target, '/' ) ) ) {
+                $directory = '5' === $file['type'];
+                $name      = $directory ? rtrim( $file['name'], '/' ) . '/' : $file['name'];
+                $target    = MainWP_Clone_Install::clone_entry_target( $name, $to );
+                if ( $validate_only || null === $target ) {
                     $this->skip_entry_payload( $file['stat'][7] );
                     continue;
                 }
-                if ( 5 === (int) $file['type'] ) {
-                    if ( ! is_dir( $target ) ) {
-                        if ( ! empty( $wp_filesystem ) ) {
-                            $wp_filesystem->mkdir( $target, FS_CHMOD_DIR );
-                        } else {
-                            mkdir( $target, 0777, true );
-                        }
-                    }
+                $fs = ! empty( $wp_filesystem ) && 'direct' !== $wp_filesystem->method ? $wp_filesystem : null;
+                if ( $directory ) {
+                    MainWP_Clone_Install::make_entry_dirs( $target, $to, $fs );
                     $this->skip_entry_payload( $file['stat'][7] );
-                } elseif ( 0 === (int) $file['type'] ) {
-                    if ( ! is_dir( dirname( $target ) ) ) {
-                        if ( ! empty( $wp_filesystem ) ) {
-                            $wp_filesystem->mkdir( dirname( $target ), FS_CHMOD_DIR );
-                        } else {
-                            mkdir( dirname( $target ), 0777, true );
-                        }
-                    }
-
-                    if ( ! empty( $wp_filesystem ) && ( $file['stat'][7] < 2000000 ) ) {
-                        $contents    = '';
-                        $bytesToRead = $file['stat'][7];
-                        while ( $bytesToRead > 0 ) {
-                            $readNow      = $bytesToRead > 1024 ? 1024 : $bytesToRead;
-                            $contents    .= fread( $this->archive, $readNow );
-                            $bytesToRead -= $readNow;
-                        }
-
-                        $toRead = ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
-                        if ( $toRead > 0 ) {
-                            fread( $this->archive, ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 ) );
-                        }
-
-                        $wp_filesystem->put_contents( $target, $contents, FS_CHMOD_FILE );
-                    } else {
-                        $new         = fopen( $target, 'wb+' );
-                        $bytesToRead = $file['stat'][7];
-                        while ( $bytesToRead > 0 ) {
-                            $readNow = $bytesToRead > 1024 ? 1024 : $bytesToRead;
-                            if ( false !== $new ) {
-                                fwrite( $new, fread( $this->archive, $readNow ) );
-                            } else {
-                                fread( $this->archive, $readNow );
-                            }
-                            $bytesToRead -= $readNow;
-                        }
-
-                        $toRead = ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
-                        if ( $toRead > 0 ) {
-                            fread( $this->archive, ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 ) );
-                        }
-                        if ( false !== $new ) {
-                            fclose( $new );
-                        }
+                } elseif ( in_array( $file['type'], array( '0', "\0", '' ), true ) ) {
+                    MainWP_Clone_Install::make_entry_dirs( dirname( $target ), $to, $fs );
+                    MainWP_Clone_Install::write_clone_file( $target, $this->archive, $file['stat'][7], $fs );
+                    $padding = ( 512 - $file['stat'][7] % 512 ) % 512;
+                    if ( $padding > 0 && strlen( fread( $this->archive, $padding ) ) !== $padding ) {
+                        throw new \Exception( 'Archive ended inside an entry. Extraction aborted.' );
                     }
                 } else {
                     $this->skip_entry_payload( $file['stat'][7] );

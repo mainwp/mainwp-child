@@ -142,4 +142,31 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 			rmdir( $root );
 		}
 	}
+	public function test_clone_tar_nul_padded_octal_fields_do_not_deprecate() {
+		$root = sys_get_temp_dir() . '/mainwp-tar-octal-' . uniqid();
+		mkdir( $root );
+		mkdir( $root . '/site' );
+		$path = $root . '/archive.tar';
+		file_put_contents( $path, $this->tar_entry_bytes( 'file.txt', 'contents' ) . str_repeat( "\0", 1024 ) );
+		$archiver = new Tar_Archiver( null, 'tar' );
+		$deprecations = array();
+		set_error_handler( static function ( $level, $message ) use ( &$deprecations ) {
+			if ( E_DEPRECATED === $level ) { $deprecations[] = $message; return true; }
+			return false;
+		} );
+		try {
+			$archiver->read( $path );
+			$archiver->extract_to( $root . '/site' );
+			$this->assertSame( 'contents', file_get_contents( $root . '/site/file.txt' ) );
+			$this->assertSame( array(), $deprecations );
+		} finally {
+			restore_error_handler();
+			$archiver->close();
+			unlink( $root . '/site/file.txt' );
+			rmdir( $root . '/site' );
+			unlink( $path );
+			rmdir( $root );
+		}
+	}
+
 }

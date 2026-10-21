@@ -161,7 +161,9 @@ class MainWP_Pages {
             global $mainWPChild;
             $mainWPChild->delete_connection_data( false );
             delete_option( 'mainwp_child_lasttime_not_connected' ); // reset.
-            wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&message=1' );
+            if ( wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&message=1' ) ) {
+                exit;
+            }
         }
 
         // phpcs:disable WordPress.Security.NonceVerification
@@ -177,7 +179,9 @@ class MainWP_Pages {
             }
             MainWP_Helper::update_option( 'mainwp_child_ttl_active_unconnected_site', ! empty( $_POST['mainwp_child_active_time_for_unconnected_site'] ) ? intval( $_POST['mainwp_child_active_time_for_unconnected_site'] ) : 0 );
             update_user_option( get_current_user_id(), 'mainwp_child_user_enable_passwd_auth_connect', $enable_pwd_auth_connect ? 1 : 0 );
-            wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&message=2' );
+            if ( wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&message=2' ) ) {
+                exit;
+            }
         }
         // phpcs:enable
     }
@@ -197,7 +201,9 @@ class MainWP_Pages {
             remove_menu_page( 'tools.php' );
             $pos = $uri ? stripos( $uri, 'tools.php' ) || stripos( $uri, 'import.php' ) || stripos( $uri, 'export.php' ) : false;
             if ( false !== $pos ) {
-                wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
+                if ( wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' ) ) {
+                    exit;
+                }
             }
         }
         // if preserve branding and do not remove menus.

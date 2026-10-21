@@ -6,8 +6,12 @@
  */
 
 use MainWP\Child\MainWP_Clone_Install;
+use MainWP\Child\Tar_Archiver;
+
+require_once __DIR__ . "/includes/trait-tar-entry-fixture.php";
 
 class MainWP_Clone_Install_Test extends WP_UnitTestCase {
+	use Tar_Entry_Fixture;
 
 	public static function data_destination_htaccess() {
 		return array(
@@ -236,81 +240,28 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 		}
 	}
 
-	public static function data_clone_unzip_file_paths() {
-		return array( 'protected entries' => array( 'protected' ), 'linked parent' => array( 'parent' ) );
-	}
-
-	/**
-	 * @dataProvider data_clone_unzip_file_paths
-	 * @runInSeparateProcess
-	 * @preserveGlobalState disabled
-	 */
-	public function test_clone_unzip_file_path_keeps_protected_destinations( $case ) {
-		$root = sys_get_temp_dir() . '/mainwp-clone-unzip-' . uniqid() . '/';
-		mkdir( $root . 'site', 0777, true );
-		mkdir( $root . 'outside' );
-		define( 'MainWP\\Child\\ABSPATH', $root . 'site/' );
-		file_put_contents( $root . 'outside/secret.txt', 'original' );
-		symlink( $root . 'outside/secret.txt', $root . 'site/linked.txt' );
-		symlink( $root . 'outside', $root . 'site/linked' );
-		$path = $root . 'archive.zip';
-		$zip = new ZipArchive();
-		$this->assertTrue( $zip->open( $path, ZipArchive::CREATE ) );
-		$zip->addFromString( 'protected' === $case ? 'linked.txt' : 'linked/escape.txt', 'archive content' );
-		$zip->addFromString( './wp-config.php', 'source config' );
-		$zip->addFromString( 'after.txt', 'later entry' );
-		$zip->close();
-		$clone = new class( $path ) extends MainWP_Clone_Install {
-			public function __construct( $file ) { $this->file = $file; }
-		};
-		try {
-			$error = null;
-			$result = null;
-			try {
-				$result = $clone->extract_wp_zip_backup();
-			} catch ( Throwable $caught ) {
-				$error = $caught;
-			}
-			if ( 'protected' === $case ) {
-				$this->assertNull( $error, $error ? $error->getMessage() : '' );
-				$this->assertTrue( $result );
-				$this->assertSame( 'later entry', file_get_contents( $root . 'site/after.txt' ) );
-				$this->assertFileDoesNotExist( $root . 'site/wp-config.php' );
-			} else {
-				$this->assertInstanceOf( Exception::class, $error );
-				$this->assertFileDoesNotExist( $root . 'site/after.txt' );
-			}
-			$this->assertTrue( is_link( $root . 'site/linked.txt' ) );
-			$this->assertSame( 'original', file_get_contents( $root . 'outside/secret.txt' ) );
-			$this->assertSame( array( '.', '..', 'secret.txt' ), scandir( $root . 'outside' ) );
-		} finally {
-			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
-			foreach ( $iterator as $file ) {
-				$file->isLink() || ! $file->isDir() ? unlink( $file->getPathname() ) : rmdir( $file->getPathname() );
-			}
-			rmdir( $root );
-		}
-	}
-
 	public static function data_clone_unzip_preflight() {
 		return array( 'protected entries' => array( 'protected' ), 'readers disagree' => array( 'unicode path' ), 'rewrite fails' => array( 'read only' ) );
 	}
 
 	/**
-	 * unzip_file() is used only without direct file access, so its preflight runs on its own here.
+	 * PclZip preflight must reject unsafe raw names before WordPress can write them.
 	 *
 	 * @dataProvider data_clone_unzip_preflight
 	 * @runInSeparateProcess
 	 * @preserveGlobalState disabled
 	 */
 	public function test_clone_unzip_preflight_removes_protected_entries( $case ) {
-		if ( ! class_exists( 'PclZip', false ) ) {
-			require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
+		if ( 'read only' === $case && function_exists( 'posix_geteuid' ) && 0 === posix_geteuid() ) {
+			$this->markTestSkipped( 'Root can write a read-only directory.' );
 		}
 		$root = sys_get_temp_dir() . '/mainwp-clone-preflight-' . uniqid() . '/';
 		mkdir( $root . 'site', 0777, true );
 		mkdir( $root . 'outside' );
 		mkdir( $root . 'download' );
+		mkdir( $root . 'scratch' );
+		if ( ! defined( 'PCLZIP_TEMPORARY_DIR' ) ) { define( 'PCLZIP_TEMPORARY_DIR', $root . 'scratch/' ); }
+		if ( ! class_exists( 'PclZip', false ) ) { require_once ABSPATH . 'wp-admin/includes/class-pclzip.php'; }
 		define( 'MainWP\\Child\\ABSPATH', $root . 'site/' );
 		file_put_contents( $root . 'outside/secret.txt', 'original' );
 		symlink( $root . 'outside/secret.txt', $root . 'site/linked.txt' );
@@ -343,6 +294,7 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 		$preflight = new ReflectionMethod( MainWP_Clone_Install::class, 'drop_protected_zip_entries' );
 		$preflight->setAccessible( true );
 		if ( 'read only' === $case ) {
+			chmod( $path, 0444 );
 			chmod( $root . 'download', 0555 );
 		}
 		try {
@@ -368,6 +320,7 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 			$this->assertSame( array( '.', '..', 'secret.txt' ), scandir( $root . 'outside' ) );
 		} finally {
 			chmod( $root . 'download', 0755 );
+			if ( file_exists( $path ) ) { chmod( $path, 0644 ); }
 			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
 			foreach ( $iterator as $file ) {
 				$file->isLink() || ! $file->isDir() ? unlink( $file->getPathname() ) : rmdir( $file->getPathname() );
@@ -376,205 +329,303 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 		}
 	}
 
-	public static function data_clone_zip_paths() {
-		return array(
-			'traversal' => array( 'traversal' ),
-			'absolute' => array( 'absolute' ),
-			'linked parent' => array( 'parent' ),
-			'linked file' => array( 'leaf' ),
-			'linked directory' => array( 'directory' ),
-			'linked config' => array( 'config link' ),
-			'linked parent traversal' => array( 'linked traversal' ),
-			'dot-suffixed directory' => array( 'dot directory' ),
-			'normal' => array( 'normal' ),
+
+	public static function data_clone_entry_matrix() {
+		$rows = array(
+			1 => array( array( 'a/b.txt', 'X', 'existing parent' ) ),
+			2 => array( array( 'new/dir/f.txt', 'X', 'missing' ), array( 'new/./dir/f.txt', 'X', 'missing' ), array( 'new//dir/f.txt', 'X', 'missing' ) ),
+			3 => array( array( 'locked/new/f.txt', 'X', 'remote locked' ), array( 'locked/new/f.txt', 'X', 'remote locked large' ) ),
+			4 => array( array( 'locked/new/f.txt', 'R', 'direct locked' ) ),
+			5 => array( array( 'new/dir/f.txt', 'X', 'umask' ) ),
+			6 => array_map( static function ( $name ) { return array( $name, 'R', 'missing' ); }, array( '../x', 'a/../../x', 'a/../x', 'a\\..\\x', '.. /x', '.../x', '. ./x' ) ),
+			7 => array_map( static function ( $name ) { return array( $name, 'R', 'missing' ); }, array( '/x', '\\x', 'C:\\x', "bad\0name" ) ),
+			8 => array_map( static function ( $name ) { return array( $name, 'S', 'config' ); }, array( 'wp-config.php', './wp-config.php', './/wp-config.php' ) ),
+			9 => array_map( static function ( $name ) { return array( $name, 'S', 'config' ); }, array( '.\\wp-config.php', 'WP-CONFIG.PHP', 'wp-config.php.', 'wp-config.php ', 'wp-config.php::$DATA' ) ),
+			10 => array( array( 'self/wp-config.php', 'S', 'self' ) ),
+			11 => array( array( 'alias.php', 'S', 'hardlink' ) ),
+			12 => array( array( 'sub/wp-config.php', 'X', 'missing' ) ),
+			13 => array( array( 'leaf.txt', 'S', 'leaf outside' ), array( 'leaf.txt', 'S', 'leaf inside' ) ),
+			14 => array( array( 'linked/', 'S', 'linked outside' ) ),
+			15 => array( array( 'linked/f.txt', 'X', 'linked inside' ) ),
+			16 => array( array( 'linked/f.txt', 'R', 'linked outside' ) ),
+			17 => array( array( 'linked/f.txt', 'R', 'dangling' ) ),
+			18 => array( array( 'new/f.txt', 'X', 'root link' ) ),
+			19 => array( array( 'safe./wp-config.php', 'X', 'missing' ), array( 'safe./linked/p.php', 'X', 'decoy link' ), array( 'safe./linked/p.php', 'R', 'dot link' ) ),
+			20 => array( array( "cafe\u{0301}/f.txt", 'X', 'missing' ), array( "wp-conf\u{0456}g.php", 'X', 'missing' ), array( 'up loads/My Photo.jpg', 'X', 'missing' ) ),
+			21 => array( array( 'conflict/', 'R', 'file conflict' ), array( 'conflict', 'R', 'dir conflict' ), array( 'conflict/f.txt', 'R', 'file conflict' ) ),
+			22 => array( array( '../late.txt', 'R', 'missing' ) ),
+			23 => array( array( 'member.txt', 'X', 'many' ) ),
+			24 => array( array( 'member.txt', 'R', 'corrupt' ) ),
+			25 => array( array( 'linked/f.txt', 'R', 'unicode outside' ), array( 'wp-config.php', 'S', 'unicode config' ), array( 'safe/name.txt', 'X', 'unicode protected' ) ),
+			26 => array_map( static function ( $type ) { return array( 'metadata', 'S', 'tar type ' . $type ); }, array( '1', '2', 'x', 'g', '7' ) ),
+			27 => array( array( 'new/f.txt', 'X', 'bz2' ) ),
+			28 => array( array( 'locked/new/f.txt', 'R', 'direct locked' ) ),
+			29 => array( array( 'clash/f.txt', 'R', 'archive conflict' ) ),
+			30 => array( array( 'changed/f.txt', 'R', 'swap parent' ) ),
 		);
+		foreach ( array( '1', '2', 'x', 'g', '7' ) as $type ) { $rows[26][] = array( 'metadata', 'S', 'tar empty ' . $type ); }
+		$rows[26][] = array( 'long/f.txt', 'X', 'long header' );
+		$data = array();
+		foreach ( $rows as $row => $cases ) {
+			foreach ( array( 'T', 'ZD', 'ZF', 'PU', 'PD' ) as $route ) {
+				if ( ( 3 === $row && ! in_array( $route, array( 'T', 'ZF', 'PU' ), true ) ) ||
+					( in_array( $row, array( 4, 28 ), true ) && 'ZF' === $route ) ||
+					( 23 === $row && ! in_array( $route, array( 'ZD', 'ZF' ), true ) ) ||
+					( 24 === $row && ! in_array( $route, array( 'ZD', 'ZF' ), true ) ) ||
+					( 25 === $row && 'T' === $route ) ||
+					( in_array( $row, array( 26, 27 ), true ) && 'T' !== $route ) ||
+					( 30 === $row && ! in_array( $route, array( 'T', 'ZF' ), true ) ) ) {
+					continue;
+				}
+				foreach ( $cases as $index => $case ) {
+					$data[ sprintf( '%02d %s %s %d', $row, $route, $case[2], $index ) ] = array_merge( array( $row, $route ), $case );
+				}
+			}
+		}
+		$routes = array();
+		foreach ( $data as $label => $case ) { $routes[ $case[1] ][ $label ] = $case; }
+		return array_map( static function ( $cases ) { return array( $cases ); }, $routes );
 	}
 
 	/**
-	 * @dataProvider data_clone_zip_paths
+	 * @dataProvider data_clone_entry_matrix
 	 * @runInSeparateProcess
 	 * @preserveGlobalState disabled
 	 */
-	public function test_clone_zip_validates_entries_before_extraction( $case ) {
-		$root = sys_get_temp_dir() . '/mainwp-clone-zip-' . uniqid() . '/';
-		mkdir( $root . 'site', 0777, true );
-		define( 'MainWP\\Child\\ABSPATH', $root . 'site/' );
-		$name = 'nested/inside.txt';
-		if ( 'traversal' === $case ) {
-			$name = '../outside.txt';
-		} elseif ( 'absolute' === $case ) {
-			$name = $root . 'outside.txt';
-		} elseif ( 'parent' === $case ) {
-			mkdir( $root . 'outside' );
-			symlink( $root . 'outside', $root . 'site/linked' );
-			$name = 'linked/escape.txt';
-		} elseif ( 'leaf' === $case ) {
-			file_put_contents( $root . 'secret.txt', 'original' );
-			symlink( $root . 'secret.txt', $root . 'site/linked.txt' );
-			$name = 'linked.txt';
-		} elseif ( in_array( $case, array( 'directory', 'linked traversal', 'dot directory' ), true ) ) {
-			mkdir( $root . 'outside' );
-			symlink( $root . 'outside', $root . 'site/linked' );
-			$name = array( 'directory' => 'linked/', 'linked traversal' => 'linked/../victim.php', 'dot directory' => 'safe./linked/payload.php' )[ $case ];
-		} elseif ( 'config link' === $case ) {
-			file_put_contents( $root . 'secret.txt', 'original' );
-			symlink( $root . 'secret.txt', $root . 'site/wp-config.php' );
-			$name = 'wp-config.php';
+	public function test_clone_entry_matrix( $cases ) {
+		if ( ! defined( 'FS_CHMOD_DIR' ) ) { define( 'FS_CHMOD_DIR', 0755 ); }
+		if ( ! defined( 'FS_CHMOD_FILE' ) ) { define( 'FS_CHMOD_FILE', 0644 ); }
+		$base = sys_get_temp_dir() . '/mainwp-matrix-' . uniqid();
+		define( 'MainWP\\Child\\ABSPATH', $base . '/site/' );
+		$failures = array();
+		foreach ( $cases as $label => $case ) {
+			try { $this->check_clone_matrix_case( $base, ...$case ); }
+			catch ( Throwable $error ) { $failures[] = $label . ': ' . $error->getMessage(); }
 		}
-		$zip = new ZipArchive();
-		$this->assertTrue( $zip->open( $root . 'archive.zip', ZipArchive::CREATE ) );
-		if ( 'directory' === $case ) {
-			$zip->addEmptyDir( $name );
-		} else {
-			$zip->addFromString( $name, 'archive content' );
+		$this->assertSame( array(), $failures );
+	}
+
+	private function check_clone_matrix_case( $base, $row, $route, $name, $outcome, $state ) {
+		if ( false !== strpos( $state, 'locked' ) && function_exists( 'posix_geteuid' ) && 0 === posix_geteuid() ) {
+			return;
 		}
-		$zip->addFromString( './wp-config.php', 'source config' );
-		$zip->addFromString( './/wp-config.php', 'source config' );
-		$zip->addFromString( 'safe./wp-config.php', 'source config' );
-		$zip->addFromString( 'after.txt', 'later entry' );
-		$zip->close();
-		$clone = new class( $root . 'archive.zip' ) extends MainWP_Clone_Install {
-			public function __construct( $file ) { $this->file = $file; }
+		if ( 'bz2' === $state && ! function_exists( 'bzcompress' ) ) {
+			return;
+		}
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		if ( ! defined( 'PCLZIP_TEMPORARY_DIR' ) ) { define( 'PCLZIP_TEMPORARY_DIR', sys_get_temp_dir() . '/' ); }
+		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
+		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php';
+		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
+		mkdir( $base . '/site', 0755, true );
+		mkdir( $base . '/outside' );
+		$root = $base . '/site/';
+		if ( 'root link' === $state ) {
+			rename( $base . '/site', $base . '/actual' );
+			symlink( $base . '/actual', $base . '/site' );
+		}
+		file_put_contents( $root . 'wp-config.php', 'destination config' );
+		file_put_contents( $base . '/outside/keep.txt', 'outside original' );
+		if ( 'existing parent' === $state ) { mkdir( $root . 'a', 0711 ); }
+		if ( 'self' === $state ) { symlink( $root, $root . 'self' ); }
+		if ( 'hardlink' === $state ) { link( $root . 'wp-config.php', $root . 'alias.php' ); }
+		if ( 0 === strpos( $state, 'leaf' ) ) {
+			file_put_contents( $root . 'inside.txt', 'inside original' );
+			symlink( 'leaf inside' === $state ? $root . 'inside.txt' : $base . '/outside/keep.txt', $root . 'leaf.txt' );
+		}
+		if ( in_array( $state, array( 'linked outside', 'linked inside', 'dangling', 'decoy link', 'unicode outside', 'dot link' ), true ) ) {
+			mkdir( $root . 'inside' );
+			$target = 'linked inside' === $state ? $root . 'inside' : $base . '/outside';
+			if ( 'dangling' === $state ) { $target = $base . '/absent'; }
+			if ( 'dot link' === $state ) { mkdir( $root . 'safe.' ); }
+			symlink( $target, $root . ( 'dot link' === $state ? 'safe./linked' : 'linked' ) );
+		}
+		if ( 'file conflict' === $state ) { file_put_contents( $root . 'conflict', 'destination file' ); }
+		if ( 'dir conflict' === $state ) { mkdir( $root . 'conflict' ); }
+		if ( false !== strpos( $state, 'locked' ) ) { mkdir( $root . 'locked', 0555 ); chmod( $root . 'locked', 0555 ); }
+		global $wp_filesystem;
+		$previous_fs = $wp_filesystem;
+		$remote = 'direct locked' !== $state && ( in_array( $route, array( 'ZF', 'PU' ), true ) || 0 === strpos( $state, 'remote locked' ) || 'swap parent' === $state );
+		$wp_filesystem = new class( $remote, $root, $base . '/outside', 'many' === $state, 'swap parent' === $state ) extends WP_Filesystem_Direct {
+			public $writes = array();
+			public $reader_choices = array();
+			private $root;
+			private $outside;
+			private $record;
+			private $swap;
+			public function __construct( $remote, $root, $outside, $record, $swap ) {
+				parent::__construct( null );
+				$this->method = $remote ? 'ftpext' : 'direct';
+				$this->root = $root;
+				$this->outside = $outside;
+				$this->record = $record;
+				$this->swap = $swap;
+			}
+			public function chmod( $path, $mode = false, $recursive = false ) {
+				return chmod( $path, $mode );
+			}
+			public function mkdir( $path, $mode = false, $owner = false, $group = false ) {
+				$parent = dirname( rtrim( $path, '/' ) );
+				$old = fileperms( $parent ) & 0777;
+				if ( 'direct' !== $this->method ) { chmod( $parent, 0755 ); }
+				try { return parent::mkdir( $path, $mode, $owner, $group ); }
+				finally { chmod( $parent, $old ); }
+			}
+			public function put_contents( $path, $contents, $mode = false ) {
+				$this->reader_choices[] = apply_filters( 'unzip_file_use_ziparchive', true );
+				$this->writes[ basename( $path ) ] = array( $contents, $mode );
+				if ( $this->swap && 'before.txt' === basename( $path ) ) {
+					symlink( $this->outside, $this->root . 'changed' );
+				}
+				return $this->record ? true : parent::put_contents( $path, $contents, $mode );
+			}
 		};
+		if ( ( 'PU' === $route && in_array( $row, array( 1, 2, 5 ), true ) ) || ( 'T' === $route && ! $remote ) ) { $wp_filesystem = new WP_Filesystem_Direct( null ); }
+		$archive = $base . '/archive.' . ( 'T' === $route ? ( 'bz2' === $state ? 'tar.bz2' : 'tar' ) : 'zip' );
+		$body = 'remote locked large' === $state ? str_repeat( 'x', 2000001 ) : 'archive content';
+		$entries = array( array( 'before.txt', 'before', '0' ), array( $name, $body, '/' === substr( $name, -1 ) ? '5' : '0' ), array( 'after.txt', 'after', '0' ) );
+		if ( 22 === $row ) { $entries[0][0] = 'before/dir/before.txt'; }
+		if ( 'archive conflict' === $state ) { array_unshift( $entries, array( 'clash', 'first', '0' ) ); }
+		if ( 0 === strpos( $state, 'tar type ' ) ) { $entries[1] = array( $name, $this->tar_entry_bytes( '../hidden.txt', 'hidden' ), substr( $state, -1 ) ); }
+		if ( 0 === strpos( $state, 'tar empty ' ) ) { $entries[1] = array( $name, '', substr( $state, -1 ) ); }
+		if ( 'many' === $state ) {
+			$entries = array();
+			for ( $i = 0; $i < 65536; ++$i ) { $entries[] = array( 'm' . $i . '.txt', 'body', '0' ); }
+		}
+		if ( 'T' === $route ) {
+			$bytes = '';
+			foreach ( $entries as $entry ) { $bytes .= $this->tar_entry_bytes( $entry[0], $entry[1], $entry[2] ); }
+			if ( 'long header' === $state ) { $bytes = $this->tar_entry_bytes( '././@LongLink', str_pad( $name . "\0", 700, "\0" ), 'L' ) . $this->tar_entry_bytes( 'placeholder', 'archive content' ) . $this->tar_entry_bytes( 'before.txt', 'before' ) . $this->tar_entry_bytes( 'after.txt', 'after' ); }
+			$bytes .= str_repeat( "\0", 1024 );
+			if ( 'bz2' === $state ) { $bytes = bzcompress( $bytes ); }
+			file_put_contents( $archive, $bytes );
+		} else {
+			$this->write_clone_zip_fixture( $archive, $entries, 25 === $row ? ( 'unicode protected' === $state ? 'wp-config.php' : 'safe/name.txt' ) : false );
+			if ( 'corrupt' === $state ) { file_put_contents( $archive, 'not a zip' ); }
+		}
+		if ( 25 === $row && in_array( $route, array( 'ZD', 'ZF' ), true ) ) { $outcome = 'unicode protected' === $state ? 'S' : 'X'; $name = 'unicode protected' === $state ? 'wp-config.php' : 'safe/name.txt'; }
+		// libzip reads an embedded NUL as a space, so ZipArchive checks and writes that literal name.
+		if ( 7 === $row && "bad\0name" === $name && in_array( $route, array( 'ZD', 'ZF' ), true ) ) { $outcome = 'X'; $name = 'bad name'; }
+		$clone = new class( $archive, $route ) extends MainWP_Clone_Install {
+			private $route;
+			public function __construct( $file, $route ) { $this->file = $file; $this->route = $route; }
+			public function check_zip_support() { return ! in_array( $this->route, array( 'PU', 'PD' ), true ); }
+			public function check_wp_zip() { return 'PD' !== $this->route; }
+		};
+		$archiver = null;
+		$before = $this->clone_destination_snapshot( $root );
+		$old_umask = umask( 0077 );
+		$warnings = array();
+		set_error_handler( static function ( $level, $message ) use ( &$warnings ) { $warnings[] = $message; return true; } );
+		$zip_filter = static function () { return true; };
+		add_filter( 'unzip_file_use_ziparchive', $zip_filter, PHP_INT_MAX );
 		try {
-			$error = null;
+			$caught = null;
 			$result = null;
 			try {
-				$result = $clone->extract_zip_backup();
-			} catch ( Throwable $caught ) {
-				$error = $caught;
-			}
-			if ( ! in_array( $case, array( 'normal', 'leaf', 'directory', 'config link', 'dot directory' ), true ) ) {
-				$this->assertInstanceOf( Exception::class, $error );
-				$this->assertFileDoesNotExist( $root . 'site/after.txt' );
+				if ( 'T' === $route ) {
+					$archiver = new Tar_Archiver( null, 'bz2' === $state ? 'tar.bz2' : 'tar' );
+					$archiver->read( $archive );
+					$result = $archiver->extract_to( $root );
+				} elseif ( 'ZD' === $route ) {
+					$result = $clone->extract_zip_backup();
+				} elseif ( 'ZF' === $route ) {
+					$result = $clone->extract_wp_zip_backup();
+				} else {
+					$result = $clone->extract_backup();
+				}
+			} catch ( Throwable $error ) { $caught = $error; }
+			if ( 'R' === $outcome ) {
+				$this->assertTrue( $caught instanceof Exception || false === $result, $state . ' must refuse extraction' );
+				if ( ! in_array( $row, array( 4, 24, 28, 29, 30 ), true ) ) {
+					$this->assertSame( $before, $this->clone_destination_snapshot( $root ), 'Refusal must preserve files, directories, links and modes.' );
+					$this->assertFileDoesNotExist( $root . 'before.txt' );
+					$this->assertFileDoesNotExist( $root . 'after.txt' );
+				}
 			} else {
-				$this->assertNull( $error, $error ? $error->getMessage() : '' );
-				$this->assertTrue( $result );
-				if ( 'normal' === $case ) {
-					$this->assertSame( 'archive content', file_get_contents( $root . 'site/nested/inside.txt' ) );
+				$this->assertNull( $caught, $caught ? $caught->getMessage() : '' );
+				$this->assertNotSame( false, $result );
+				if ( 'many' === $state && 'ZF' === $route ) {
+					$this->assertCount( 65536, $wp_filesystem->writes );
+					$this->assertSame( array( 'body', FS_CHMOD_FILE ), $wp_filesystem->writes['m65535.txt'] );
+				} elseif ( 'many' === $state ) {
+					$this->assertSame( 'body', file_get_contents( $root . 'm65535.txt' ) );
+				} else {
+					$this->assertSame( 'before', file_get_contents( $root . 'before.txt' ) );
+					$this->assertSame( 'after', file_get_contents( $root . 'after.txt' ) );
+					if ( 'X' === $outcome ) {
+						$this->assertSame( $body, file_get_contents( $root . $name ) );
+						if ( 3 === $row ) { $this->assertArrayHasKey( 'f.txt', $wp_filesystem->writes ); }
+						if ( in_array( $row, array( 1, 2, 3, 5 ), true ) ) {
+							clearstatcache();
+							$this->assertSame( FS_CHMOD_FILE, fileperms( $root . $name ) & 0777 );
+							$this->assertSame( 1 === $row ? 0711 : FS_CHMOD_DIR, fileperms( dirname( $root . $name ) ) & 0777 );
+						}
+					} elseif ( in_array( $row, array( 9, 26 ), true ) && 'wp-config.php' !== $name ) {
+						if ( is_file( $root . $name ) ) { $this->assertSame( 'destination config', file_get_contents( $root . $name ) ); }
+						else { $this->assertFileDoesNotExist( $root . $name ); }
+					}
 				}
-				if ( 'config link' !== $case ) {
-					$this->assertFileDoesNotExist( $root . 'site/wp-config.php' );
-				}
-				$this->assertSame( 'later entry', file_get_contents( $root . 'site/after.txt' ) );
 			}
-			$this->assertFileDoesNotExist( $root . 'outside.txt' );
-			$this->assertFileDoesNotExist( $root . 'outside/escape.txt' );
-			if ( 'leaf' === $case || 'config link' === $case ) {
-				$this->assertTrue( is_link( $root . 'site/' . ( 'leaf' === $case ? 'linked.txt' : 'wp-config.php' ) ) );
-				$this->assertSame( 'original', file_get_contents( $root . 'secret.txt' ) );
+			$this->assertSame( 'destination config', file_get_contents( $root . 'wp-config.php' ) );
+			$this->assertSame( array( '.', '..', 'keep.txt' ), scandir( $base . '/outside' ) );
+			$this->assertSame( 'outside original', file_get_contents( $base . '/outside/keep.txt' ) );
+			$this->assertFileDoesNotExist( $base . '/hidden.txt' );
+			if ( 13 === $row ) {
+				$this->assertTrue( is_link( $root . 'leaf.txt' ) );
+				$this->assertSame( 'inside original', file_get_contents( $root . 'inside.txt' ) );
 			}
-			if ( 'dot directory' === $case ) {
-				$this->assertSame( 'archive content', file_get_contents( $root . 'site/safe./linked/payload.php' ) );
-			}
-			if ( in_array( $case, array( 'directory', 'linked traversal', 'dot directory' ), true ) ) {
-				$this->assertTrue( is_link( $root . 'site/linked' ) );
-				$this->assertSame( array( '.', '..' ), scandir( $root . 'outside' ) );
-				$this->assertFileDoesNotExist( $root . 'victim.php' );
-				$this->assertFileDoesNotExist( $root . 'outside/../victim.php' );
-			}
+			if ( 14 === $row ) { $this->assertTrue( is_link( $root . 'linked' ) ); }
+			if ( 11 === $row ) { $this->assertSame( fileinode( $root . 'wp-config.php' ), fileinode( $root . 'alias.php' ) ); }
+			if ( 'PU' === $route && 'unicode protected' === $state ) { $this->assertSame( array( false, false, false ), $wp_filesystem->reader_choices ); }
+			if ( 'PU' === $route ) { $this->assertTrue( apply_filters( 'unzip_file_use_ziparchive', true ), 'The reader filter must be restored.' ); }
 		} finally {
-			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+			remove_filter( 'unzip_file_use_ziparchive', $zip_filter, PHP_INT_MAX );
+			restore_error_handler();
+			umask( $old_umask );
+			if ( $archiver ) { $archiver->close(); }
+			$wp_filesystem = $previous_fs;
+			if ( is_dir( $root . 'locked' ) ) { chmod( $root . 'locked', 0755 ); }
+			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $base, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
 			foreach ( $iterator as $file ) {
 				$file->isLink() || ! $file->isDir() ? unlink( $file->getPathname() ) : rmdir( $file->getPathname() );
 			}
-			rmdir( $root );
+			rmdir( $base );
 		}
 	}
 
-	/**
-	 * @dataProvider data_clone_zip_paths
-	 * @runInSeparateProcess
-	 * @preserveGlobalState disabled
-	 */
-	public function test_clone_zip_pcl_validates_entries_before_extraction( $case ) {
-		if ( ! class_exists( 'PclZip', false ) ) {
-			require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
+	private function clone_destination_snapshot( $root ) {
+		clearstatcache( true );
+		$entries = array();
+		$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::SELF_FIRST );
+		foreach ( $iterator as $entry ) {
+			$path = $entry->getPathname();
+			$name = substr( $path, strlen( $root ) );
+			$entries[ $name ] = $entry->isLink() ? array( 'link', readlink( $path ) ) : array( $entry->isDir() ? 'dir' : file_get_contents( $path ), fileperms( $path ) & 0777 );
 		}
-		$root = sys_get_temp_dir() . '/mainwp-clone-pcl-' . uniqid() . '/';
-		mkdir( $root . 'site', 0777, true );
-		define( 'MainWP\\Child\\ABSPATH', $root . 'site/' );
-		$name = 'nested/inside.txt';
-		if ( 'traversal' === $case ) {
-			$name = '../outside.txt';
-		} elseif ( 'absolute' === $case ) {
-			$name = $root . 'outside.txt';
-		} elseif ( 'parent' === $case ) {
-			mkdir( $root . 'outside' );
-			symlink( $root . 'outside', $root . 'site/linked' );
-			$name = 'linked/escape.txt';
-		} elseif ( 'leaf' === $case ) {
-			file_put_contents( $root . 'secret.txt', 'original' );
-			symlink( $root . 'secret.txt', $root . 'site/linked.txt' );
-			$name = 'linked.txt';
-		} elseif ( in_array( $case, array( 'directory', 'linked traversal', 'dot directory' ), true ) ) {
-			mkdir( $root . 'outside' );
-			symlink( $root . 'outside', $root . 'site/linked' );
-			$name = array( 'directory' => 'linked/', 'linked traversal' => 'linked/../victim.php', 'dot directory' => 'safe./linked/payload.php' )[ $case ];
-		} elseif ( 'config link' === $case ) {
-			file_put_contents( $root . 'secret.txt', 'original' );
-			symlink( $root . 'secret.txt', $root . 'site/wp-config.php' );
-			$name = 'wp-config.php';
+		ksort( $entries );
+		return $entries;
+	}
+
+	private function write_clone_zip_fixture( $path, $entries, $unicode = false ) {
+		if ( count( $entries ) > 65535 ) {
+			$zip = new ZipArchive();
+			$this->assertTrue( $zip->open( $path, ZipArchive::CREATE ) );
+			foreach ( $entries as $entry ) { $zip->addFromString( $entry[0], $entry[1] ); }
+			$this->assertTrue( $zip->close() );
+			return;
 		}
-		$zip = new ZipArchive();
-		$this->assertTrue( $zip->open( $root . 'archive.zip', ZipArchive::CREATE ) );
-		if ( 'directory' === $case ) {
-			$zip->addEmptyDir( $name );
-		} else {
-			$zip->addFromString( $name, 'archive content' );
+		$local = '';
+		$central = '';
+		foreach ( $entries as $entry ) {
+			list( $name, $data, $type ) = $entry;
+			if ( '5' === $type ) { $data = ''; }
+			$extra = $unicode && ! in_array( $name, array( 'before.txt', 'after.txt' ), true ) ? pack( 'vvCV', 0x7075, 5 + strlen( $unicode ), 1, crc32( $name ) ) . $unicode : '';
+			$offset = strlen( $local );
+			$local .= pack( 'VvvvvvVVVvv', 0x04034b50, 20, 0, 0, 0, 0, crc32( $data ), strlen( $data ), strlen( $data ), strlen( $name ), strlen( $extra ) ) . $name . $extra . $data;
+			$central .= pack( 'VvvvvvvVVVvvvvvVV', 0x02014b50, 20, 20, 0, 0, 0, 0, crc32( $data ), strlen( $data ), strlen( $data ), strlen( $name ), strlen( $extra ), 0, 0, 0, '5' === $type ? 16 : 0, $offset ) . $name . $extra;
 		}
-		$zip->addFromString( './wp-config.php', 'source config' );
-		$zip->addFromString( './/wp-config.php', 'source config' );
-		$zip->addFromString( 'safe./wp-config.php', 'source config' );
-		$zip->addFromString( 'after.txt', 'later entry' );
-		$zip->close();
-		$clone = new class( $root . 'archive.zip' ) extends MainWP_Clone_Install {
-			public function __construct( $file ) { $this->file = $file; }
-		};
-		try {
-			$error = null;
-			$result = null;
-			try {
-				$result = $clone->extract_zip_pcl_backup();
-			} catch ( Throwable $caught ) {
-				$error = $caught;
-			}
-			if ( ! in_array( $case, array( 'normal', 'leaf', 'directory', 'config link', 'linked traversal', 'dot directory' ), true ) ) {
-				$this->assertInstanceOf( Exception::class, $error );
-				$this->assertFileDoesNotExist( $root . 'site/after.txt' );
-			} else {
-				$this->assertNull( $error, $error ? $error->getMessage() : '' );
-				$this->assertTrue( $result );
-				if ( 'normal' === $case ) {
-					$this->assertSame( 'archive content', file_get_contents( $root . 'site/nested/inside.txt' ) );
-				}
-				if ( 'config link' !== $case ) {
-					$this->assertFileDoesNotExist( $root . 'site/wp-config.php' );
-				}
-				$this->assertSame( 'later entry', file_get_contents( $root . 'site/after.txt' ) );
-			}
-			$this->assertFileDoesNotExist( $root . 'outside.txt' );
-			$this->assertFileDoesNotExist( $root . 'outside/escape.txt' );
-			if ( 'leaf' === $case || 'config link' === $case ) {
-				$this->assertTrue( is_link( $root . 'site/' . ( 'leaf' === $case ? 'linked.txt' : 'wp-config.php' ) ) );
-				$this->assertSame( 'original', file_get_contents( $root . 'secret.txt' ) );
-			}
-			if ( 'dot directory' === $case ) {
-				$this->assertSame( 'archive content', file_get_contents( $root . 'site/safe./linked/payload.php' ) );
-			}
-			if ( in_array( $case, array( 'directory', 'linked traversal', 'dot directory' ), true ) ) {
-				$this->assertTrue( is_link( $root . 'site/linked' ) );
-				$this->assertSame( array( '.', '..' ), scandir( $root . 'outside' ) );
-				$this->assertFileDoesNotExist( $root . 'victim.php' );
-				$this->assertFileDoesNotExist( $root . 'outside/../victim.php' );
-			}
-		} finally {
-			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
-			foreach ( $iterator as $file ) {
-				$file->isLink() || ! $file->isDir() ? unlink( $file->getPathname() ) : rmdir( $file->getPathname() );
-			}
-			rmdir( $root );
-		}
+		file_put_contents( $path, $local . $central . pack( 'VvvvvVVv', 0x06054b50, 0, 0, count( $entries ), count( $entries ), strlen( $central ), strlen( $local ), 0 ) );
 	}
 
 }
