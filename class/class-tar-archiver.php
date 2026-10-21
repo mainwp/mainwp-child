@@ -2082,9 +2082,17 @@ class Tar_Archiver {
                 for ( $i = 0; $i < 512; $i++ ) {
                     $checksum += ord( substr( $block, $i, 1 ) );
                 }
+                // A damaged header would otherwise supply the size and name both passes trust.
+                if ( $checksum !== (int) $file['checksum'] ) {
+                    throw new \Exception( 'Archive header checksum mismatch. Extraction aborted.' );
+                }
                 $directory = '5' === $file['type'];
-                $name      = $directory ? rtrim( $file['name'], '/' ) . '/' : $file['name'];
-                $target    = MainWP_Clone_Install::clone_entry_target( $name, $to );
+                $regular   = in_array( $file['type'], array( '0', "\0", '' ), true );
+                if ( $regular && '/' === substr( $file['name'], -1 ) ) {
+                    throw new \Exception( 'Invalid archive entry. Extraction aborted.' );
+                }
+                $name   = $directory ? rtrim( $file['name'], '/' ) . '/' : $file['name'];
+                $target = MainWP_Clone_Install::clone_entry_target( $name, $to );
                 if ( $validate_only || null === $target ) {
                     $this->skip_entry_payload( $file['stat'][7] );
                     continue;
@@ -2093,7 +2101,7 @@ class Tar_Archiver {
                 if ( $directory ) {
                     MainWP_Clone_Install::make_entry_dirs( $target, $to, $fs );
                     $this->skip_entry_payload( $file['stat'][7] );
-                } elseif ( in_array( $file['type'], array( '0', "\0", '' ), true ) ) {
+                } elseif ( $regular ) {
                     MainWP_Clone_Install::make_entry_dirs( dirname( $target ), $to, $fs );
                     MainWP_Clone_Install::write_clone_file( $target, $this->archive, $file['stat'][7], $fs );
                     $padding = ( 512 - $file['stat'][7] % 512 ) % 512;

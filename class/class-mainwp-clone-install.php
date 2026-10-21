@@ -718,7 +718,12 @@ class MainWP_Clone_Install {
     private static function check_clone_directory( $dir, $root ) {
         clearstatcache( true );
         $resolved = realpath( $dir );
-        $prefix   = rtrim( $root, '/' ) . '/';
+        // Windows realpath() returns backslashes; elsewhere a backslash is a filename character.
+        if ( '\\' === DIRECTORY_SEPARATOR ) {
+            $root     = str_replace( '\\', '/', $root );
+            $resolved = false === $resolved ? false : str_replace( '\\', '/', $resolved );
+        }
+        $prefix = rtrim( $root, '/' ) . '/';
         if ( false === $resolved || ! is_dir( $resolved ) || 0 !== strpos( rtrim( $resolved, '/' ) . '/', $prefix ) ) {
             throw new \Exception( 'Archive entry is outside the site root. Extraction aborted.' );
         }
@@ -790,6 +795,11 @@ class MainWP_Clone_Install {
         // Large members need bounded memory whenever PHP can write the destination.
         $out = null === $fs || $size >= 2000000 ? fopen( $target, 'wb' ) : false;
         if ( false === $out && null !== $fs ) {
+            // Transports take whole strings; exceeding memory_limit would be a fatal that skips cleanup.
+            $limit = wp_convert_hr_to_bytes( ini_get( 'memory_limit' ) );
+            if ( $limit > 0 && $size * 2 > $limit - memory_get_usage() ) {
+                throw new \Exception( 'Archive entry is too large to write through the filesystem transport. Extraction aborted.' );
+            }
             $data = 0 === $size ? '' : stream_get_contents( $stream, $size );
             if ( false === $data || strlen( $data ) !== $size || ! $fs->put_contents( self::clone_fs_path( $target, $fs ), $data, $mode ) ) {
                 throw new \Exception( 'Could not write an archive entry. Extraction aborted.' );
@@ -936,7 +946,8 @@ class MainWP_Clone_Install {
                 $info['filename']        = $header['filename'];
                 $name                    = $header['stored_filename'];
                 if ( ! isset( $this->existing[ $name ] ) ) {
-                    $this->existing[ $name ] = file_exists( rtrim( ABSPATH, '/' ) . '/' . $name );
+                    // A NUL name is refused later; some PHP versions throw ValueError on it here.
+                    $this->existing[ $name ] = false === strpos( $name, "\0" ) && file_exists( rtrim( ABSPATH, '/' ) . '/' . $name );
                 }
                 $info['mainwp_clone_existed'] = $this->existing[ $name ];
                 return $result;

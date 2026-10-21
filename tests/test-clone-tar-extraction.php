@@ -209,6 +209,37 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 		}
 	}
 
+	public static function data_clone_tar_damaged_headers() {
+		return array( 'checksum mismatch' => array( 'checksum' ), 'regular file named as a directory' => array( 'slash' ) );
+	}
+
+	/** @dataProvider data_clone_tar_damaged_headers */
+	public function test_clone_tar_damaged_header_refuses_before_writing( $case ) {
+		$root = sys_get_temp_dir() . '/mainwp-tar-header-' . uniqid();
+		mkdir( $root . '/site', 0755, true );
+		$late = 'slash' === $case ? $this->tar_entry_bytes( 'folder/', 'data' ) : $this->tar_entry_bytes( 'late.txt', 'data' );
+		if ( 'checksum' === $case ) {
+			// The stored checksum no longer matches once a name byte changes.
+			$late = substr_replace( $late, 'm', 0, 1 );
+		}
+		$path = $root . '/archive.tar';
+		file_put_contents( $path, $this->tar_entry_bytes( 'before.txt', 'before' ) . $late . str_repeat( "\0", 1024 ) );
+		$archiver = new Tar_Archiver( null, 'tar' );
+		$archiver->read( $path );
+		try {
+			$caught = null;
+			try { $archiver->extract_to( $root . '/site' ); }
+			catch ( Exception $error ) { $caught = $error; }
+			$this->assertInstanceOf( Exception::class, $caught );
+			$this->assertSame( array( '.', '..' ), scandir( $root . '/site' ), 'Validation must refuse a damaged header before the first write.' );
+		} finally {
+			$archiver->close();
+			rmdir( $root . '/site' );
+			unlink( $path );
+			rmdir( $root );
+		}
+	}
+
 	public static function data_clone_tar_longname_lengths() {
 		return array( 'limit' => array( 65536 ), 'over limit' => array( 65537 ) );
 	}

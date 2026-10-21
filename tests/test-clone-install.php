@@ -647,6 +647,39 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_clone_transport_refuses_member_larger_than_memory_headroom() {
+		if ( function_exists( 'posix_geteuid' ) && 0 === posix_geteuid() ) {
+			$this->markTestSkipped( 'Root ignores directory permissions.' );
+		}
+		$root = sys_get_temp_dir() . '/mainwp-clone-headroom-' . uniqid();
+		mkdir( $root . '/locked', 0755, true );
+		chmod( $root . '/locked', 0555 );
+		$fs = new class {
+			public $method = 'ftpext';
+			public $writes = 0;
+			public function put_contents( $path, $data, $mode ) { ++$this->writes; return true; }
+		};
+		$previous_limit = ini_get( 'memory_limit' );
+		ini_set( 'memory_limit', '256M' );
+		$stream = fopen( 'php://temp', 'w+' );
+		set_error_handler( static function () { return true; }, E_WARNING );
+		try {
+			$caught = null;
+			try { MainWP_Clone_Install::write_clone_file( $root . '/locked/large.bin', $stream, 200 * 1024 * 1024, $fs ); }
+			catch ( Exception $error ) { $caught = $error; }
+			$this->assertInstanceOf( Exception::class, $caught );
+			$this->assertStringContainsString( 'too large', $caught->getMessage() );
+			$this->assertSame( 0, $fs->writes );
+		} finally {
+			restore_error_handler();
+			fclose( $stream );
+			ini_set( 'memory_limit', $previous_limit );
+			chmod( $root . '/locked', 0755 );
+			rmdir( $root . '/locked' );
+			rmdir( $root );
+		}
+	}
+
 	public function test_clone_large_member_uses_transport_when_direct_open_fails() {
 		if ( function_exists( 'posix_geteuid' ) && 0 === posix_geteuid() ) {
 			$this->markTestSkipped( 'Root can write a read-only directory.' );
