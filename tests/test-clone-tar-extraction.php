@@ -20,6 +20,7 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 			'late traversal' => array( 'late traversal' ),
 			'late longname traversal' => array( 'late longname traversal' ),
 			'link entry with data' => array( 'link payload' ),
+			'directory entry with data' => array( 'directory payload' ),
 			'normal' => array( 'normal' ),
 		);
 	}
@@ -53,9 +54,9 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 			file_put_contents( $root . '/outside/secret.txt', 'original' );
 			symlink( $root . '/outside/secret.txt', $root . '/site/wp-config.php' );
 			$name = 'wp-config.php';
-		} elseif ( 'link payload' === $case ) {
-			// A link entry's data is never a header, even when it is shaped like one.
-			$before = $this->tar_entry_bytes( 'before.txt', 'before' ) . $this->tar_entry_bytes( 'link', $this->tar_entry_bytes( '../victim.txt' ), '2' );
+		} elseif ( 'link payload' === $case || 'directory payload' === $case ) {
+			// Entry data is never a header, even when it is shaped like one.
+			$before = $this->tar_entry_bytes( 'before.txt', 'before' ) . ( 'link payload' === $case ? $this->tar_entry_bytes( 'link', $this->tar_entry_bytes( '../victim.txt' ), '2' ) : $this->tar_entry_bytes( 'folder/', $this->tar_entry_bytes( '../victim.txt' ), '5' ) );
 		} elseif ( 'late traversal' === $case || 'late longname traversal' === $case ) {
 			$before = $this->tar_entry_bytes( 'before.txt', str_repeat( 'a', 513 ) );
 			$name = '../outside.txt';
@@ -75,7 +76,7 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 			} catch ( Exception $caught ) {
 				$error = $caught;
 			}
-			if ( in_array( $case, array( 'normal', 'leaf', 'directory', 'config', 'config separators', 'config link', 'link payload' ), true ) ) {
+			if ( in_array( $case, array( 'normal', 'leaf', 'directory', 'config', 'config separators', 'config link', 'link payload', 'directory payload' ), true ) ) {
 				$this->assertNull( $error );
 				if ( 'normal' === $case ) {
 					$this->assertSame( 'archive content', file_get_contents( $root . '/site/nested/inside.txt' ) );
@@ -89,7 +90,7 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 				$this->assertFileDoesNotExist( $root . '/site/before.txt' );
 				$this->assertFileDoesNotExist( $root . '/site/after.txt' );
 			}
-			if ( 'link payload' === $case ) {
+			if ( 'link payload' === $case || 'directory payload' === $case ) {
 				$this->assertSame( 'before', file_get_contents( $root . '/site/before.txt' ) );
 				$this->assertFileDoesNotExist( $root . '/victim.txt' );
 			}

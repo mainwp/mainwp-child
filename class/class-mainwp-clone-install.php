@@ -167,7 +167,7 @@ class MainWP_Clone_Install {
         } elseif ( $this->check_zip_support() ) {
             $zip    = new \ZipArchive();
             $zipRes = $zip->open( $this->file );
-            if ( $zipRes ) {
+            if ( true === $zipRes ) {
                 for ( $index = 0; $index < $zip->numFiles; ++$index ) {
                     $name = $zip->getNameIndex( $index );
                     if ( false !== $name && in_array( self::normalize_entry_name( $name ), array( 'wp-config.php', 'clone' ), true ) ) {
@@ -711,6 +711,12 @@ class MainWP_Clone_Install {
             $tmpdir  = str_replace( ABSPATH, $ftpBase, $tmpdir );
         }
 
+        // unzip_file() can read an entry under a different name than the one checked (see
+        // drop_protected_zip_entries()); with direct file access one library reads and writes.
+        if ( 'direct' === $wp_filesystem->method && $this->check_zip_support() ) {
+            return $this->extract_zip_backup();
+        }
+
         $this->drop_protected_zip_entries();
 
         return ! is_wp_error( \unzip_file( $this->file, $tmpdir ) ); // NOSONAR.
@@ -718,49 +724,68 @@ class MainWP_Clone_Install {
 
     /**
      * Removes entries the clone must not write, because unzip_file() writes every member it
-     * reads. unzip_file() reads through ZipArchive when it exists and through PclZip otherwise,
-     * so the names are listed by the same library.
+     * reads. unzip_file() reads through ZipArchive, but falls back to PclZip when ZipArchive
+     * refuses the archive or a filter disables it, and the two can name the same entry
+     * differently (ZipArchive honors a Unicode path extra field, PclZip reads the raw name).
+     * Every entry is therefore checked under both readers.
      *
-     * @throws \Exception When the archive cannot be listed or an entry could escape ABSPATH.
+     * @throws \Exception When the archive cannot be listed, an entry could escape ABSPATH, or
+     *                    the protected entries could not be removed.
      */
     private function drop_protected_zip_entries() {
+        $drop  = array();
+        $count = null;
         if ( $this->check_zip_support() ) {
             $zip = new \ZipArchive();
             if ( true !== $zip->open( $this->file ) ) {
                 throw new \Exception( 'Could not read archive entries. Extraction aborted.' );
             }
             try {
-                $drop = array();
-                for ( $index = 0; $index < $zip->numFiles; ++$index ) {
+                $count = $zip->numFiles;
+                for ( $index = 0; $index < $count; ++$index ) {
                     $name = $zip->getNameIndex( $index );
                     if ( false === $name ) {
                         throw new \Exception( 'Could not read archive entry. Extraction aborted.' );
                     }
                     if ( self::is_protected_entry( $name ) ) {
-                        $drop[] = $index;
+                        $drop[ $index ] = $index;
                     }
-                }
-                foreach ( $drop as $index ) {
-                    $zip->deleteIndex( $index );
                 }
             } finally {
                 $zip->close();
             }
+        }
+
+        $pcl     = new \PclZip( $this->file );
+        $entries = $pcl->listContent();
+        if ( ! is_array( $entries ) || ( null !== $count && count( $entries ) !== $count ) ) {
+            throw new \Exception( 'Could not read archive entries. Extraction aborted.' );
+        }
+        foreach ( $entries as $entry ) {
+            if ( self::is_protected_entry( $entry['filename'] ) ) {
+                $drop[ $entry['index'] ] = $entry['index'];
+            }
+        }
+        if ( empty( $drop ) ) {
             return;
         }
 
-        $zip     = new \PclZip( $this->file );
-        $entries = $zip->listContent();
-        if ( ! is_array( $entries ) ) {
-            throw new \Exception( 'Could not read archive entries. Extraction aborted.' );
-        }
-        $drop = array();
-        foreach ( $entries as $entry ) {
-            if ( self::is_protected_entry( $entry['filename'] ) ) {
-                $drop[] = $entry['index'];
+        if ( null === $count ) {
+            if ( 0 === $pcl->delete( PCLZIP_OPT_BY_INDEX, implode( ',', $drop ) ) ) {
+                throw new \Exception( 'Could not remove protected archive entries. Extraction aborted.' );
             }
+            return;
         }
-        if ( ! empty( $drop ) && 0 === $zip->delete( PCLZIP_OPT_BY_INDEX, implode( ',', $drop ) ) ) {
+        $zip = new \ZipArchive();
+        if ( true !== $zip->open( $this->file ) ) {
+            throw new \Exception( 'Could not remove protected archive entries. Extraction aborted.' );
+        }
+        $deleted = true;
+        foreach ( $drop as $index ) {
+            $deleted = $zip->deleteIndex( $index ) && $deleted;
+        }
+        // Deletions reach the file only when close() rewrites it; a failed rewrite keeps them.
+        if ( ! $zip->close() || ! $deleted ) {
             throw new \Exception( 'Could not remove protected archive entries. Extraction aborted.' );
         }
     }

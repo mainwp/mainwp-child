@@ -292,6 +292,90 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 		}
 	}
 
+	public static function data_clone_unzip_preflight() {
+		return array( 'protected entries' => array( 'protected' ), 'readers disagree' => array( 'unicode path' ), 'rewrite fails' => array( 'read only' ) );
+	}
+
+	/**
+	 * unzip_file() is used only without direct file access, so its preflight runs on its own here.
+	 *
+	 * @dataProvider data_clone_unzip_preflight
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_clone_unzip_preflight_removes_protected_entries( $case ) {
+		if ( ! class_exists( 'PclZip', false ) ) {
+			require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
+		}
+		$root = sys_get_temp_dir() . '/mainwp-clone-preflight-' . uniqid() . '/';
+		mkdir( $root . 'site', 0777, true );
+		mkdir( $root . 'outside' );
+		mkdir( $root . 'download' );
+		define( 'MainWP\\Child\\ABSPATH', $root . 'site/' );
+		file_put_contents( $root . 'outside/secret.txt', 'original' );
+		symlink( $root . 'outside/secret.txt', $root . 'site/linked.txt' );
+		symlink( $root . 'outside', $root . 'site/linked' );
+		$path = $root . 'download/archive.zip';
+		if ( 'unicode path' === $case ) {
+			// ZipArchive reads the Unicode path extra field (class/payload.php); PclZip reads the raw name.
+			$raw     = 'linked/payload.php';
+			$unicode = 'class/payload.php';
+			$data    = 'payload';
+			$extra   = pack( 'vvCV', 0x7075, 5 + strlen( $unicode ), 1, crc32( $raw ) ) . $unicode;
+			$local   = pack( 'VvvvvvVVVvv', 0x04034b50, 20, 0, 0, 0, 0, crc32( $data ), strlen( $data ), strlen( $data ), strlen( $raw ), strlen( $extra ) ) . $raw . $extra . $data;
+			$central = pack( 'VvvvvvvVVVvvvvvVV', 0x02014b50, 20, 20, 0, 0, 0, 0, crc32( $data ), strlen( $data ), strlen( $data ), strlen( $raw ), strlen( $extra ), 0, 0, 0, 0, 0 ) . $raw . $extra;
+			file_put_contents( $path, $local . $central . pack( 'VvvvvVVv', 0x06054b50, 0, 0, 1, 1, strlen( $central ), strlen( $local ), 0 ) );
+			$zip = new ZipArchive();
+			$this->assertTrue( $zip->open( $path ) );
+			$this->assertSame( $unicode, $zip->getNameIndex( 0 ) );
+			$zip->close();
+		} else {
+			$zip = new ZipArchive();
+			$this->assertTrue( $zip->open( $path, ZipArchive::CREATE ) );
+			$zip->addFromString( 'linked.txt', 'archive content' );
+			$zip->addFromString( './wp-config.php', 'source config' );
+			$zip->addFromString( 'after.txt', 'later entry' );
+			$zip->close();
+		}
+		$clone = new class( $path ) extends MainWP_Clone_Install {
+			public function __construct( $file ) { $this->file = $file; }
+		};
+		$preflight = new ReflectionMethod( MainWP_Clone_Install::class, 'drop_protected_zip_entries' );
+		$preflight->setAccessible( true );
+		if ( 'read only' === $case ) {
+			chmod( $root . 'download', 0555 );
+		}
+		try {
+			$error = null;
+			try {
+				$preflight->invoke( $clone );
+			} catch ( Throwable $caught ) {
+				$error = $caught;
+			}
+			if ( 'protected' === $case ) {
+				$this->assertNull( $error, $error ? $error->getMessage() : '' );
+				$zip = new ZipArchive();
+				$this->assertTrue( $zip->open( $path ) );
+				$names = array();
+				for ( $index = 0; $index < $zip->numFiles; ++$index ) {
+					$names[] = $zip->getNameIndex( $index );
+				}
+				$zip->close();
+				$this->assertSame( array( 'after.txt' ), $names );
+			} else {
+				$this->assertInstanceOf( Exception::class, $error );
+			}
+			$this->assertSame( array( '.', '..', 'secret.txt' ), scandir( $root . 'outside' ) );
+		} finally {
+			chmod( $root . 'download', 0755 );
+			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+			foreach ( $iterator as $file ) {
+				$file->isLink() || ! $file->isDir() ? unlink( $file->getPathname() ) : rmdir( $file->getPathname() );
+			}
+			rmdir( $root );
+		}
+	}
+
 	public static function data_clone_zip_paths() {
 		return array(
 			'traversal' => array( 'traversal' ),

@@ -2077,6 +2077,7 @@ class Tar_Archiver {
                             mkdir( $target, 0777, true );
                         }
                     }
+                    $this->skip_entry_payload( $file['stat'][7] );
                 } elseif ( 0 === (int) $file['type'] ) {
                     if ( ! is_dir( dirname( $target ) ) ) {
                         if ( ! empty( $wp_filesystem ) ) {
