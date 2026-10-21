@@ -475,6 +475,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			'size leading NUL'    => "\0" . '00000002000',
 			'size space then NUL' => " \0" . '0000002000',
 			'size empty'          => str_repeat( "\0", 12 ),
+			'size not octal'      => '00000001778' . "\0",
 			'size leading spaces' => '    0002000' . "\0",
 			'size trailing space' => '00000002000 ',
 		);
@@ -577,6 +578,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			'size leading NUL'    => array( 'size leading NUL', 'malformed' ),
 			'size space then NUL' => array( 'size space then NUL', 'malformed' ),
 			'size empty'          => array( 'size empty', 'malformed' ),
+			'size not octal'      => array( 'size not octal', 'malformed' ),
 			'two long names'      => array( 'two long names', 'malformed' ),
 			'empty long name'     => array( 'empty long name', 'malformed' ),
 			'no magic'            => array( 'no magic', 'malformed' ),
@@ -589,7 +591,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			// The Dashboard refuses this name at its walk; the Child refuses it as unlisted or at its path check.
 			'long unsafe'         => array( 'long unsafe', 'refuse' ),
 		);
-		foreach ( array( '1', '2', '3', '4', '6', '7', 'x', 'g', 'K', 'S', 'V', 'M' ) as $type ) {
+		foreach ( array( '1', '2', '3', '4', '6', '7', 'x', 'g', 'K', 'S', 'V', 'M', 'Z' ) as $type ) {
 			$rows[ 'type ' . $type ] = array( 'type ' . $type, 'malformed' );
 		}
 		return $rows;
