@@ -116,6 +116,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     const RATIO_MIN_COMPRESSED_BYTES = 65536;
     const TEMP_PREFIX                = '.mainwp-restore-';
     const TEMP_SUFFIX                = '.tmp';
+    const TAR_MALFORMED              = 'The backup archive has a malformed or truncated tar header or entry. Please create a new backup.';
 
     /**
      * Keep standalone callers' foreign temps unless the runner supplies task knowledge.
@@ -347,6 +348,16 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             return $this->result( false, $cursor, 'The PHP phar extension is disabled on this site. The restore needs it to read .tar archives.', MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
 
+        // Validate every header before PharData parses the archive, so it never reads a shape the walk refuses.
+        $members = null;
+        if ( 0 === $cursor['entry_index'] ) {
+            $members = $this->tar_header_members( $plain );
+            if ( is_string( $members ) ) {
+                $this->discard_plain_tar( $part, $plain );
+                return $this->result( false, $cursor, $members, MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+            }
+        }
+
         try {
             $phar    = new \PharData( $plain );
             $entries = $this->tar_entry_names( $phar );
@@ -355,8 +366,8 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             return $this->result( false, $cursor, $this->archive_open_error( $e, $part, $plain ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
 
-        if ( 0 === $cursor['entry_index'] ) {
-            $error = $this->tar_listing_error( $plain, $entries );
+        if ( null !== $members ) {
+            $error = $this->tar_listing_error( $members, $entries );
             if ( null !== $error ) {
                 $this->discard_plain_tar( $part, $plain );
                 return $this->result( false, $cursor, $error, MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
@@ -805,39 +816,40 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     }
 
     /**
-     * PharData can omit older prefix-split members without reporting an error.
-     * Compare before writing so an incomplete listing cannot become a successful restore.
+     * Walk the tar headers before PharData reads them. PharData reads several header spellings
+     * differently from a tar tool (base-256 and NUL-led numbers as 0, sizes in 32 bits, pax records
+     * ignored, no link or directory payloads, a second long name taken as the member), so the walk
+     * and PharData could disagree on where a member starts, and the listing check would compare the
+     * wrong names. Accept only the header shapes Tar_Archiver writes: ustar magic, plain octal
+     * numbers, regular files, directories without a payload, and single GNU long names. The
+     * Dashboard test restore applies the same rule, so an archive one side accepts the other does.
      *
-     * @param string $plain   Uncompressed archive.
-     * @param array  $entries PharData listing.
-     * @return string|null Refusal message, or null when every file and directory is listed.
+     * @param string $plain Uncompressed archive.
+     * @return array|string Members as array{members: array<string,int>, prefixed: array<string,bool>}
+     *                      keyed by comparison name, or a refusal message.
      */
-    protected function tar_listing_error( $plain, $entries ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- tar header variants share one bounded walk.
-        $listed = array();
-        foreach ( $entries as $entry ) {
-            $listed[ $this->tar_comparison_name( $entry['name'], $entry['dir'] ) ] = true;
-        }
+    protected function tar_header_members( $plain ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- one bounded header walk over the accepted shapes.
         $stream = fopen( $plain, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- inspect headers without extracting members.
         if ( false === $stream ) {
             return 'Could not read the backup archive headers. Please create a new backup.';
         }
-        $malformed = 'The backup archive has a malformed or truncated tar header or entry. Please create a new backup.';
-        $limits    = $this->extraction_limits();
-        $missing   = 0;
-        $first     = '';
-        $count     = 0;
-        $long_name = null;
+        $limits     = $this->extraction_limits();
+        $members    = array();
+        $prefixed   = array();
+        $long_name  = null;
+        $count      = 0;
+        $name_bytes = 0;
         try {
             $stat = fstat( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- size bound for every header and payload.
             if ( false === $stat ) {
-                return $malformed;
+                return self::TAR_MALFORMED;
             }
             $length = $stat['size'];
             // The native writer can end at a complete member boundary without zero markers.
             while ( ftell( $stream ) < $length ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- bounded sequential tar scan.
                 $header = fread( $stream, 512 ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- fixed-size tar header.
                 if ( false === $header || 512 !== strlen( $header ) ) {
-                    return $malformed;
+                    return self::TAR_MALFORMED;
                 }
                 if ( str_repeat( "\0", 512 ) === $header ) {
                     break;
@@ -847,71 +859,116 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 $unsigned = array_sum( unpack( 'C*', $check ) );
                 $signed   = array_sum( unpack( 'c*', $check ) );
                 $size     = $this->tar_header_number( substr( $header, 124, 12 ) );
-                if ( null === $checksum || ( $checksum !== $unsigned && $checksum !== $signed ) || null === $size ) {
-                    return $malformed;
+                if ( null === $checksum || ( $checksum !== $unsigned && $checksum !== $signed ) || null === $size || 'ustar' !== substr( $header, 257, 5 ) ) {
+                    return self::TAR_MALFORMED;
                 }
                 $remaining = $length - ftell( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- prevent seeking past a truncated payload.
                 $padding   = ( 512 - $size % 512 ) % 512;
-                if ( $size > $remaining || $padding > $remaining - $size ) {
-                    return $malformed;
+                // PharData keeps sizes and their 512-byte rounding in 32 bits, so a larger member would be read as a shorter one.
+                if ( $size > 4294966784 || $size > $remaining || $padding > $remaining - $size ) {
+                    return self::TAR_MALFORMED;
                 }
                 $type = $header[156];
                 if ( 'L' === $type ) {
-                    // Match Tar_Archiver's long-name bound before allocating metadata from the archive.
-                    if ( $size > 65536 ) {
-                        return $malformed;
+                    // PharData takes a second long-name record as the member the first one names.
+                    // 65536 matches Tar_Archiver's long-name bound and caps the metadata read into memory.
+                    if ( null !== $long_name || $size < 1 || $size > 65536 ) {
+                        return self::TAR_MALFORMED;
                     }
                     $payload = '';
                     $unread  = $size;
                     while ( $unread > 0 ) {
                         $chunk = fread( $stream, min( 8192, $unread ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- metadata may span multiple blocks.
                         if ( false === $chunk || '' === $chunk ) {
-                            return $malformed;
+                            return self::TAR_MALFORMED;
                         }
                         $payload .= $chunk;
                         $unread  -= strlen( $chunk );
                     }
                     $long_name = explode( "\0", $payload, 2 )[0];
-                    $skip      = $padding;
-                } else {
-                    $skip = $size + $padding;
-                    // PharData ignores pax records, including path overrides; seek past them without allocating their payloads.
-                    // GNU long-link metadata does not name a file to restore either.
-                    if ( 'x' !== $type && 'g' !== $type && 'K' !== $type ) {
-                        ++$count;
-                        if ( $count > $limits['entries'] ) {
-                            return 'Restore entry count limit exceeded while checking backup archive headers.';
-                        }
-                        $name       = explode( "\0", substr( $header, 0, 100 ), 2 )[0];
-                        $prefix     = "ustar\0" === substr( $header, 257, 6 ) ? explode( "\0", substr( $header, 345, 155 ), 2 )[0] : '';
-                        $name       = '' === $prefix ? $name : $prefix . '/' . $name;
-                        $name       = null !== $long_name ? $long_name : $name;
-                        $comparison = $this->tar_comparison_name( $name, '5' === $type );
-                        // PharData never lists the archive root, including an empty-name directory from Tar_Archiver.
-                        $root = '5' === $type && in_array( $comparison, array( '', '.' ), true );
-                        if ( ! $root && in_array( $type, array( '0', "\0", '5', '7' ), true ) && ! isset( $listed[ $comparison ] ) ) {
-                            ++$missing;
-                            if ( 1 === $missing ) {
-                                $first = $name;
-                            }
-                        }
-                        $long_name = null;
+                    if ( '' === $long_name ) {
+                        return self::TAR_MALFORMED;
                     }
+                    $skip = $padding;
+                } elseif ( in_array( $type, array( '0', "\0", '5' ), true ) ) {
+                    // PharData reads no directory payload, so a declared one would be parsed as headers.
+                    if ( '5' === $type && $size > 0 ) {
+                        return self::TAR_MALFORMED;
+                    }
+                    ++$count;
+                    if ( $count > $limits['entries'] ) {
+                        return 'Restore entry count limit exceeded while checking backup archive headers.';
+                    }
+                    $skip   = $size + $padding;
+                    $field  = explode( "\0", substr( $header, 0, 100 ), 2 )[0];
+                    $prefix = null === $long_name ? explode( "\0", substr( $header, 345, 155 ), 2 )[0] : '';
+                    $name   = null !== $long_name ? $long_name : ( '' === $prefix ? $field : $prefix . '/' . $field );
+                    $key    = $this->tar_comparison_name( $name, '5' === $type );
+                    if ( isset( $members[ $key ] ) ) {
+                        ++$members[ $key ];
+                        if ( '' === $prefix ) {
+                            unset( $prefixed[ $key ] );
+                        }
+                    } else {
+                        $name_bytes += strlen( $key );
+                        if ( $name_bytes > 67108864 ) {
+                            return self::TAR_MALFORMED;
+                        }
+                        $members[ $key ] = 1;
+                        if ( '' !== $prefix ) {
+                            $prefixed[ $key ] = true;
+                        }
+                    }
+                    $long_name = null;
+                } else {
+                    // Links, pax records and other GNU records: Tar_Archiver never writes them, and PharData reads several of them differently.
+                    return self::TAR_MALFORMED;
                 }
                 if ( 0 !== fseek( $stream, $skip, SEEK_CUR ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- skip payloads without reading or extracting files.
-                    return $malformed;
+                    return self::TAR_MALFORMED;
                 }
             }
             if ( null !== $long_name ) {
-                return $malformed;
+                return self::TAR_MALFORMED;
             }
         } finally {
             fclose( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with the header stream.
         }
-        if ( $missing > 0 ) {
-            return sprintf( 'This backup was made by an earlier beta and stores %1$s that this version cannot read, so it cannot be restored completely. The first one is %2$s. Backups made from now on are not affected.', 1 === $missing ? 'one long path' : $missing . ' long paths', esc_html( MainWP_Clone_Install::entry_label( $first ) ) );
+        return array(
+            'members'  => $members,
+            'prefixed' => $prefixed,
+        );
+    }
+
+    /**
+     * Compare the header walk with PharData's listing in both directions before anything is written.
+     * PharData omits members silently (prefix-split names from the native-backups beta writer, and
+     * names it hides), and a listed file with no header means the two read the archive differently.
+     *
+     * @param array $members Result of tar_header_members().
+     * @param array $entries PharData listing.
+     * @return string|null Refusal message, or null when both lists agree.
+     */
+    protected function tar_listing_error( $members, $entries ) {
+        $unlisted = $members['members'];
+        foreach ( $entries as $entry ) {
+            $key = $this->tar_comparison_name( $entry['name'], $entry['dir'] );
+            // PharData adds parent directories itself, but every listed file needs a header.
+            if ( ! $entry['dir'] && ! isset( $unlisted[ $key ] ) ) {
+                return self::TAR_MALFORMED;
+            }
+            unset( $unlisted[ $key ] );
         }
-        return null;
+        if ( empty( $unlisted ) ) {
+            return null;
+        }
+        // Only a prefix-split name is the known beta writer; any other omission is a disagreement.
+        if ( array_diff_key( $unlisted, $members['prefixed'] ) ) {
+            return self::TAR_MALFORMED;
+        }
+        $missing = array_sum( $unlisted );
+        $first   = (string) array_key_first( $unlisted );
+        return sprintf( 'This backup was made by an earlier beta and stores %1$s that this version cannot read, so it cannot be restored completely. The first one is %2$s. Backups made from now on are not affected.', 1 === $missing ? 'one long path' : $missing . ' long paths', esc_html( MainWP_Clone_Install::entry_label( $first ) ) );
     }
 
     /**
@@ -930,32 +987,25 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     }
 
     /**
-     * GNU base-256 sizes must not overflow into a float or a negative seek.
+     * Read a numeric header field only in the spelling PharData reads the same way: optional
+     * leading spaces, octal digits, then NUL or space padding. PharData reads base-256 or a
+     * leading NUL as a different number, so the walk and the extractor would disagree on where
+     * the next header starts.
      *
      * @param string $field Raw numeric header field.
-     * @return int|null Nonnegative value, or null for malformed or overflowing fields.
+     * @return int|null Nonnegative value, or null for any other spelling or an overflowing value.
      */
     private function tar_header_number( $field ) {
-        $base = 8;
-        if ( ord( $field[0] ) & 128 ) {
-            $base     = 256;
-            $field[0] = chr( ord( $field[0] ) & 127 );
-        } else {
-            $field = trim( $field, " \0" );
-            if ( '' === $field ) {
-                return 0;
-            }
-            if ( ! preg_match( '/^[0-7]+$/D', $field ) ) {
-                return null;
-            }
+        if ( 1 !== preg_match( '/^ *([0-7]+)[ \0]*$/D', $field, $match ) ) {
+            return null;
         }
         $number = 0;
-        for ( $i = 0, $length = strlen( $field ); $i < $length; ++$i ) {
-            $digit = 256 === $base ? ord( $field[ $i ] ) : (int) $field[ $i ];
-            if ( $number > intdiv( PHP_INT_MAX - $digit, $base ) ) {
+        for ( $i = 0, $length = strlen( $match[1] ); $i < $length; ++$i ) {
+            $digit = (int) $match[1][ $i ];
+            if ( $number > intdiv( PHP_INT_MAX - $digit, 8 ) ) {
                 return null;
             }
-            $number = $number * $base + $digit;
+            $number = $number * 8 + $digit;
         }
         return $number;
     }
