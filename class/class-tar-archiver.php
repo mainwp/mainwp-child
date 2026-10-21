@@ -2038,7 +2038,10 @@ class Tar_Archiver {
                 $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
                 if ( 'L' === $temp['type'] ) {
                     $length = octdec( trim( $temp['size'], "\0 " ) );
-                    $fname  = 0 === $length ? '' : stream_get_contents( $this->archive, $length );
+                    if ( $length > 65536 ) {
+                        throw new \Exception( 'Archive entry name is too long. Extraction aborted.' );
+                    }
+                    $fname = 0 === $length ? '' : stream_get_contents( $this->archive, $length );
                     if ( false === $fname || strlen( $fname ) !== $length ) {
                         throw new \Exception( 'Archive ended inside an entry. Extraction aborted.' );
                     }
@@ -2116,8 +2119,18 @@ class Tar_Archiver {
      */
     private function skip_entry_payload( $size ) {
         $skip = (int) ( ceil( $size / 512 ) * 512 );
-        if ( $skip <= 0 || 0 === fseek( $this->archive, $skip, SEEK_CUR ) ) {
+        if ( $skip <= 0 ) {
             return;
+        }
+        // Seeking past EOF can succeed; compressed streams have no reliable length bound.
+        if ( false !== $this->archiveSize && null !== $this->archiveSize ) {
+            $position = ftell( $this->archive );
+            if ( false === $position || $skip > $this->archiveSize - $position ) {
+                throw new \Exception( 'Archive ended inside an entry. Extraction aborted.' );
+            }
+            if ( 0 === fseek( $this->archive, $skip, SEEK_CUR ) ) {
+                return;
+            }
         }
         while ( $skip > 0 ) {
             $chunk = fread( $this->archive, min( 8192, $skip ) );

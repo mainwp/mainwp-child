@@ -169,4 +169,81 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 		}
 	}
 
+	public static function data_truncated_clone_tar_payloads() {
+		$cases = array();
+		foreach ( array( 'tar', 'tar.gz', 'tar.bz2' ) as $format ) {
+			foreach ( array( '0', '1', '2', '5', 'x', 'g', '7', 'protected' ) as $type ) {
+				$cases[ $format . ' ' . $type ] = array( $format, $type );
+			}
+		}
+		return $cases;
+	}
+
+	/** @dataProvider data_truncated_clone_tar_payloads */
+	public function test_clone_tar_truncated_payload_refuses_before_writing( $format, $type ) {
+		if ( 'tar.bz2' === $format && ! function_exists( 'bzcompress' ) ) {
+			$this->markTestSkipped( 'bz2 extension not available.' );
+		}
+		$root = sys_get_temp_dir() . '/mainwp-tar-truncated-' . uniqid();
+		mkdir( $root . '/site', 0755, true );
+		$name = 'protected' === $type ? 'wp-config.php' : ( '5' === $type ? 'folder/' : 'late.txt' );
+		$bytes = $this->tar_entry_bytes( 'before.txt', 'before' ) . substr( $this->tar_entry_bytes( $name, str_repeat( 'x', 1024 ), 'protected' === $type ? '0' : $type ), 0, 513 );
+		$path = $root . '/archive.' . $format;
+		file_put_contents( $path, 'tar.gz' === $format ? gzencode( $bytes ) : ( 'tar.bz2' === $format ? bzcompress( $bytes ) : $bytes ) );
+		$archiver = new Tar_Archiver( null, $format );
+		$archiver->read( $path );
+		try {
+			$caught = null;
+			try { $archiver->extract_to( $root . '/site' ); }
+			catch ( Exception $error ) { $caught = $error; }
+			$this->assertSame( array( '.', '..' ), scandir( $root . '/site' ), 'Validation must refuse a short payload before the first write.' );
+			$this->assertInstanceOf( Exception::class, $caught );
+			$this->assertStringContainsString( 'Archive ended inside an entry', $caught->getMessage() );
+		} finally {
+			$archiver->close();
+			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+			foreach ( $iterator as $file ) {
+				$file->isDir() ? rmdir( $file->getPathname() ) : unlink( $file->getPathname() );
+			}
+			rmdir( $root );
+		}
+	}
+
+	public static function data_clone_tar_longname_lengths() {
+		return array( 'limit' => array( 65536 ), 'over limit' => array( 65537 ) );
+	}
+
+	/** @dataProvider data_clone_tar_longname_lengths */
+	public function test_clone_tar_longname_length_is_bounded_before_reading( $length ) {
+		$root = sys_get_temp_dir() . '/mainwp-tar-longname-' . uniqid();
+		mkdir( $root . '/site', 0755, true );
+		$path = $root . '/archive.tar';
+		$before = $this->tar_entry_bytes( 'before.txt', 'before' );
+		file_put_contents( $path, $before . $this->tar_entry_bytes( '././@LongLink', str_pad( "inside.txt\0", $length, "\0" ), 'L' ) . $this->tar_entry_bytes( 'placeholder', 'contents' ) . str_repeat( "\0", 1024 ) );
+		$archiver = new Tar_Archiver( null, 'tar' );
+		$archiver->read( $path );
+		try {
+			$caught = null;
+			try { $archiver->extract_to( $root . '/site' ); }
+			catch ( Exception $error ) { $caught = $error; }
+			if ( $length > 65536 ) {
+				$this->assertInstanceOf( Exception::class, $caught );
+				$archive = new ReflectionProperty( $archiver, 'archive' );
+				$archive->setAccessible( true );
+				$this->assertSame( strlen( $before ) + 512, ftell( $archive->getValue( $archiver ) ), 'An oversized name must be refused before its payload is read.' );
+				$this->assertSame( array( '.', '..' ), scandir( $root . '/site' ) );
+			} else {
+				$this->assertNull( $caught );
+				$this->assertSame( 'contents', file_get_contents( $root . '/site/inside.txt' ) );
+			}
+		} finally {
+			$archiver->close();
+			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+			foreach ( $iterator as $file ) {
+				$file->isDir() ? rmdir( $file->getPathname() ) : unlink( $file->getPathname() );
+			}
+			rmdir( $root );
+		}
+	}
+
 }

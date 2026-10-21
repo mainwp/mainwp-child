@@ -555,7 +555,9 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 					$this->assertSame( 'after', file_get_contents( $root . 'after.txt' ) );
 					if ( 'X' === $outcome ) {
 						$this->assertSame( $body, file_get_contents( $root . $name ) );
-						if ( 3 === $row ) { $this->assertArrayHasKey( 'f.txt', $wp_filesystem->writes ); }
+							if ( 3 === $row ) {
+								$this->assertSame( 'PU' === $route || strlen( $body ) < 2000000, array_key_exists( 'f.txt', $wp_filesystem->writes ) );
+							}
 						if ( in_array( $row, array( 1, 2, 3, 5 ), true ) ) {
 							clearstatcache();
 							$this->assertSame( FS_CHMOD_FILE, fileperms( $root . $name ) & 0777 );
@@ -591,6 +593,268 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 				$file->isLink() || ! $file->isDir() ? unlink( $file->getPathname() ) : rmdir( $file->getPathname() );
 			}
 			rmdir( $base );
+		}
+	}
+
+	public static function data_clone_writer_sizes() {
+		$cases = array();
+		foreach ( array( 'writer', 'tar' ) as $route ) {
+			foreach ( array( 1999999, 2000000, 2000001 ) as $size ) {
+				$cases[ $route . ' ' . $size ] = array( $route, $size );
+			}
+		}
+		return $cases;
+	}
+
+	/** @dataProvider data_clone_writer_sizes */
+	public function test_clone_large_members_stream_before_transport( $route, $size ) {
+		$root = sys_get_temp_dir() . '/mainwp-clone-stream-' . uniqid();
+		mkdir( $root );
+		$body = str_repeat( 'x', $size );
+		$fs = new class {
+			public $method = 'ftpext';
+			public $writes = 0;
+			public function put_contents( $path, $data, $mode ) {
+				++$this->writes;
+				return strlen( $data ) === file_put_contents( $path, $data ) && chmod( $path, $mode );
+			}
+		};
+		global $wp_filesystem;
+		$previous_fs = $wp_filesystem;
+		$wp_filesystem = $fs;
+		$archiver = null;
+		$stream = null;
+		try {
+			if ( 'tar' === $route ) {
+				file_put_contents( $root . '/archive.tar', $this->tar_entry_bytes( 'payload.txt', $body ) . str_repeat( "\0", 1024 ) );
+				$archiver = new Tar_Archiver( null, 'tar' );
+				$archiver->read( $root . '/archive.tar' );
+				$archiver->extract_to( $root );
+			} else {
+				$stream = fopen( 'php://temp', 'w+' );
+				fwrite( $stream, $body );
+				rewind( $stream );
+				MainWP_Clone_Install::write_clone_file( $root . '/payload.txt', $stream, $size, $fs );
+			}
+			$this->assertSame( hash( 'sha256', $body ), hash_file( 'sha256', $root . '/payload.txt' ) );
+			$this->assertSame( $size < 2000000 ? 1 : 0, $fs->writes, 'A PHP-writable large member must bypass transport buffering.' );
+		} finally {
+			if ( $archiver ) { $archiver->close(); }
+			if ( $stream ) { fclose( $stream ); }
+			$wp_filesystem = $previous_fs;
+			foreach ( glob( $root . '/*' ) as $path ) { unlink( $path ); }
+			rmdir( $root );
+		}
+	}
+
+	public function test_clone_large_member_uses_transport_when_direct_open_fails() {
+		if ( function_exists( 'posix_geteuid' ) && 0 === posix_geteuid() ) {
+			$this->markTestSkipped( 'Root can write a read-only directory.' );
+		}
+		$root = sys_get_temp_dir() . '/mainwp-clone-fallback-' . uniqid();
+		mkdir( $root );
+		chmod( $root, 0555 );
+		$fs = new class {
+			public $method = 'ftpext';
+			public $writes = 0;
+			public function put_contents( $path, $data, $mode ) {
+				++$this->writes;
+				chmod( dirname( $path ), 0755 );
+				return strlen( $data ) === file_put_contents( $path, $data ) && chmod( $path, $mode );
+			}
+		};
+		$body = str_repeat( 'x', 2000000 );
+		$stream = fopen( 'php://temp', 'w+' );
+		fwrite( $stream, $body );
+		rewind( $stream );
+		set_error_handler( static function ( $level, $message ) { return false !== strpos( $message, 'Permission denied' ); } );
+		try {
+			MainWP_Clone_Install::write_clone_file( $root . '/payload.txt', $stream, strlen( $body ), $fs );
+			$this->assertSame( 1, $fs->writes );
+			$this->assertSame( hash( 'sha256', $body ), hash_file( 'sha256', $root . '/payload.txt' ) );
+		} finally {
+			restore_error_handler();
+			fclose( $stream );
+			chmod( $root, 0755 );
+			if ( file_exists( $root . '/payload.txt' ) ) { unlink( $root . '/payload.txt' ); }
+			rmdir( $root );
+		}
+	}
+
+	public static function data_clone_duplicate_zip_routes() {
+		return array( 'direct' => array( false ), 'transport' => array( true ) );
+	}
+
+	/**
+	 * @dataProvider data_clone_duplicate_zip_routes
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_clone_zip_duplicate_names_refuse_before_writing( $transport ) {
+		$root = sys_get_temp_dir() . '/mainwp-clone-duplicate-' . uniqid() . '/';
+		mkdir( $root . 'site', 0755, true );
+		define( 'MainWP\\Child\\ABSPATH', $root . 'site/' );
+		$this->write_clone_zip_fixture( $root . 'archive.zip', array( array( 'before.txt', 'before', '0' ), array( 'same.txt', 'FIRST', '0' ), array( 'same.txt', 'xy', '0' ) ) );
+		$clone = new class( $root . 'archive.zip' ) extends MainWP_Clone_Install {
+			public function __construct( $file ) { $this->file = $file; }
+		};
+		$fs = $transport ? new class {
+			public $method = 'ftpext';
+			public function put_contents( $path, $data, $mode ) { return false !== file_put_contents( $path, $data ); }
+		} : null;
+		try {
+			$caught = null;
+			try { $clone->extract_zip_backup( $fs ); }
+			catch ( Exception $error ) { $caught = $error; }
+			$this->assertSame( array( '.', '..' ), scandir( $root . 'site' ), 'Duplicate names must be refused during validation.' );
+			$this->assertInstanceOf( Exception::class, $caught );
+		} finally {
+			foreach ( glob( $root . 'site/*' ) as $path ) { unlink( $path ); }
+			rmdir( $root . 'site' );
+			unlink( $root . 'archive.zip' );
+			rmdir( $root );
+		}
+	}
+
+	public static function data_clone_file_chmod_failures() {
+		$cases = array();
+		foreach ( array( 'writer', 'PD', 'PU' ) as $route ) {
+			foreach ( array( true, false ) as $existed ) {
+				$cases[ $route . ( $existed ? ' existing' : ' created' ) ] = array( $route, $existed );
+			}
+		}
+		return $cases;
+	}
+
+	/**
+	 * @dataProvider data_clone_file_chmod_failures
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_clone_file_chmod_failure_depends_on_creation( $route, $existed ) {
+		if ( ! defined( 'FS_CHMOD_DIR' ) ) { define( 'FS_CHMOD_DIR', 0755 ); }
+		if ( ! defined( 'FS_CHMOD_FILE' ) ) { define( 'FS_CHMOD_FILE', 0644 ); }
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
+		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php';
+		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
+		$root = sys_get_temp_dir() . '/mainwp-clone-chmod-' . uniqid() . '/';
+		mkdir( $root . 'site', 0755, true );
+		define( 'MainWP\\Child\\ABSPATH', $root . 'site/' );
+		// A writable file can belong to another user, making chmod fail after a successful write.
+		eval( 'namespace MainWP\\Child; function chmod( $path, $mode ) { return "payload.txt" === basename( $path ) ? false : \\chmod( $path, $mode ); }' );
+		if ( $existed ) { file_put_contents( $root . 'site/payload.txt', 'original' ); }
+		$this->write_clone_zip_fixture( $root . 'archive.zip', array( array( 'payload.txt', 'replacement', '0' ) ) );
+		$clone = new class( $root . 'archive.zip' ) extends MainWP_Clone_Install {
+			public function __construct( $file ) { $this->file = $file; }
+			public function check_zip_support() { return false; }
+		};
+		global $wp_filesystem;
+		$previous_fs = $wp_filesystem;
+		$wp_filesystem = new WP_Filesystem_Direct( null );
+		$stream = fopen( 'php://temp', 'w+' );
+		fwrite( $stream, 'replacement' );
+		rewind( $stream );
+		try {
+			$caught = null;
+			try {
+				if ( 'writer' === $route ) { MainWP_Clone_Install::write_clone_file( $root . 'site/payload.txt', $stream, 11 ); }
+				elseif ( 'PD' === $route ) { $clone->extract_zip_pcl_backup(); }
+				else { $clone->extract_wp_zip_backup(); }
+			} catch ( Exception $error ) { $caught = $error; }
+			$this->assertSame( 'replacement', file_get_contents( $root . 'site/payload.txt' ) );
+			if ( $existed ) { $this->assertNull( $caught, 'An existing writable file need not be owned by PHP.' ); }
+			else { $this->assertInstanceOf( Exception::class, $caught, 'A newly created file must receive the requested mode.' ); }
+		} finally {
+			fclose( $stream );
+			$wp_filesystem = $previous_fs;
+			if ( file_exists( $root . 'site/payload.txt' ) ) { unlink( $root . 'site/payload.txt' ); }
+			rmdir( $root . 'site' );
+			unlink( $root . 'archive.zip' );
+			rmdir( $root );
+		}
+	}
+
+	public static function data_clone_pclzip_failed_entries() {
+		return array( 'write error' => array( false ), 'inflate error' => array( true ) );
+	}
+
+	/**
+	 * @dataProvider data_clone_pclzip_failed_entries
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_clone_pclzip_failed_entry_status_refuses_extraction( $corrupt ) {
+		if ( ! $corrupt && function_exists( 'posix_geteuid' ) && 0 === posix_geteuid() ) {
+			$this->markTestSkipped( 'Root can write a read-only directory.' );
+		}
+		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
+		$root = sys_get_temp_dir() . '/mainwp-clone-status-' . uniqid() . '/';
+		mkdir( $root . 'site/locked', 0755, true );
+		define( 'MainWP\\Child\\ABSPATH', $root . 'site/' );
+		$this->write_clone_zip_fixture( $root . 'archive.zip', array( array( 'locked/payload.txt', 'not deflate', '0' ), array( 'after.txt', 'after', '0' ) ) );
+		if ( $corrupt ) {
+			$bytes = file_get_contents( $root . 'archive.zip' );
+			$central = strpos( $bytes, "PK\x01\x02" );
+			$bytes = substr_replace( $bytes, pack( 'v', 8 ), $central + 10, 2 );
+			file_put_contents( $root . 'archive.zip', substr_replace( $bytes, pack( 'v', 8 ), 8, 2 ) );
+		} else { chmod( $root . 'site/locked', 0555 ); }
+		$clone = new class( $root . 'archive.zip' ) extends MainWP_Clone_Install {
+			public function __construct( $file ) { $this->file = $file; }
+		};
+		set_error_handler( static function ( $level, $message ) { return false !== strpos( $message, 'Permission denied' ) || false !== strpos( $message, 'gzinflate' ); } );
+		try {
+			$caught = null;
+			try { $clone->extract_zip_pcl_backup(); }
+			catch ( Exception $error ) { $caught = $error; }
+			$this->assertInstanceOf( Exception::class, $caught, 'A dropped PclZip member must not report success.' );
+		} finally {
+			restore_error_handler();
+			chmod( $root . 'site/locked', 0755 );
+			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+			foreach ( $iterator as $file ) { $file->isDir() ? rmdir( $file->getPathname() ) : unlink( $file->getPathname() ); }
+			rmdir( $root );
+		}
+	}
+
+	/**
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_clone_unzip_skipped_metadata_needs_no_chmod() {
+		if ( ! defined( 'FS_CHMOD_DIR' ) ) { define( 'FS_CHMOD_DIR', 0755 ); }
+		if ( ! defined( 'FS_CHMOD_FILE' ) ) { define( 'FS_CHMOD_FILE', 0644 ); }
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
+		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php';
+		require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
+		$root = sys_get_temp_dir() . '/mainwp-clone-metadata-' . uniqid() . '/';
+		mkdir( $root . 'site', 0755, true );
+		define( 'MainWP\\Child\\ABSPATH', $root . 'site/' );
+		$this->write_clone_zip_fixture( $root . 'archive.zip', array( array( '__MACOSX/._payload.txt', 'metadata', '0' ), array( 'payload.txt', 'contents', '0' ) ) );
+		$clone = new class( $root . 'archive.zip' ) extends MainWP_Clone_Install {
+			public function __construct( $file ) { $this->file = $file; }
+			public function check_zip_support() { return false; }
+		};
+		global $wp_filesystem;
+		$previous_fs = $wp_filesystem;
+		$wp_filesystem = new WP_Filesystem_Direct( null );
+		set_error_handler( static function ( $level, $message ) { return false !== strpos( $message, 'chmod' ); } );
+		try {
+			$caught = null;
+			$result = null;
+			try { $result = $clone->extract_wp_zip_backup(); }
+			catch ( Exception $error ) { $caught = $error; }
+			$this->assertNull( $caught, 'WordPress intentionally omits macOS metadata.' );
+			$this->assertTrue( $result );
+			$this->assertSame( 'contents', file_get_contents( $root . 'site/payload.txt' ) );
+			$this->assertFileDoesNotExist( $root . 'site/__MACOSX/._payload.txt' );
+		} finally {
+			restore_error_handler();
+			$wp_filesystem = $previous_fs;
+			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+			foreach ( $iterator as $file ) { $file->isDir() ? rmdir( $file->getPathname() ) : unlink( $file->getPathname() ); }
+			rmdir( $root );
 		}
 	}
 

@@ -56,7 +56,7 @@ function mainwp_child_clone_pclzip_post_extract( $p_event, &$p_header ) {
     }
     $mode = defined( 'FS_CHMOD_FILE' ) ? FS_CHMOD_FILE : 0644;
     clearstatcache( true, $p_header['filename'] );
-    if ( 'ok' !== $p_header['status'] || filesize( $p_header['filename'] ) !== $p_header['size'] || ! chmod( $p_header['filename'], $mode ) ) {
+    if ( 'ok' !== $p_header['status'] || filesize( $p_header['filename'] ) !== $p_header['size'] || ( ! chmod( $p_header['filename'], $mode ) && ! $p_header['mainwp_clone_existed'] ) ) {
         throw new \Exception( 'Could not write an archive entry. Extraction aborted.' );
     }
     return 1;
@@ -741,6 +741,7 @@ class MainWP_Clone_Install {
 
     /**
      * Transport-created parents must be checked through the local view as well.
+     * Transport permissions are requested through the transport, not verified.
      *
      * @param string      $dir Required directory.
      * @param string      $root Existing root.
@@ -775,23 +776,26 @@ class MainWP_Clone_Install {
 
     /**
      * Short reads and failed writes must stop an in-place clone.
+     * Transport permissions are requested through the transport, not verified.
      *
      * @param string      $target Validated destination.
      * @param resource    $stream Member data.
      * @param int         $size Expected uncompressed size.
      * @param object|null $fs Non-direct filesystem transport, or null.
-     * @throws \Exception When reading, writing or setting permissions fails.
+     * @throws \Exception When reading, writing or setting permissions on a new file fails.
      */
     public static function write_clone_file( $target, $stream, $size, $fs = null ) {
-        $mode = defined( 'FS_CHMOD_FILE' ) ? FS_CHMOD_FILE : 0644;
-        if ( null !== $fs ) {
+        $mode    = defined( 'FS_CHMOD_FILE' ) ? FS_CHMOD_FILE : 0644;
+        $existed = file_exists( $target );
+        // Large members need bounded memory whenever PHP can write the destination.
+        $out = null === $fs || $size >= 2000000 ? fopen( $target, 'wb' ) : false;
+        if ( false === $out && null !== $fs ) {
             $data = 0 === $size ? '' : stream_get_contents( $stream, $size );
             if ( false === $data || strlen( $data ) !== $size || ! $fs->put_contents( self::clone_fs_path( $target, $fs ), $data, $mode ) ) {
                 throw new \Exception( 'Could not write an archive entry. Extraction aborted.' );
             }
             return;
         }
-        $out = fopen( $target, 'wb' );
         if ( false === $out ) {
             throw new \Exception( 'Could not open an extraction file. Extraction aborted.' );
         }
@@ -800,7 +804,7 @@ class MainWP_Clone_Install {
         } finally {
             $closed = fclose( $out );
         }
-        if ( $copied !== $size || ! $closed || ! chmod( $target, $mode ) ) {
+        if ( $copied !== $size || ! $closed || ( ! chmod( $target, $mode ) && ! $existed ) ) {
             throw new \Exception( 'Could not write an archive entry. Extraction aborted.' );
         }
     }
@@ -818,11 +822,16 @@ class MainWP_Clone_Install {
             return false;
         }
         try {
+            $seen = array();
             for ( $index = 0; $index < $zip->numFiles; ++$index ) {
                 $name = $zip->getNameIndex( $index );
                 if ( false === $name ) {
                     throw new \Exception( 'Could not read archive entry. Extraction aborted.' );
                 }
+                if ( isset( $seen[ $name ] ) ) {
+                    throw new \Exception( 'Duplicate archive entry. Extraction aborted.' );
+                }
+                $seen[ $name ] = true;
                 self::clone_entry_target( $name, ABSPATH );
             }
             for ( $index = 0; $index < $zip->numFiles; ++$index ) {
@@ -891,7 +900,7 @@ class MainWP_Clone_Install {
             $mode = defined( 'FS_CHMOD_FILE' ) ? FS_CHMOD_FILE : 0644;
             foreach ( $entries as $entry ) {
                 $target = self::clone_entry_target( $entry['filename'], ABSPATH );
-                if ( null !== $target && empty( $entry['folder'] ) && ! chmod( $target, $mode ) ) {
+                if ( null !== $target && empty( $entry['folder'] ) && is_file( $target ) && ! chmod( $target, $mode ) && ! $entry['mainwp_clone_existed'] ) {
                     throw new \Exception( 'Could not set extraction permissions. Extraction aborted.' );
                 }
             }
@@ -908,6 +917,13 @@ class MainWP_Clone_Install {
     private function clone_pclzip() {
         return new class( $this->file ) extends \PclZip {
             /**
+             * PclZip rebuilds callback headers, so retain which files predated extraction.
+             *
+             * @var array
+             */
+            private $existing = array();
+
+            /**
              * Raw names prevent the listing from concealing traversal segments.
              *
              * @param array $header Archive header.
@@ -918,6 +934,11 @@ class MainWP_Clone_Install {
                 $result                  = parent::privConvertHeader2FileInfo( $header, $info );
                 $info['stored_filename'] = $header['stored_filename'];
                 $info['filename']        = $header['filename'];
+                $name                    = $header['stored_filename'];
+                if ( ! isset( $this->existing[ $name ] ) ) {
+                    $this->existing[ $name ] = file_exists( rtrim( ABSPATH, '/' ) . '/' . $name );
+                }
+                $info['mainwp_clone_existed'] = $this->existing[ $name ];
                 return $result;
             }
         };
@@ -993,6 +1014,11 @@ class MainWP_Clone_Install {
         $result = $zip->extract( PCLZIP_OPT_PATH, ABSPATH, PCLZIP_OPT_REPLACE_NEWER, PCLZIP_OPT_STOP_ON_ERROR, PCLZIP_CB_PRE_EXTRACT, __NAMESPACE__ . '\mainwp_child_clone_pclzip_pre_extract', PCLZIP_CB_POST_EXTRACT, __NAMESPACE__ . '\mainwp_child_clone_pclzip_post_extract' );
         if ( ! is_array( $result ) || PCLZIP_ERR_NO_ERROR !== $zip->error_code ) {
             throw new \Exception( 'Could not extract archive entries. Extraction aborted.' );
+        }
+        foreach ( $result as $entry ) {
+            if ( ! isset( $entry['status'] ) || ! in_array( $entry['status'], array( 'ok', 'skipped' ), true ) ) {
+                throw new \Exception( 'Could not extract archive entries. Extraction aborted.' );
+            }
         }
         return true;
     }
