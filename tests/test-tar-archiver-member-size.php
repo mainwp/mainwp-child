@@ -232,6 +232,38 @@ class TarArchiverMemberSizeTest extends WP_UnitTestCase {
 		$this->assertSame( array(), $this->backup->get_failed_add_paths(), 'A written member must still be matched on append.' );
 	}
 
+	/**
+	 * A slice killed before it checkpointed its failed adds resumes without the oversized path in its
+	 * skips, so the source must be probed against the archive like an unreadable one.
+	 *
+	 * @dataProvider archive_types
+	 * @param string $type Archive type.
+	 */
+	public function test_resume_without_checkpoint_skips_an_oversized_source_again( $type ) {
+		$big  = $this->fixture . '/big.bin';
+		$path = $this->scratch . '/uncheckpointed.' . $type;
+		foreach ( array( 'a', 'c', 'e', 'g', 'i' ) as $name ) {
+			file_put_contents( $this->fixture . '/' . $name . '.txt', $name . ' content' );
+		}
+		try {
+			$this->make_sparse( $big );
+			$this->run_pass( $path, $type );
+			$members = $this->assert_members( $path, $type );
+			$this->assertArrayNotHasKey( basename( $this->fixture ) . '/big.bin', $members );
+			$this->assertArrayHasKey( basename( $this->fixture ) . '/i.txt', $members );
+			$this->backup->set_failed_add_skips( array() );
+			$this->backup->reset_failed_adds();
+			MainWP_Backup::reset_skipped_paths();
+			$this->run_pass( $path, $type, true );
+			$this->assertSame( $members, $this->assert_members( $path, $type ) );
+			$this->assertSame( array( $big ), $this->backup->get_failed_add_paths() );
+		} finally {
+			if ( file_exists( $big ) ) {
+				unlink( $big );
+			}
+		}
+	}
+
 	/** @dataProvider archive_types */
 	public function test_append_matches_members_after_an_oversized_skip( $type ) {
 		$big    = $this->fixture . '/big.bin';

@@ -1060,9 +1060,13 @@ class Tar_Archiver {
         // an earlier slice that never checkpointed its failed paths (lost lease,
         // hard kill) must be skipped again, not matched against the next entry.
         $fp = @fopen( $path, 'rb' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- unreadable files are recorded below without exposing their paths.
-        if ( ! $fp ) {
+        // The header declares this size, so it is read once from the open handle. An oversized source is
+        // skipped like an unreadable one, and a resume that lost the skip must not match it to the next entry.
+        $stat      = $fp ? fstat( $fp ) : false;
+        $too_large = false !== $stat && $stat['size'] > self::MAX_MEMBER_SIZE;
+        if ( ! $fp || $too_large ) {
             if ( self::APPEND === $this->mode ) {
-                // A source that became unreadable may already have a complete archived copy.
+                // A source that became unreadable or outgrew the limit may already have a complete archived copy.
                 $startOffset = ftell( $this->archive );
                 try {
                     $rslt = $this->is_next_file( $entryName );
@@ -1070,12 +1074,21 @@ class Tar_Archiver {
                     $rslt = false;
                 }
                 if ( true === $rslt ) {
+                    if ( $fp ) {
+                        fclose( $fp );
+                    }
                     return true;
                 }
                 fseek( $this->archive, $startOffset );
             }
+            if ( $fp ) {
+                fclose( $fp );
+                $this->log( 'Skipping oversized file ' . $path );
+            }
             if ( $this->backup instanceof MainWP_Backup ) {
-                $this->backup->record_failed_add( $path );
+                $this->backup->record_failed_add( $path, $too_large ? 'too_large' : 'unreadable' );
+            } elseif ( $too_large ) {
+                MainWP_Backup::record_skipped_path( $path, 'too_large' );
             }
             return false;
         }
@@ -1110,19 +1123,6 @@ class Tar_Archiver {
         ++$this->addedFileCount;
         if ( 0 === $this->addedFileCount % 100 && ! empty( $this->archivePath ) ) {
             MainWP_Backup::assert_disk_space_during_backup( dirname( $this->archivePath ) );
-        }
-
-        $stat = stat( $path ); // NOSONAR .
-
-        if ( ! isset( $rslt['bytesRead'] ) && $stat['size'] > self::MAX_MEMBER_SIZE ) {
-            fclose( $fp );
-            $this->log( 'Skipping oversized file ' . $path );
-            if ( $this->backup instanceof MainWP_Backup ) {
-                $this->backup->record_failed_add( $path, 'too_large' );
-            } else {
-                MainWP_Backup::record_skipped_path( $path, 'too_large' );
-            }
-            return false;
         }
 
         $prefix = '';
