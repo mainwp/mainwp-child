@@ -876,6 +876,11 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                     if ( null !== $long_name || $size < 1 || $size > 65536 ) {
                         return self::TAR_MALFORMED;
                     }
+                    // PharData keeps every declared long-name payload in full, however the names compare, so the budget counts raw bytes.
+                    $name_bytes += $size;
+                    if ( $name_bytes > 67108864 ) {
+                        return self::TAR_MALFORMED;
+                    }
                     $payload = '';
                     $unread  = $size;
                     while ( $unread > 0 ) {
@@ -906,6 +911,12 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                     $name   = null !== $long_name ? $long_name : ( '' === $prefix ? $field : $prefix . '/' . $field );
                     $is_dir = '5' === $type;
                     $key    = $this->tar_comparison_name( $name, $is_dir );
+                    if ( null === $long_name ) {
+                        $name_bytes += strlen( $name );
+                        if ( $name_bytes > 67108864 ) {
+                            return self::TAR_MALFORMED;
+                        }
+                    }
                     if ( isset( $members[ $key ] ) ) {
                         // PharData keeps one entry per name, so a file and a directory sharing one would drop the file.
                         if ( isset( $dirs[ $key ] ) !== $is_dir ) {
@@ -916,10 +927,6 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                             unset( $prefixed[ $key ] );
                         }
                     } else {
-                        $name_bytes += strlen( $key );
-                        if ( $name_bytes > 67108864 ) {
-                            return self::TAR_MALFORMED;
-                        }
                         $members[ $key ] = 1;
                         if ( $is_dir ) {
                             $dirs[ $key ] = true;

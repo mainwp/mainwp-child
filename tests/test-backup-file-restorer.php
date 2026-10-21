@@ -425,6 +425,29 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertNull( $this->inspect_tar_bytes( $bytes, array( array( 'name' => $name, 'dir' => false ) ) ) );
 	}
 
+	public function test_tar_header_walk_budgets_raw_long_name_bytes() {
+		// Distinct payloads that all cut to one name at the NUL still cost PharData their full size.
+		$path   = $this->dir . '/name-budget.tar';
+		$handle = fopen( $path, 'wb' );
+		for ( $i = 0; $i < 1025; ++$i ) {
+			fwrite( $handle, $this->tar_entry_bytes( '././@LongLink', "a\0" . str_pad( (string) $i, 65534, 'z' ), 'L' ) . $this->tar_entry_bytes( 'placeholder' ) );
+		}
+		fwrite( $handle, str_repeat( "\0", 1024 ) );
+		fclose( $handle );
+		try {
+			$this->assertStringContainsString( 'malformed or truncated', $this->inspect_tar_file( $path, array( array( 'name' => 'a', 'dir' => false ) ) ) );
+		} finally {
+			unlink( $path );
+		}
+	}
+
+	public function test_tar_listing_refuses_a_listed_kind_the_walk_did_not_see() {
+		$file = $this->tar_entry_bytes( 'a', 'content' ) . str_repeat( "\0", 1024 );
+		$this->assertStringContainsString( 'malformed or truncated', $this->inspect_tar_bytes( $file, array( array( 'name' => 'a', 'dir' => true ) ) ) );
+		$dir = $this->tar_entry_bytes( 'd', '', '5' ) . str_repeat( "\0", 1024 );
+		$this->assertStringContainsString( 'malformed or truncated', $this->inspect_tar_bytes( $dir, array( array( 'name' => 'd', 'dir' => false ) ) ) );
+	}
+
 	public function test_tar_header_walk_refuses_oversized_gnu_long_name() {
 		$name = str_repeat( 'x', 65537 );
 		$bytes = $this->tar_entry_bytes( '././@LongLink', $name, 'L' )
