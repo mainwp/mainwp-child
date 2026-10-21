@@ -28,11 +28,17 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @throws \Exception When the destination is outside the site root.
  */
 function mainwp_child_clone_pclzip_pre_extract( $p_event, &$p_header ) {
-    $prefix = rtrim( ABSPATH, '/' ) . '/';
-    if ( 0 !== strpos( $p_header['filename'], $prefix ) ) {
+    $prefix   = rtrim( ABSPATH, '/' ) . '/';
+    $filename = $p_header['filename'];
+    // PclZip writes Windows paths with forward slashes while ABSPATH may keep backslashes.
+    if ( '\\' === DIRECTORY_SEPARATOR ) {
+        $prefix   = str_replace( '\\', '/', $prefix );
+        $filename = str_replace( '\\', '/', $filename );
+    }
+    if ( 0 !== strpos( $filename, $prefix ) ) {
         throw new \Exception( 'Archive entry is outside the site root. Extraction aborted.' );
     }
-    $name   = substr( $p_header['filename'], strlen( $prefix ) );
+    $name   = substr( $filename, strlen( $prefix ) );
     $target = MainWP_Clone_Install::clone_entry_target( $name, ABSPATH );
     if ( null === $target ) {
         return 0;

@@ -660,12 +660,14 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 			public function put_contents( $path, $data, $mode ) { ++$this->writes; return true; }
 		};
 		$previous_limit = ini_get( 'memory_limit' );
-		ini_set( 'memory_limit', '256M' );
+		// A limit above current usage always takes effect, and a member of that size never fits.
+		$limit = memory_get_usage() + 64 * 1024 * 1024;
+		ini_set( 'memory_limit', (string) $limit );
 		$stream = fopen( 'php://temp', 'w+' );
 		set_error_handler( static function () { return true; }, E_WARNING );
 		try {
 			$caught = null;
-			try { MainWP_Clone_Install::write_clone_file( $root . '/locked/large.bin', $stream, 200 * 1024 * 1024, $fs ); }
+			try { MainWP_Clone_Install::write_clone_file( $root . '/locked/large.bin', $stream, $limit, $fs ); }
 			catch ( Exception $error ) { $caught = $error; }
 			$this->assertInstanceOf( Exception::class, $caught );
 			$this->assertStringContainsString( 'too large', $caught->getMessage() );

@@ -210,7 +210,14 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 	}
 
 	public static function data_clone_tar_damaged_headers() {
-		return array( 'checksum mismatch' => array( 'checksum' ), 'regular file named as a directory' => array( 'slash' ) );
+		return array(
+			'checksum mismatch' => array( 'checksum' ),
+			'regular file named as a directory' => array( 'slash' ),
+			'zero checksum' => array( 'zero' ),
+			'damaged magic' => array( 'magic' ),
+			'long name header checksum mismatch' => array( 'longlink' ),
+			'cut on a block boundary' => array( 'cut' ),
+		);
 	}
 
 	/** @dataProvider data_clone_tar_damaged_headers */
@@ -221,9 +228,15 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 		if ( 'checksum' === $case ) {
 			// The stored checksum no longer matches once a name byte changes.
 			$late = substr_replace( $late, 'm', 0, 1 );
+		} elseif ( 'zero' === $case ) {
+			$late = substr_replace( $late, "0000000\0", 148, 8 );
+		} elseif ( 'magic' === $case ) {
+			$late = substr_replace( $late, 'X', 257, 1 );
+		} elseif ( 'longlink' === $case ) {
+			$late = substr_replace( $this->tar_entry_bytes( '././@LongLink', "renamed.txt\0", 'L' ), 'X', 0, 1 ) . $late;
 		}
 		$path = $root . '/archive.tar';
-		file_put_contents( $path, $this->tar_entry_bytes( 'before.txt', 'before' ) . $late . str_repeat( "\0", 1024 ) );
+		file_put_contents( $path, $this->tar_entry_bytes( 'before.txt', 'before' ) . $late . ( 'cut' === $case ? '' : str_repeat( "\0", 1024 ) ) );
 		$archiver = new Tar_Archiver( null, 'tar' );
 		$archiver->read( $path );
 		try {

@@ -2031,9 +2031,14 @@ class Tar_Archiver {
             } else {
                 fseek( $this->archive, 0 );
             }
+            $ended = false;
             while ( $block = fread( $this->archive, 512 ) ) {
                 if ( 512 !== strlen( $block ) ) {
                     throw new \Exception( 'Archive ended inside a header. Extraction aborted.' );
+                }
+                if ( ! $this->check_extract_header( $block ) ) {
+                    $ended = true;
+                    break;
                 }
                 $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
                 if ( 'L' === $temp['type'] ) {
@@ -2051,7 +2056,7 @@ class Tar_Archiver {
                     }
                     $fname = rtrim( $fname, "\0" );
                     $block = fread( $this->archive, 512 );
-                    if ( false === $block || 512 !== strlen( $block ) ) {
+                    if ( false === $block || 512 !== strlen( $block ) || ! $this->check_extract_header( $block ) ) {
                         throw new \Exception( 'Archive ended inside a header. Extraction aborted.' );
                     }
                     $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
@@ -2072,20 +2077,6 @@ class Tar_Archiver {
                     'magic'    => $temp['magic'],
                 );
 
-                if ( 0x00000000 === $file['checksum'] ) {
-                    break;
-                } elseif ( 'ustar' !== substr( $file['magic'], 0, 5 ) ) {
-                    break;
-                }
-                $block    = substr_replace( $block, '        ', 148, 8 );
-                $checksum = 0;
-                for ( $i = 0; $i < 512; $i++ ) {
-                    $checksum += ord( substr( $block, $i, 1 ) );
-                }
-                // A damaged header would otherwise supply the size and name both passes trust.
-                if ( $checksum !== (int) $file['checksum'] ) {
-                    throw new \Exception( 'Archive header checksum mismatch. Extraction aborted.' );
-                }
                 $directory = '5' === $file['type'];
                 $regular   = in_array( $file['type'], array( '0', "\0", '' ), true );
                 if ( $regular && '/' === substr( $file['name'], -1 ) ) {
@@ -2113,9 +2104,33 @@ class Tar_Archiver {
                 }
                 unset( $file );
             }
+            // A download cut on a block boundary would otherwise read as a complete archive.
+            if ( ! $ended ) {
+                throw new \Exception( 'Archive ended before its end marker. Extraction aborted.' );
+            }
         }
 
         return null;
+    }
+
+    /**
+     * A damaged header would otherwise supply the size and name both passes trust, so only an
+     * all-zero block ends the archive and every other header must be intact.
+     *
+     * @param string $block 512-byte header block.
+     * @return bool False for the end-of-archive block, true for a valid header.
+     * @throws \Exception When the header is damaged.
+     */
+    private function check_extract_header( $block ) {
+        if ( str_repeat( "\0", 512 ) === $block ) {
+            return false;
+        }
+        $stored   = octdec( trim( substr( $block, 148, 8 ), "\0 " ) );
+        $checksum = array_sum( unpack( 'C*', substr_replace( $block, '        ', 148, 8 ) ) );
+        if ( 'ustar' !== substr( $block, 257, 5 ) || $checksum !== (int) $stored ) {
+            throw new \Exception( 'Archive header checksum mismatch. Extraction aborted.' );
+        }
+        return true;
     }
 
     /**
