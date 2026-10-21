@@ -1250,9 +1250,10 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                     }
                     $get_args['list'] = $list;
 
-                    if ( 'plugin' === $type ) {
-                        $check_lock = true;
-                    }
+                }
+
+                if ( 'plugin' === $type ) {
+                    $check_lock = true;
                 }
 
                 if ( $check_lock ) {
