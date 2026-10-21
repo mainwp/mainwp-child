@@ -245,12 +245,18 @@ class BackupSqlPrefixRewriterTest extends WP_UnitTestCase {
 		$this->assertNull( $this->rewriter->rewrite( 'CREATE TABLE `wpx_posts` (id INT)' ) );
 	}
 
-	/** @dataProvider session_set_statements */
-	public function test_set_leading_form_matrix( $sql, $allowed ) {
-		$this->assertSame( $allowed ? $sql : null, $this->rewriter->rewrite( $sql ), $sql );
+	/**
+	 * No SET replays, bare or in a conditional comment: the engine sets the session, the plugin's
+	 * dumps carry none, and a dump-supplied sql_mode or client charset changes how the server
+	 * reads every later string and comment.
+	 *
+	 * @dataProvider session_set_statements
+	 */
+	public function test_set_statements_never_replay( $sql ) {
+		$this->assertNull( $this->rewriter->rewrite( $sql ), $sql );
 	}
 
-	/** Dump headers and session assignments pass; statement wrappers and server changes do not. */
+	/** Dump headers, session assignments, statement wrappers, server changes and charset clauses. */
 	public static function session_set_statements() {
 		$allowed = array(
 			"SET TIME_ZONE='+00:00'",
@@ -291,6 +297,8 @@ class BackupSqlPrefixRewriterTest extends WP_UnitTestCase {
 			'SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS',
 			'SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION',
 			"SET SESSION sql_mode='NO_BACKSLASH_ESCAPES'",
+			'SET @a=1, CHARACTER/**/SET gbk',
+			'SET @a=1, CHAR SET gbk',
 			"SET @@session.`sql_mode` = 'ANSI_QUOTES'",
 			'SET NAMES gbk',
 			'SET character_set_connection = big5',
@@ -350,8 +358,8 @@ class BackupSqlPrefixRewriterTest extends WP_UnitTestCase {
 
 	/**
 	 * Rows follow the matrix in sql-executable-comment-rule.md; the Child adds the positions
-	 * where an accepted executable comment is still dropped, because only a leading session SET
-	 * and CREATE TABLE options after the column list ever carry one in a real dump.
+	 * where an accepted executable comment is still dropped, because only CREATE TABLE options
+	 * after the column list ever carry one in a real dump.
 	 */
 	public static function executable_comment_shapes() {
 		$create = 'CREATE TABLE `wp_a` (id INT)';
@@ -359,22 +367,22 @@ class BackupSqlPrefixRewriterTest extends WP_UnitTestCase {
 		return array(
 			'1 plain comment'                          => array( '/* x */ ' . $create, '/* x */ ' . $out ),
 			'2 M without bang is plain'                => array( '/*M x */ ' . $create, '/*M x */ ' . $out ),
-			'3 bang, session SET'                      => array( '/*! SET FOREIGN_KEY_CHECKS=0 */', '/*! SET FOREIGN_KEY_CHECKS=0 */' ),
+			'3 bang, session SET'                      => array( '/*! SET FOREIGN_KEY_CHECKS=0 */', null ),
 			'3 bang, other statement'                  => array( '/*! DROP TABLE wp_users */', null ),
 			'3 bang before a statement'                => array( '/*! DROP TABLE live_users */ ' . $create, null ),
 			'3 bang inside INSERT'                     => array( 'INSERT INTO `wp_a` VALUES (1) /*! , (2) */', null ),
-			'4 bang 5 digits, session SET'             => array( '/*!50001 SET FOREIGN_KEY_CHECKS=0 */', '/*!50001 SET FOREIGN_KEY_CHECKS=0 */' ),
+			'4 bang 5 digits, session SET'             => array( '/*!50001 SET FOREIGN_KEY_CHECKS=0 */', null ),
 			'4 bang 5 digits, CREATE options'          => array( $create . ' /*!50100 PARTITION BY HASH (id) */', $out . ' /*!50100 PARTITION BY HASH (id) */' ),
-			'5 bang 6 digits, session SET'             => array( '/*!100100 SET FOREIGN_KEY_CHECKS=0 */', '/*!100100 SET FOREIGN_KEY_CHECKS=0 */' ),
-			'6 M bang, session SET'                    => array( '/*M! SET FOREIGN_KEY_CHECKS=0 */', '/*M! SET FOREIGN_KEY_CHECKS=0 */' ),
+			'5 bang 6 digits, session SET'             => array( '/*!100100 SET FOREIGN_KEY_CHECKS=0 */', null ),
+			'6 M bang, session SET'                    => array( '/*M! SET FOREIGN_KEY_CHECKS=0 */', null ),
 			'6 M bang before a statement'              => array( '/*M! DROP TABLE live_users */ ' . $create, null ),
 			'6 M bang inside INSERT'                   => array( 'INSERT INTO `wp_a` /*M! SELECT * FROM otherdb.users */', null ),
-			'7 M bang 6 digits, session SET'           => array( '/*M!100100 SET FOREIGN_KEY_CHECKS=0 */', '/*M!100100 SET FOREIGN_KEY_CHECKS=0 */' ),
+			'7 M bang 6 digits, session SET'           => array( '/*M!100100 SET FOREIGN_KEY_CHECKS=0 */', null ),
 			'7 M bang 6 digits before a statement'     => array( "/*M!100100 DROP TABLE live_users */\n" . $create, null ),
 			'7 M bang 5 digits, CREATE options'        => array( $create . ' /*M!50100 PAGE_CHECKSUM=1 */', $out . ' /*M!50100 PAGE_CHECKSUM=1 */' ),
 			'7 M bang inside ALTER'                    => array( 'ALTER TABLE `wp_a` /*M!100100 RENAME TO wp_users */', null ),
 			'7 M bang inside DROP'                     => array( 'DROP TABLE IF EXISTS `wp_a` /*M!100100 , live_users */', null ),
-			'8 lowercase m bang, session SET'          => array( '/*m!100100 SET FOREIGN_KEY_CHECKS=0 */', '/*m!100100 SET FOREIGN_KEY_CHECKS=0 */' ),
+			'8 lowercase m bang, session SET'          => array( '/*m!100100 SET FOREIGN_KEY_CHECKS=0 */', null ),
 			'8 lowercase m bang before a statement'    => array( '/*m!100100 DROP TABLE live_users */ ' . $create, null ),
 			'9 empty executable alone'                 => array( '/*!*/', null ),
 			'9 empty executable, CREATE options'       => array( $create . ' /*M!*/', $out . ' /*M!*/' ),
@@ -410,7 +418,7 @@ class BackupSqlPrefixRewriterTest extends WP_UnitTestCase {
 			'qualifier after a plain comment'          => array( 'INSERT INTO wp_a /* c */.users VALUES (1)', null ),
 			'leading SET then a statement'             => array( '/*!40101 SET FOREIGN_KEY_CHECKS=0 */ DROP TABLE wp_a', null ),
 			'leading SET then a second executable'     => array( '/*!40101 SET @a = 1 */ /*!40101 , @@global.general_log = 1 */', null ),
-			'leading SET with a trailing plain'        => array( '/*!40101 SET FOREIGN_KEY_CHECKS=0 */ /* trailer */', '/*!40101 SET FOREIGN_KEY_CHECKS=0 */ /* trailer */' ),
+			'leading SET with a trailing plain'        => array( '/*!40101 SET FOREIGN_KEY_CHECKS=0 */ /* trailer */', null ),
 			'lexing mode SET before a hidden hint'      => array( "/*!40101 SET SESSION sql_mode='NO_BACKSLASH_ESCAPES' */", null ),
 			'second DROP table after a comment'        => array( 'DROP TABLE `wp_a`, /* c */ live_users', null ),
 			'second LOCK table after a comment'        => array( 'LOCK TABLES `wp_a` WRITE, /**/ live_users READ', null ),

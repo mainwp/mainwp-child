@@ -858,6 +858,44 @@ class DbDumperTest extends WP_UnitTestCase {
 		$this->assertSame( $values, $wpdb->get_col( "SELECT value FROM `{$this->fixture_table}` ORDER BY id" ) );
 	}
 
+	/**
+	 * mysqli_set_charset() refuses names the client library does not know (older mysqlnd builds
+	 * lack utf8mb3, which MySQL 8.0.30+ reports), and wpdb then skips SET NAMES; the slice must
+	 * still hand the shared connection back in the charset it found.
+	 */
+	public function test_tier2_restores_session_when_client_rejects_charset_name() {
+		global $wpdb;
+		$real     = $wpdb;
+		$original = $wpdb->get_row( 'SELECT @@character_set_client AS charset, @@collation_connection AS collation', ARRAY_A );
+		$blind    = ( new ReflectionClass( Test_Db_Dumper_Charset_Blind_Wpdb::class ) )->newInstanceWithoutConstructor();
+		Closure::bind(
+			function ( $source ) {
+				foreach ( get_object_vars( $source ) as $key => $value ) {
+					// The open query result belongs to the real instance, which frees it.
+					$this->$key = 'result' === $key ? null : $value;
+				}
+			},
+			$blind,
+			wpdb::class
+		)( $real );
+		try {
+			$real->set_charset( $real->dbh, 'latin1', 'latin1_general_ci' );
+			$wpdb   = $blind;
+			$result = MainWP_Backup_Db_Dumper::instance()->dump_tables_tier2_slice( array( $this->fixture_table ), $this->scratch . '/blind', array(), 45 );
+			$this->assertTrue( $result['done'] );
+			$this->assertSame(
+				array(
+					'charset'   => 'latin1',
+					'collation' => 'latin1_general_ci',
+				),
+				$real->get_row( 'SELECT @@character_set_client AS charset, @@collation_connection AS collation', ARRAY_A )
+			);
+		} finally {
+			$wpdb = $real;
+			$wpdb->set_charset( $wpdb->dbh, $original['charset'], $original['collation'] );
+		}
+	}
+
 	/** @dataProvider tier2_connection_charsets */
 	public function test_tier2_non_utf8_connection_values_round_trip( $charset, $collation, $hex, $value ) {
 		global $wpdb;
@@ -1077,4 +1115,23 @@ class DbDumperTest extends WP_UnitTestCase {
 		}
 	}
 
+}
+
+/**
+ * A wpdb whose client library does not know the latin1 name, so set_charset() changes nothing for it.
+ */
+class Test_Db_Dumper_Charset_Blind_Wpdb extends wpdb {
+
+	/**
+	 * Ignore latin1 the way wpdb does when mysqli_set_charset() fails.
+	 *
+	 * @param mysqli      $dbh     Connection.
+	 * @param string|null $charset Charset.
+	 * @param string|null $collate Collation.
+	 */
+	public function set_charset( $dbh, $charset = null, $collate = null ) {
+		if ( 'latin1' !== $charset ) {
+			parent::set_charset( $dbh, $charset, $collate );
+		}
+	}
 }

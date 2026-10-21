@@ -14,8 +14,10 @@
  * outside the source-prefixed set are dropped, as is anything that could
  * reach beyond the restore's own tables: USE, CREATE/DROP DATABASE,
  * GRANT, triggers, routines, views, and any statement kind the dump
- * format does not produce. Allowlisted session SET forms (bare or in a
- * conditional comment) pass through unchanged.
+ * format does not produce. SET statements never replay: the restore engine
+ * sets the session itself, the plugin's dumps carry none, and a dump-supplied
+ * sql_mode or client charset would change how the server reads every later
+ * string and comment.
  *
  * MySQL runs the body of a `/*!` comment and MariaDB also runs `/*M!`, so a
  * comment the rewriter skipped as inert could carry a statement or schema
@@ -93,24 +95,10 @@ class MainWP_Backup_Sql_Prefix_Rewriter { // phpcs:ignore Generic.Classes.Openin
         $offset = $this->skip_trivia( $statement, 0 );
         $head   = substr( $statement, $offset );
 
-        // A leading executable comment may only be a session SET with nothing after it: a second
-        // statement or a version-gated tail would run on some servers and not others.
-        if ( ! empty( $exec ) && $exec[0]['start'] === $offset ) {
-            if ( 1 !== count( $exec ) || $this->skip_trivia( $statement, $exec[0]['end'] ) < strlen( $statement ) ) {
-                return null;
-            }
-            $body = ltrim( substr( $statement, $exec[0]['body_start'], $exec[0]['body_end'] - $exec[0]['body_start'] ) );
-            return $this->is_session_set( $body ) ? $statement : null;
-        }
-
         // Real dumps only carry executable comments as CREATE TABLE options; anywhere else one
         // could add a table or clause the checks below never see.
         if ( ! empty( $exec ) && ! preg_match( '/^CREATE\s+TABLE\b/i', $head ) ) {
             return null;
-        }
-
-        if ( preg_match( '/^SET\b/i', $head ) ) {
-            return $this->is_session_set( $head ) ? $statement : null;
         }
 
         // Statements with no table position that are safe to replay.
@@ -140,27 +128,6 @@ class MainWP_Backup_Sql_Prefix_Rewriter { // phpcs:ignore Generic.Classes.Openin
      */
     public function refusal() {
         return $this->refusal;
-    }
-
-    /**
-     * Reject SET forms that change server, credential, or role state.
-     *
-     * @param string $head Statement from its first meaningful byte.
-     * @return bool Whether SET stays within the restore session.
-     */
-    private function is_session_set( $head ) {
-        if ( preg_match( '/\b(GLOBAL|PERSIST|PERSIST_ONLY|PASSWORD|ROLE)\b/i', $head ) ) {
-            return false;
-        }
-
-        // scan_comments() lexes with the sql_mode and utf8mb4 connection the restore engine sets;
-        // NO_BACKSLASH_ESCAPES, ANSI_QUOTES or a multibyte client charset such as gbk would make
-        // the server end later strings and comments elsewhere. The plugin's dumps set neither.
-        if ( preg_match( '/sql_mode|character_set|character\s+set|charset|collation|\bnames\b/i', $head ) ) {
-            return false;
-        }
-
-        return 1 === preg_match( '/^SET\s+(?:(?:NAMES|CHARACTER\s+SET|CHARSET|SESSION|LOCAL)\b|@|[A-Za-z_][A-Za-z0-9_]*\s*(?::=|=))/i', $head );
     }
 
     /**

@@ -571,6 +571,16 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
             $wpdb->charset = $charset;
             $wpdb->collate = $collate;
             $wpdb->set_charset( $wpdb->dbh, $session['charset'], $session['collation'] );
+            // mysqli_set_charset() refuses names the client library lacks (utf8mb3 on older mysqlnd)
+            // and wpdb then skips SET NAMES; the server accepts every name it reported. Straight
+            // mysqli, like wpdb::set_charset(), so the caller still sees the slice's last_error.
+            if ( $wpdb->dbh instanceof \mysqli ) {
+                $client = $wpdb->dbh->query( 'SELECT @@character_set_client' );
+                $row    = $client instanceof \mysqli_result ? $client->fetch_row() : null;
+                if ( is_array( $row ) && $session['charset'] !== $row[0] ) {
+                    $wpdb->dbh->query( "SET NAMES '" . $wpdb->dbh->real_escape_string( $session['charset'] ) . "' COLLATE '" . $wpdb->dbh->real_escape_string( $session['collation'] ) . "'" );
+                }
+            }
         }
     }
 
