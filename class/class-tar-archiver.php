@@ -2105,7 +2105,7 @@ class Tar_Archiver {
                     }
                     if ( $long[1] ) {
                         // Writing the cut name would put the file at a different path than the source site had.
-                        throw new \Exception( sprintf( 'Archive entry name was cut to 512 bytes by an older MainWP Child version: %s. Update MainWP Child on the source site and create a new backup. Extraction aborted.', esc_html( wp_check_invalid_utf8( $long[0], true ) ) ) );
+                        throw new \Exception( sprintf( 'Archive entry name was cut to 512 bytes by an older MainWP Child version: %s. Update MainWP Child on the source site and create a new backup. Extraction aborted.', esc_html( MainWP_Clone_Install::entry_label( $long[0] ) ) ) );
                     }
                     $fname = $long[0];
                     $block = $long[2];
@@ -2133,7 +2133,7 @@ class Tar_Archiver {
                 $directory = '5' === $file['type'];
                 $regular   = in_array( $file['type'], array( '0', "\0", '' ), true );
                 if ( $regular && '/' === substr( $file['name'], -1 ) ) {
-                    throw new \Exception( sprintf( 'Archive file entry ends with a slash: %s. Extraction aborted.', esc_html( wp_check_invalid_utf8( $file['name'], true ) ) ) );
+                    throw new \Exception( sprintf( 'Archive file entry ends with a slash: %s. Extraction aborted.', esc_html( MainWP_Clone_Install::entry_label( $file['name'] ) ) ) );
                 }
                 $name   = $directory ? rtrim( $file['name'], '/' ) . '/' : $file['name'];
                 $target = MainWP_Clone_Install::clone_entry_target( $name, $to );

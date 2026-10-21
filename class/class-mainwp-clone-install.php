@@ -672,15 +672,15 @@ class MainWP_Clone_Install {
      */
     public static function clone_entry_target( $name, $root ) {
         if ( false !== strpos( $name, "\0" ) ) {
-            throw new \Exception( sprintf( 'Archive entry name contains a NUL byte: %s. Extraction aborted.', esc_html( wp_check_invalid_utf8( str_replace( "\0", '\\0', $name ), true ) ) ) );
+            throw new \Exception( sprintf( 'Archive entry name contains a NUL byte: %s. Extraction aborted.', esc_html( self::entry_label( $name ) ) ) );
         }
         if ( preg_match( '/^(?:[\\\\\/]|[a-z]:)/i', $name ) ) {
-            throw new \Exception( sprintf( 'Archive contains absolute path entry: %s. Extraction aborted.', esc_html( wp_check_invalid_utf8( $name, true ) ) ) );
+            throw new \Exception( sprintf( 'Archive contains absolute path entry: %s. Extraction aborted.', esc_html( self::entry_label( $name ) ) ) );
         }
         $parts = preg_split( '/[\\\\\/]/', $name );
         foreach ( $parts as $part ) {
             if ( '' !== $part && '.' !== $part && preg_match( '/^[. ]+$/D', $part ) ) {
-                throw new \Exception( sprintf( 'Archive contains path traversal entry: %s. Extraction aborted.', esc_html( wp_check_invalid_utf8( $name, true ) ) ) );
+                throw new \Exception( sprintf( 'Archive contains path traversal entry: %s. Extraction aborted.', esc_html( self::entry_label( $name ) ) ) );
             }
         }
         clearstatcache( true );
@@ -702,7 +702,7 @@ class MainWP_Clone_Install {
         self::check_clone_directory( $parent, $resolved_root, $name );
         $directory = '/' === substr( $name, -1 );
         if ( file_exists( rtrim( $target, '/' ) ) && ( $directory ? ! is_dir( $target ) : is_dir( $target ) ) ) {
-            throw new \Exception( sprintf( 'Archive entry conflicts with the destination: %s. Extraction aborted.', esc_html( wp_check_invalid_utf8( $name, true ) ) ) );
+            throw new \Exception( sprintf( 'Archive entry conflicts with the destination: %s. Extraction aborted.', esc_html( self::entry_label( $name ) ) ) );
         }
         $key = self::normalize_entry_name( $name );
         if ( 'wp-config.php' === $key || ( realpath( dirname( $target ) ) === $resolved_root && 'wp-config.php' === basename( $key ) ) ) {
@@ -738,10 +738,23 @@ class MainWP_Clone_Install {
         $prefix = rtrim( $root, '/' ) . '/';
         if ( false === $resolved || ! is_dir( $resolved ) || 0 !== strpos( rtrim( $resolved, '/' ) . '/', $prefix ) ) {
             if ( null !== $name ) {
-                throw new \Exception( sprintf( 'Archive entry resolves outside the site root: %s. Extraction aborted.', esc_html( wp_check_invalid_utf8( $name, true ) ) ) );
+                throw new \Exception( sprintf( 'Archive entry resolves outside the site root: %s. Extraction aborted.', esc_html( self::entry_label( $name ) ) ) );
             }
             throw new \Exception( 'Archive entry is outside the site root. Extraction aborted.' );
         }
+    }
+
+    /**
+     * Entry names go into refusal messages. esc_html() empties invalid UTF-8, and before
+     * WordPress 6.9 wp_check_invalid_utf8() strips through iconv(), which returns false for it,
+     * so non-UTF-8 bytes become "?" here; a NUL would end the name early in logs.
+     *
+     * @param string $name Raw archive entry name.
+     * @return string Name safe to pass to esc_html().
+     */
+    public static function entry_label( $name ) {
+        $name = str_replace( "\0", '\\0', (string) $name );
+        return preg_match( '//u', $name ) ? $name : preg_replace( '/[\x80-\xFF]/', '?', $name );
     }
 
     /**

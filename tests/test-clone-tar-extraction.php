@@ -348,4 +348,15 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * Refusals must still name an entry whose bytes are not valid UTF-8, on every supported
+	 * WordPress: before 6.9, wp_check_invalid_utf8() strips through iconv(), which returns false.
+	 */
+	public function test_clone_entry_label_keeps_invalid_utf8_names() {
+		$this->assertSame( 'a/../?.txt', \MainWP\Child\MainWP_Clone_Install::entry_label( "a/../\xe9.txt" ) );
+		$this->assertSame( 'cut ??', \MainWP\Child\MainWP_Clone_Install::entry_label( "cut \xe6\x97" ) );
+		$this->assertSame( 'nul\\0.txt', \MainWP\Child\MainWP_Clone_Install::entry_label( "nul\0.txt" ) );
+		$this->assertSame( "caf\xc3\xa9/<b>.txt", \MainWP\Child\MainWP_Clone_Install::entry_label( "caf\xc3\xa9/<b>.txt" ), 'Valid UTF-8 is kept; escaping is the caller\'s job.' );
+	}
+
 }
