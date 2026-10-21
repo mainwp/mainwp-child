@@ -859,6 +859,9 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 	 * @preserveGlobalState disabled
 	 */
 	public function test_clone_pclzip_callback_accepts_trailing_backslash_root() {
+		if ( '\\' === \DIRECTORY_SEPARATOR ) {
+			$this->markTestSkipped( 'The fixture requires POSIX to treat a backslash as a filename character.' );
+		}
 		$root = sys_get_temp_dir() . '/mainwp-clone-winroot-' . uniqid() . '/';
 		// On Windows C:\site\ and C:/site/ name one directory; here "site\" and "site" stand in for the two spellings.
 		mkdir( $root . 'site\\', 0755, true );

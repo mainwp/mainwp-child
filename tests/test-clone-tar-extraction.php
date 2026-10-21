@@ -293,10 +293,11 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 	public static function data_clone_refusal_names() {
 		return array(
 			'traversal'          => array( 'a/../<b>up</b>.txt', 'path traversal', 'a/../&lt;b&gt;up&lt;/b&gt;.txt' ),
+			'invalid UTF-8'      => array( "a/../\xe9.txt", 'path traversal', array( 'a/../', '.txt' ) ),
 			'absolute'           => array( '/<b>abs</b>.txt', 'absolute path', '/&lt;b&gt;abs&lt;/b&gt;.txt' ),
 			'nul byte'           => array( "nul\0<b>.txt", 'NUL byte', 'nul\\0&lt;b&gt;.txt' ),
 			'outside the root'   => array( 'linked/<b>esc</b>.txt', 'outside', 'linked/&lt;b&gt;esc&lt;/b&gt;.txt' ),
-			'type conflict'      => array( 'taken/<b>', 'conflicts', 'taken/&lt;b&gt;' ),
+			'type conflict'      => array( 'taken/a&b', 'conflicts', 'taken/a&amp;b' ),
 			'file with a slash'  => array( '<b>file</b>/', 'ends with a slash', '&lt;b&gt;file&lt;/b&gt;/' ),
 		);
 	}
@@ -310,7 +311,7 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 		$root = sys_get_temp_dir() . '/mainwp-clone-refusal-' . uniqid();
 		mkdir( $root . '/site/taken', 0777, true );
 		mkdir( $root . '/outside' );
-		file_put_contents( $root . '/site/taken/<b>', 'file' );
+		file_put_contents( $root . '/site/taken/a&b', 'file' );
 		symlink( $root . '/outside', $root . '/site/linked' );
 		$archiver = null;
 		try {
@@ -330,7 +331,9 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 			}
 			$this->assertNotNull( $error );
 			$this->assertStringContainsString( $reason, $error );
-			$this->assertStringContainsString( $escaped, $error, 'The refusal must name the entry, escaped.' );
+			foreach ( (array) $escaped as $text ) {
+				$this->assertStringContainsString( $text, $error, 'The refusal must name the entry, escaped.' );
+			}
 			$this->assertStringNotContainsString( '<b>', $error );
 		} finally {
 			if ( $archiver ) {

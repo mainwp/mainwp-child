@@ -1362,6 +1362,7 @@ class Tar_Archiver {
      * Archives written before long names were padded declare the full length but hold only the
      * first 512 bytes; the block after that one is then the entry's own header. That shape is
      * returned as cut so readers can step over it instead of reading the header as name bytes.
+     * The header's name field must match the first 100 name bytes and its prefix must be empty.
      *
      * @param int $length Declared name length.
      * @return array|false Array of name, whether it was cut, and the following header block; false
@@ -1383,7 +1384,7 @@ class Tar_Archiver {
             if ( false === $next || 512 !== strlen( $next ) ) {
                 return false;
             }
-            if ( $this->is_header_block( $next ) ) {
+            if ( $this->is_header_block( $next ) && substr( $next, 0, 100 ) === substr( $data, 0, 100 ) && '' === rtrim( substr( $next, 345, 155 ), "\0" ) ) {
                 return array( $data, true, $next );
             }
             $data .= $next;
@@ -2104,7 +2105,7 @@ class Tar_Archiver {
                     }
                     if ( $long[1] ) {
                         // Writing the cut name would put the file at a different path than the source site had.
-                        throw new \Exception( sprintf( 'Archive entry name was cut to 512 bytes by an older MainWP Child version: %s. Update MainWP Child on the source site and create a new backup. Extraction aborted.', esc_html( $long[0] ) ) );
+                        throw new \Exception( sprintf( 'Archive entry name was cut to 512 bytes by an older MainWP Child version: %s. Update MainWP Child on the source site and create a new backup. Extraction aborted.', esc_html( wp_check_invalid_utf8( $long[0], true ) ) ) );
                     }
                     $fname = $long[0];
                     $block = $long[2];
@@ -2132,7 +2133,7 @@ class Tar_Archiver {
                 $directory = '5' === $file['type'];
                 $regular   = in_array( $file['type'], array( '0', "\0", '' ), true );
                 if ( $regular && '/' === substr( $file['name'], -1 ) ) {
-                    throw new \Exception( sprintf( 'Archive file entry ends with a slash: %s. Extraction aborted.', esc_html( $file['name'] ) ) );
+                    throw new \Exception( sprintf( 'Archive file entry ends with a slash: %s. Extraction aborted.', esc_html( wp_check_invalid_utf8( $file['name'], true ) ) ) );
                 }
                 $name   = $directory ? rtrim( $file['name'], '/' ) . '/' : $file['name'];
                 $target = MainWP_Clone_Install::clone_entry_target( $name, $to );

@@ -309,11 +309,13 @@ class TarArchiverLongNamesTest extends WP_UnitTestCase {
 		$path = $this->scratch . '/backup.' . $type;
 		$this->run_pass( $path, $type, false );
 		$bytes = $this->tar_bytes( $type, $path );
+		$torn = null;
 		foreach ( $this->gnu_entries( $bytes ) as $entry ) {
 			if ( $name === $entry['name'] ) {
 				$torn = substr( $bytes, 0, $entry['start'] + 1024 );
 			}
 		}
+		$this->assertNotNull( $torn, 'The archive must contain the long-name entry before it is torn.' );
 		file_put_contents( $path, 'tar' === $type ? $torn : gzencode( $torn ) );
 		try {
 			$this->run_pass( $path, $type, true );
@@ -359,6 +361,44 @@ class TarArchiverLongNamesTest extends WP_UnitTestCase {
 		$protected = array( str_repeat( './', 545 ) . 'wp-config.php', str_repeat( './', 794 ) . 'wp-config.php' );
 		$this->assert_readers( $path, $type, $files, array(), $protected );
 		$this->assertFileDoesNotExist( $this->scratch . '/site/wp-config.php' );
+	}
+
+	/**
+	 * A long-name payload can contain a block with a valid header checksum.
+	 */
+	public function test_long_name_payload_that_looks_like_a_header() {
+		$block = substr_replace( str_repeat( 'b', 512 ), 'ustar', 257, 5 );
+		$block = substr_replace( $block, '        ', 148, 8 );
+		$block = substr_replace( $block, sprintf( '%07o ', array_sum( unpack( 'C*', $block ) ) ), 148, 8 );
+		$name = str_repeat( 'a', 512 ) . $block . 'tail.txt';
+		$path = $this->scratch . '/header-payload.tar';
+		$writer = new Tar_Archiver( null, 'tar' );
+		$writer->create( $path );
+		$add = new ReflectionMethod( $writer, 'add_file_from_string' );
+		$add->setAccessible( true );
+		$add->invoke( $writer, $name, 'long entry content' );
+		$add->invoke( $writer, 'after.txt', 'after' );
+		$data = new ReflectionMethod( $writer, 'add_data' );
+		$data->setAccessible( true );
+		$data->invoke( $writer, pack( 'a1024', '' ) );
+		$writer->close();
+
+		$reader = new Tar_Archiver( null, 'tar' );
+		$reader->read( $path );
+		try {
+			$this->assertSame( 'long entry content', $reader->get_from_name( $name ) );
+			$this->assertTrue( $reader->file_exists( $name ) );
+			$this->assertSame( 'after', $reader->get_from_name( 'after.txt' ) );
+			$error = '';
+			try {
+				@$reader->extract_to( $this->scratch . '/site' );
+			} catch ( \Exception $e ) {
+				$error = $e->getMessage();
+			}
+			$this->assertStringNotContainsString( 'older MainWP Child', $error );
+		} finally {
+			$reader->close();
+		}
 	}
 
 	/**

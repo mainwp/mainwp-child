@@ -672,15 +672,15 @@ class MainWP_Clone_Install {
      */
     public static function clone_entry_target( $name, $root ) {
         if ( false !== strpos( $name, "\0" ) ) {
-            throw new \Exception( sprintf( 'Archive entry name contains a NUL byte: %s. Extraction aborted.', esc_html( str_replace( "\0", '\\0', $name ) ) ) );
+            throw new \Exception( sprintf( 'Archive entry name contains a NUL byte: %s. Extraction aborted.', esc_html( wp_check_invalid_utf8( str_replace( "\0", '\\0', $name ), true ) ) ) );
         }
         if ( preg_match( '/^(?:[\\\\\/]|[a-z]:)/i', $name ) ) {
-            throw new \Exception( sprintf( 'Archive contains absolute path entry: %s. Extraction aborted.', esc_html( $name ) ) );
+            throw new \Exception( sprintf( 'Archive contains absolute path entry: %s. Extraction aborted.', esc_html( wp_check_invalid_utf8( $name, true ) ) ) );
         }
         $parts = preg_split( '/[\\\\\/]/', $name );
         foreach ( $parts as $part ) {
             if ( '' !== $part && '.' !== $part && preg_match( '/^[. ]+$/D', $part ) ) {
-                throw new \Exception( sprintf( 'Archive contains path traversal entry: %s. Extraction aborted.', esc_html( $name ) ) );
+                throw new \Exception( sprintf( 'Archive contains path traversal entry: %s. Extraction aborted.', esc_html( wp_check_invalid_utf8( $name, true ) ) ) );
             }
         }
         clearstatcache( true );
@@ -702,7 +702,7 @@ class MainWP_Clone_Install {
         self::check_clone_directory( $parent, $resolved_root, $name );
         $directory = '/' === substr( $name, -1 );
         if ( file_exists( rtrim( $target, '/' ) ) && ( $directory ? ! is_dir( $target ) : is_dir( $target ) ) ) {
-            throw new \Exception( sprintf( 'Archive entry conflicts with the destination: %s. Extraction aborted.', esc_html( $name ) ) );
+            throw new \Exception( sprintf( 'Archive entry conflicts with the destination: %s. Extraction aborted.', esc_html( wp_check_invalid_utf8( $name, true ) ) ) );
         }
         $key = self::normalize_entry_name( $name );
         if ( 'wp-config.php' === $key || ( realpath( dirname( $target ) ) === $resolved_root && 'wp-config.php' === basename( $key ) ) ) {
@@ -738,7 +738,7 @@ class MainWP_Clone_Install {
         $prefix = rtrim( $root, '/' ) . '/';
         if ( false === $resolved || ! is_dir( $resolved ) || 0 !== strpos( rtrim( $resolved, '/' ) . '/', $prefix ) ) {
             if ( null !== $name ) {
-                throw new \Exception( sprintf( 'Archive entry resolves outside the site root: %s. Extraction aborted.', esc_html( $name ) ) );
+                throw new \Exception( sprintf( 'Archive entry resolves outside the site root: %s. Extraction aborted.', esc_html( wp_check_invalid_utf8( $name, true ) ) ) );
             }
             throw new \Exception( 'Archive entry is outside the site root. Extraction aborted.' );
         }
