@@ -19,7 +19,7 @@ class Changing_Source_Member_Size_Tar_Archiver extends Tar_Archiver {
 	private $changed = false;
 
 	protected function read_source_data( $handle, $length ) {
-		if ( ! $this->changed ) {
+		if ( ! $this->changed && stream_get_meta_data( $handle )['uri'] === $this->source_path ) {
 			$this->changed = true;
 			if ( 'grow' === $this->change ) {
 				file_put_contents( $this->source_path, str_repeat( 'g', 2000 ), FILE_APPEND );
@@ -94,14 +94,14 @@ class TarArchiverMemberSizeTest extends WP_UnitTestCase {
 		$this->assertSame( 4294966785, filesize( $path ) );
 	}
 
-	private function run_pass( $path, $type = 'tar', $append = false ) {
+	private function run_pass( $path, $type = 'tar', $append = false, $archiver = null ) {
 		$excludes = array( '.htaccess' );
 		foreach ( glob( ABSPATH . '*' ) as $node ) {
 			if ( $node !== $this->fixture ) {
 				$excludes[] = str_replace( ABSPATH, '', $node );
 			}
 		}
-		$archiver = new Tar_Archiver( $this->backup, $type );
+		$archiver = $archiver ?? new Tar_Archiver( $this->backup, $type );
 		try {
 			$this->assertTrue( $archiver->create_full_backup( $path, $excludes, false, true, false, false, $append ) );
 		} finally {
@@ -190,9 +190,53 @@ class TarArchiverMemberSizeTest extends WP_UnitTestCase {
 		$this->assert_changing_source( $type, 'grow' );
 	}
 
-	/** @dataProvider archive_types */
+	/**
+	 * A shrunk site file keeps a NUL-filled member and is reported; a required source fails the backup.
+	 *
+	 * @dataProvider archive_types
+	 * @param string $type Archive type.
+	 */
 	public function test_shrink_fills_declared_size_and_reports_change( $type ) {
-		$this->assert_changing_source( $type, 'shrink' );
+		$source  = $this->fixture . '/changing.txt';
+		$content = str_repeat( 'original-', 100 );
+		file_put_contents( $source, $content );
+		file_put_contents( $this->fixture . '/after.txt', 'next member' );
+		$reasons = array();
+		$record  = static function ( $path, $reason ) use ( &$reasons ) {
+			$reasons[ $path ] = $reason;
+		};
+		add_action( 'mainwp_child_backup_skipped_path', $record, 10, 2 );
+		try {
+			$required = new Changing_Source_Member_Size_Tar_Archiver( $this->backup, $type );
+			$required->source_path = $source;
+			$required->change      = 'shrink';
+			try {
+				$required->zip_file( array( $source ), $this->scratch . '/required.' . $type );
+				$this->fail( 'A required source that shrank must fail the archive.' );
+			} catch ( MainWP_Exception $e ) {
+				$this->assertSame( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED, $e->get_message_error_code() );
+			} finally {
+				$required->close();
+			}
+			file_put_contents( $source, $content );
+			MainWP_Backup::reset_skipped_paths();
+			$reasons  = array();
+			$path     = $this->scratch . '/changing.' . $type;
+			$archiver = new Changing_Source_Member_Size_Tar_Archiver( $this->backup, $type );
+			$archiver->source_path = $source;
+			$archiver->change      = 'shrink';
+			$this->run_pass( $path, $type, false, $archiver );
+		} finally {
+			remove_action( 'mainwp_child_backup_skipped_path', $record, 10 );
+		}
+		$prefix  = basename( $this->fixture ) . '/';
+		$members = $this->assert_members( $path, $type );
+		$this->assertArrayHasKey( $prefix . 'after.txt', $members );
+		$this->assertSame( 'next member', $this->contents( $path, $prefix . 'after.txt' ) );
+		$this->assertSame( substr( $content, 0, 10 ) . str_repeat( "\0", strlen( $content ) - 10 ), $this->contents( $path, $prefix . 'changing.txt' ) );
+		$this->assertSame( array( $source ), MainWP_Backup::get_skipped_paths() );
+		$this->assertSame( 'changed', $reasons[ $source ] );
+		$this->assertSame( array(), $this->backup->get_failed_add_paths(), 'A written member must still be matched on append.' );
 	}
 
 	private function assert_changing_source( $type, $change ) {
@@ -220,15 +264,9 @@ class TarArchiverMemberSizeTest extends WP_UnitTestCase {
 		}
 		$this->assertSame( array( 'changing.txt' => 1, 'after.txt' => 1 ), $this->assert_members( $path, $type ) );
 		$this->assertSame( 'next member', $this->contents( $path, 'after.txt' ) );
-		if ( 'grow' === $change ) {
-			$this->assertSame( $content, $this->contents( $path, 'changing.txt' ) );
-			$this->assertSame( array(), MainWP_Backup::get_skipped_paths() );
-			$this->assertSame( array(), $reasons );
-		} else {
-			$this->assertSame( substr( $content, 0, 10 ) . str_repeat( "\0", strlen( $content ) - 10 ), $this->contents( $path, 'changing.txt' ) );
-			$this->assertSame( array( $source ), MainWP_Backup::get_skipped_paths() );
-			$this->assertSame( 'changed', $reasons[ $source ] );
-		}
+		$this->assertSame( $content, $this->contents( $path, 'changing.txt' ) );
+		$this->assertSame( array(), MainWP_Backup::get_skipped_paths() );
+		$this->assertSame( array(), $reasons );
 		$this->assertSame( array(), $this->backup->get_failed_add_paths(), 'A written member must still be matched on append.' );
 	}
 

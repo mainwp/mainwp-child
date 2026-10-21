@@ -1064,7 +1064,7 @@ class Tar_Archiver {
         // skipped like an unreadable one, and a resume that lost the skip must not match it to the next entry.
         $stat      = $fp ? fstat( $fp ) : false;
         $too_large = false !== $stat && $stat['size'] > self::MAX_MEMBER_SIZE;
-        if ( ! $fp || $too_large ) {
+        if ( ! $fp || false === $stat || $too_large ) {
             if ( self::APPEND === $this->mode ) {
                 // A source that became unreadable or outgrew the limit may already have a complete archived copy.
                 $startOffset = ftell( $this->archive );
@@ -1083,6 +1083,8 @@ class Tar_Archiver {
             }
             if ( $fp ) {
                 fclose( $fp );
+            }
+            if ( $too_large ) {
                 $this->log( 'Skipping oversized file ' . $path );
             }
             if ( $this->backup instanceof MainWP_Backup ) {
@@ -1239,7 +1241,9 @@ class Tar_Archiver {
         fclose( $fp );
 
         ++$this->addedEntryCount;
-        return true;
+        // The member stays in the archive either way; the site walk ignores this result and reports the
+        // change, while the dump and zip_file() callers fail rather than ship a NUL-filled copy.
+        return ! $sourceEnded;
     }
 
     /**
