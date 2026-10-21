@@ -355,6 +355,14 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             return $this->result( false, $cursor, $this->archive_open_error( $e, $part, $plain ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
 
+        if ( 0 === $cursor['entry_index'] ) {
+            $error = $this->tar_listing_error( $plain, $entries );
+            if ( null !== $error ) {
+                $this->discard_plain_tar( $part, $plain );
+                return $this->result( false, $cursor, $error, MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
+            }
+        }
+
         $this->real_htaccess_entries = array();
         foreach ( $entries as $entry ) {
             if ( ! $entry['dir'] && '.htaccess' === basename( $entry['name'] ) ) {
@@ -459,12 +467,14 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                 wp_delete_file( $plain );
             }
             if ( $this->link_part( $part, $plain ) ) {
+                MainWP_Helper::protect_backup_path( $plain );
                 return $plain;
             }
             // Runners on different hosts can share a pid and this scratch directory.
             $tmp = $plain . '.' . bin2hex( random_bytes( 6 ) ) . '.tmp';
             $this->sweep_stale_plain_temps( $plain, $tmp );
             $copied = $this->copy_part( $part, $tmp );
+            MainWP_Helper::protect_backup_path( $tmp );
             clearstatcache( true, $tmp );
             $size = @filesize( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- a failed copy may leave no file; warnings must not corrupt the response.
             if ( $copied && false !== $size && filesize( $part ) === $size && @rename( $tmp, $plain ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions -- like link/copy failures, rename warnings must not corrupt the response.
@@ -496,6 +506,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         $compressed_tmp = $plain . '.' . bin2hex( random_bytes( 6 ) ) . '.tmp';
         $this->sweep_stale_plain_temps( $plain, $compressed_tmp );
         $out = @fopen( $compressed_tmp, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- open failures are handled below; warnings must not corrupt the response.
+        MainWP_Helper::protect_backup_path( $compressed_tmp );
         if ( false === $out ) {
             $close( $in );
             return null;
@@ -791,6 +802,180 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             }
         );
         return $entries;
+    }
+
+    /**
+     * PharData can omit older prefix-split members without reporting an error.
+     * Compare before writing so an incomplete listing cannot become a successful restore.
+     *
+     * @param string $plain   Uncompressed archive.
+     * @param array  $entries PharData listing.
+     * @return string|null Refusal message, or null when every file and directory is listed.
+     */
+    protected function tar_listing_error( $plain, $entries ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- tar header variants share one bounded walk.
+        $listed = array();
+        foreach ( $entries as $entry ) {
+            $listed[ $this->tar_comparison_name( $entry['name'], $entry['dir'] ) ] = true;
+        }
+        $stream = fopen( $plain, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- inspect headers without extracting members.
+        if ( false === $stream ) {
+            return 'Could not read the backup archive headers. Please create a new backup.';
+        }
+        $malformed = 'The backup archive has a malformed or truncated tar header or entry. Please create a new backup.';
+        $limits    = $this->extraction_limits();
+        $missing   = 0;
+        $first     = '';
+        $count     = 0;
+        $long_name = null;
+        $pax_path  = null;
+        try {
+            $stat = fstat( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- size bound for every header and payload.
+            if ( false === $stat ) {
+                return $malformed;
+            }
+            $length = $stat['size'];
+            // The native writer can end at a complete member boundary without zero markers.
+            while ( ftell( $stream ) < $length ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- bounded sequential tar scan.
+                $header = fread( $stream, 512 ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- fixed-size tar header.
+                if ( false === $header || 512 !== strlen( $header ) ) {
+                    return $malformed;
+                }
+                if ( str_repeat( "\0", 512 ) === $header ) {
+                    break;
+                }
+                $checksum = $this->tar_header_number( substr( $header, 148, 8 ) );
+                $check    = substr_replace( $header, '        ', 148, 8 );
+                $unsigned = array_sum( unpack( 'C*', $check ) );
+                $signed   = array_sum( unpack( 'c*', $check ) );
+                $size     = $this->tar_header_number( substr( $header, 124, 12 ) );
+                if ( null === $checksum || ( $checksum !== $unsigned && $checksum !== $signed ) || null === $size ) {
+                    return $malformed;
+                }
+                $remaining = $length - ftell( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- prevent seeking past a truncated payload.
+                $padding   = ( 512 - $size % 512 ) % 512;
+                if ( $size > $remaining || $padding > $remaining - $size ) {
+                    return $malformed;
+                }
+                $type = $header[156];
+                if ( 'L' === $type || 'x' === $type ) {
+                    $payload = '';
+                    $unread  = $size;
+                    while ( $unread > 0 ) {
+                        $chunk = fread( $stream, min( 8192, $unread ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- metadata may span multiple blocks.
+                        if ( false === $chunk || '' === $chunk ) {
+                            return $malformed;
+                        }
+                        $payload .= $chunk;
+                        $unread  -= strlen( $chunk );
+                    }
+                    if ( 'L' === $type ) {
+                        $long_name = explode( "\0", $payload, 2 )[0];
+                    } else {
+                        $offset = 0;
+                        while ( $offset < $size ) {
+                            $space = strpos( $payload, ' ', $offset );
+                            if ( false === $space ) {
+                                return $malformed;
+                            }
+                            $digits = substr( $payload, $offset, $space - $offset );
+                            if ( '' === $digits || ! ctype_digit( $digits ) ) {
+                                return $malformed;
+                            }
+                            $record_length = (int) $digits;
+                            if ( $record_length <= $space - $offset + 1 || $record_length > $size - $offset || "\n" !== $payload[ $offset + $record_length - 1 ] ) {
+                                return $malformed;
+                            }
+                            $record = substr( $payload, $space + 1, $record_length - ( $space - $offset ) - 2 );
+                            if ( 0 === strpos( $record, 'path=' ) ) {
+                                $pax_path = substr( $record, 5 );
+                            }
+                            $offset += $record_length;
+                        }
+                    }
+                    $skip = $padding;
+                } else {
+                    $skip = $size + $padding;
+                    // Global pax headers and GNU long-link metadata do not name a file to restore.
+                    if ( 'g' !== $type && 'K' !== $type ) {
+                        ++$count;
+                        if ( $count > $limits['entries'] ) {
+                            return 'Restore entry count limit exceeded while checking backup archive headers.';
+                        }
+                        $name   = explode( "\0", substr( $header, 0, 100 ), 2 )[0];
+                        $prefix = "ustar\0" === substr( $header, 257, 6 ) ? explode( "\0", substr( $header, 345, 155 ), 2 )[0] : '';
+                        $name   = '' === $prefix ? $name : $prefix . '/' . $name;
+                        $name   = null !== $long_name ? $long_name : $name;
+                        $name   = null !== $pax_path && '' !== $pax_path ? $pax_path : $name;
+                        if ( in_array( $type, array( '0', "\0", '5', '7' ), true ) && ! isset( $listed[ $this->tar_comparison_name( $name, '5' === $type ) ] ) ) {
+                            ++$missing;
+                            if ( 1 === $missing ) {
+                                $first = $name;
+                            }
+                        }
+                        $long_name = null;
+                        $pax_path  = null;
+                    }
+                }
+                if ( 0 !== fseek( $stream, $skip, SEEK_CUR ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- skip payloads without reading or extracting files.
+                    return $malformed;
+                }
+            }
+            if ( null !== $long_name || null !== $pax_path ) {
+                return $malformed;
+            }
+        } finally {
+            fclose( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with the header stream.
+        }
+        if ( $missing > 0 ) {
+            return sprintf( 'This backup was made by an earlier beta and stores %1$s that this version cannot read, so it cannot be restored completely. The first one is %2$s. Backups made from now on are not affected.', 1 === $missing ? 'one long path' : $missing . ' long paths', esc_html( MainWP_Clone_Install::entry_label( $first ) ) );
+        }
+        return null;
+    }
+
+    /**
+     * Phar URLs omit leading dot components and directory suffixes.
+     *
+     * @param string $name Archive name.
+     * @param bool   $dir  Whether the member is a directory.
+     * @return string Comparable name.
+     */
+    private function tar_comparison_name( $name, $dir ) {
+        $name = str_replace( '\\', '/', $name );
+        while ( 0 === strpos( $name, './' ) ) {
+            $name = substr( $name, 2 );
+        }
+        return $dir ? rtrim( $name, '/' ) : $name;
+    }
+
+    /**
+     * GNU base-256 sizes must not overflow into a float or a negative seek.
+     *
+     * @param string $field Raw numeric header field.
+     * @return int|null Nonnegative value, or null for malformed or overflowing fields.
+     */
+    private function tar_header_number( $field ) {
+        $base = 8;
+        if ( ord( $field[0] ) & 128 ) {
+            $base     = 256;
+            $field[0] = chr( ord( $field[0] ) & 127 );
+        } else {
+            $field = trim( $field, " \0" );
+            if ( '' === $field ) {
+                return 0;
+            }
+            if ( ! preg_match( '/^[0-7]+$/D', $field ) ) {
+                return null;
+            }
+        }
+        $number = 0;
+        for ( $i = 0, $length = strlen( $field ); $i < $length; ++$i ) {
+            $digit = 256 === $base ? ord( $field[ $i ] ) : (int) $field[ $i ];
+            if ( $number > intdiv( PHP_INT_MAX - $digit, $base ) ) {
+                return null;
+            }
+            $number = $number * $base + $digit;
+        }
+        return $number;
     }
 
     /**

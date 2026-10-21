@@ -858,6 +858,81 @@ class DbDumperTest extends WP_UnitTestCase {
 		$this->assertSame( $values, $wpdb->get_col( "SELECT value FROM `{$this->fixture_table}` ORDER BY id" ) );
 	}
 
+	/** @dataProvider tier2_connection_charsets */
+	public function test_tier2_non_utf8_connection_values_round_trip( $charset, $collation, $hex, $value ) {
+		global $wpdb;
+		if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW CHARACTER SET LIKE %s', $charset ) ) ) {
+			$this->markTestSkipped( $charset . ' is unavailable on this server.' );
+		}
+		$original = $wpdb->get_row( 'SELECT @@character_set_client AS charset, @@collation_connection AS collation', ARRAY_A );
+		try {
+			$this->assertNotFalse( $wpdb->query( "DROP TABLE `{$this->fixture_table}`" ), $wpdb->last_error );
+			$this->assertNotFalse( $wpdb->query( "CREATE TABLE `{$this->fixture_table}` (id INT PRIMARY KEY, value VARCHAR(40) CHARACTER SET $charset)" ), $wpdb->last_error );
+			$this->assertSame( 1, $wpdb->query( "INSERT INTO `{$this->fixture_table}` VALUES (1, _$charset 0x$hex)" ), $wpdb->last_error );
+			$wpdb->set_charset( $wpdb->dbh, $charset, $collation );
+			$session = $wpdb->get_row( 'SELECT @@character_set_client AS charset, @@collation_connection AS collation', ARRAY_A );
+			$this->assertSame( array( 'charset' => $charset, 'collation' => $collation ), $session );
+			$dumper = MainWP_Backup_Db_Dumper::instance();
+			$result = $dumper->dump_tables_tier2_slice( array( $this->fixture_table ), $this->scratch . '/charset', array(), 0 );
+			$this->assertFalse( $result['done'] );
+			$this->assertSame( $session, $wpdb->get_row( 'SELECT @@character_set_client AS charset, @@collation_connection AS collation', ARRAY_A ) );
+			$this->assertSame( $charset, $wpdb->dbh->character_set_name() );
+			$result = $dumper->dump_tables_tier2_slice( array( $this->fixture_table ), $this->scratch . '/charset', $result['cursor'], 45 );
+			$this->assertTrue( $result['done'] );
+			$this->assertSame( $session, $wpdb->get_row( 'SELECT @@character_set_client AS charset, @@collation_connection AS collation', ARRAY_A ) );
+			$this->assertSame( $charset, $wpdb->dbh->character_set_name() );
+			$this->assertStringContainsString( "(1, '$value');", file_get_contents( $result['files'][0] ) );
+			$this->replay_tier2_fixture( $result['files'][0] );
+			$wpdb->set_charset( $wpdb->dbh, 'utf8mb4', 'utf8mb4_unicode_ci' );
+			$this->assertSame( $value, $wpdb->get_var( "SELECT value FROM `{$this->fixture_table}`" ) );
+			$this->assertSame( strtoupper( $hex ), $wpdb->get_var( "SELECT HEX(value) FROM `{$this->fixture_table}`" ) );
+		} finally {
+			$wpdb->set_charset( $wpdb->dbh, $original['charset'], $original['collation'] );
+		}
+	}
+
+	public static function tier2_connection_charsets() {
+		return array(
+			'latin1' => array( 'latin1', 'latin1_general_ci', 'e9', 'é' ),
+			'gbk trailing backslash byte' => array( 'gbk', 'gbk_chinese_ci', 'bf5c', '縗' ),
+		);
+	}
+
+	/** @dataProvider tier2_charset_failures */
+	public function test_tier2_restores_connection_charset_after_failure( $failure_class ) {
+		global $wpdb;
+		$original = $wpdb->get_row( 'SELECT @@character_set_client AS charset, @@collation_connection AS collation', ARRAY_A );
+		$observed = null;
+		$filter = function ( $sql ) use ( $wpdb, $failure_class, &$observed ) {
+			if ( 'SHOW CREATE TABLE `' . $this->fixture_table . '`' === $sql ) {
+				$observed = $wpdb->dbh->character_set_name();
+				throw new $failure_class( 'interrupted dump' );
+			}
+			return $sql;
+		};
+		try {
+			$wpdb->set_charset( $wpdb->dbh, 'latin1', 'latin1_general_ci' );
+			add_filter( 'query', $filter );
+			try {
+				MainWP_Backup_Db_Dumper::instance()->dump_tables_tier2_slice( array( $this->fixture_table ), $this->scratch . '/charset-failure', array(), 45 );
+				$this->fail( 'The interrupted dump must propagate its failure.' );
+			} catch ( \Throwable $e ) {
+				$this->assertInstanceOf( $failure_class, $e );
+				$this->assertSame( 'interrupted dump', $e->getMessage() );
+			}
+			$this->assertSame( array( 'charset' => 'latin1', 'collation' => 'latin1_general_ci' ), $wpdb->get_row( 'SELECT @@character_set_client AS charset, @@collation_connection AS collation', ARRAY_A ) );
+			$this->assertSame( 'latin1', $wpdb->dbh->character_set_name() );
+			$this->assertSame( 'utf8mb4', $observed );
+		} finally {
+			remove_filter( 'query', $filter );
+			$wpdb->set_charset( $wpdb->dbh, $original['charset'], $original['collation'] );
+		}
+	}
+
+	public static function tier2_charset_failures() {
+		return array( 'exception' => array( \RuntimeException::class ), 'error' => array( \Error::class ) );
+	}
+
 	/** The initial seek includes negative and zero primary keys. */
 	public function test_tier2_signed_primary_keys_round_trip() {
 		global $wpdb;

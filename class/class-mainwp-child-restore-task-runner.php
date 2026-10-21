@@ -385,6 +385,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $scratch = $this->scratch_dir( $task_id, $this->backup_dir() );
         if ( ! is_dir( $scratch ) ) {
             wp_mkdir_p( $scratch );
+            MainWP_Helper::protect_backup_path( $scratch );
         }
 
         // A previous failed restore with the same id left tmp litter at
@@ -708,8 +709,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         ++$version;
 
         $backup_dir = $this->backup_dir();
-        $sub_state  = $spine->read_sub_state( $task, $backup_dir );
-        $sub_state  = is_array( $sub_state ) ? $sub_state : array();
+        MainWP_Helper::protect_backup_path( $backup_dir );
+        $sub_state = $spine->read_sub_state( $task, $backup_dir );
+        $sub_state = is_array( $sub_state ) ? $sub_state : array();
 
         // On the foreign-key in-place path the aside snapshot dumps under the
         // scratch dir are the only rollback source, and the in-place replay may
@@ -873,9 +875,10 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         }
 
         $backup_dir = $this->backup_dir();
-        $sub_state  = $spine->read_sub_state( $task, $backup_dir );
-        $sub_state  = is_array( $sub_state ) ? $sub_state : array();
-        $artifacts  = isset( $sub_state['params']['artifacts'] ) ? (array) $sub_state['params']['artifacts'] : array();
+        MainWP_Helper::protect_backup_path( $backup_dir );
+        $sub_state = $spine->read_sub_state( $task, $backup_dir );
+        $sub_state = is_array( $sub_state ) ? $sub_state : array();
+        $artifacts = isset( $sub_state['params']['artifacts'] ) ? (array) $sub_state['params']['artifacts'] : array();
 
         $expected = null;
         foreach ( $artifacts as $artifact ) {
@@ -891,6 +894,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
         if ( ! is_dir( $scratch ) ) {
             wp_mkdir_p( $scratch );
+            MainWP_Helper::protect_backup_path( $scratch );
         }
 
         // Refuse a transfer the disk cannot hold before the first wire byte
@@ -1144,6 +1148,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
         if ( ! is_dir( $scratch ) ) {
             wp_mkdir_p( $scratch );
+            MainWP_Helper::protect_backup_path( $scratch );
         }
         if ( ! is_dir( $scratch ) || ! is_writable( $scratch ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- a cheap readiness probe; WP_Filesystem is not initialized this early in a restore slice.
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ) ), null, MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
@@ -1200,6 +1205,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
         if ( ! is_dir( $scratch ) ) {
             wp_mkdir_p( $scratch );
+            MainWP_Helper::protect_backup_path( $scratch );
         }
 
         $pulling = isset( $sub_state['pulling'] ) && is_array( $sub_state['pulling'] ) ? $sub_state['pulling'] : array( 'next' => 0 );
@@ -1346,6 +1352,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             wp_delete_file( $piece );
 
             $fh = fopen( $assembly, 'ab' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming append to the assembly file.
+            MainWP_Helper::protect_backup_path( $assembly );
             if ( false === $fh || strlen( $bytes ) !== fwrite( $fh, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming append.
                 if ( false !== $fh ) {
                     fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
@@ -1590,15 +1597,20 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @return bool Whether the download completed with HTTP 200.
      */
     protected function download_url_to_file( $url, $dest_path ) {
-        $response = wp_remote_get(
-            $url,
-            array(
-                'stream'      => true,
-                'filename'    => $dest_path,
-                'timeout'     => 120,
-                'sslverify'   => true,
-                'redirection' => 0,
-            )
+        $response = MainWP_Helper::protect_backup_path(
+            $dest_path,
+            static function () use ( $url, $dest_path ) {
+                return wp_remote_get(
+                    $url,
+                    array(
+                        'stream'      => true,
+                        'filename'    => $dest_path,
+                        'timeout'     => 120,
+                        'sslverify'   => true,
+                        'redirection' => 0,
+                    )
+                );
+            }
         );
 
         if ( is_wp_error( $response ) ) {
@@ -1927,6 +1939,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $reconcile_dir = $scratch . 'reconcile/';
         if ( ! is_dir( $reconcile_dir ) ) {
             wp_mkdir_p( $reconcile_dir );
+            MainWP_Helper::protect_backup_path( $reconcile_dir );
         }
         $outcome                = $this->reconciler()->reconcile_slice(
             isset( $sub_state['reconcile'] ) ? $sub_state['reconcile'] : array(),
@@ -2208,6 +2221,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $aside_dir = $scratch . 'aside/';
         if ( ! is_dir( $aside_dir ) ) {
             wp_mkdir_p( $aside_dir );
+            MainWP_Helper::protect_backup_path( $aside_dir );
         }
 
         $snap                     = $engine->snapshot_tables_slice(
@@ -2619,6 +2633,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
         if ( ! is_dir( $scratch ) ) {
             wp_mkdir_p( $scratch );
+            MainWP_Helper::protect_backup_path( $scratch );
         }
         $summary = $this->capture_woo_state( $sub_state, $scratch );
 
@@ -3029,6 +3044,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $file    = $scratch . 'woo-preserve.json';
         $tmp     = $file . '.tmp';
         $written = file_put_contents( $tmp, wp_json_encode( $payload ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic temp-then-rename.
+        MainWP_Helper::protect_backup_path( $tmp );
         if ( false === $written || ! rename( $tmp, $file ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic rename.
             if ( file_exists( $tmp ) ) {
                 wp_delete_file( $tmp );
@@ -3037,7 +3053,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         }
         // The capture carries user_pass hashes, so keep it owner-only rather
         // than whatever the umask gave it.
-        @chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_chmod -- best effort on a local scratch file; some hosts disallow chmod.
+        MainWP_Helper::protect_backup_path( $file );
 
         return array(
             'file'      => 'woo-preserve.json',
@@ -3546,6 +3562,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 continue;
             }
 
+            MainWP_Helper::protect_backup_path( $scratch . $base );
             $receiving['files'][ $base ]  = array(
                 'bytes' => (int) filesize( $scratch . $base ),
                 'done'  => true,
@@ -3640,18 +3657,24 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $db_dir = $scratch . 'db/';
         if ( ! is_dir( $db_dir ) ) {
             wp_mkdir_p( $db_dir );
+            MainWP_Helper::protect_backup_path( $db_dir );
         }
 
         $cursor  = isset( $sub_state['db_extract'] ) ? $sub_state['db_extract'] : array();
-        $outcome = $this->file_restorer()->restore_slice(
-            $cursor,
-            array(
-                'parts'      => array( $scratch . $db_artifact['file'] ),
-                'hashes'     => array( $db_artifact['file'] => isset( $hashes[ $db_artifact['file'] ] ) ? $hashes[ $db_artifact['file'] ] : '' ),
-                'extract_to' => $db_dir,
-                'temp_owner' => substr( hash( 'sha256', $task->task_id ), 0, 16 ),
-            ),
-            $deadline
+        $outcome = MainWP_Helper::protect_backup_path(
+            $db_dir,
+            function () use ( $cursor, $scratch, $db_artifact, $hashes, $db_dir, $task, $deadline ) {
+                return $this->file_restorer()->restore_slice(
+                    $cursor,
+                    array(
+                        'parts'      => array( $scratch . $db_artifact['file'] ),
+                        'hashes'     => array( $db_artifact['file'] => isset( $hashes[ $db_artifact['file'] ] ) ? $hashes[ $db_artifact['file'] ] : '' ),
+                        'extract_to' => $db_dir,
+                        'temp_owner' => substr( hash( 'sha256', $task->task_id ), 0, 16 ),
+                    ),
+                    $deadline
+                );
+            }
         );
         if ( null !== $outcome['error'] ) {
             throw new MainWP_Exception( esc_html( $outcome['error'] ), null, $outcome['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
@@ -4193,7 +4216,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         }
 
         $backup_dir = $this->backup_dir();
-        $sub_state  = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $backup_dir );
+        MainWP_Helper::protect_backup_path( $backup_dir );
+        $sub_state = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $backup_dir );
         $this->terminal_cleanup( $task, is_array( $sub_state ) ? $sub_state : array(), $backup_dir, null );
 
         // External writers already released the slot. Restore creation takes

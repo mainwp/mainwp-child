@@ -338,6 +338,7 @@ class Tar_Archiver {
         global $wp_filesystem;
 
         $wp_filesystem->put_contents( $this->pidFile, $this->pidContent );
+        $this->protect_native_file( $this->pidFile );
 
         $this->pidUpdated = time();
 
@@ -364,6 +365,7 @@ class Tar_Archiver {
         if ( false !== $this->pidFile ) {
             global $wp_filesystem;
             $wp_filesystem->put_contents( $this->pidFile, $this->pidContent );
+            $this->protect_native_file( $this->pidFile );
         }
         $this->pidUpdated = time();
 
@@ -394,6 +396,7 @@ class Tar_Archiver {
 
         $filename = basename( $this->pidFile );
         $wp_filesystem->move( $this->pidFile, trailingslashit( dirname( $this->pidFile ) ) . substr( $filename, 0, strlen( $filename ) - 4 ) . '.done' );
+        $this->protect_native_file( trailingslashit( dirname( $this->pidFile ) ) . substr( $filename, 0, strlen( $filename ) - 4 ) . '.done' );
         $this->pidFile = false;
 
         return true;
@@ -1646,8 +1649,10 @@ class Tar_Archiver {
         if ( $this->debug ) {
             if ( 'tar.bz2' === $this->type ) {
                 $this->archive = bzopen( $filepath, 'w' );
+                $this->protect_native_file( $filepath );
             } else {
                 $this->archive = fopen( $filepath, 'wb+' ); // NOSONAR .
+                $this->protect_native_file( $filepath );
             }
 
             return;
@@ -1655,10 +1660,13 @@ class Tar_Archiver {
 
         if ( 'tar.gz' === $this->type ) {
             $this->archive = gzopen( $filepath, 'wb' );
+            $this->protect_native_file( $filepath );
         } elseif ( 'tar.bz2' === $this->type ) {
             $this->archive = bzopen( $filepath, 'w' );
+            $this->protect_native_file( $filepath );
         } else {
             $this->archive = fopen( $filepath, 'wb+' ); // NOSONAR .
+            $this->protect_native_file( $filepath );
         }
     }
 
@@ -1675,8 +1683,10 @@ class Tar_Archiver {
         if ( $this->debug ) {
             if ( 'tar.bz2' === $this->type ) {
                 $this->archive = bzopen( $filepath, 'a' );
+                $this->protect_native_file( $filepath );
             } else {
                 $this->archive = fopen( $filepath, 'ab+' ); // NOSONAR .
+                $this->protect_native_file( $filepath );
             }
 
             return;
@@ -1684,10 +1694,13 @@ class Tar_Archiver {
 
         if ( 'tar.gz' === $this->type ) {
             $this->archive = gzopen( $filepath, 'ab' );
+            $this->protect_native_file( $filepath );
         } elseif ( 'tar.bz2' === $this->type ) {
             $this->archive = bzopen( $filepath, 'a' );
+            $this->protect_native_file( $filepath );
         } else {
             $this->archive = fopen( $filepath, 'ab+' ); // NOSONAR .
+            $this->protect_native_file( $filepath );
         }
     }
 
@@ -2246,5 +2259,16 @@ class Tar_Archiver {
         $crcFound = ( ord( $crcFound[3] ) << 24 ) + ( ord( $crcFound[2] ) << 16 ) + ( ord( $crcFound[1] ) << 8 ) + ( ord( $crcFound[0] ) );
 
         return $crcFound === $crc;
+    }
+
+    /**
+     * Native backup files are private to the PHP user; legacy backups keep their old modes.
+     *
+     * @param string $path Created file.
+     */
+    private function protect_native_file( $path ) {
+        if ( null !== $this->backup && $this->backup->is_native_task() ) {
+            MainWP_Helper::protect_backup_path( $path );
+        }
     }
 }

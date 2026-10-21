@@ -184,6 +184,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             }
             // Older legacy requests may have a pid file without a mutex.
             $backup_dir = $this->backup_dir();
+            MainWP_Helper::protect_backup_path( $backup_dir );
             if ( MainWP_Backup::is_pid_lock_fresh( $backup_dir ) ) {
                 throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
             }
@@ -281,6 +282,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         ++$version;
 
         $backup_dir = $this->backup_dir();
+        MainWP_Helper::protect_backup_path( $backup_dir );
 
         // A cancelled backup never runs the runner's terminal sweep, so its
         // spilled walk-run files would linger; sweep them here, the same cleanup
@@ -442,7 +444,9 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @return int|false Bytes written, or false on failure.
      */
     protected function write_parent_manifest( $path, $decoded ) {
-        return @file_put_contents( $path, $decoded ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- scratch-dir write, mirrors resolve_parent_manifest().
+        $written = @file_put_contents( $path, $decoded ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- scratch-dir write, mirrors resolve_parent_manifest().
+        MainWP_Helper::protect_backup_path( $path );
+        return $written;
     }
 
     /**
@@ -503,7 +507,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
                 }
             }
             $backup_dir = $this->backup_dir();
-            $guard      = 0;
+            MainWP_Helper::protect_backup_path( $backup_dir );
+            $guard = 0;
             while ( ++$guard <= 10 ) {
                 $task = $spine->get_task( $task_id );
                 if ( null === $task || MainWP_Child_Backup_Task::is_terminal_phase( $task->phase ) ) {
@@ -1285,7 +1290,9 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
             }
         } elseif ( '' !== $b64 ) {
             $decoded = base64_decode( $b64, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- explicit wire encoding.
-            if ( false !== $decoded && '' !== $decoded && strlen( $decoded ) === @file_put_contents( $parent, $decoded ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- scratch file under the task mutex.
+            $written = false !== $decoded && '' !== $decoded ? @file_put_contents( $parent, $decoded ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- scratch file under the task mutex.
+            MainWP_Helper::protect_backup_path( $parent );
+            if ( false !== $written && strlen( $decoded ) === $written ) {
                 // A checkpoint must retain the explicit parent after dropping its inline bytes.
                 $sub_state['params']['parent_manifest_file'] = basename( $parent );
                 unset( $sub_state['params']['parent_manifest_b64'] );
@@ -1869,6 +1876,9 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      */
     protected function backup_dir() {
         $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
+        MainWP_Helper::protect_backup_path( $dirs[0] );
+        MainWP_Helper::protect_backup_path( $dirs[0] . 'index.php' );
+        MainWP_Helper::protect_backup_path( $dirs[0] . '.htaccess' );
         return $dirs[0];
     }
 
@@ -1959,6 +1969,7 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      */
     protected function finalize_dump_files( $files, $prefix ) {
         $handle = fopen( $prefix . '.sql', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- empty marker file, legacy format.
+        MainWP_Helper::protect_backup_path( $prefix . '.sql' );
         if ( false === $handle ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_PERMISSIONS ) ), null, MainWP_Backup_Error::ERR_PERMISSIONS ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
         }
@@ -1994,7 +2005,12 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @return string|false Artifact path, false on failure.
      */
     protected function archive_db_artifact( $db_files, $prefix, $ext ) {
-        return MainWP_Backup::get()->archive_db_files( $db_files, $prefix, $ext );
+        return MainWP_Helper::protect_backup_path(
+            $prefix . '.sql.' . $ext,
+            static function () use ( $db_files, $prefix, $ext ) {
+                return MainWP_Backup::get()->archive_db_files( $db_files, $prefix, $ext );
+            }
+        );
     }
 
     /**
@@ -2035,19 +2051,24 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         try {
             // Passing the full file name with append=true makes the engine
             // create on the first slice (no file yet) and append after.
-            $res = $backup->create_full_backup(
-                isset( $params['excludes'] ) && is_array( $params['excludes'] ) ? $params['excludes'] : array(),
-                '',
-                true,
-                true,
-                isset( $params['file_descriptors'] ) ? (int) $params['file_descriptors'] : 0,
-                $archive_file,
-                ! empty( $params['excludezip'] ),
-                ! empty( $params['excludenonwp'] ),
-                isset( $params['loadFilesBeforeZip'] ) ? $params['loadFilesBeforeZip'] : true,
-                $ext,
-                false,
-                true
+            $res = MainWP_Helper::protect_backup_path(
+                rtrim( $this->backup_dir(), '/' ) . '/' . $archive_file,
+                static function () use ( $backup, $params, $archive_file, $ext ) {
+                    return $backup->create_full_backup(
+                        isset( $params['excludes'] ) && is_array( $params['excludes'] ) ? $params['excludes'] : array(),
+                        '',
+                        true,
+                        true,
+                        isset( $params['file_descriptors'] ) ? (int) $params['file_descriptors'] : 0,
+                        $archive_file,
+                        ! empty( $params['excludezip'] ),
+                        ! empty( $params['excludenonwp'] ),
+                        isset( $params['loadFilesBeforeZip'] ) ? $params['loadFilesBeforeZip'] : true,
+                        $ext,
+                        false,
+                        true
+                    );
+                }
             );
         } finally {
             $backup->set_prepared_db_files( null );
@@ -2255,14 +2276,16 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         if ( ! is_string( $hash ) ) {
             return false;
         }
-        $bytes = wp_json_encode(
+        $bytes   = wp_json_encode(
             array(
                 'task_id' => (string) $task_id,
                 'sha256'  => $hash,
             )
         );
-        $temp  = $local . '.writer-' . wp_generate_password( 12, false ) . '.tmp';
-        $saved = false !== $bytes && strlen( $bytes ) === @file_put_contents( $temp, $bytes ) && @rename( $temp, $local . '.writer.json' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- atomic same-directory proof publication.
+        $temp    = $local . '.writer-' . wp_generate_password( 12, false ) . '.tmp';
+        $written = false !== $bytes ? @file_put_contents( $temp, $bytes ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- readers must see one complete ownership proof.
+        MainWP_Helper::protect_backup_path( $temp );
+        $saved = false !== $bytes && strlen( $bytes ) === $written && @rename( $temp, $local . '.writer.json' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions -- atomic same-directory proof publication.
         if ( is_file( $temp ) ) {
             @unlink( $temp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions.unlink_unlink -- failed proof temporary file.
         }

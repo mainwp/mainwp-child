@@ -149,6 +149,7 @@ class MainWP_Child_Backup_Incremental_Diff { // phpcs:ignore Generic.Classes.Ope
     public function stream_diff( $current_files_list_path, $parent_map, $changes_path, $tombstones_path, $unarchived = array(), $suppress_tombstones = false ) {
         $current = fopen( $current_files_list_path, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list read.
         $changes = fopen( $changes_path, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list write.
+        MainWP_Helper::protect_backup_path( $changes_path );
         if ( false === $current || false === $changes ) {
             $this->close_handles( array( $current, $changes ) );
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ) ), null, MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
@@ -225,7 +226,9 @@ class MainWP_Child_Backup_Incremental_Diff { // phpcs:ignore Generic.Classes.Ope
         $parent  = is_readable( $parent_files_list_path ) ? fopen( $parent_files_list_path, 'rb' ) : false; // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list read.
         $current = fopen( $current_files_list_path, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list read.
         $changes = fopen( $changes_path, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list write.
-        $tombs   = fopen( $tombstones_path, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list write.
+        MainWP_Helper::protect_backup_path( $changes_path );
+        $tombs = fopen( $tombstones_path, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list write.
+        MainWP_Helper::protect_backup_path( $tombstones_path );
 
         if ( false === $parent || false === $current || false === $changes || false === $tombs ) {
             $this->close_handles( array( $parent, $current, $changes, $tombs ) );
@@ -342,6 +345,7 @@ class MainWP_Child_Backup_Incremental_Diff { // phpcs:ignore Generic.Classes.Ope
      */
     public function emit_tombstones( $relpaths, $tombstones_path ) {
         $handle = fopen( $tombstones_path, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed list write.
+        MainWP_Helper::protect_backup_path( $tombstones_path );
         if ( false === $handle ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ) ), null, MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
         }

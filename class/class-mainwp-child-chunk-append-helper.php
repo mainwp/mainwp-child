@@ -58,6 +58,7 @@ class MainWP_Child_Chunk_Append_Helper { // phpcs:ignore Generic.Classes.Opening
     public static function append_chunk( $path, $raw, $offset ) {
         if ( '' !== $raw ) {
             $fh = fopen( $path, 'ab' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming append to the staging file.
+            MainWP_Helper::protect_backup_path( $path );
             if ( false === $fh || strlen( $raw ) !== fwrite( $fh, $raw ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming append.
                 if ( false !== $fh ) {
                     fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
@@ -70,6 +71,7 @@ class MainWP_Child_Chunk_Append_Helper { // phpcs:ignore Generic.Classes.Opening
 
         if ( ! file_exists( $path ) && 0 === $offset ) {
             file_put_contents( $path, '' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- creating the empty staging file.
+            MainWP_Helper::protect_backup_path( $path );
         }
 
         return null;

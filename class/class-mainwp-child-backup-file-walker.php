@@ -809,6 +809,7 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
         $path = $this->run_dir . self::RUN_PREFIX . sprintf( '%04d', count( $this->runs ) );
 
         $fh = fopen( $path, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed run write.
+        MainWP_Helper::protect_backup_path( $path );
         if ( false === $fh ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ) ), null, MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
         }
@@ -851,7 +852,9 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
      */
     protected function merge_runs( array $runs, $files_list, $paths_cache ) {
         $fl = fopen( $files_list, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed sidecar write.
+        MainWP_Helper::protect_backup_path( $files_list );
         $pc = fopen( $paths_cache, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed sidecar write.
+        MainWP_Helper::protect_backup_path( $paths_cache );
         if ( false === $fl || false === $pc ) {
             if ( is_resource( $fl ) ) {
                 fclose( $fl ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streamed sidecar write.
