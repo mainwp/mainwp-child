@@ -28,13 +28,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @throws \Exception When the destination is outside the site root.
  */
 function mainwp_child_clone_pclzip_pre_extract( $p_event, &$p_header ) {
-    $prefix   = rtrim( ABSPATH, '/' ) . '/';
+    $prefix   = ABSPATH;
     $filename = $p_header['filename'];
-    // PclZip writes Windows paths with forward slashes while ABSPATH may keep backslashes.
+    // PclZip writes Windows paths with forward slashes while ABSPATH may keep backslashes,
+    // including a trailing one, so fold before trimming.
     if ( '\\' === DIRECTORY_SEPARATOR ) {
         $prefix   = str_replace( '\\', '/', $prefix );
         $filename = str_replace( '\\', '/', $filename );
     }
+    $prefix = rtrim( $prefix, '/' ) . '/';
     if ( 0 !== strpos( $filename, $prefix ) ) {
         throw new \Exception( 'Archive entry is outside the site root. Extraction aborted.' );
     }
@@ -669,13 +671,16 @@ class MainWP_Clone_Install {
      * @throws \Exception When an entry cannot be safely contained.
      */
     public static function clone_entry_target( $name, $root ) {
-        if ( false !== strpos( $name, "\0" ) || preg_match( '/^(?:[\\\\\/]|[a-z]:)/i', $name ) ) {
-            throw new \Exception( 'Invalid archive entry. Extraction aborted.' );
+        if ( false !== strpos( $name, "\0" ) ) {
+            throw new \Exception( sprintf( 'Archive entry name contains a NUL byte: %s. Extraction aborted.', esc_html( str_replace( "\0", '\\0', $name ) ) ) );
+        }
+        if ( preg_match( '/^(?:[\\\\\/]|[a-z]:)/i', $name ) ) {
+            throw new \Exception( sprintf( 'Archive contains absolute path entry: %s. Extraction aborted.', esc_html( $name ) ) );
         }
         $parts = preg_split( '/[\\\\\/]/', $name );
         foreach ( $parts as $part ) {
             if ( '' !== $part && '.' !== $part && preg_match( '/^[. ]+$/D', $part ) ) {
-                throw new \Exception( 'Invalid archive entry. Extraction aborted.' );
+                throw new \Exception( sprintf( 'Archive contains path traversal entry: %s. Extraction aborted.', esc_html( $name ) ) );
             }
         }
         clearstatcache( true );
@@ -694,10 +699,10 @@ class MainWP_Clone_Install {
         while ( ! file_exists( $parent ) && ! is_link( $parent ) ) {
             $parent = dirname( $parent );
         }
-        self::check_clone_directory( $parent, $resolved_root );
+        self::check_clone_directory( $parent, $resolved_root, $name );
         $directory = '/' === substr( $name, -1 );
         if ( file_exists( rtrim( $target, '/' ) ) && ( $directory ? ! is_dir( $target ) : is_dir( $target ) ) ) {
-            throw new \Exception( 'Archive entry conflicts with the destination. Extraction aborted.' );
+            throw new \Exception( sprintf( 'Archive entry conflicts with the destination: %s. Extraction aborted.', esc_html( $name ) ) );
         }
         $key = self::normalize_entry_name( $name );
         if ( 'wp-config.php' === $key || ( realpath( dirname( $target ) ) === $resolved_root && 'wp-config.php' === basename( $key ) ) ) {
@@ -717,11 +722,12 @@ class MainWP_Clone_Install {
     /**
      * Every newly created level must still resolve inside the original root.
      *
-     * @param string $dir Directory to verify.
-     * @param string $root Resolved root.
+     * @param string      $dir Directory to verify.
+     * @param string      $root Resolved root.
+     * @param string|null $name Archive entry being checked, named in the refusal.
      * @throws \Exception When a directory escapes or cannot be resolved.
      */
-    private static function check_clone_directory( $dir, $root ) {
+    private static function check_clone_directory( $dir, $root, $name = null ) {
         clearstatcache( true );
         $resolved = realpath( $dir );
         // Windows realpath() returns backslashes; elsewhere a backslash is a filename character.
@@ -731,6 +737,9 @@ class MainWP_Clone_Install {
         }
         $prefix = rtrim( $root, '/' ) . '/';
         if ( false === $resolved || ! is_dir( $resolved ) || 0 !== strpos( rtrim( $resolved, '/' ) . '/', $prefix ) ) {
+            if ( null !== $name ) {
+                throw new \Exception( sprintf( 'Archive entry resolves outside the site root: %s. Extraction aborted.', esc_html( $name ) ) );
+            }
             throw new \Exception( 'Archive entry is outside the site root. Extraction aborted.' );
         }
     }

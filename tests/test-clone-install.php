@@ -853,6 +853,34 @@ class MainWP_Clone_Install_Test extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Windows ABSPATH can end in a backslash while PclZip reports forward slashes.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_clone_pclzip_callback_accepts_trailing_backslash_root() {
+		$root = sys_get_temp_dir() . '/mainwp-clone-winroot-' . uniqid() . '/';
+		// On Windows C:\site\ and C:/site/ name one directory; here "site\" and "site" stand in for the two spellings.
+		mkdir( $root . 'site\\', 0755, true );
+		mkdir( $root . 'site' );
+		define( 'MainWP\\Child\\DIRECTORY_SEPARATOR', '\\' );
+		define( 'MainWP\\Child\\ABSPATH', $root . 'site\\' );
+		// The callback is defined in the class file, which loads with the class.
+		class_exists( MainWP_Clone_Install::class );
+		$header = array( 'filename' => $root . 'site/file.txt', 'folder' => false );
+		try {
+			$this->assertSame( 1, \MainWP\Child\mainwp_child_clone_pclzip_pre_extract( 0, $header ) );
+			$outside = array( 'filename' => $root . 'other/file.txt', 'folder' => false );
+			$this->expectException( Exception::class );
+			\MainWP\Child\mainwp_child_clone_pclzip_pre_extract( 0, $outside );
+		} finally {
+			rmdir( $root . 'site\\' );
+			rmdir( $root . 'site' );
+			rmdir( $root );
+		}
+	}
+
+	/**
 	 * @runInSeparateProcess
 	 * @preserveGlobalState disabled
 	 */

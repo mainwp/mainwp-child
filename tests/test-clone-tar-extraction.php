@@ -290,4 +290,59 @@ class CloneTarExtractionTest extends WP_UnitTestCase {
 		}
 	}
 
+	public static function data_clone_refusal_names() {
+		return array(
+			'traversal'          => array( 'a/../<b>up</b>.txt', 'path traversal', 'a/../&lt;b&gt;up&lt;/b&gt;.txt' ),
+			'absolute'           => array( '/<b>abs</b>.txt', 'absolute path', '/&lt;b&gt;abs&lt;/b&gt;.txt' ),
+			'nul byte'           => array( "nul\0<b>.txt", 'NUL byte', 'nul\\0&lt;b&gt;.txt' ),
+			'outside the root'   => array( 'linked/<b>esc</b>.txt', 'outside', 'linked/&lt;b&gt;esc&lt;/b&gt;.txt' ),
+			'type conflict'      => array( 'taken/<b>', 'conflicts', 'taken/&lt;b&gt;' ),
+			'file with a slash'  => array( '<b>file</b>/', 'ends with a slash', '&lt;b&gt;file&lt;/b&gt;/' ),
+		);
+	}
+
+	/**
+	 * A refused clone must say which entry, escaped for the Dashboard's HTML notice.
+	 *
+	 * @dataProvider data_clone_refusal_names
+	 */
+	public function test_clone_refusal_names_the_entry( $name, $reason, $escaped ) {
+		$root = sys_get_temp_dir() . '/mainwp-clone-refusal-' . uniqid();
+		mkdir( $root . '/site/taken', 0777, true );
+		mkdir( $root . '/outside' );
+		file_put_contents( $root . '/site/taken/<b>', 'file' );
+		symlink( $root . '/outside', $root . '/site/linked' );
+		$archiver = null;
+		try {
+			$error = null;
+			try {
+				if ( 'ends with a slash' === $reason ) {
+					// Header names cannot hold a NUL, so only this case goes through a real archive.
+					file_put_contents( $root . '/archive.tar', $this->tar_entry_bytes( $name, 'data' ) . str_repeat( "\0", 1024 ) );
+					$archiver = new Tar_Archiver( null, 'tar' );
+					$archiver->read( $root . '/archive.tar' );
+					$archiver->extract_to( $root . '/site' );
+				} else {
+					\MainWP\Child\MainWP_Clone_Install::clone_entry_target( 'conflicts' === $reason ? $name . '/' : $name, $root . '/site' );
+				}
+			} catch ( Exception $caught ) {
+				$error = $caught->getMessage();
+			}
+			$this->assertNotNull( $error );
+			$this->assertStringContainsString( $reason, $error );
+			$this->assertStringContainsString( $escaped, $error, 'The refusal must name the entry, escaped.' );
+			$this->assertStringNotContainsString( '<b>', $error );
+		} finally {
+			if ( $archiver ) {
+				$archiver->close();
+			}
+			unlink( $root . '/site/linked' );
+			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+			foreach ( $iterator as $file ) {
+				$file->isDir() ? rmdir( $file->getPathname() ) : unlink( $file->getPathname() );
+			}
+			rmdir( $root );
+		}
+	}
+
 }

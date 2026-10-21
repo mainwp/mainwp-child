@@ -901,45 +901,40 @@ class Tar_Archiver {
         }
 
         $prefix = '';
+        // PharData (the native restore) joins a ustar prefix to the name with a slash of its own,
+        // and its iterator then skips the entry, so every longer name goes in a long-name entry.
         if ( strlen( $entryName ) > 99 ) {
-            $prefix    = substr( $entryName, 0, strpos( $entryName, '/', strlen( $entryName ) - 100 ) + 1 );
-            $entryName = substr( $entryName, strlen( $prefix ) );
-            if ( strlen( $prefix ) > 154 || strlen( $entryName ) > 99 ) {
-                $entryName = $prefix . $entryName;
-                $prefix    = '';
+            $block = pack(
+                'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
+                '././@LongLink',
+                sprintf( '%07o', 0 ),
+                sprintf( '%07o', 0 ),
+                sprintf( '%07o', 0 ),
+                sprintf( '%011o', strlen( $entryName ) ),
+                sprintf( '%011o', 0 ),
+                '        ',
+                'L',
+                '',
+                'ustar',
+                ' ',
+                '',
+                '',
+                '',
+                '',
+                '',
+                ''
+            );
 
-                $block = pack(
-                    'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
-                    '././@LongLink',
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%011o', strlen( $entryName ) ),
-                    sprintf( '%011o', 0 ),
-                    '        ',
-                    'L',
-                    '',
-                    'ustar',
-                    ' ',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    ''
-                );
-
-                $checksum = 0;
-                for ( $i = 0; $i < 512; $i++ ) {
-                    $checksum += ord( substr( $block, $i, 1 ) );
-                }
-                $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
-                $block    = substr_replace( $block, $checksum, 148, 8 );
-
-                $this->add_data( $block );
-                $this->add_data( pack( 'a512', $entryName ) );
-                $entryName = substr( $entryName, 0, 100 );
+            $checksum = 0;
+            for ( $i = 0; $i < 512; $i++ ) {
+                $checksum += ord( substr( $block, $i, 1 ) );
             }
+            $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
+            $block    = substr_replace( $block, $checksum, 148, 8 );
+
+            $this->add_data( $block );
+            $this->add_data( self::long_name_payload( $entryName ) );
+            $entryName = substr( $entryName, 0, 100 );
         }
 
         $block = pack(
@@ -1114,49 +1109,44 @@ class Tar_Archiver {
         $stat = stat( $path ); // NOSONAR .
 
         $prefix = '';
+        // PharData (the native restore) joins a ustar prefix to the name with a slash of its own,
+        // and its iterator then skips the entry, so every longer name goes in a long-name entry.
         if ( strlen( $entryName ) > 99 ) {
-            $prefix    = substr( $entryName, 0, strpos( $entryName, '/', strlen( $entryName ) - 100 ) + 1 );
-            $entryName = substr( $entryName, strlen( $prefix ) );
-            if ( strlen( $prefix ) > 154 || strlen( $entryName ) > 99 ) {
-                $entryName = $prefix . $entryName;
-                $prefix    = '';
+            $block = pack(
+                'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
+                '././@LongLink',
+                sprintf( '%07o', 0 ),
+                sprintf( '%07o', 0 ),
+                sprintf( '%07o', 0 ),
+                sprintf( '%011o', strlen( $entryName ) ),
+                sprintf( '%011o', 0 ),
+                '        ',
+                'L',
+                '',
+                'ustar',
+                ' ',
+                '',
+                '',
+                '',
+                '',
+                '',
+                ''
+            );
 
-                $block = pack(
-                    'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
-                    '././@LongLink',
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%011o', strlen( $entryName ) ),
-                    sprintf( '%011o', 0 ),
-                    '        ',
-                    'L',
-                    '',
-                    'ustar',
-                    ' ',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    ''
-                );
-
-                $checksum = 0;
-                for ( $i = 0; $i < 512; $i++ ) {
-                    $checksum += ord( substr( $block, $i, 1 ) );
-                }
-                $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
-                $block    = substr_replace( $block, $checksum, 148, 8 );
-
-                if ( ! isset( $rslt['bytesRead'] ) ) {
-                    $this->add_data( $block );
-                }
-                if ( ! isset( $rslt['bytesRead'] ) ) {
-                    $this->add_data( pack( 'a512', $entryName ) );
-                }
-                $entryName = substr( $entryName, 0, 100 );
+            $checksum = 0;
+            for ( $i = 0; $i < 512; $i++ ) {
+                $checksum += ord( substr( $block, $i, 1 ) );
             }
+            $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
+            $block    = substr_replace( $block, $checksum, 148, 8 );
+
+            if ( ! isset( $rslt['bytesRead'] ) ) {
+                $this->add_data( $block );
+            }
+            if ( ! isset( $rslt['bytesRead'] ) ) {
+                $this->add_data( self::long_name_payload( $entryName ) );
+            }
+            $entryName = substr( $entryName, 0, 100 );
         }
 
         $this->block = pack(
@@ -1281,45 +1271,40 @@ class Tar_Archiver {
 
         MainWP_Backup::assert_disk_space_during_backup( dirname( (string) $this->archivePath ), null, strlen( $content ) + 2048 );
         $prefix = '';
+        // PharData (the native restore) joins a ustar prefix to the name with a slash of its own,
+        // and its iterator then skips the entry, so every longer name goes in a long-name entry.
         if ( strlen( $entryName ) > 99 ) {
-            $prefix    = substr( $entryName, 0, strpos( $entryName, '/', strlen( $entryName ) - 100 ) + 1 );
-            $entryName = substr( $entryName, strlen( $prefix ) );
-            if ( strlen( $prefix ) > 154 || strlen( $entryName ) > 99 ) {
-                $entryName = $prefix . $entryName;
-                $prefix    = '';
+            $block = pack(
+                'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
+                '././@LongLink',
+                sprintf( '%07o', 0 ),
+                sprintf( '%07o', 0 ),
+                sprintf( '%07o', 0 ),
+                sprintf( '%011o', strlen( $entryName ) ),
+                sprintf( '%011o', 0 ),
+                '        ',
+                'L',
+                '',
+                'ustar',
+                ' ',
+                '',
+                '',
+                '',
+                '',
+                '',
+                ''
+            );
 
-                $block = pack(
-                    'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
-                    '././@LongLink',
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%011o', strlen( $entryName ) ),
-                    sprintf( '%011o', 0 ),
-                    '        ',
-                    'L',
-                    '',
-                    'ustar',
-                    ' ',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    ''
-                );
-
-                $checksum = 0;
-                for ( $i = 0; $i < 512; $i++ ) {
-                    $checksum += ord( substr( $block, $i, 1 ) );
-                }
-                $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
-                $block    = substr_replace( $block, $checksum, 148, 8 );
-
-                $this->add_data( $block );
-                $this->add_data( pack( 'a512', $entryName ) );
-                $entryName = substr( $entryName, 0, 100 );
+            $checksum = 0;
+            for ( $i = 0; $i < 512; $i++ ) {
+                $checksum += ord( substr( $block, $i, 1 ) );
             }
+            $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
+            $block    = substr_replace( $block, $checksum, 148, 8 );
+
+            $this->add_data( $block );
+            $this->add_data( self::long_name_payload( $entryName ) );
+            $entryName = substr( $entryName, 0, 100 );
         }
 
         $block = pack(
@@ -1359,6 +1344,63 @@ class Tar_Archiver {
 
         ++$this->addedEntryCount;
         return true;
+    }
+
+    /**
+     * GNU tar and extract_to() read the declared name length, so the name fills every block it needs.
+     *
+     * @param string $entryName Full entry name.
+     * @return string Name padded with NULs to whole 512-byte blocks.
+     */
+    private static function long_name_payload( $entryName ) {
+        return str_pad( $entryName, (int) ( ceil( strlen( $entryName ) / 512 ) * 512 ), "\0" );
+    }
+
+    /**
+     * Reads a GNU long-name payload and the header block after it.
+     *
+     * Archives written before long names were padded declare the full length but hold only the
+     * first 512 bytes; the block after that one is then the entry's own header. That shape is
+     * returned as cut so readers can step over it instead of reading the header as name bytes.
+     *
+     * @param int $length Declared name length.
+     * @return array|false Array of name, whether it was cut, and the following header block; false
+     *                     when the length is over 65536 or the archive ends inside the payload.
+     */
+    private function read_long_name( $length ) {
+        if ( $length < 0 || $length > 65536 ) {
+            return false;
+        }
+        $data = '';
+        if ( $length > 0 ) {
+            $data = fread( $this->archive, 512 );
+            if ( false === $data || 512 !== strlen( $data ) ) {
+                return false;
+            }
+        }
+        if ( $length > 512 && false === strpos( $data, "\0" ) ) {
+            $next = fread( $this->archive, 512 );
+            if ( false === $next || 512 !== strlen( $next ) ) {
+                return false;
+            }
+            if ( $this->is_header_block( $next ) ) {
+                return array( $data, true, $next );
+            }
+            $data .= $next;
+        }
+        $remaining = (int) ( ceil( $length / 512 ) * 512 ) - strlen( $data );
+        if ( $remaining > 0 ) {
+            $rest = stream_get_contents( $this->archive, $remaining );
+            if ( false === $rest || strlen( $rest ) !== $remaining ) {
+                return false;
+            }
+            $data .= $rest;
+        }
+        $header = fread( $this->archive, 512 );
+        if ( false === $header || 512 !== strlen( $header ) ) {
+            return false;
+        }
+        return array( rtrim( substr( $data, 0, $length ), "\0" ), false, $header );
     }
 
     /**
@@ -1434,11 +1476,15 @@ class Tar_Archiver {
 
                 $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
                 if ( 'L' === $temp['type'] ) {
-                    $fname          = trim( fread( $this->archive, 512 ) );
-                    $block          = fread( $this->archive, 512 );
+                    // A torn long name is corrupt, as a torn header block is above.
+                    $long = $this->read_long_name( (int) octdec( trim( $temp['size'], "\0 " ) ) );
+                    if ( false === $long ) {
+                        $this->throw_backup_error( MainWP_Backup_Error::ERR_FILE_CORRUPT );
+                    }
+                    $block          = $long[2];
                     $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
                     $temp['prefix'] = '';
-                    $temp['name']   = $fname;
+                    $temp['name']   = $long[0];
                 }
                 $file = array(
                     'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
@@ -1876,11 +1922,14 @@ class Tar_Archiver {
         while ( $block = fread( $this->archive, 512 ) ) {
             $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
             if ( 'L' === $temp['type'] ) {
-                $fname          = trim( fread( $this->archive, 512 ) );
-                $block          = fread( $this->archive, 512 );
+                $long = $this->read_long_name( (int) octdec( trim( $temp['size'], "\0 " ) ) );
+                if ( false === $long ) {
+                    break;
+                }
+                $block          = $long[2];
                 $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
                 $temp['prefix'] = '';
-                $temp['name']   = $fname;
+                $temp['name']   = $long[0];
             }
             $file = array(
                 'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
@@ -1947,11 +1996,14 @@ class Tar_Archiver {
         while ( $block = fread( $this->archive, 512 ) ) {
             $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
             if ( 'L' === $temp['type'] ) {
-                $fname          = trim( fread( $this->archive, 512 ) );
-                $block          = fread( $this->archive, 512 );
+                $long = $this->read_long_name( (int) octdec( trim( $temp['size'], "\0 " ) ) );
+                if ( false === $long ) {
+                    break;
+                }
+                $block          = $long[2];
                 $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
                 $temp['prefix'] = '';
-                $temp['name']   = $fname;
+                $temp['name']   = $long[0];
             }
             $file = array(
                 'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
@@ -1983,7 +2035,7 @@ class Tar_Archiver {
                 if ( 0 === strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
                     return true;
                 }
-            } elseif ( 0 === $file['type'] ) {
+            } elseif ( 0 === (int) $file['type'] ) {
                 if ( 0 === strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
                     return true;
                 } else {
@@ -2046,17 +2098,17 @@ class Tar_Archiver {
                     if ( $length > 65536 ) {
                         throw new \Exception( 'Archive entry name is too long. Extraction aborted.' );
                     }
-                    $fname = 0 === $length ? '' : stream_get_contents( $this->archive, $length );
-                    if ( false === $fname || strlen( $fname ) !== $length ) {
+                    $long = $this->read_long_name( (int) $length );
+                    if ( false === $long ) {
                         throw new \Exception( 'Archive ended inside an entry. Extraction aborted.' );
                     }
-                    $padding = ( 512 - $length % 512 ) % 512;
-                    if ( $padding > 0 && strlen( fread( $this->archive, $padding ) ) !== $padding ) {
-                        throw new \Exception( 'Archive ended inside an entry. Extraction aborted.' );
+                    if ( $long[1] ) {
+                        // Writing the cut name would put the file at a different path than the source site had.
+                        throw new \Exception( sprintf( 'Archive entry name was cut to 512 bytes by an older MainWP Child version: %s. Update MainWP Child on the source site and create a new backup. Extraction aborted.', esc_html( $long[0] ) ) );
                     }
-                    $fname = rtrim( $fname, "\0" );
-                    $block = fread( $this->archive, 512 );
-                    if ( false === $block || 512 !== strlen( $block ) || ! $this->check_extract_header( $block ) ) {
+                    $fname = $long[0];
+                    $block = $long[2];
+                    if ( ! $this->check_extract_header( $block ) ) {
                         throw new \Exception( 'Archive ended inside a header. Extraction aborted.' );
                     }
                     $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
@@ -2080,7 +2132,7 @@ class Tar_Archiver {
                 $directory = '5' === $file['type'];
                 $regular   = in_array( $file['type'], array( '0', "\0", '' ), true );
                 if ( $regular && '/' === substr( $file['name'], -1 ) ) {
-                    throw new \Exception( 'Invalid archive entry. Extraction aborted.' );
+                    throw new \Exception( sprintf( 'Archive file entry ends with a slash: %s. Extraction aborted.', esc_html( $file['name'] ) ) );
                 }
                 $name   = $directory ? rtrim( $file['name'], '/' ) . '/' : $file['name'];
                 $target = MainWP_Clone_Install::clone_entry_target( $name, $to );
@@ -2125,12 +2177,24 @@ class Tar_Archiver {
         if ( str_repeat( "\0", 512 ) === $block ) {
             return false;
         }
-        $stored   = octdec( trim( substr( $block, 148, 8 ), "\0 " ) );
-        $checksum = array_sum( unpack( 'C*', substr_replace( $block, '        ', 148, 8 ) ) );
-        if ( 'ustar' !== substr( $block, 257, 5 ) || $checksum !== (int) $stored ) {
+        if ( ! $this->is_header_block( $block ) ) {
             throw new \Exception( 'Archive header checksum mismatch. Extraction aborted.' );
         }
         return true;
+    }
+
+    /**
+     * Whether a block carries the ustar magic and a matching header checksum.
+     *
+     * @param string $block 512-byte block.
+     * @return bool
+     */
+    private function is_header_block( $block ) {
+        if ( 512 !== strlen( $block ) || 'ustar' !== substr( $block, 257, 5 ) ) {
+            return false;
+        }
+        $stored = trim( substr( $block, 148, 8 ), "\0 " );
+        return '' !== $stored && array_sum( unpack( 'C*', substr_replace( $block, '        ', 148, 8 ) ) ) === (int) octdec( $stored );
     }
 
     /**
