@@ -1241,19 +1241,118 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                 $get_args['_mainwp_premium_update_nonce_key']  = intval( time() );
                 $get_args['_mainwp_premium_update_nonce_hmac'] = hash_hmac( 'sha256', $get_args['_mainwp_premium_update_nonce_key'], wp_salt( 'nonce' ) );
 
+                $check_lock = false;
+                $lock_token = false;
+
                 if ( 'premium_update' === $perform ) {
                     if ( empty( $list ) ) {
                         return array( 'error' => __( 'No items to update.', 'mainwp-child' ) );
                     }
                     $get_args['list'] = $list;
+
+                    if ( 'plugin' === $type ) {
+                        $check_lock = true;
+                    }
                 }
 
-                return MainWP_Utility::instance()->simulate_admin_visit( $target_path, $get_args, $perform );
+                if ( $check_lock ) {
+                    $lock_token = self::acquire_premium_update_visit_lock();
+
+                    if ( ! $lock_token ) {
+                        return array( 'error' => __( 'Failed to acquire the lock for the premium plugin update. Another update may already be in progress. Please try again later.', 'mainwp-child' ) );
+                    }
+                }
+
+                try {
+                    return MainWP_Utility::instance()->simulate_admin_visit( $target_path, $get_args, $perform );
+                } finally {
+                    if ( $check_lock && $lock_token ) {
+                        self::release_premium_update_visit_lock( $lock_token );
+                    }
+                }
             }
         }
 
         return false;
     }
+
+    /**
+     * Acquire a lock for a simulated premium plugin update visit.
+     *
+     * @param int $timeout Lock expiration in seconds.
+     * @return string|false The lock owner token, or false if unavailable.
+     */
+    private static function acquire_premium_update_visit_lock( $timeout = 600 ) {
+        global $wpdb;
+
+        $lock_name  = 'mainwp_child_premium_update_visit_lock';
+        $lock_token = time() . ':' . wp_generate_uuid4();
+
+        if ( add_option( $lock_name, $lock_token, '', false ) ) {
+            return $lock_token;
+        }
+
+        $existing_lock = get_option( $lock_name, '' );
+
+        if ( ! is_string( $existing_lock ) ) {
+            return false;
+        }
+
+        $lock_parts = explode( ':', $existing_lock, 2 );
+
+        if ( 2 !== count( $lock_parts ) || ! ctype_digit( $lock_parts[0] ) ) {
+            return false;
+        }
+
+        if ( ( time() - (int) $lock_parts[0] ) <= $timeout ) {
+            return false;
+        }
+
+        // Delete only if the option still contains the exact expired value observed.
+        $deleted = $wpdb->query( // phpcs:ignore -- query ok.
+            $wpdb->prepare(
+                "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s",
+                $lock_name,
+                $existing_lock
+            )
+        );
+
+        if ( 1 !== $deleted ) {
+            return false;
+        }
+
+        // Another request may acquire the lock first.
+        if ( add_option( $lock_name, $lock_token, '', false ) ) {
+            return $lock_token;
+        }
+
+        return false;
+    }
+
+    /**
+     * Release the lock only if it is still owned by this request.
+     *
+     * @param string $lock_token The token returned by the acquisition method.
+     * @return bool Whether the lock was released.
+     */
+    private static function release_premium_update_visit_lock( $lock_token ) {
+        global $wpdb;
+
+        if ( ! is_string( $lock_token ) || '' === $lock_token ) {
+            return false;
+        }
+
+        $deleted = $wpdb->query( // phpcs:ignore -- query ok.
+            $wpdb->prepare(
+                "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s",
+                'mainwp_child_premium_update_visit_lock',
+                $lock_token
+            )
+        );
+
+        return 1 === $deleted;
+    }
+
 
     /**
      * Install a short-lived HTTP timeout guard before triggering premium update detection.
