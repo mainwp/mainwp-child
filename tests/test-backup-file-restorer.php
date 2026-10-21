@@ -119,9 +119,10 @@ class InvalidTarDecompressRestorer extends MainWP_Child_Backup_File_Restorer {
 	 */
 	protected function tar_header_members( $plain ) {
 		return array(
-			'members'  => array(),
-			'prefixed' => array(),
-			'dirs'     => array(),
+			'members'   => array(),
+			'prefixed'  => array(),
+			'dirs'      => array(),
+			'ancestors' => array(),
 		);
 	}
 
@@ -425,20 +426,127 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertNull( $this->inspect_tar_bytes( $bytes, array( array( 'name' => $name, 'dir' => false ) ) ) );
 	}
 
-	public function test_tar_header_walk_budgets_raw_long_name_bytes() {
-		// Distinct payloads that all cut to one name at the NUL still cost PharData their full size.
-		$path   = $this->dir . '/name-budget.tar';
-		$handle = fopen( $path, 'wb' );
-		for ( $i = 0; $i < 1025; ++$i ) {
-			fwrite( $handle, $this->tar_entry_bytes( '././@LongLink', "a\0" . str_pad( (string) $i, 65534, 'z' ), 'L' ) . $this->tar_entry_bytes( 'placeholder' ) );
+	public function test_tar_name_budget_covers_the_entry_limit_at_the_longest_ustar_name() {
+		$this->assertSame( MainWP_Child_Backup_File_Restorer::MAX_EXTRACT_ENTRIES * 256, MainWP_Child_Backup_File_Restorer::MAX_NAME_BYTES );
+	}
+
+	/**
+	 * The name budget charges every name PharData keeps (a long-name payload as declared, else the
+	 * prefix and name up to NUL) and every parent directory a member implies without a header.
+	 * Scaled rows run at 8 entries and 8 x 256 name bytes, the production ratio.
+	 *
+	 * @dataProvider tar_name_budget_matrix
+	 * @param array  $members  Members as array( kind, name ): file, dir, long (L then file), long-nul
+	 *                         (L with a trailing NUL), raw-long (L payload as given), or round-2.
+	 * @param string $expected accept, malformed, limit or entries.
+	 * @param bool   $scaled   Whether the row runs at the scaled limits.
+	 */
+	public function test_tar_name_budget_matrix( $members, $expected, $scaled = true ) {
+		$restorer = $scaled ? new class() extends MainWP_Child_Backup_File_Restorer {
+			protected function extraction_limits() {
+				return array_merge(
+					parent::extraction_limits(),
+					array(
+						'entries'    => 8,
+						'name_bytes' => 8 * 256,
+					)
+				);
+			}
+		} : null;
+		$path    = $this->dir . '/name-budget-' . uniqid() . '.tar';
+		$handle  = fopen( $path, 'wb' );
+		$listing = array();
+		foreach ( $members as $member ) {
+			list( $kind, $name ) = $member;
+			if ( 'round-2' === $kind ) {
+				// Distinct payloads that all cut to one name at the NUL still cost PharData their full size.
+				for ( $i = 0; $i < 1025; ++$i ) {
+					fwrite( $handle, $this->tar_entry_bytes( '././@LongLink', "a\0" . str_pad( (string) $i, 65534, 'z' ), 'L' ) . $this->tar_entry_bytes( 'placeholder' ) );
+				}
+				$listing['a'] = false;
+				continue;
+			}
+			if ( 'dir' === $kind ) {
+				fwrite( $handle, $this->tar_entry_bytes( $name, '', '5' ) );
+			} elseif ( 'file' === $kind ) {
+				fwrite( $handle, $this->tar_entry_bytes( $name, 'x' ) );
+			} else {
+				$payload = 'long-nul' === $kind ? $name . "\0" : $name;
+				fwrite( $handle, $this->tar_entry_bytes( '././@LongLink', $payload, 'L' ) . $this->tar_entry_bytes( substr( $name, 0, 100 ), 'x' ) );
+				$name = explode( "\0", $name, 2 )[0];
+			}
+			$listing[ $name ] = 'dir' === $kind;
+			// PharData lists the parents of every member itself.
+			for ( $cut = strrpos( $name, '/' ); false !== $cut && $cut > 0; $cut = strrpos( $name, '/' ) ) {
+				$name = substr( $name, 0, $cut );
+				if ( ! isset( $listing[ $name ] ) ) {
+					$listing[ $name ] = true;
+				}
+			}
 		}
 		fwrite( $handle, str_repeat( "\0", 1024 ) );
 		fclose( $handle );
+		$entries = array();
+		foreach ( $listing as $name => $dir ) {
+			$entries[] = array(
+				'name' => (string) $name,
+				'dir'  => $dir,
+			);
+		}
 		try {
-			$this->assertStringContainsString( 'malformed or truncated', $this->inspect_tar_file( $path, array( array( 'name' => 'a', 'dir' => false ) ) ) );
+			$error = $this->inspect_tar_file( $path, $entries, $restorer );
 		} finally {
 			unlink( $path );
 		}
+		$messages = array(
+			'malformed' => 'malformed or truncated',
+			'limit'     => 'name size limit',
+			'entries'   => 'entry count limit',
+		);
+		if ( 'accept' === $expected ) {
+			$this->assertNull( $error );
+			return;
+		}
+		$this->assertIsString( $error );
+		$this->assertStringContainsString( $messages[ $expected ], $error );
+		if ( 'limit' === $expected ) {
+			$this->assertStringNotContainsString( 'malformed', $error );
+		}
+	}
+
+	/**
+	 * Name budget rows.
+	 *
+	 * @return array
+	 */
+	public static function tar_name_budget_matrix() {
+		$names = function ( $length, $count, $last = null ) {
+			$rows = array();
+			for ( $i = 0; $i < $count; ++$i ) {
+				$rows[] = array( 'long', str_repeat( chr( 97 + $i ), $i === $count - 1 && null !== $last ? $last : $length ) );
+			}
+			return $rows;
+		};
+		$average = array( array( 'dir', 'wp-content' ) );
+		for ( $i = 0; $i < 7; ++$i ) {
+			$average[] = array( 'file', str_pad( 'wp-content/' . $i . '-', 70, 'p' ) );
+		}
+		return array(
+			// About a million members at 70 bytes drew the old 64 MiB refusal; at the entry limit they fit.
+			'entry limit at average path length'        => array( $average, 'accept' ),
+			'longest ustar names fill the budget'       => array( $names( 256, 8 ), 'accept' ),
+			'one byte over the budget'                  => array( $names( 256, 8, 257 ), 'limit' ),
+			'headed parent is not charged again'        => array( array( array( 'dir', 'dd' ), array( 'long', 'dd/' . str_repeat( 'x', 2043 ) ) ), 'accept' ),
+			'implied parent fits exactly'               => array( array( array( 'long', 'dd/' . str_repeat( 'x', 2043 ) ) ), 'accept' ),
+			'implied parent one byte over'              => array( array( array( 'long', 'dd/' . str_repeat( 'x', 2044 ) ) ), 'limit' ),
+			// Fifty implied parents of one 101-byte name total 2500 bytes: depth costs PharData as much as length.
+			'deep implied parents'                      => array( array( array( 'long', str_repeat( 'a/', 50 ) . 'x' ) ), 'limit' ),
+			'long name with a trailing NUL'             => array( array( array( 'long-nul', str_repeat( 'g', 200 ) ) ), 'accept' ),
+			'long name with bytes after a NUL'          => array( array( array( 'raw-long', "a\0b" ) ), 'malformed' ),
+			'more members than the entry limit'         => array( array_fill( 0, 9, array( 'dir', 'd' ) ), 'entries' ),
+			// Production limits: refused at its first record, before the payloads add up.
+			'round 2: 1025 payloads cut to one name'    => array( array( array( 'round-2', '' ) ), 'malformed', false ),
+		);
 	}
 
 	public function test_tar_listing_refuses_a_listed_kind_the_walk_did_not_see() {
@@ -697,9 +805,17 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		return $listing->invoke( $restorer, $members, $entries );
 	}
 
-	public function test_tar_header_walk_handles_name_normalization_and_end_marker() {
+	/**
+	 * PharData lists the parents of a member without headers of their own; any other listed directory
+	 * without a header is one the walk never read.
+	 *
+	 * @dataProvider tar_listed_directory_cases
+	 * @param string $directory Listed directory without a header.
+	 * @param bool   $accepted  Whether the listing check accepts it.
+	 */
+	public function test_tar_header_walk_handles_name_normalization_and_end_marker( $directory, $accepted ) {
 		$long = str_repeat( 'long/', 120 ) . 'file.txt';
-		$bytes = $this->tar_entry_bytes( '././@LongLink', $long . "\0ignored", 'L' )
+		$bytes = $this->tar_entry_bytes( '././@LongLink', $long . "\0", 'L' )
 			. $this->tar_entry_bytes( 'placeholder.txt', 'long' )
 			. $this->tar_entry_bytes( './plain.txt', 'x' )
 			. $this->tar_entry_bytes( './folder/', '', '5' )
@@ -710,8 +826,30 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			$entries[] = array( 'name' => $name, 'dir' => false );
 		}
 		$entries[] = array( 'name' => '.\\folder\\', 'dir' => true );
-		$entries[] = array( 'name' => 'implicit-parent', 'dir' => true );
-		$this->assertNull( $this->inspect_tar_bytes( $bytes, $entries ) );
+		$entries[] = array( 'name' => $directory, 'dir' => true );
+		$error = $this->inspect_tar_bytes( $bytes, $entries );
+		if ( $accepted ) {
+			$this->assertNull( $error );
+		} else {
+			$this->assertStringContainsString( 'malformed or truncated', $error );
+		}
+	}
+
+	/**
+	 * Listed directories without a header.
+	 *
+	 * @return array
+	 */
+	public static function tar_listed_directory_cases() {
+		return array(
+			'implied parent'                     => array( 'slash', true ),
+			'implied parent with a slash'        => array( 'slash/', true ),
+			'implied grandparent'                => array( 'long/long', true ),
+			'orphan directory'                   => array( 'orphan', false ),
+			'orphan under a headed directory'    => array( 'folder/orphan', false ),
+			'name prefix that is not a parent'   => array( 'lon', false ),
+			'implied parent past the end marker' => array( 'after-end', false ),
+		);
 	}
 
 	public function test_tar_listing_refuses_a_listed_file_without_a_header() {

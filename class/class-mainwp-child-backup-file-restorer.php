@@ -111,12 +111,14 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     private $mu_plugins_preserve = array();
 
     const MAX_EXTRACT_ENTRIES        = 2000000;
+    const MAX_NAME_BYTES             = 512000000; // The entry limit at 256 bytes per name, the longest a ustar header holds without a long-name record.
     const MAX_EXPANDED_BYTES         = 68719476736;
     const MAX_COMPRESSION_RATIO      = 200;
     const RATIO_MIN_COMPRESSED_BYTES = 65536;
     const TEMP_PREFIX                = '.mainwp-restore-';
     const TEMP_SUFFIX                = '.tmp';
     const TAR_MALFORMED              = 'The backup archive has a malformed or truncated tar header or entry. Please create a new backup.';
+    const TAR_NAME_LIMIT             = 'Restore name size limit exceeded while checking backup archive headers.';
 
     /**
      * Keep standalone callers' foreign temps unless the runner supplies task knowledge.
@@ -146,6 +148,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     protected function extraction_limits() {
         return array(
             'entries'         => self::MAX_EXTRACT_ENTRIES,
+            'name_bytes'      => self::MAX_NAME_BYTES,
             'expanded_bytes'  => self::MAX_EXPANDED_BYTES,
             'ratio'           => self::MAX_COMPRESSION_RATIO,
             'ratio_min_bytes' => self::RATIO_MIN_COMPRESSED_BYTES,
@@ -824,9 +827,14 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * numbers, regular files, directories without a payload, and single GNU long names. The
      * Dashboard test restore applies the same rule, so an archive one side accepts the other does.
      *
+     * Name memory is bounded separately from the entry count: PharData keeps each name about twice and
+     * the listing twice more, so the walk charges every name PharData will hold, and every parent
+     * directory it implies without a header, to one budget sized for the entry limit.
+     *
      * @param string $plain Uncompressed archive.
      * @return array|string Members as array{members: array<string,int>, prefixed: array<string,bool>,
-     *                      dirs: array<string,bool>} keyed by comparison name, or a refusal message.
+     *                      dirs: array<string,bool>, ancestors: array<string,bool>} keyed by comparison
+     *                      name, or a refusal message.
      */
     protected function tar_header_members( $plain ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- one bounded header walk over the accepted shapes.
         $stream = fopen( $plain, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- inspect headers without extracting members.
@@ -837,6 +845,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         $members    = array();
         $prefixed   = array();
         $dirs       = array();
+        $ancestors  = array();
         $long_name  = null;
         $count      = 0;
         $name_bytes = 0;
@@ -876,10 +885,10 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                     if ( null !== $long_name || $size < 1 || $size > 65536 ) {
                         return self::TAR_MALFORMED;
                     }
-                    // PharData keeps every declared long-name payload in full, however the names compare, so the budget counts raw bytes.
+                    // PharData keeps the whole declared payload, so it is charged before it is read.
                     $name_bytes += $size;
-                    if ( $name_bytes > 67108864 ) {
-                        return self::TAR_MALFORMED;
+                    if ( $name_bytes > $limits['name_bytes'] ) {
+                        return self::TAR_NAME_LIMIT;
                     }
                     $payload = '';
                     $unread  = $size;
@@ -891,7 +900,13 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                         $payload .= $chunk;
                         $unread  -= strlen( $chunk );
                     }
-                    $long_name = explode( "\0", $payload, 2 )[0];
+                    // Tar_Archiver declares the name alone and GNU tar adds one NUL. Bytes after an earlier NUL
+                    // would sit in PharData's memory behind a shorter name the listing shows.
+                    $nul = strpos( $payload, "\0" );
+                    if ( false !== $nul && $nul < $size - 1 ) {
+                        return self::TAR_MALFORMED;
+                    }
+                    $long_name = false === $nul ? $payload : substr( $payload, 0, $nul );
                     if ( '' === $long_name ) {
                         return self::TAR_MALFORMED;
                     }
@@ -913,9 +928,24 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                     $key    = $this->tar_comparison_name( $name, $is_dir );
                     if ( null === $long_name ) {
                         $name_bytes += strlen( $name );
-                        if ( $name_bytes > 67108864 ) {
-                            return self::TAR_MALFORMED;
+                        if ( $name_bytes > $limits['name_bytes'] ) {
+                            return self::TAR_NAME_LIMIT;
                         }
+                    }
+                    // A parent with its own header, or one already recorded, has had its parents recorded.
+                    $parent = $key;
+                    $cut    = strrpos( $parent, '/' );
+                    while ( false !== $cut && $cut > 0 ) {
+                        $parent = substr( $parent, 0, $cut );
+                        if ( isset( $ancestors[ $parent ] ) || isset( $dirs[ $parent ] ) ) {
+                            break;
+                        }
+                        $name_bytes += $cut;
+                        if ( $name_bytes > $limits['name_bytes'] ) {
+                            return self::TAR_NAME_LIMIT;
+                        }
+                        $ancestors[ $parent ] = true;
+                        $cut                  = strrpos( $parent, '/' );
                     }
                     if ( isset( $members[ $key ] ) ) {
                         // PharData keeps one entry per name, so a file and a directory sharing one would drop the file.
@@ -951,9 +981,10 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             fclose( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with the header stream.
         }
         return array(
-            'members'  => $members,
-            'prefixed' => $prefixed,
-            'dirs'     => $dirs,
+            'members'   => $members,
+            'prefixed'  => $prefixed,
+            'dirs'      => $dirs,
+            'ancestors' => $ancestors,
         );
     }
 
@@ -970,8 +1001,9 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         $unlisted = $members['members'];
         foreach ( $entries as $entry ) {
             $key = $this->tar_comparison_name( $entry['name'], $entry['dir'] );
-            // PharData adds parent directories itself, but every listed file needs a header, and a listed name keeps the walk's kind.
-            if ( ! $entry['dir'] && ! isset( $unlisted[ $key ] ) ) {
+            // PharData adds the parents of a member itself, so a listed directory without a header must lead to a
+            // walked member; every listed file needs a header, and a listed name keeps the walk's kind.
+            if ( $entry['dir'] ? ! isset( $members['members'][ $key ] ) && ! isset( $members['ancestors'][ $key ] ) : ! isset( $unlisted[ $key ] ) ) {
                 return self::TAR_MALFORMED;
             }
             if ( isset( $members['members'][ $key ] ) && isset( $members['dirs'][ $key ] ) !== (bool) $entry['dir'] ) {
