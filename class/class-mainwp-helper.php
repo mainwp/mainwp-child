@@ -242,6 +242,34 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
 
 
     /**
+     * Make a native backup storage path private to the PHP user: files at most 0600, directories at most 0700.
+     *
+     * Every reader of this storage is the Child's own PHP (task runners, and downloads streamed
+     * through readfile_chunked()), so other accounts on a shared host need no access. A host that
+     * refuses chmod keeps its default modes rather than failing the backup.
+     *
+     * @param string        $path   Created storage path.
+     * @param callable|null $create Optional operation whose temporary files also need a private umask.
+     * @return mixed Operation result, or null.
+     */
+    public static function protect_backup_path( $path, $create = null ) {
+        $mask = null !== $create ? umask( 0077 ) : null;
+        try {
+            return null !== $create ? $create() : null;
+        } finally {
+            if ( null !== $mask ) {
+                umask( $mask );
+            }
+            $perms = function_exists( 'chmod' ) && ! @is_link( $path ) ? @fileperms( $path ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- permission probes must remain silent when the host cannot stat a path.
+            // Only group and other bits are cleared: granting the owner a bit it lacked would hide
+            // an unwritable directory from the checks that refuse it.
+            if ( false !== $perms ) {
+                @chmod( $path, $perms & ( @is_dir( $path ) ? 0700 : 0600 ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_chmod -- hosts may refuse chmod; warnings must not corrupt the response.
+            }
+        }
+    }
+
+    /**
      * Method get_backup_dir_hash()
      *
      * Get (or generate once) the per-site backup directory secret.

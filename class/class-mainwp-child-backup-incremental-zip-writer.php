@@ -313,7 +313,12 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
         $path    = $this->part_path( $index );
 
         $this->assert_disk_space();
-        $closed              = @$this->zip->close(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failure converted to a coded exception below.
+        $closed              = MainWP_Helper::protect_backup_path(
+            $path,
+            function () {
+                return @$this->zip->close(); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failure converted to a coded exception below.
+            }
+        );
         $this->zip           = null;
         $this->pending_bytes = 0;
 

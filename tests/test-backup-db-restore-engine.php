@@ -719,6 +719,26 @@ class BackupDbRestoreEngineTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A comment shape servers read in more than one way stops the restore and names the shape,
+	 * and a MariaDB executable comment in front of an allowed statement no longer rides along with it.
+	 */
+	public function test_refused_comment_shape_fails_the_restore_and_names_it() {
+		$files  = array(
+			$this->write_dump( 'dbBackup-wp_a.sql.php', "CREATE TABLE `wp_a` (id INT);\n/*M!100100 DROP TABLE `live_users` */ CREATE TABLE `wp_b` (id INT);\nINSERT INTO `wp_a` VALUES (1) /*+ x */;\nINSERT INTO `wp_a` VALUES (2);\n" ),
+		);
+		$result = $this->engine->replay_slice( array(), $this->config( $files ), $this->no_deadline() );
+
+		$this->assertFalse( $result['done'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY, $result['error_code'] );
+		$this->assertStringContainsString( 'optimizer hint', $result['error'] );
+
+		$joined = implode( "\n", $this->engine->executed );
+		$this->assertStringContainsString( 'CREATE TABLE `tmpabc123_a`', $joined );
+		$this->assertStringNotContainsString( 'live_users', $joined );
+		$this->assertStringNotContainsString( 'VALUES (2)', $joined, 'Nothing after the refused statement may run.' );
+	}
+
+	/**
 	 * Stems on the skip list never replay - the running restore's own
 	 * spine table must survive the swap.
 	 */

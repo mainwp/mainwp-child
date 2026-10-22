@@ -161,7 +161,9 @@ class MainWP_Pages {
             global $mainWPChild;
             $mainWPChild->delete_connection_data( false );
             delete_option( 'mainwp_child_lasttime_not_connected' ); // reset.
-            wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&message=1' );
+            if ( wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&message=1' ) ) {
+                exit;
+            }
         }
 
         // phpcs:disable WordPress.Security.NonceVerification
@@ -177,7 +179,9 @@ class MainWP_Pages {
             }
             MainWP_Helper::update_option( 'mainwp_child_ttl_active_unconnected_site', ! empty( $_POST['mainwp_child_active_time_for_unconnected_site'] ) ? intval( $_POST['mainwp_child_active_time_for_unconnected_site'] ) : 0 );
             update_user_option( get_current_user_id(), 'mainwp_child_user_enable_passwd_auth_connect', $enable_pwd_auth_connect ? 1 : 0 );
-            wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&message=2' );
+            if ( wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&message=2' ) ) {
+                exit;
+            }
         }
         // phpcs:enable
     }
@@ -189,15 +193,18 @@ class MainWP_Pages {
      * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
      */
     public function admin_menu() { //phpcs:ignore -- NOSONAR - complex method.
+        // $uri is the request path only: a query argument naming tools.php must not block an unrelated page.
         $branding_opts      = MainWP_Child_Branding::instance()->get_branding_options();
         $is_hide            = isset( $branding_opts['hide'] ) ? $branding_opts['hide'] : '';
         $cancelled_branding = $branding_opts['cancelled_branding'];
-        $uri                = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+        $uri                = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_parse_url( esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ), PHP_URL_PATH ) : '';
         if ( isset( $branding_opts['remove_wp_tools'] ) && $branding_opts['remove_wp_tools'] && ! $cancelled_branding ) {
             remove_menu_page( 'tools.php' );
             $pos = $uri ? stripos( $uri, 'tools.php' ) || stripos( $uri, 'import.php' ) || stripos( $uri, 'export.php' ) : false;
             if ( false !== $pos ) {
+                // Branding hides Tools, so the page stays blocked even when a filter cancels the redirect.
                 wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
+                exit;
             }
         }
         // if preserve branding and do not remove menus.

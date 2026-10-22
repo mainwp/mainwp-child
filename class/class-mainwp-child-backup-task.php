@@ -864,7 +864,9 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         $sidecar = $this->get_sidecar_path( $task_id, $backup_dir, $version );
         $temp    = $sidecar . '.tmp';
 
-        if ( false === file_put_contents( $temp, $json ) || ! rename( $temp, $sidecar ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic temp-then-rename requires native file APIs.
+        $written = file_put_contents( $temp, $json ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- readers must not see a partial cursor.
+        MainWP_Helper::protect_backup_path( $temp );
+        if ( false === $written || ! rename( $temp, $sidecar ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic temp-then-rename requires native file APIs.
             if ( file_exists( $temp ) ) {
                 unlink( $temp ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- scratch cleanup.
             }
@@ -1695,7 +1697,8 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         $path      = trailingslashit( $backup_dir ) . 'pending-delete.json';
         $lock_path = trailingslashit( $backup_dir ) . 'pending-delete.lock';
         // phpcs:disable WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- local atomic file writes and flock; errors are logged without private paths.
-        $lock   = ! is_link( $lock_path ) ? @fopen( $lock_path, 'c' ) : false;
+        $lock = ! is_link( $lock_path ) ? @fopen( $lock_path, 'c' ) : false;
+        MainWP_Helper::protect_backup_path( $lock_path );
         $locked = false !== $lock && function_exists( 'flock' ) && @flock( $lock, LOCK_EX );
         if ( ! $locked ) {
             MainWP_Helper::log_debug( '[MainWP Backup] Pending delete flock unavailable; continuing without it.' );
@@ -1735,9 +1738,11 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                     wp_delete_file( $path );
                 }
             } else {
-                $tmp  = $path . '.' . strtolower( wp_generate_password( 12, false ) ) . '.tmp';
-                $json = wp_json_encode( array_values( $entries ) );
-                if ( false === $json || strlen( $json ) !== @file_put_contents( $tmp, $json ) || ! @rename( $tmp, $path ) ) {
+                $tmp     = $path . '.' . strtolower( wp_generate_password( 12, false ) ) . '.tmp';
+                $json    = wp_json_encode( array_values( $entries ) );
+                $written = false !== $json ? @file_put_contents( $tmp, $json ) : false;
+                MainWP_Helper::protect_backup_path( $tmp );
+                if ( false === $json || strlen( $json ) !== $written || ! @rename( $tmp, $path ) ) {
                     wp_delete_file( $tmp );
                     MainWP_Helper::log_debug( '[MainWP Backup] Pending delete write failed.' );
                 }

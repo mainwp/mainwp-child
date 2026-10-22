@@ -11,6 +11,8 @@ use MainWP\Child\MainWP_Child_Backup_Task_Runner;
 use MainWP\Child\MainWP_Child_Backup_Task;
 use MainWP\Child\MainWP_Child_Restore_Task_Runner;
 
+require_once __DIR__ . '/includes/trait-tar-entry-fixture.php';
+
 /** Filesystem fault injection for the extraction matrix, backed by real files. */
 class ExtractionMatrixStream {
 	public $context;
@@ -106,6 +108,22 @@ class InvalidTarDecompressRestorer extends MainWP_Child_Backup_File_Restorer {
 	protected function plain_tar_for( $part, $deadline, &$timed_out ) {
 		$timed_out = false;
 		return $part . '.plain.tar';
+	}
+
+	/**
+	 * The fixture is not a tar, and the header walk would refuse it before PharData's open failure.
+	 *
+	 * @param string $plain Plain tar path.
+	 *
+	 * @return array Empty member list.
+	 */
+	protected function tar_header_members( $plain ) {
+		return array(
+			'members'   => array(),
+			'prefixed'  => array(),
+			'dirs'      => array(),
+			'ancestors' => array(),
+		);
 	}
 
 	/**
@@ -220,6 +238,7 @@ class ShortCopyRestorer extends CopyFallbackRestorer {
  * yields; tombstones delete files through the same path guard.
  */
 class BackupFileRestorerTest extends WP_UnitTestCase {
+	use Tar_Entry_Fixture;
 
 	/**
 	 * Scratch dir holding archives and the extraction root.
@@ -360,6 +379,584 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 			++$guard;
 		} while ( ! $result['done'] && null === $result['error'] && $guard < 100 );
 		return $result;
+	}
+
+	protected function patch_tar_header( $bytes, $offset, $value ) {
+		$bytes = substr_replace( $bytes, $value, $offset, strlen( $value ) );
+		$bytes = substr_replace( $bytes, '        ', 148, 8 );
+		return substr_replace( $bytes, sprintf( "%06o\0 ", array_sum( unpack( 'C*', substr( $bytes, 0, 512 ) ) ) ), 148, 8 );
+	}
+
+	protected function prefix_tar_bytes( $prefix, $name = 'lost.txt', $type = '0' ) {
+		return $this->patch_tar_header( $this->tar_entry_bytes( $name, '0' === $type ? 'lost content' : '', $type ), 345, str_pad( $prefix, 155, "\0" ) );
+	}
+
+	public static function beta_prefix_cases() {
+		return array(
+			'plain file' => array( false, '0', false ),
+			'gzip file' => array( true, '0', false ),
+			'plain directory' => array( false, '5', false ),
+			'invalid UTF-8' => array( false, '0', true ),
+		);
+	}
+
+	/** @dataProvider beta_prefix_cases */
+	public function test_beta_prefix_refuses_whole_part_before_extraction( $gzip, $type, $invalid ) {
+		$prefix = str_repeat( 'beta/', 21 );
+		$name = $invalid ? "lost-\xff.txt" : 'lost.txt';
+		$bytes = $this->tar_entry_bytes( 'a-normal.txt', 'normal content' )
+			. $this->prefix_tar_bytes( $prefix, $name, $type )
+			. $this->tar_entry_bytes( 'z-normal.txt', 'last content' ) . str_repeat( "\0", 1024 );
+		$path = $this->dir . ( $gzip ? '/beta.tar.gz' : '/beta.tar' );
+		file_put_contents( $path, $gzip ? gzencode( $bytes ) : $bytes );
+		$result = $this->run_all( $this->config( array( $path ) ) );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertFalse( $result['done'] );
+		$this->assertStringContainsString( 'earlier beta', $result['error'] );
+		$this->assertStringContainsString( 'one long path', $result['error'] );
+		$this->assertStringContainsString( $prefix . '/' . ( $invalid ? 'lost-?.txt' : $name ), $result['error'] );
+		$this->assertStringContainsString( 'Backups made from now on are not affected.', $result['error'] );
+		$this->assertSame( array( '.', '..' ), scandir( $this->extract_to ) );
+	}
+
+	public function test_tar_header_walk_accepts_the_largest_gnu_long_name() {
+		$name = str_repeat( 'x', 65536 );
+		$bytes = $this->tar_entry_bytes( '././@LongLink', $name, 'L' )
+			. $this->tar_entry_bytes( 'placeholder.txt', 'content' );
+		$this->assertNull( $this->inspect_tar_bytes( $bytes, array( array( 'name' => $name, 'dir' => false ) ) ) );
+	}
+
+	public function test_tar_name_budget_covers_the_entry_limit_at_the_longest_ustar_name() {
+		$this->assertSame( MainWP_Child_Backup_File_Restorer::MAX_EXTRACT_ENTRIES * 256, MainWP_Child_Backup_File_Restorer::MAX_NAME_BYTES );
+	}
+
+	/**
+	 * The name budget charges every name PharData keeps (a long-name payload as declared, else the
+	 * prefix and name up to NUL) and every parent directory a member implies without a header.
+	 * Scaled rows run at 8 entries and 8 x 256 name bytes, the production ratio.
+	 *
+	 * @dataProvider tar_name_budget_matrix
+	 * @param array  $members  Members as array( kind, name ): file, dir, long (L then file), long-nul
+	 *                         (L with a trailing NUL), raw-long (L payload as given), or round-2.
+	 * @param string $expected accept, malformed, limit or entries.
+	 * @param bool   $scaled   Whether the row runs at the scaled limits.
+	 */
+	public function test_tar_name_budget_matrix( $members, $expected, $scaled = true ) {
+		$restorer = $scaled ? new class() extends MainWP_Child_Backup_File_Restorer {
+			protected function extraction_limits() {
+				return array_merge(
+					parent::extraction_limits(),
+					array(
+						'entries'    => 8,
+						'name_bytes' => 8 * 256,
+					)
+				);
+			}
+		} : null;
+		$path    = $this->dir . '/name-budget-' . uniqid() . '.tar';
+		$handle  = fopen( $path, 'wb' );
+		$listing = array();
+		foreach ( $members as $member ) {
+			list( $kind, $name ) = $member;
+			if ( 'round-2' === $kind ) {
+				// Distinct payloads that all cut to one name at the NUL still cost PharData their full size.
+				for ( $i = 0; $i < 1025; ++$i ) {
+					fwrite( $handle, $this->tar_entry_bytes( '././@LongLink', "a\0" . str_pad( (string) $i, 65534, 'z' ), 'L' ) . $this->tar_entry_bytes( 'placeholder' ) );
+				}
+				$listing['a'] = false;
+				continue;
+			}
+			if ( 'dir' === $kind ) {
+				fwrite( $handle, $this->tar_entry_bytes( $name, '', '5' ) );
+			} elseif ( 'file' === $kind ) {
+				fwrite( $handle, $this->tar_entry_bytes( $name, 'x' ) );
+			} else {
+				$payload = 'long-nul' === $kind ? $name . "\0" : $name;
+				fwrite( $handle, $this->tar_entry_bytes( '././@LongLink', $payload, 'L' ) . $this->tar_entry_bytes( substr( $name, 0, 100 ), 'x' ) );
+				$name = explode( "\0", $name, 2 )[0];
+			}
+			$listing[ $name ] = 'dir' === $kind;
+			// PharData lists the parents of every member itself.
+			for ( $cut = strrpos( $name, '/' ); false !== $cut && $cut > 0; $cut = strrpos( $name, '/' ) ) {
+				$name = substr( $name, 0, $cut );
+				if ( ! isset( $listing[ $name ] ) ) {
+					$listing[ $name ] = true;
+				}
+			}
+		}
+		fwrite( $handle, str_repeat( "\0", 1024 ) );
+		fclose( $handle );
+		$entries = array();
+		foreach ( $listing as $name => $dir ) {
+			$entries[] = array(
+				'name' => (string) $name,
+				'dir'  => $dir,
+			);
+		}
+		try {
+			$error = $this->inspect_tar_file( $path, $entries, $restorer );
+		} finally {
+			unlink( $path );
+		}
+		$messages = array(
+			'malformed' => 'malformed or truncated',
+			'limit'     => 'name size limit',
+			'entries'   => 'entry count limit',
+		);
+		if ( 'accept' === $expected ) {
+			$this->assertNull( $error );
+			return;
+		}
+		$this->assertIsString( $error );
+		$this->assertStringContainsString( $messages[ $expected ], $error );
+		if ( 'limit' === $expected ) {
+			$this->assertStringNotContainsString( 'malformed', $error );
+		}
+	}
+
+	/**
+	 * Name budget rows.
+	 *
+	 * @return array
+	 */
+	public static function tar_name_budget_matrix() {
+		$names = function ( $length, $count, $last = null ) {
+			$rows = array();
+			for ( $i = 0; $i < $count; ++$i ) {
+				$rows[] = array( 'long', str_repeat( chr( 97 + $i ), $i === $count - 1 && null !== $last ? $last : $length ) );
+			}
+			return $rows;
+		};
+		$average = array( array( 'dir', 'wp-content' ) );
+		for ( $i = 0; $i < 7; ++$i ) {
+			$average[] = array( 'file', str_pad( 'wp-content/' . $i . '-', 70, 'p' ) );
+		}
+		return array(
+			// About a million members at 70 bytes drew the old 64 MiB refusal; at the entry limit they fit.
+			'entry limit at average path length'        => array( $average, 'accept' ),
+			'longest ustar names fill the budget'       => array( $names( 256, 8 ), 'accept' ),
+			'one byte over the budget'                  => array( $names( 256, 8, 257 ), 'limit' ),
+			'headed parent is not charged again'        => array( array( array( 'dir', 'dd' ), array( 'long', 'dd/' . str_repeat( 'x', 2043 ) ) ), 'accept' ),
+			'implied parent fits exactly'               => array( array( array( 'long', 'dd/' . str_repeat( 'x', 2043 ) ) ), 'accept' ),
+			'implied parent one byte over'              => array( array( array( 'long', 'dd/' . str_repeat( 'x', 2044 ) ) ), 'limit' ),
+			// Fifty implied parents of one 101-byte name total 2500 bytes: depth costs PharData as much as length.
+			'deep implied parents'                      => array( array( array( 'long', str_repeat( 'a/', 50 ) . 'x' ) ), 'limit' ),
+			'long name with a trailing NUL'             => array( array( array( 'long-nul', str_repeat( 'g', 200 ) ) ), 'accept' ),
+			'long name with bytes after a NUL'          => array( array( array( 'raw-long', "a\0b" ) ), 'malformed' ),
+			'more members than the entry limit'         => array( array_fill( 0, 9, array( 'dir', 'd' ) ), 'entries' ),
+			// Production limits: refused at its first record, before the payloads add up.
+			'round 2: 1025 payloads cut to one name'    => array( array( array( 'round-2', '' ) ), 'malformed', false ),
+		);
+	}
+
+	public function test_tar_listing_refuses_a_listed_kind_the_walk_did_not_see() {
+		$file = $this->tar_entry_bytes( 'a', 'content' ) . str_repeat( "\0", 1024 );
+		$this->assertStringContainsString( 'malformed or truncated', $this->inspect_tar_bytes( $file, array( array( 'name' => 'a', 'dir' => true ) ) ) );
+		$dir = $this->tar_entry_bytes( 'd', '', '5' ) . str_repeat( "\0", 1024 );
+		$this->assertStringContainsString( 'malformed or truncated', $this->inspect_tar_bytes( $dir, array( array( 'name' => 'd', 'dir' => false ) ) ) );
+	}
+
+	public function test_tar_header_walk_refuses_oversized_gnu_long_name() {
+		$name = str_repeat( 'x', 65537 );
+		$bytes = $this->tar_entry_bytes( '././@LongLink', $name, 'L' )
+			. $this->tar_entry_bytes( 'placeholder.txt', 'content' );
+		$error = $this->inspect_tar_bytes( $bytes, array( array( 'name' => $name, 'dir' => false ) ) );
+		$this->assertIsString( $error );
+		$this->assertStringContainsString( 'malformed or truncated', $error );
+	}
+
+	/**
+	 * The header walk accepts only the shapes the Child writer produces, the same rows as the
+	 * Dashboard test-restore walk, so PharData and the walk cannot disagree on where a member
+	 * starts. Every other shape refuses before a member is written.
+	 *
+	 * @dataProvider tar_header_shape_matrix
+	 * @param string $shape    Header shape.
+	 * @param string $expected accept, malformed, beta or refuse.
+	 */
+	public function test_tar_header_shape_matrix( $shape, $expected ) {
+		// A header hidden in a payload: a reader that misjudges the payload size parses it as a member.
+		$hidden  = $this->tar_entry_bytes( 'sub//evil.php', 'hostile' );
+		$carrier = $this->tar_entry_bytes( 'carrier.txt', $hidden );
+		$size    = array(
+			'size base-256'       => "\x80" . str_repeat( "\0", 9 ) . "\x04\x00",
+			'size leading NUL'    => "\0" . '00000002000',
+			'size space then NUL' => " \0" . '0000002000',
+			'size empty'          => str_repeat( "\0", 12 ),
+			'size not octal'      => '00000001778' . "\0",
+			'size leading spaces' => '    0002000' . "\0",
+			'size trailing space' => '00000002000 ',
+		);
+		$long    = function ( $name ) {
+			return $this->tar_entry_bytes( '././@LongLink', $name, 'L' );
+		};
+		$dir     = function ( $name, $payload = '' ) {
+			return $this->patch_tar_header( $this->tar_entry_bytes( $name, $payload, '5' ), 100, "0000755\0" );
+		};
+		$roots   = array(
+			'root empty'     => '',
+			'root dot'       => '.',
+			'root dot slash' => './',
+			'root slash'     => '/',
+		);
+		$deep    = str_repeat( 'wp-content/plugins/', 7 ) . 'deep';
+		$after   = '';
+		if ( isset( $size[ $shape ] ) ) {
+			$bytes = $this->patch_tar_header( $carrier, 124, $size[ $shape ] );
+		} elseif ( 'type NUL' === $shape ) {
+			$bytes = $this->patch_tar_header( $carrier, 156, "\0" );
+		} elseif ( 'GNU magic' === $shape ) {
+			$bytes = $this->patch_tar_header( $carrier, 257, "ustar  \0" );
+		} elseif ( 'signed checksum' === $shape || 'checksum leading NUL' === $shape ) {
+			$bytes = substr_replace( $carrier, 'signed checksum' === $shape ? "\xff\xff" : '', 265, 'signed checksum' === $shape ? 2 : 0 );
+			$bytes = substr_replace( $bytes, '        ', 148, 8 );
+			$block = substr( $bytes, 0, 512 );
+			$field = 'signed checksum' === $shape ? sprintf( "%06o\0 ", array_sum( unpack( 'c*', $block ) ) ) : "\0" . sprintf( '%06o ', array_sum( unpack( 'C*', $block ) ) );
+			$bytes = substr_replace( $bytes, $field, 148, 8 );
+		} elseif ( 'zero-length long name' === $shape ) {
+			$bytes = $this->tar_entry_bytes( '././@LongLink', '', 'L' ) . $this->tar_entry_bytes( 'a.txt', 'a' );
+		} elseif ( 'dangling long name' === $shape ) {
+			$bytes = '';
+			$after = $long( 'tail.txt' );
+		} elseif ( 'file and directory' === $shape ) {
+			$bytes = $this->tar_entry_bytes( 'a', 'file content' ) . $dir( 'a' );
+		} elseif ( isset( $roots[ $shape ] ) ) {
+			$bytes = $this->tar_entry_bytes( $roots[ $shape ], '', '5' );
+		} elseif ( 'Child shape' === $shape ) {
+			$bytes = $dir( 'wp-content' ) . $long( $deep ) . $dir( substr( $deep, 0, 100 ) ) . $long( $deep . '/file.txt' ) . $this->tar_entry_bytes( substr( $deep . '/file.txt', 0, 100 ), 'deep' );
+		} elseif ( 'two long names' === $shape ) {
+			$bytes = $long( 'a.txt' ) . $long( 'b.txt' ) . $this->patch_tar_header( $this->tar_entry_bytes( 'evil.txt', 'hostile' ), 345, '..' ) . $this->tar_entry_bytes( 'a.txt', 'a' ) . $this->tar_entry_bytes( 'b.txt', 'b' );
+		} elseif ( 'empty long name' === $shape ) {
+			$bytes = $this->tar_entry_bytes( '././@LongLink', "\0", 'L' ) . $this->tar_entry_bytes( 'a.txt', 'a' );
+		} elseif ( 'no magic' === $shape ) {
+			$bytes = $this->patch_tar_header( $this->tar_entry_bytes( 'a.txt', 'a' ), 257, str_repeat( "\0", 6 ) );
+		} elseif ( 'long unsafe' === $shape ) {
+			$bytes = $long( '../escape.txt' ) . $this->tar_entry_bytes( 'safe.txt', 'hostile' );
+		} elseif ( 'directory payload' === $shape ) {
+			$bytes = $dir( 'meta', $hidden );
+		} elseif ( 'beta prefix' === $shape ) {
+			$bytes = $this->prefix_tar_bytes( str_repeat( 'beta/', 21 ) );
+		} else {
+			$bytes = $this->tar_entry_bytes( 'meta', $hidden, substr( $shape, 5 ), 'a.txt' );
+		}
+		$path   = $this->dir . '/shape-' . md5( $shape ) . '.tar';
+		file_put_contents( $path, $bytes . $this->tar_entry_bytes( 'safe.sql', 'SELECT 1;' ) . $after . str_repeat( "\0", 1024 ) );
+		$result = $this->run_all( $this->config( array( $path ) ) );
+		if ( 'accept' === $expected ) {
+			$this->assertNull( $result['error'] );
+			$this->assertTrue( $result['done'] );
+			$this->assertSame( 'SELECT 1;', file_get_contents( $this->extract_to . '/safe.sql' ) );
+			$this->assertFileDoesNotExist( $this->extract_to . '/sub/evil.php' );
+			if ( 'Child shape' === $shape ) {
+				$this->assertSame( 'deep', file_get_contents( $this->extract_to . '/' . $deep . '/file.txt' ) );
+			} else {
+				$this->assertSame( $hidden, file_get_contents( $this->extract_to . '/carrier.txt' ) );
+			}
+			return;
+		}
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertFalse( $result['done'] );
+		if ( 'malformed' === $expected ) {
+			$this->assertStringContainsString( 'malformed or truncated', $result['error'] );
+		} elseif ( 'beta' === $expected ) {
+			$this->assertStringContainsString( 'earlier beta', $result['error'] );
+		}
+		$this->assertSame( array( '.', '..' ), scandir( $this->extract_to ) );
+	}
+
+	/**
+	 * Accepted and refused header shapes.
+	 *
+	 * @return array
+	 */
+	public static function tar_header_shape_matrix() {
+		$rows = array(
+			'Child shape'         => array( 'Child shape', 'accept' ),
+			'size leading spaces' => array( 'size leading spaces', 'accept' ),
+			'size trailing space' => array( 'size trailing space', 'accept' ),
+			'type NUL'            => array( 'type NUL', 'accept' ),
+			'GNU magic'           => array( 'GNU magic', 'accept' ),
+			// The walk takes the signed sum like the Dashboard; PharData checks only the unsigned one and refuses at open.
+			'signed checksum'     => array( 'signed checksum', 'refuse' ),
+			'checksum leading NUL' => array( 'checksum leading NUL', 'malformed' ),
+			'zero-length long name' => array( 'zero-length long name', 'malformed' ),
+			'dangling long name'  => array( 'dangling long name', 'malformed' ),
+			'file and directory'  => array( 'file and directory', 'malformed' ),
+			'size base-256'       => array( 'size base-256', 'malformed' ),
+			'size leading NUL'    => array( 'size leading NUL', 'malformed' ),
+			'size space then NUL' => array( 'size space then NUL', 'malformed' ),
+			'size empty'          => array( 'size empty', 'malformed' ),
+			'size not octal'      => array( 'size not octal', 'malformed' ),
+			'two long names'      => array( 'two long names', 'malformed' ),
+			'empty long name'     => array( 'empty long name', 'malformed' ),
+			'no magic'            => array( 'no magic', 'malformed' ),
+			'directory payload'   => array( 'directory payload', 'malformed' ),
+			'root empty'          => array( 'root empty', 'malformed' ),
+			'root dot'            => array( 'root dot', 'malformed' ),
+			'root dot slash'      => array( 'root dot slash', 'malformed' ),
+			'root slash'          => array( 'root slash', 'malformed' ),
+			'beta prefix'         => array( 'beta prefix', 'beta' ),
+			// The Dashboard refuses this name at its walk; the Child refuses it as unlisted or at its path check.
+			'long unsafe'         => array( 'long unsafe', 'refuse' ),
+		);
+		foreach ( array( '1', '2', '3', '4', '6', '7', 'x', 'g', 'K', 'S', 'V', 'M', 'Z' ) as $type ) {
+			$rows[ 'type ' . $type ] = array( 'type ' . $type, 'malformed' );
+		}
+		return $rows;
+	}
+
+	public static function current_tar_formats() {
+		return array( array( false ), array( true ) );
+	}
+
+	/** @dataProvider current_tar_formats */
+	public function test_current_gnu_long_name_restores_every_entry( $gzip ) {
+		$name = str_repeat( 'current/', 15 ) . 'restored.txt';
+		$bytes = $this->tar_entry_bytes( 'a-normal.txt', 'normal content' )
+			. $this->tar_entry_bytes( '././@LongLink', $name, 'L' )
+			. $this->tar_entry_bytes( substr( $name, 0, 100 ), 'long content' )
+			. $this->tar_entry_bytes( 'z-normal.txt', 'last content' );
+		$path = $this->dir . ( $gzip ? '/current.tar.gz' : '/current.tar' );
+		file_put_contents( $path, $gzip ? gzencode( $bytes ) : $bytes );
+		$result = $this->run_all( $this->config( array( $path ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( 'normal content', file_get_contents( $this->extract_to . '/a-normal.txt' ) );
+		$this->assertSame( 'long content', file_get_contents( $this->extract_to . '/' . $name ) );
+		$this->assertSame( 'last content', file_get_contents( $this->extract_to . '/z-normal.txt' ) );
+	}
+
+	public function test_readable_ustar_prefix_restores_normally() {
+		$prefix = rtrim( str_repeat( 'prefix/', 15 ), '/' );
+		$path = $this->dir . '/readable-prefix.tar';
+		file_put_contents( $path, $this->prefix_tar_bytes( $prefix ) . $this->tar_entry_bytes( 'normal.txt', 'normal' ) . str_repeat( "\0", 1024 ) );
+		$listed = array();
+		foreach ( new RecursiveIteratorIterator( new PharData( $path ) ) as $file ) {
+			$listed[] = $file->getFilename();
+		}
+		$this->assertContains( 'lost.txt', $listed, 'This host must expose the prefix without a trailing slash.' );
+		$result = $this->run_all( $this->config( array( $path ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		$this->assertSame( 'lost content', file_get_contents( $this->extract_to . '/' . $prefix . '/lost.txt' ) );
+		$this->assertSame( 'normal', file_get_contents( $this->extract_to . '/normal.txt' ) );
+	}
+
+	public static function malformed_tar_cases() {
+		return array( array( 'checksum' ), array( 'header' ), array( 'size' ) );
+	}
+
+	/** @dataProvider malformed_tar_cases */
+	public function test_tar_header_walk_refuses_malformed_part_before_extraction( $case ) {
+		$bad = $this->tar_entry_bytes( 'bad.txt', 'bad' );
+		if ( 'checksum' === $case ) {
+			$bad[0] = 'X';
+		} elseif ( 'header' === $case ) {
+			$bad = substr( $bad, 0, 200 );
+		} else {
+			$bad = $this->patch_tar_header( $bad, 124, sprintf( "%011o\0", 999999 ) );
+		}
+		$path = $this->dir . '/malformed.tar';
+		file_put_contents( $path, $this->tar_entry_bytes( 'a-normal.txt', 'normal' ) . $bad );
+		$result = $this->run_all( $this->config( array( $path ) ) );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertFalse( $result['done'] );
+		$this->assertNotEmpty( $result['error'] );
+		$this->assertSame( array( '.', '..' ), scandir( $this->extract_to ) );
+	}
+
+	public function test_resumed_tar_slice_does_not_repeat_header_walk() {
+		$this->restorer = new class() extends MainWP_Child_Backup_File_Restorer {
+			public $walks = 0;
+			protected function tar_header_members( $plain ) {
+				++$this->walks;
+				return parent::tar_header_members( $plain );
+			}
+		};
+		$path = $this->make_tar( 'resumed-walk.tar', array( 'a.txt' => 'first', 'b.txt' => 'second' ) );
+		$config = $this->config( array( $path ) );
+		$first = $this->restorer->restore_slice( array(), $config, 0 );
+		$this->assertNull( $first['error'] );
+		$this->assertSame( 1, $first['cursor']['entry_index'] );
+		$this->assertSame( 1, $this->restorer->walks );
+		$second = $this->restorer->restore_slice( $first['cursor'], $config, microtime( true ) + 10 );
+		$this->assertNull( $second['error'] );
+		$this->assertTrue( $second['done'] );
+		$this->assertSame( 1, $this->restorer->walks );
+		$this->assertSame( 'second', file_get_contents( $this->extract_to . '/b.txt' ) );
+	}
+
+	protected function inspect_tar_bytes( $bytes, $entries, $restorer = null ) {
+		$path = $this->dir . '/headers-' . uniqid() . '.tar';
+		file_put_contents( $path, $bytes );
+		return $this->inspect_tar_file( $path, $entries, $restorer );
+	}
+
+	protected function inspect_tar_file( $path, $entries, $restorer = null ) {
+		$restorer = $restorer ?? $this->restorer;
+		$walk     = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'tar_header_members' );
+		$walk->setAccessible( true );
+		$members = $walk->invoke( $restorer, $path );
+		if ( is_string( $members ) ) {
+			return $members;
+		}
+		$listing = new ReflectionMethod( MainWP_Child_Backup_File_Restorer::class, 'tar_listing_error' );
+		$listing->setAccessible( true );
+		return $listing->invoke( $restorer, $members, $entries );
+	}
+
+	/**
+	 * PharData lists the parents of a member without headers of their own; any other listed directory
+	 * without a header is one the walk never read.
+	 *
+	 * @dataProvider tar_listed_directory_cases
+	 * @param string $directory Listed directory without a header.
+	 * @param bool   $accepted  Whether the listing check accepts it.
+	 */
+	public function test_tar_header_walk_handles_name_normalization_and_end_marker( $directory, $accepted ) {
+		$long = str_repeat( 'long/', 120 ) . 'file.txt';
+		$bytes = $this->tar_entry_bytes( '././@LongLink', $long . "\0", 'L' )
+			. $this->tar_entry_bytes( 'placeholder.txt', 'long' )
+			. $this->tar_entry_bytes( './plain.txt', 'x' )
+			. $this->tar_entry_bytes( './folder/', '', '5' )
+			. $this->tar_entry_bytes( '.\\slash\\file.txt', 'slash' )
+			. str_repeat( "\0", 1024 ) . $this->prefix_tar_bytes( 'after-end/' );
+		$entries = array();
+		foreach ( array( $long, 'plain.txt', 'slash/file.txt' ) as $name ) {
+			$entries[] = array( 'name' => $name, 'dir' => false );
+		}
+		$entries[] = array( 'name' => '.\\folder\\', 'dir' => true );
+		$entries[] = array( 'name' => $directory, 'dir' => true );
+		$error = $this->inspect_tar_bytes( $bytes, $entries );
+		if ( $accepted ) {
+			$this->assertNull( $error );
+		} else {
+			$this->assertStringContainsString( 'malformed or truncated', $error );
+		}
+	}
+
+	/**
+	 * Listed directories without a header.
+	 *
+	 * @return array
+	 */
+	public static function tar_listed_directory_cases() {
+		return array(
+			'implied parent'                     => array( 'slash', true ),
+			'implied parent with a slash'        => array( 'slash/', true ),
+			'implied grandparent'                => array( 'long/long', true ),
+			'orphan directory'                   => array( 'orphan', false ),
+			'orphan under a headed directory'    => array( 'folder/orphan', false ),
+			'name prefix that is not a parent'   => array( 'lon', false ),
+			'implied parent past the end marker' => array( 'after-end', false ),
+		);
+	}
+
+	public function test_tar_listing_refuses_a_listed_file_without_a_header() {
+		$bytes = $this->tar_entry_bytes( 'a.txt', 'a' ) . str_repeat( "\0", 1024 );
+		$entries = array(
+			array( 'name' => 'a.txt', 'dir' => false ),
+			array( 'name' => 'b.txt', 'dir' => false ),
+		);
+		$this->assertStringContainsString( 'malformed or truncated', $this->inspect_tar_bytes( $bytes, $entries ) );
+	}
+
+	public static function oversized_tar_member_sizes() {
+		return array(
+			'rounding overflow' => array( '37777777001' ),
+			'4 GiB' => array( '40000000000' ),
+		);
+	}
+
+	/**
+	 * A member size past PharData's 32-bit limit refuses at the walk. The fixture is a sparse file.
+	 *
+	 * @dataProvider oversized_tar_member_sizes
+	 * @param string $octal Size field digits.
+	 */
+	public function test_tar_header_walk_refuses_sizes_past_phar_limit( $octal ) {
+		$header = $this->patch_tar_header( $this->tar_entry_bytes( 'a.txt', '' ), 124, $octal . "\0" );
+		$path = $this->dir . '/huge-' . $octal . '.tar';
+		$handle = fopen( $path, 'wb' );
+		fwrite( $handle, $header . str_repeat( "\0", 512 ) . $this->tar_entry_bytes( 'sub//hidden.php', 'hostile' ) );
+		ftruncate( $handle, 512 + octdec( $octal ) + 1536 );
+		fclose( $handle );
+		try {
+			$this->assertStringContainsString( 'malformed or truncated', $this->inspect_tar_file( $path, array( array( 'name' => 'a.txt', 'dir' => false ) ) ) );
+		} finally {
+			unlink( $path );
+		}
+	}
+
+	public function test_tar_header_walk_counts_missing_files_and_directories() {
+		$bytes = $this->prefix_tar_bytes( 'missing/', 'first.txt' )
+			. $this->prefix_tar_bytes( 'missing/', 'directory/', '5' ) . str_repeat( "\0", 1024 );
+		$error = $this->inspect_tar_bytes( $bytes, array() );
+		$this->assertStringContainsString( '2 long paths', $error );
+		$this->assertStringContainsString( 'missing//first.txt', $error );
+	}
+
+	public function test_tar_header_walk_enforces_entry_limit() {
+		$restorer = new class() extends MainWP_Child_Backup_File_Restorer {
+			protected function extraction_limits() {
+				return array_merge( parent::extraction_limits(), array( 'entries' => 1 ) );
+			}
+		};
+		$bytes = $this->tar_entry_bytes( 'first.txt', 'first' ) . $this->tar_entry_bytes( 'second.txt', 'second' );
+		$this->assertStringContainsString( 'entry count limit', $this->inspect_tar_bytes( $bytes, array(), $restorer ) );
+	}
+
+	/** @dataProvider malformed_tar_cases */
+	public function test_tar_header_walk_reports_malformed_headers( $case ) {
+		$bad = $this->tar_entry_bytes( 'bad.txt', 'bad' );
+		if ( 'checksum' === $case ) {
+			$bad[0] = 'X';
+		} elseif ( 'header' === $case ) {
+			$bad = substr( $bad, 0, 200 );
+		} else {
+			$bad = $this->patch_tar_header( $bad, 124, sprintf( "%011o\0", 999999 ) );
+		}
+		$this->assertStringContainsString( 'malformed or truncated', $this->inspect_tar_bytes( $bad, array() ) );
+	}
+
+	public static function data_tar_link_and_name_edges() {
+		return array(
+			'symlink' => array( 'symlink' ),
+			'hardlink' => array( 'hardlink' ),
+			'GNU long name' => array( 'longname' ),
+		);
+	}
+
+	/** @dataProvider data_tar_link_and_name_edges */
+	public function test_tar_link_and_extended_names_cannot_escape( $case ) {
+		mkdir( $this->dir . '/outside' );
+		file_put_contents( $this->dir . '/outside/g', 'original' );
+		if ( 'symlink' === $case ) {
+			$bytes = $this->tar_entry_bytes( 'linked', '', '2', $this->dir . '/outside' )
+				. $this->tar_entry_bytes( 'linked/escaped.txt', 'escaped' );
+		} elseif ( 'hardlink' === $case ) {
+			$bytes = $this->tar_entry_bytes( 'linked.txt', '', '1', $this->dir . '/outside/g' );
+		} else {
+			$bytes = $this->tar_entry_bytes( '././@LongLink', "../outside/escaped.txt\0", 'L' )
+				. $this->tar_entry_bytes( 'placeholder.txt', 'escaped' );
+		}
+		$path = $this->dir . '/edges.tar';
+		file_put_contents( $path, $bytes . $this->tar_entry_bytes( 'normal.txt', 'inside' ) . str_repeat( "\0", 1024 ) );
+		$result = $this->run_all( $this->config( array( $path ) ) );
+		$this->assertSame( array( '.', '..', 'g' ), scandir( $this->dir . '/outside' ), $case );
+		$this->assertSame( 'original', file_get_contents( $this->dir . '/outside/g' ) );
+		if ( null === $result['error'] ) {
+			$this->assertTrue( $result['done'] );
+			$this->assertSame( 'inside', file_get_contents( $this->extract_to . '/normal.txt' ) );
+		} else {
+			$this->assertFalse( $result['done'] );
+			$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		}
+		$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $this->extract_to, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::SELF_FIRST );
+		foreach ( $iterator as $file ) {
+			$this->assertFalse( $file->isLink(), 'Extraction must not leave a link to an external target.' );
+			$this->assertNotSame( fileinode( $this->dir . '/outside/g' ), fileinode( $file->getPathname() ), 'Extraction must not hardlink an external target.' );
+		}
 	}
 
 	protected function run_sliced( $config ) {

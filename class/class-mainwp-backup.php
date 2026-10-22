@@ -526,6 +526,9 @@ class MainWP_Backup {
         global $wp_filesystem;
 
         $wp_filesystem->move( $this->pid_file, substr( $this->pid_file, 0, -4 ) . '.done' );
+        if ( $this->native_task ) {
+            MainWP_Helper::protect_backup_path( substr( $this->pid_file, 0, -4 ) . '.done' );
+        }
         $this->pid_file = false;
 
         return true;
@@ -899,6 +902,9 @@ class MainWP_Backup {
             global $wp_filesystem;
             if ( ! $wp_filesystem->put_contents( $this->pid_file, $this->pid_content ) ) {
                 throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_PERMISSIONS ) ), null, MainWP_Backup_Error::ERR_PERMISSIONS ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+            }
+            if ( $this->native_task ) {
+                MainWP_Helper::protect_backup_path( $this->pid_file );
             }
         }
         if ( '' !== $this->mutex_owner && ! MainWP_Child_Backup_Mutex::refresh( $this->mutex_owner, MainWP_Child_Backup_Mutex::LEGACY_TTL ) ) {
@@ -1511,14 +1517,15 @@ class MainWP_Backup {
      * A handful of unreadable files is survivable and reported; past the
      * threshold the archive is too incomplete to pass off as a backup.
      *
-     * @param string $path File that failed to be added.
+     * @param string $path   File that failed to be added.
+     * @param string $reason Reason the file could not be added.
      *
      * @throws MainWP_Exception When the failed-add threshold is exceeded.
      */
-    public function record_failed_add( $path ) {
+    public function record_failed_add( $path, $reason = 'unreadable' ) {
         ++$this->failed_add_count;
         $this->failed_add_paths[] = (string) $path;
-        static::record_skipped_path( $path, 'unreadable' );
+        static::record_skipped_path( $path, $reason );
         if ( $this->failed_add_count > self::MAX_FAILED_ADDS ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_TOO_MANY_SKIPPED ) ), null, MainWP_Backup_Error::ERR_TOO_MANY_SKIPPED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
         }
@@ -1602,7 +1609,12 @@ class MainWP_Backup {
             $result = false;
             try {
                 if ( $this->zip instanceof \ZipArchive ) {
-                    $result = $this->zip->close();
+                    $result = $this->native_task ? MainWP_Helper::protect_backup_path(
+                        $this->zipArchiveFileName,
+                        function () {
+                            return $this->zip->close();
+                        }
+                    ) : $this->zip->close();
                 }
             } catch ( \Throwable $close_error ) {
                 $result = false;
@@ -1945,6 +1957,9 @@ class MainWP_Backup {
         // 1. Backup directory writable (randomized directory, created on demand).
         $dirs       = MainWP_Helper::get_mainwp_dir( 'backup', false );
         $backup_dir = $dirs[0];
+        MainWP_Helper::protect_backup_path( $backup_dir );
+        MainWP_Helper::protect_backup_path( $backup_dir . 'index.php' );
+        MainWP_Helper::protect_backup_path( $backup_dir . '.htaccess' );
         if ( ! is_dir( $backup_dir ) || ! is_writable( $backup_dir ) ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ) ), null, MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
         }
@@ -2594,6 +2609,9 @@ class MainWP_Backup {
         static::assert_disk_space_during_backup( dirname( $filepath ), null, strlen( $str ) );
         try {
             if ( false !== MainWP_Helper::file_put_contents( $tmpfilename, $str ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions
+                if ( $this->native_task ) {
+                    MainWP_Helper::protect_backup_path( $tmpfilename );
+                }
                 clearstatcache( true, $filepath );
                 $staged_bytes = strlen( $str ) + ( is_file( $filepath ) ? (int) filesize( $filepath ) : 0 );
                 static::assert_disk_space_during_backup( dirname( $filepath ), null, 2 * $staged_bytes );

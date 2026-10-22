@@ -710,6 +710,8 @@ class MainWP_Clone {
      *
      * Extract the backup archive to clone the site.
      *
+     * @throws \Exception When backup extraction fails.
+     *
      * @uses \MainWP\Child\MainWP_Clone_Install()
      * @uses \MainWP\Child\MainWP_Helper::end_session()
      * @uses \MainWP\Child\MainWP_Helper::update_option()
@@ -740,7 +742,9 @@ class MainWP_Clone {
                 $cloneInstall->test_download();
             }
             $cloneInstall->remove_config_file();
-            $cloneInstall->extract_backup();
+            if ( false === $cloneInstall->extract_backup() ) {
+                throw new \Exception( esc_html__( 'Backup extraction failed.', 'mainwp-child' ) );
+            }
             $cloneInstall->install( $file );
             $cloneInstall->update_wp_config();
             $cloneInstall->clean();

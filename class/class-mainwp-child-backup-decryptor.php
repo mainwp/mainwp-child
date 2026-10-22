@@ -185,6 +185,7 @@ class MainWP_Child_Backup_Decryptor { // phpcs:ignore Generic.Classes.OpeningBra
             $this->remove( $tmp );
         }
 
+        MainWP_Helper::protect_backup_path( $dest );
         return $dest;
     }
 
@@ -426,7 +427,9 @@ class MainWP_Child_Backup_Decryptor { // phpcs:ignore Generic.Classes.OpeningBra
      * @return resource|false
      */
     protected function open_write( $path ) {
-        return @fopen( $path, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors -- raw archive write.
+        $handle = @fopen( $path, 'wb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors -- raw archive write.
+        MainWP_Helper::protect_backup_path( $path );
+        return $handle;
     }
 
     /**

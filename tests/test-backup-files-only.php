@@ -130,9 +130,17 @@ class BackupFilesOnlyTest extends WP_UnitTestCase {
 		$_POST['fileUID'] = '';
 
 		$backup = new Files_Only_Legacy_Backup();
-		$info   = $backup->backup( false );
-
-		unset( $_POST['type'], $_POST['fileUID'] );
+		// backup() ends with ob_end_flush(); hand it a buffer of ours so PHPUnit's survives.
+		$ob_level = ob_get_level();
+		ob_start();
+		try {
+			$info = $backup->backup( false );
+		} finally {
+			unset( $_POST['type'], $_POST['fileUID'] );
+			while ( ob_get_level() > $ob_level ) {
+				ob_end_clean();
+			}
+		}
 
 		$this->assertTrue( $backup->backup_full_called, 'A files backup must run the file archiver.' );
 		$this->assertSame( array(), $backup->dump_set_at_call, 'The archive step must see an empty dump set.' );
@@ -245,9 +253,16 @@ class BackupFilesOnlyTest extends WP_UnitTestCase {
 		$_POST['fileUID'] = '';
 
 		$backup = new Files_Only_Legacy_Backup();
-		$backup->backup( false );
-
-		unset( $_POST['type'], $_POST['fileUID'] );
+		$ob_level = ob_get_level();
+		ob_start();
+		try {
+			$backup->backup( false );
+		} finally {
+			unset( $_POST['type'], $_POST['fileUID'] );
+			while ( ob_get_level() > $ob_level ) {
+				ob_end_clean();
+			}
+		}
 
 		$files = $backup->get_or_create_db_dump_files( $this->dir . '/dbBackup' );
 		$this->assertNotEmpty( $files, 'The prepared set must reset after the files dispatch.' );

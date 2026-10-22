@@ -115,6 +115,17 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 
 == Changelog ==
 
+= Unreleased =
+
+* Fixed: Restores refuse database statements that MySQL and MariaDB could read differently, and keep table changes within the site's table prefix.
+* Fixed: Cloned sites keep every extracted file inside the target site, and database dump files are removed after a files-only restore.
+* Fixed: Files that grow or shrink while a backup runs no longer corrupt the archive. Files too large for a restorable archive are skipped and reported.
+* Fixed: Long file names are stored in full in backup archives, so every archive reader sees the complete name.
+* Fixed: The fallback database export writes rows as utf8mb4, so text stored in other character sets restores correctly.
+* Fixed: The Tools page stays blocked when branding hides it, and the branding checks no longer block unrelated admin pages.
+* Updated: Restores accept only the archive formats MainWP Child writes, with clear limits on file names and entry counts.
+* Updated: The cPanel database backup keeps the database password off the command line, protects its backup folder, and uses unpredictable file names.
+
 = 6.4-rc.1 - 10-20-2026 =
 
 * Added: Support for MainWP Native Backups (beta), enabling Dashboard-managed full, database-only, files-only, and incremental backups, resumable transfers, and snapshot restores without an additional backup plugin.

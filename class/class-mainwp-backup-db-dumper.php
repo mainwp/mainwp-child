@@ -427,6 +427,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         }
         $tmp = $final . '.tmp';
         $fh  = fopen( $tmp, 'w' );
+        MainWP_Helper::protect_backup_path( $tmp );
         if ( false === $fh ) {
             throw new \Exception( "Could not open the dump file for table `$table` - check disk space and permissions." ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal control flow; wrapped, escaped and scrubbed by dump_to_files before leaving the child.
         }
@@ -548,9 +549,55 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
      * @return array{done:bool,cursor:array,files:string[],tier:int,consistency:string}
      *
      * @throws MainWP_Exception On read/write failure.
-     * @throws \Exception Propagates callback and streaming failures.
      */
     public function dump_tier2_slice( $filepath_prefix, $cursor, $time_budget = 45, $heartbeat = null ) { //phpcs:ignore -- NOSONAR - resumable slice loop.
+        global $wpdb;
+        $session = $wpdb->get_row( 'SELECT @@character_set_client AS charset, @@collation_connection AS collation', ARRAY_A ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- restore the actual session, which may differ from DB_CHARSET.
+        if ( ! is_array( $session ) || empty( $session['charset'] ) || empty( $session['collation'] ) ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DB_QUERY_FAILED ) ), null, MainWP_Backup_Error::ERR_DB_QUERY_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped registry message.
+        }
+
+        $charset = $wpdb->charset;
+        $collate = $wpdb->collate;
+        try {
+            // Restore replays as utf8mb4, so both fetched text and SQL escaping must use it.
+            // wpdb also needs these defaults if it reconnects during the slice.
+            $wpdb->charset = 'utf8mb4';
+            $wpdb->collate = 'utf8mb4_unicode_ci';
+            $wpdb->set_charset( $wpdb->dbh, 'utf8mb4', 'utf8mb4_unicode_ci' );
+            return $this->dump_tier2_slice_utf8mb4( $filepath_prefix, $cursor, $time_budget, $heartbeat );
+        } finally {
+            // This shared handle also serves WordPress after a yield or failed dump.
+            $wpdb->charset = $charset;
+            $wpdb->collate = $collate;
+            $wpdb->set_charset( $wpdb->dbh, $session['charset'], $session['collation'] );
+            // mysqli_set_charset() refuses names the client library lacks (utf8mb3 on older mysqlnd)
+            // and wpdb then skips SET NAMES; the server accepts every name it reported. Straight
+            // mysqli, like wpdb::set_charset(), so the caller still sees the slice's last_error.
+            if ( $wpdb->dbh instanceof \mysqli ) {
+                $client = $wpdb->dbh->query( 'SELECT @@character_set_client' );
+                $row    = $client instanceof \mysqli_result ? $client->fetch_row() : null;
+                if ( is_array( $row ) && $session['charset'] !== $row[0] ) {
+                    $wpdb->dbh->query( "SET NAMES '" . $wpdb->dbh->real_escape_string( $session['charset'] ) . "' COLLATE '" . $wpdb->dbh->real_escape_string( $session['collation'] ) . "'" );
+                }
+            }
+        }
+    }
+
+    /**
+     * Tier-2 slice body; dump_tier2_slice() holds the connection at utf8mb4 around it.
+     *
+     * @param string        $filepath_prefix File path prefix.
+     * @param array|null    $cursor          Cursor from the previous slice, null to start.
+     * @param int           $time_budget     Seconds of work per slice.
+     * @param callable|null $heartbeat       Optional liveness callback.
+     *
+     * @return array{done:bool,cursor:array,files:string[],tier:int,consistency:string}
+     *
+     * @throws MainWP_Exception On read/write failure.
+     * @throws \Exception Propagates callback and streaming failures.
+     */
+    private function dump_tier2_slice_utf8mb4( $filepath_prefix, $cursor, $time_budget, $heartbeat ) { //phpcs:ignore -- NOSONAR - resumable slice loop.
         global $wpdb;
         $start                    = time();
         $this->heartbeat_bytes    = 0;
@@ -715,6 +762,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         global $wpdb;
         //phpcs:disable WordPress.DB, WordPress.WP.AlternativeFunctions -- paginated dump on the shared handle, stream writes.
         $fh = fopen( $tmp, 'w' );
+        MainWP_Helper::protect_backup_path( $tmp );
         if ( false === $fh ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_PERMISSIONS ) ), null, MainWP_Backup_Error::ERR_PERMISSIONS ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
         }
@@ -860,6 +908,7 @@ class MainWP_Backup_Db_Dumper { // phpcs:ignore Generic.Classes.OpeningBraceSame
         }
 
         $fh = fopen( $tmp, 'a' );
+        MainWP_Helper::protect_backup_path( $tmp );
         if ( false === $fh ) {
             throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_PERMISSIONS ) ), null, MainWP_Backup_Error::ERR_PERMISSIONS ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
         }

@@ -1,0 +1,362 @@
+<?php
+
+use MainWP\Child\Tar_Archiver;
+
+require_once __DIR__ . '/includes/trait-tar-entry-fixture.php';
+
+class CloneTarExtractionTest extends WP_UnitTestCase {
+	use Tar_Entry_Fixture;
+
+	public static function data_clone_tar_paths() {
+		return array(
+			'traversal' => array( 'traversal' ),
+			'absolute' => array( 'absolute' ),
+			'linked parent' => array( 'parent' ),
+			'linked file' => array( 'leaf' ),
+			'linked directory' => array( 'directory' ),
+			'dotted config' => array( 'config' ),
+			'repeated separator config' => array( 'config separators' ),
+			'linked config' => array( 'config link' ),
+			'late traversal' => array( 'late traversal' ),
+			'late longname traversal' => array( 'late longname traversal' ),
+			'link entry with data' => array( 'link payload' ),
+			'directory entry with data' => array( 'directory payload' ),
+			'normal' => array( 'normal' ),
+		);
+	}
+
+	/** @dataProvider data_clone_tar_paths */
+	public function test_clone_tar_confines_entries_to_target( $case ) {
+		$root = sys_get_temp_dir() . '/mainwp-clone-tar-' . uniqid();
+		mkdir( $root . '/site', 0777, true );
+		mkdir( $root . '/outside' );
+		$name = 'nested/inside.txt';
+		$type = '0';
+		$before = '';
+		if ( 'traversal' === $case ) {
+			$name = '../outside.txt';
+		} elseif ( 'absolute' === $case ) {
+			$name = $root . '/absolute.txt';
+		} elseif ( 'parent' === $case ) {
+			symlink( $root . '/outside', $root . '/site/linked' );
+			$name = 'linked/escape.txt';
+		} elseif ( 'leaf' === $case ) {
+			file_put_contents( $root . '/outside/secret.txt', 'original' );
+			symlink( $root . '/outside/secret.txt', $root . '/site/linked.txt' );
+			$name = 'linked.txt';
+		} elseif ( 'directory' === $case ) {
+			symlink( $root . '/outside', $root . '/site/linked' );
+			$name = 'linked/';
+			$type = '5';
+		} elseif ( 'config' === $case || 'config separators' === $case ) {
+			$name = 'config' === $case ? './wp-config.php' : './/wp-config.php';
+		} elseif ( 'config link' === $case ) {
+			file_put_contents( $root . '/outside/secret.txt', 'original' );
+			symlink( $root . '/outside/secret.txt', $root . '/site/wp-config.php' );
+			$name = 'wp-config.php';
+		} elseif ( 'link payload' === $case || 'directory payload' === $case ) {
+			// Entry data is never a header, even when it is shaped like one.
+			$before = $this->tar_entry_bytes( 'before.txt', 'before' ) . ( 'link payload' === $case ? $this->tar_entry_bytes( 'link', $this->tar_entry_bytes( '../victim.txt' ), '2' ) : $this->tar_entry_bytes( 'folder/', $this->tar_entry_bytes( '../victim.txt' ), '5' ) );
+		} elseif ( 'late traversal' === $case || 'late longname traversal' === $case ) {
+			$before = $this->tar_entry_bytes( 'before.txt', str_repeat( 'a', 513 ) );
+			$name = '../outside.txt';
+			if ( 'late longname traversal' === $case ) {
+				$before .= $this->tar_entry_bytes( '././@LongLink', $name . "\0", 'L' );
+				$name = 'placeholder.txt';
+			}
+		}
+		$path = $root . '/archive.tar';
+		file_put_contents( $path, $before . $this->tar_entry_bytes( $name, '5' === $type ? '' : 'archive content', $type ) . $this->tar_entry_bytes( 'after.txt', 'later entry' ) . $this->tar_entry_bytes( 'wp-config.php', 'source config' ) . str_repeat( "\0", 1024 ) );
+		$archiver = new Tar_Archiver( null, 'tar' );
+		$archiver->read( $path );
+		try {
+			$error = null;
+			try {
+				$archiver->extract_to( $root . '/site' );
+			} catch ( Exception $caught ) {
+				$error = $caught;
+			}
+			if ( in_array( $case, array( 'normal', 'leaf', 'directory', 'config', 'config separators', 'config link', 'link payload', 'directory payload' ), true ) ) {
+				$this->assertNull( $error );
+				if ( 'normal' === $case ) {
+					$this->assertSame( 'archive content', file_get_contents( $root . '/site/nested/inside.txt' ) );
+				}
+				$this->assertSame( 'later entry', file_get_contents( $root . '/site/after.txt' ) );
+				if ( 'config link' !== $case ) {
+					$this->assertFileDoesNotExist( $root . '/site/wp-config.php' );
+				}
+			} else {
+				$this->assertInstanceOf( Exception::class, $error, 'Unsafe entries must abort the extraction.' );
+				$this->assertFileDoesNotExist( $root . '/site/before.txt' );
+				$this->assertFileDoesNotExist( $root . '/site/after.txt' );
+			}
+			if ( 'link payload' === $case || 'directory payload' === $case ) {
+				$this->assertSame( 'before', file_get_contents( $root . '/site/before.txt' ) );
+				$this->assertFileDoesNotExist( $root . '/victim.txt' );
+			}
+			$this->assertFileDoesNotExist( $root . '/outside.txt' );
+			$this->assertFileDoesNotExist( $root . '/absolute.txt' );
+			$this->assertFileDoesNotExist( $root . '/outside/escape.txt' );
+			if ( 'leaf' === $case || 'config link' === $case ) {
+				$this->assertTrue( is_link( $root . '/site/' . ( 'leaf' === $case ? 'linked.txt' : 'wp-config.php' ) ) );
+				$this->assertSame( 'original', file_get_contents( $root . '/outside/secret.txt' ) );
+			}
+			if ( 'directory' === $case ) {
+				$this->assertTrue( is_link( $root . '/site/linked' ) );
+				$this->assertSame( array( '.', '..' ), scandir( $root . '/outside' ) );
+			}
+		} finally {
+			$archiver->close();
+			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+			foreach ( $iterator as $file ) {
+				$file->isLink() || ! $file->isDir() ? unlink( $file->getPathname() ) : rmdir( $file->getPathname() );
+			}
+			rmdir( $root );
+		}
+	}
+
+	/**
+	 * The validation pass reads to the end of the archive, and bzip2 streams cannot seek back for the write pass.
+	 */
+	public function test_clone_tar_bz2_extracts_after_validation_pass() {
+		if ( ! function_exists( 'bzcompress' ) ) {
+			$this->markTestSkipped( 'bz2 extension not available.' );
+		}
+		$root = sys_get_temp_dir() . '/mainwp-clone-bz2-' . uniqid();
+		mkdir( $root . '/site', 0777, true );
+		$path = $root . '/archive.tar.bz2';
+		file_put_contents( $path, bzcompress( $this->tar_entry_bytes( 'nested/inside.txt', str_repeat( 'a', 513 ) ) . $this->tar_entry_bytes( './wp-config.php', str_repeat( 'c', 700 ) ) . $this->tar_entry_bytes( 'after.txt', 'later entry' ) . str_repeat( "\0", 1024 ) ) );
+		$archiver = new Tar_Archiver( null, 'tar.bz2' );
+		$archiver->read( $path );
+		try {
+			$archiver->extract_to( $root . '/site' );
+			$this->assertSame( str_repeat( 'a', 513 ), file_get_contents( $root . '/site/nested/inside.txt' ) );
+			$this->assertSame( 'later entry', file_get_contents( $root . '/site/after.txt' ) );
+			$this->assertFileDoesNotExist( $root . '/site/wp-config.php' );
+		} finally {
+			$archiver->close();
+			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+			foreach ( $iterator as $file ) {
+				$file->isDir() ? rmdir( $file->getPathname() ) : unlink( $file->getPathname() );
+			}
+			rmdir( $root );
+		}
+	}
+	public function test_clone_tar_nul_padded_octal_fields_do_not_deprecate() {
+		$root = sys_get_temp_dir() . '/mainwp-tar-octal-' . uniqid();
+		mkdir( $root );
+		mkdir( $root . '/site' );
+		$path = $root . '/archive.tar';
+		file_put_contents( $path, $this->tar_entry_bytes( 'file.txt', 'contents' ) . str_repeat( "\0", 1024 ) );
+		$archiver = new Tar_Archiver( null, 'tar' );
+		$deprecations = array();
+		set_error_handler( static function ( $level, $message ) use ( &$deprecations ) {
+			if ( E_DEPRECATED === $level ) { $deprecations[] = $message; return true; }
+			return false;
+		} );
+		try {
+			$archiver->read( $path );
+			$archiver->extract_to( $root . '/site' );
+			$this->assertSame( 'contents', file_get_contents( $root . '/site/file.txt' ) );
+			$this->assertSame( array(), $deprecations );
+		} finally {
+			restore_error_handler();
+			$archiver->close();
+			unlink( $root . '/site/file.txt' );
+			rmdir( $root . '/site' );
+			unlink( $path );
+			rmdir( $root );
+		}
+	}
+
+	public static function data_truncated_clone_tar_payloads() {
+		$cases = array();
+		foreach ( array( 'tar', 'tar.gz', 'tar.bz2' ) as $format ) {
+			foreach ( array( '0', '1', '2', '5', 'x', 'g', '7', 'protected' ) as $type ) {
+				$cases[ $format . ' ' . $type ] = array( $format, $type );
+			}
+		}
+		return $cases;
+	}
+
+	/** @dataProvider data_truncated_clone_tar_payloads */
+	public function test_clone_tar_truncated_payload_refuses_before_writing( $format, $type ) {
+		if ( 'tar.bz2' === $format && ! function_exists( 'bzcompress' ) ) {
+			$this->markTestSkipped( 'bz2 extension not available.' );
+		}
+		$root = sys_get_temp_dir() . '/mainwp-tar-truncated-' . uniqid();
+		mkdir( $root . '/site', 0755, true );
+		$name = 'protected' === $type ? 'wp-config.php' : ( '5' === $type ? 'folder/' : 'late.txt' );
+		$bytes = $this->tar_entry_bytes( 'before.txt', 'before' ) . substr( $this->tar_entry_bytes( $name, str_repeat( 'x', 1024 ), 'protected' === $type ? '0' : $type ), 0, 513 );
+		$path = $root . '/archive.' . $format;
+		file_put_contents( $path, 'tar.gz' === $format ? gzencode( $bytes ) : ( 'tar.bz2' === $format ? bzcompress( $bytes ) : $bytes ) );
+		$archiver = new Tar_Archiver( null, $format );
+		$archiver->read( $path );
+		try {
+			$caught = null;
+			try { $archiver->extract_to( $root . '/site' ); }
+			catch ( Exception $error ) { $caught = $error; }
+			$this->assertSame( array( '.', '..' ), scandir( $root . '/site' ), 'Validation must refuse a short payload before the first write.' );
+			$this->assertInstanceOf( Exception::class, $caught );
+			$this->assertStringContainsString( 'Archive ended inside an entry', $caught->getMessage() );
+		} finally {
+			$archiver->close();
+			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+			foreach ( $iterator as $file ) {
+				$file->isDir() ? rmdir( $file->getPathname() ) : unlink( $file->getPathname() );
+			}
+			rmdir( $root );
+		}
+	}
+
+	public static function data_clone_tar_damaged_headers() {
+		return array(
+			'checksum mismatch' => array( 'checksum' ),
+			'regular file named as a directory' => array( 'slash' ),
+			'zero checksum' => array( 'zero' ),
+			'damaged magic' => array( 'magic' ),
+			'long name header checksum mismatch' => array( 'longlink' ),
+			'cut on a block boundary' => array( 'cut' ),
+		);
+	}
+
+	/** @dataProvider data_clone_tar_damaged_headers */
+	public function test_clone_tar_damaged_header_refuses_before_writing( $case ) {
+		$root = sys_get_temp_dir() . '/mainwp-tar-header-' . uniqid();
+		mkdir( $root . '/site', 0755, true );
+		$late = 'slash' === $case ? $this->tar_entry_bytes( 'folder/', 'data' ) : $this->tar_entry_bytes( 'late.txt', 'data' );
+		if ( 'checksum' === $case ) {
+			// The stored checksum no longer matches once a name byte changes.
+			$late = substr_replace( $late, 'm', 0, 1 );
+		} elseif ( 'zero' === $case ) {
+			$late = substr_replace( $late, "0000000\0", 148, 8 );
+		} elseif ( 'magic' === $case ) {
+			$late = substr_replace( $late, 'X', 257, 1 );
+		} elseif ( 'longlink' === $case ) {
+			$late = substr_replace( $this->tar_entry_bytes( '././@LongLink', "renamed.txt\0", 'L' ), 'X', 0, 1 ) . $late;
+		}
+		$path = $root . '/archive.tar';
+		file_put_contents( $path, $this->tar_entry_bytes( 'before.txt', 'before' ) . $late . ( 'cut' === $case ? '' : str_repeat( "\0", 1024 ) ) );
+		$archiver = new Tar_Archiver( null, 'tar' );
+		$archiver->read( $path );
+		try {
+			$caught = null;
+			try { $archiver->extract_to( $root . '/site' ); }
+			catch ( Exception $error ) { $caught = $error; }
+			$this->assertInstanceOf( Exception::class, $caught );
+			$this->assertSame( array( '.', '..' ), scandir( $root . '/site' ), 'Validation must refuse a damaged header before the first write.' );
+		} finally {
+			$archiver->close();
+			rmdir( $root . '/site' );
+			unlink( $path );
+			rmdir( $root );
+		}
+	}
+
+	public static function data_clone_tar_longname_lengths() {
+		return array( 'limit' => array( 65536 ), 'over limit' => array( 65537 ) );
+	}
+
+	/** @dataProvider data_clone_tar_longname_lengths */
+	public function test_clone_tar_longname_length_is_bounded_before_reading( $length ) {
+		$root = sys_get_temp_dir() . '/mainwp-tar-longname-' . uniqid();
+		mkdir( $root . '/site', 0755, true );
+		$path = $root . '/archive.tar';
+		$before = $this->tar_entry_bytes( 'before.txt', 'before' );
+		file_put_contents( $path, $before . $this->tar_entry_bytes( '././@LongLink', str_pad( "inside.txt\0", $length, "\0" ), 'L' ) . $this->tar_entry_bytes( 'placeholder', 'contents' ) . str_repeat( "\0", 1024 ) );
+		$archiver = new Tar_Archiver( null, 'tar' );
+		$archiver->read( $path );
+		try {
+			$caught = null;
+			try { $archiver->extract_to( $root . '/site' ); }
+			catch ( Exception $error ) { $caught = $error; }
+			if ( $length > 65536 ) {
+				$this->assertInstanceOf( Exception::class, $caught );
+				$archive = new ReflectionProperty( $archiver, 'archive' );
+				$archive->setAccessible( true );
+				$this->assertSame( strlen( $before ) + 512, ftell( $archive->getValue( $archiver ) ), 'An oversized name must be refused before its payload is read.' );
+				$this->assertSame( array( '.', '..' ), scandir( $root . '/site' ) );
+			} else {
+				$this->assertNull( $caught );
+				$this->assertSame( 'contents', file_get_contents( $root . '/site/inside.txt' ) );
+			}
+		} finally {
+			$archiver->close();
+			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+			foreach ( $iterator as $file ) {
+				$file->isDir() ? rmdir( $file->getPathname() ) : unlink( $file->getPathname() );
+			}
+			rmdir( $root );
+		}
+	}
+
+	public static function data_clone_refusal_names() {
+		return array(
+			'traversal'          => array( 'a/../<b>up</b>.txt', 'path traversal', 'a/../&lt;b&gt;up&lt;/b&gt;.txt' ),
+			'invalid UTF-8'      => array( "a/../\xe9.txt", 'path traversal', array( 'a/../', '.txt' ) ),
+			'absolute'           => array( '/<b>abs</b>.txt', 'absolute path', '/&lt;b&gt;abs&lt;/b&gt;.txt' ),
+			'nul byte'           => array( "nul\0<b>.txt", 'NUL byte', 'nul\\0&lt;b&gt;.txt' ),
+			'outside the root'   => array( 'linked/<b>esc</b>.txt', 'outside', 'linked/&lt;b&gt;esc&lt;/b&gt;.txt' ),
+			'type conflict'      => array( 'taken/a&b', 'conflicts', 'taken/a&amp;b' ),
+			'file with a slash'  => array( '<b>file</b>/', 'ends with a slash', '&lt;b&gt;file&lt;/b&gt;/' ),
+		);
+	}
+
+	/**
+	 * A refused clone must say which entry, escaped for the Dashboard's HTML notice.
+	 *
+	 * @dataProvider data_clone_refusal_names
+	 */
+	public function test_clone_refusal_names_the_entry( $name, $reason, $escaped ) {
+		$root = sys_get_temp_dir() . '/mainwp-clone-refusal-' . uniqid();
+		mkdir( $root . '/site/taken', 0777, true );
+		mkdir( $root . '/outside' );
+		file_put_contents( $root . '/site/taken/a&b', 'file' );
+		symlink( $root . '/outside', $root . '/site/linked' );
+		$archiver = null;
+		try {
+			$error = null;
+			try {
+				if ( 'ends with a slash' === $reason ) {
+					// Header names cannot hold a NUL, so only this case goes through a real archive.
+					file_put_contents( $root . '/archive.tar', $this->tar_entry_bytes( $name, 'data' ) . str_repeat( "\0", 1024 ) );
+					$archiver = new Tar_Archiver( null, 'tar' );
+					$archiver->read( $root . '/archive.tar' );
+					$archiver->extract_to( $root . '/site' );
+				} else {
+					\MainWP\Child\MainWP_Clone_Install::clone_entry_target( 'conflicts' === $reason ? $name . '/' : $name, $root . '/site' );
+				}
+			} catch ( Exception $caught ) {
+				$error = $caught->getMessage();
+			}
+			$this->assertNotNull( $error );
+			$this->assertStringContainsString( $reason, $error );
+			foreach ( (array) $escaped as $text ) {
+				$this->assertStringContainsString( $text, $error, 'The refusal must name the entry, escaped.' );
+			}
+			$this->assertStringNotContainsString( '<b>', $error );
+		} finally {
+			if ( $archiver ) {
+				$archiver->close();
+			}
+			unlink( $root . '/site/linked' );
+			$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+			foreach ( $iterator as $file ) {
+				$file->isDir() ? rmdir( $file->getPathname() ) : unlink( $file->getPathname() );
+			}
+			rmdir( $root );
+		}
+	}
+
+	/**
+	 * Refusals must still name an entry whose bytes are not valid UTF-8, on every supported
+	 * WordPress: before 6.9, wp_check_invalid_utf8() strips through iconv(), which returns false.
+	 */
+	public function test_clone_entry_label_keeps_invalid_utf8_names() {
+		$this->assertSame( 'a/../?.txt', \MainWP\Child\MainWP_Clone_Install::entry_label( "a/../\xe9.txt" ) );
+		$this->assertSame( 'cut ??', \MainWP\Child\MainWP_Clone_Install::entry_label( "cut \xe6\x97" ) );
+		$this->assertSame( 'nul\\0.txt', \MainWP\Child\MainWP_Clone_Install::entry_label( "nul\0.txt" ) );
+		$this->assertSame( "caf\xc3\xa9/<b>.txt", \MainWP\Child\MainWP_Clone_Install::entry_label( "caf\xc3\xa9/<b>.txt" ), 'Valid UTF-8 is kept; escaping is the caller\'s job.' );
+	}
+
+}

@@ -31,6 +31,8 @@ class Test_MainWP_Pages_Unique_Security_Id_Copy extends WP_UnitTestCase {
 		wp_set_current_user( $this->user_id );
 		delete_option( 'mainwp_child_uniqueId' );
 		delete_user_option( $this->user_id, 'mainwp_child_user_enable_passwd_auth_connect' );
+		// Returning false prevents redirect headers and request termination while testing saved settings.
+		add_filter( 'wp_redirect', '__return_false' );
 	}
 
 	/**
@@ -145,4 +147,60 @@ class Test_MainWP_Pages_Unique_Security_Id_Copy extends WP_UnitTestCase {
 			$extra
 		);
 	}
+	public static function data_successful_redirects() {
+		return array(
+			'disconnect'     => array( 'disconnect', 'true' ),
+			'settings'       => array( 'settings', 'true' ),
+			'tools'          => array( 'tools', 'true' ),
+			'tools-canceled' => array( 'tools', 'false' ),
+			'tools-in-query' => array( 'tools-in-query', 'false' ),
+		);
+	}
+
+	/** @dataProvider data_successful_redirects */
+	public function test_successful_redirect_ends_request( $case, $redirected ) {
+		$code = <<<'CODE'
+namespace MainWP\Child;
+class MainWP_Helper {
+    public static function get_site_unique_id() { return 'id'; }
+    public static function update_option( $key, $value ) {}
+}
+class MainWP_Child_Branding {
+    public static function instance() { return new self(); }
+    public function get_branding_options() { return array( 'remove_wp_tools' => true, 'cancelled_branding' => false, 'remove_setting' => true, 'remove_restore' => true, 'remove_server_info' => true ); }
+}
+function wp_safe_redirect( $url ) { echo 'redirect'; return REDIRECTED; }
+function wp_verify_nonce( $nonce, $action ) { return true; }
+function sanitize_text_field( $value ) { return $value; }
+function wp_unslash( $value ) { return $value; }
+function delete_option( $key ) {}
+function update_user_option( $id, $key, $value ) {}
+function get_current_user_id() { return 1; }
+function remove_menu_page( $page ) {}
+function esc_url_raw( $url ) { return $url; }
+function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); }
+function get_option( $key ) { return 'https://example.org'; }
+CODE;
+		$code .= "\ndefine( 'REDIRECTED', " . $redirected . " );\ndefine( 'ABSPATH', '/' );\nrequire " . var_export( dirname( __DIR__ ) . '/class/class-mainwp-pages.php', true ) . ";\n";
+		$code .= '$pages = (new \\ReflectionClass( MainWP_Pages::class ))->newInstanceWithoutConstructor();' . "\n";
+		if ( 'disconnect' === $case ) {
+			$code .= '$mainWPChild = new class { public function delete_connection_data( $reset ) {} }; $_POST = array( "nonce-disconnect" => "valid" ); $pages->admin_init();';
+		} elseif ( 'settings' === $case ) {
+			$code .= '$_POST = array( "submit" => 1, "nonce" => "valid", "mainwp_child_user_enable_pwd_auth_connect" => 1 ); $pages->admin_init();';
+		} elseif ( 'tools-in-query' === $case ) {
+			$code .= '$_SERVER["REQUEST_URI"] = "/wp-admin/admin.php?page=reports&return=tools.php"; $pages->admin_menu();';
+		} else {
+			$code .= '$_SERVER["REQUEST_URI"] = "/wp-admin/tools.php"; $pages->admin_menu();';
+		}
+		$code .= 'echo "continued";';
+		$process = proc_open( array( PHP_BINARY, '-r', $code ), array( 1 => array( 'pipe', 'w' ), 2 => array( 'pipe', 'w' ) ), $pipes );
+		$this->assertIsResource( $process );
+		$output = stream_get_contents( $pipes[1] );
+		$errors = stream_get_contents( $pipes[2] );
+		fclose( $pipes[1] );
+		fclose( $pipes[2] );
+		$this->assertSame( 0, proc_close( $process ), $errors );
+		$this->assertSame( 'tools-in-query' === $case ? 'continued' : 'redirect', $output );
+	}
+
 }
