@@ -201,9 +201,9 @@ class MainWP_Pages {
             remove_menu_page( 'tools.php' );
             $pos = $uri ? stripos( $uri, 'tools.php' ) || stripos( $uri, 'import.php' ) || stripos( $uri, 'export.php' ) : false;
             if ( false !== $pos ) {
-                if ( wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' ) ) {
-                    exit;
-                }
+                // Branding hides Tools, so the page stays blocked even when a filter cancels the redirect.
+                wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
+                exit;
             }
         }
         // if preserve branding and do not remove menus.

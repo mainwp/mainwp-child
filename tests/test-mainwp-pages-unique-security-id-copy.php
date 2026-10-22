@@ -148,11 +148,16 @@ class Test_MainWP_Pages_Unique_Security_Id_Copy extends WP_UnitTestCase {
 		);
 	}
 	public static function data_successful_redirects() {
-		return array( 'disconnect' => array( 'disconnect' ), 'settings' => array( 'settings' ), 'tools' => array( 'tools' ) );
+		return array(
+			'disconnect'     => array( 'disconnect', 'true' ),
+			'settings'       => array( 'settings', 'true' ),
+			'tools'          => array( 'tools', 'true' ),
+			'tools-canceled' => array( 'tools', 'false' ),
+		);
 	}
 
 	/** @dataProvider data_successful_redirects */
-	public function test_successful_redirect_ends_request( $case ) {
+	public function test_successful_redirect_ends_request( $case, $redirected ) {
 		$code = <<<'CODE'
 namespace MainWP\Child;
 class MainWP_Helper {
@@ -163,7 +168,7 @@ class MainWP_Child_Branding {
     public static function instance() { return new self(); }
     public function get_branding_options() { return array( 'remove_wp_tools' => true, 'cancelled_branding' => false, 'remove_setting' => true, 'remove_restore' => true, 'remove_server_info' => true ); }
 }
-function wp_safe_redirect( $url ) { echo 'redirect'; return true; }
+function wp_safe_redirect( $url ) { echo 'redirect'; return REDIRECTED; }
 function wp_verify_nonce( $nonce, $action ) { return true; }
 function sanitize_text_field( $value ) { return $value; }
 function wp_unslash( $value ) { return $value; }
@@ -174,7 +179,7 @@ function remove_menu_page( $page ) {}
 function esc_url_raw( $url ) { return $url; }
 function get_option( $key ) { return 'https://example.org'; }
 CODE;
-		$code .= "\ndefine( 'ABSPATH', '/' );\nrequire " . var_export( dirname( __DIR__ ) . '/class/class-mainwp-pages.php', true ) . ";\n";
+		$code .= "\ndefine( 'REDIRECTED', " . $redirected . " );\ndefine( 'ABSPATH', '/' );\nrequire " . var_export( dirname( __DIR__ ) . '/class/class-mainwp-pages.php', true ) . ";\n";
 		$code .= '$pages = (new \\ReflectionClass( MainWP_Pages::class ))->newInstanceWithoutConstructor();' . "\n";
 		if ( 'disconnect' === $case ) {
 			$code .= '$mainWPChild = new class { public function delete_connection_data( $reset ) {} }; $_POST = array( "nonce-disconnect" => "valid" ); $pages->admin_init();';
