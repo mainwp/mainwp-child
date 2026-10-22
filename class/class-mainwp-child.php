@@ -153,31 +153,32 @@ class MainWP_Child {
      * This method handles all the admin-area specific initializations.
      */
     private function init_admin_components() {
-        if ( ! is_admin() ) {
-            return;
+
+        if ( is_admin() || isset( $_REQUEST['mainwpsignature'] ) ) {  // phpcs:ignore WordPress.Security.NonceVerification
+            // Update plugin version in database.
+            MainWP_Helper::update_option( 'mainwp_child_plugin_version', static::$version, 'yes' );
+
+            // Initialize connection-related components.
+            MainWP_Connect::instance()->check_other_auth();
+
+            // Initialize core features.
+            MainWP_Clone::instance()->init();
+            MainWP_Client_Report::instance()->init();
+
+            // Initiate MainWP Cache Control class.
+            MainWP_Child_Cache_Purge::instance();
+
+            // Initiate MainWP Users class to register password change tracking hooks.
+            MainWP_Child_Users::get_instance();
         }
 
-        // Update plugin version in database.
-        MainWP_Helper::update_option( 'mainwp_child_plugin_version', static::$version, 'yes' );
+        if ( is_admin() ) {
+            // Register screen-specific hooks.
+            $this->register_screen_hooks();
 
-        // Initialize connection-related components.
-        MainWP_Connect::instance()->check_other_auth();
-
-        // Initialize core features.
-        MainWP_Clone::instance()->init();
-        MainWP_Client_Report::instance()->init();
-
-        // Register screen-specific hooks.
-        $this->register_screen_hooks();
-
-        // Initiate MainWP Cache Control class.
-        MainWP_Child_Cache_Purge::instance();
-
-        // Initiate MainWP Users class to register password change tracking hooks.
-        MainWP_Child_Users::get_instance();
-
-        // Initiate MainWP Password Policy class.
-        MainWP_Child_Password_Policy::instance();
+            // Initiate MainWP Password Policy class.
+            MainWP_Child_Password_Policy::instance();
+        }
     }
 
     /**
