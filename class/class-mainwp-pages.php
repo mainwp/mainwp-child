@@ -193,10 +193,11 @@ class MainWP_Pages {
      * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
      */
     public function admin_menu() { //phpcs:ignore -- NOSONAR - complex method.
+        // $uri is the request path only: a query argument naming tools.php must not block an unrelated page.
         $branding_opts      = MainWP_Child_Branding::instance()->get_branding_options();
         $is_hide            = isset( $branding_opts['hide'] ) ? $branding_opts['hide'] : '';
         $cancelled_branding = $branding_opts['cancelled_branding'];
-        $uri                = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+        $uri                = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_parse_url( esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ), PHP_URL_PATH ) : '';
         if ( isset( $branding_opts['remove_wp_tools'] ) && $branding_opts['remove_wp_tools'] && ! $cancelled_branding ) {
             remove_menu_page( 'tools.php' );
             $pos = $uri ? stripos( $uri, 'tools.php' ) || stripos( $uri, 'import.php' ) || stripos( $uri, 'export.php' ) : false;

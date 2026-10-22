@@ -153,6 +153,7 @@ class Test_MainWP_Pages_Unique_Security_Id_Copy extends WP_UnitTestCase {
 			'settings'       => array( 'settings', 'true' ),
 			'tools'          => array( 'tools', 'true' ),
 			'tools-canceled' => array( 'tools', 'false' ),
+			'tools-in-query' => array( 'tools-in-query', 'false' ),
 		);
 	}
 
@@ -177,6 +178,7 @@ function update_user_option( $id, $key, $value ) {}
 function get_current_user_id() { return 1; }
 function remove_menu_page( $page ) {}
 function esc_url_raw( $url ) { return $url; }
+function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); }
 function get_option( $key ) { return 'https://example.org'; }
 CODE;
 		$code .= "\ndefine( 'REDIRECTED', " . $redirected . " );\ndefine( 'ABSPATH', '/' );\nrequire " . var_export( dirname( __DIR__ ) . '/class/class-mainwp-pages.php', true ) . ";\n";
@@ -185,6 +187,8 @@ CODE;
 			$code .= '$mainWPChild = new class { public function delete_connection_data( $reset ) {} }; $_POST = array( "nonce-disconnect" => "valid" ); $pages->admin_init();';
 		} elseif ( 'settings' === $case ) {
 			$code .= '$_POST = array( "submit" => 1, "nonce" => "valid", "mainwp_child_user_enable_pwd_auth_connect" => 1 ); $pages->admin_init();';
+		} elseif ( 'tools-in-query' === $case ) {
+			$code .= '$_SERVER["REQUEST_URI"] = "/wp-admin/admin.php?page=reports&return=tools.php"; $pages->admin_menu();';
 		} else {
 			$code .= '$_SERVER["REQUEST_URI"] = "/wp-admin/tools.php"; $pages->admin_menu();';
 		}
@@ -196,7 +200,7 @@ CODE;
 		fclose( $pipes[1] );
 		fclose( $pipes[2] );
 		$this->assertSame( 0, proc_close( $process ), $errors );
-		$this->assertSame( 'redirect', $output );
+		$this->assertSame( 'tools-in-query' === $case ? 'continued' : 'redirect', $output );
 	}
 
 }
