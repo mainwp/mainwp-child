@@ -96,8 +96,13 @@ class MainWP_Child_Exact_Update {
     private function installed_matches( $request ) {
         $file = WP_PLUGIN_DIR . '/' . $request['slug'];
         clearstatcache();
-        return is_file( $file ) && ! is_link( $file ) && ! is_link( dirname( $file ) ) &&
-            get_plugin_data( $file, false, false )['Version'] === $request['current_version'];
+        if ( ! is_file( $file ) ) {
+            return false;
+        }
+        if ( is_link( $file ) || is_link( dirname( $file ) ) ) {
+            return false;
+        }
+        return get_plugin_data( $file, false, false )['Version'] === $request['current_version'];
     }
 
     /**
@@ -140,24 +145,6 @@ class MainWP_Child_Exact_Update {
     }
 
     /**
-     * Scope the source guard to this updater without shared mutable state.
-     *
-     * @param \Plugin_Upgrader $upgrader Updater instance.
-     * @param array            $request Selection.
-     * @param string           $lock Lock timestamp.
-     * @return \Closure Source filter.
-     */
-    private function source_guard( $upgrader, $request, $lock ) {
-        return function ( $source, $remote_source, $instance, $extra ) use ( $upgrader, $request, $lock ) {
-            unset( $remote_source ); // Required WordPress filter position, intentionally unused.
-            if ( $instance !== $upgrader || is_wp_error( $source ) ) {
-                return $source;
-            }
-            return $this->validate_source( $source, $extra, $request, $lock );
-        };
-    }
-
-    /**
      * Refuse changed versions or archive identity before core replaces files.
      *
      * @param string $source Unpacked directory.
@@ -192,7 +179,13 @@ class MainWP_Child_Exact_Update {
     private function run_update( $request, $package, $lock ) {
         $upgrader     = new Plugin_Upgrader( new WP_Ajax_Upgrader_Skin() );
         $pin          = $this->package_guard( $upgrader, $request['slug'], $package );
-        $guard        = $this->source_guard( $upgrader, $request, $lock );
+        $guard        = function ( $source, $remote_source, $instance, $extra ) use ( $upgrader, $request, $lock ) {
+            unset( $remote_source ); // Required WordPress filter position, intentionally unused.
+            if ( $instance !== $upgrader || is_wp_error( $source ) ) {
+                return $source;
+            }
+            return $this->validate_source( $source, $extra, $request, $lock );
+        };
         $translations = static function () {
             return false;
         };
