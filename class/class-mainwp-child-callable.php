@@ -62,6 +62,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         'newadminpassword'              => 'new_admin_password',
         'installplugintheme'            => 'install_plugin_theme',
         'upgradeplugintheme'            => 'upgrade_plugin_theme',
+        'upgradepluginexact'            => 'upgrade_plugin_exact',
         'upgradetranslation'            => 'upgrade_translation',
         'backup'                        => 'backup',
         'backup_checkpid'               => 'backup_checkpid',
@@ -346,6 +347,27 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public function upgrade_plugin_theme() {
         MainWP_Child_Updates::get_instance()->upgrade_plugin_theme();
+    }
+
+    /**
+     * Execute an authenticated, version-bound single plugin update.
+     *
+     * @SuppressWarnings(PHPMD.Superglobals) This is the authenticated request boundary.
+     * @SuppressWarnings(PHPMD.StaticAccess) MainWP's terminal response writer is static.
+     */
+    public function upgrade_plugin_exact() {
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Authenticated MainWP command.
+        $request = wp_unslash( $_POST );
+        $result  = ( new MainWP_Child_Exact_Update() )->update( $request );
+        if ( $result instanceof \WP_Error ) {
+            $result = array(
+                'success'    => 0,
+                'message'    => $result->get_error_message(),
+                'error'      => $result->get_error_message(),
+                'error_code' => $result->get_error_code(),
+            );
+        }
+        MainWP_Helper::write( $result );
     }
 
     /**
