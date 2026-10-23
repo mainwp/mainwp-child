@@ -194,6 +194,21 @@ class Test_Exact_Plugin_Update extends WP_UnitTestCase {
 		);
 	}
 
+	public function test_site_file_modification_policy_refuses_before_lock_or_download() {
+		$this->skipWithMultisite();
+		add_filter( 'file_mod_allowed', '__return_false' );
+		try {
+			$result = $this->request();
+			$this->assertWPError( $result );
+			$this->assertSame( 'mainwp_exact_file_mods_disabled', $result->get_error_code() );
+			$this->assertSame( 0, $this->downloads );
+			$this->assertFalse( get_option( 'auto_updater.lock' ) );
+			$this->assert_unchanged();
+		} finally {
+			remove_filter( 'file_mod_allowed', '__return_false' );
+		}
+	}
+
 	public function test_stale_installed_version_refuses_before_download() {
 		$this->skipWithMultisite();
 		$this->write_installed( '0.9' );
