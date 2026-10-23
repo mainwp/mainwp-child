@@ -71,7 +71,7 @@ class MainWP_Child_Exact_Update {
      */
     private function validate_request( $request ) {
         foreach ( array( 'slug', 'current_version', 'target_version' ) as $key ) {
-            if ( ! isset( $request[ $key ] ) || ! is_string( $request[ $key ] ) ) {
+            if ( ! is_string( $request[ $key ] ?? null ) ) {
                 return new WP_Error( 'mainwp_exact_invalid_request', 'One plugin and both exact versions are required.' );
             }
         }
@@ -83,6 +83,9 @@ class MainWP_Child_Exact_Update {
         }
         if ( is_multisite() ) {
             return new WP_Error( 'mainwp_exact_multisite', 'Exact single-site updates are unavailable on multisite because plugin files are shared.' );
+        }
+        if ( ! wp_is_file_mod_allowed( 'mainwp-exact-update' ) ) {
+            return new WP_Error( 'mainwp_exact_file_mods_disabled', 'File modifications are disabled on this site.' );
         }
         return true;
     }
