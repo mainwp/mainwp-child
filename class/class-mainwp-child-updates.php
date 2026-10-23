@@ -160,19 +160,32 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
 
         static::enable_pre_auto_rollback_hooking();
 
-        $plugin_update = false;
-        // phpcs:disable WordPress.Security.NonceVerification
-        if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {
-            $this->upgrade_plugin( $information, $mwp_premium_updates_to_do, $mwp_premium_updates_to_do_slugs, $premiumUpgrader );
-            $plugin_update = true;
-        } elseif ( isset( $_POST['type'] ) && 'theme' === $_POST['type'] ) {
-            $this->upgrade_theme( $information, $mwp_premium_updates_to_do, $mwp_premium_updates_to_do_slugs, $premiumUpgrader );
-        } else {
-            MainWP_Helper::instance()->error( esc_html__( 'Invalid request!', 'mainwp-child' ) );
-        }
+        $plugin_update  = false;
+        $locked         = false;
+        $inner_lock_key = 'mainwp_child:mainwp_child_premium_update_visit_lock';
+        try {
+            // phpcs:disable WordPress.Security.NonceVerification
+            if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {
+                $locked = self::acquire_premium_update_visit_lock( $inner_lock_key );
+                if ( ! $locked ) {
+                    MainWP_Helper::instance()->error( esc_html__( 'A premium plugin update is already in progress. Please try again later.', 'mainwp-child' ) );
+                    return;
+                }
+                $this->upgrade_plugin( $information, $mwp_premium_updates_to_do, $mwp_premium_updates_to_do_slugs, $premiumUpgrader );
+                $plugin_update = true;
+            } elseif ( isset( $_POST['type'] ) && 'theme' === $_POST['type'] ) {
+                $this->upgrade_theme( $information, $mwp_premium_updates_to_do, $mwp_premium_updates_to_do_slugs, $premiumUpgrader );
+            } else {
+                MainWP_Helper::instance()->error( esc_html__( 'Invalid request!', 'mainwp-child' ) );
+            }
 
-        if ( count( $mwp_premium_updates_to_do ) > 0 ) {
-            $this->update_premiums_to_do( $information, $premiumUpgrader, $mwp_premium_updates_to_do, $mwp_premium_updates_to_do_slugs );
+            if ( count( $mwp_premium_updates_to_do ) > 0 ) {
+                $this->update_premiums_to_do( $information, $premiumUpgrader, $mwp_premium_updates_to_do, $mwp_premium_updates_to_do_slugs );
+            }
+        } finally {
+            if ( $locked ) {
+                self::release_premium_update_visit_lock( $inner_lock_key );
+            }
         }
 
         /**
@@ -1240,10 +1253,6 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                 $get_args['_mainwp_premium_update_req']        = $request_action;
                 $get_args['_mainwp_premium_update_nonce_key']  = intval( time() );
                 $get_args['_mainwp_premium_update_nonce_hmac'] = hash_hmac( 'sha256', $get_args['_mainwp_premium_update_nonce_key'], wp_salt( 'nonce' ) );
-
-                $check_lock = false;
-                $lock_token = false;
-
                 if ( 'premium_update' === $perform ) {
                     if ( empty( $list ) ) {
                         return array( 'error' => __( 'No items to update.', 'mainwp-child' ) );
@@ -1251,26 +1260,7 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                     $get_args['list'] = $list;
 
                 }
-
-                if ( 'plugin' === $type ) {
-                    $check_lock = true;
-                }
-
-                if ( $check_lock ) {
-                    $lock_token = self::acquire_premium_update_visit_lock();
-
-                    if ( ! $lock_token ) {
-                        return array( 'error' => __( 'Failed to acquire the lock for the premium plugin update. Another update may already be in progress. Please try again later.', 'mainwp-child' ) );
-                    }
-                }
-
-                try {
-                    return MainWP_Utility::instance()->simulate_admin_visit( $target_path, $get_args, $perform );
-                } finally {
-                    if ( $check_lock && $lock_token ) {
-                        self::release_premium_update_visit_lock( $lock_token );
-                    }
-                }
+                return MainWP_Utility::instance()->simulate_admin_visit( $target_path, $get_args, $perform, $type );
             }
         }
 
@@ -1278,82 +1268,97 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
     }
 
     /**
-     * Acquire a lock for a simulated premium plugin update visit.
+     * Build a site-specific premium update lock key.
      *
-     * @param int $timeout Lock expiration in seconds.
-     * @return string|false The lock owner token, or false if unavailable.
+     * @param string $lock_key Logical lock name.
+     *
+     * @return string Site-specific lock key.
      */
-    private static function acquire_premium_update_visit_lock( $timeout = 600 ) {
+    private static function get_premium_update_lock_key( $lock_key ) {
         global $wpdb;
-
-        $lock_name  = 'mainwp_child_premium_update_visit_lock';
-        $lock_token = time() . ':' . wp_generate_uuid4();
-
-        if ( add_option( $lock_name, $lock_token, '', false ) ) {
-            return $lock_token;
-        }
-
-        $existing_lock = get_option( $lock_name, '' );
-
-        if ( ! is_string( $existing_lock ) ) {
-            return false;
-        }
-
-        $lock_parts = explode( ':', $existing_lock, 2 );
-
-        if ( 2 !== count( $lock_parts ) || ! ctype_digit( $lock_parts[0] ) ) {
-            return false;
-        }
-
-        if ( ( time() - (int) $lock_parts[0] ) <= $timeout ) {
-            return false;
-        }
-
-        // Delete only if the option still contains the exact expired value observed.
-        $deleted = $wpdb->query( // phpcs:ignore -- query ok.
-            $wpdb->prepare(
-                "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s",
-                $lock_name,
-                $existing_lock
-            )
-        );
-
-        if ( 1 !== $deleted ) {
-            return false;
-        }
-
-        // Another request may acquire the lock first.
-        if ( add_option( $lock_name, $lock_token, '', false ) ) {
-            return $lock_token;
-        }
-
-        return false;
+        return md5( DB_NAME . $wpdb->prefix . $lock_key ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_md5 -- NOSONAR - MD5 is used only to generate a fixed-length lock key, not for cryptographic security.
     }
 
     /**
-     * Release the lock only if it is still owned by this request.
+     * Acquire a lock for a simulated premium plugin update visit.
      *
-     * @param string $lock_token The token returned by the acquisition method.
-     * @return bool Whether the lock was released.
+     * @param string $lock_key Lock name.
+     *
+     * @return bool Whether the lock was acquired.
      */
-    private static function release_premium_update_visit_lock( $lock_token ) {
+    public static function acquire_premium_update_visit_lock( $lock_key = 'mainwp_child:mainwp_child_premium_update_visit_lock' ) {
         global $wpdb;
 
-        if ( ! is_string( $lock_token ) || '' === $lock_token ) {
+        $lock_key = self::get_premium_update_lock_key( $lock_key );
+
+        $wpdb->last_error = '';
+        $acquired         = $wpdb->get_var(
+            $wpdb->prepare(
+                'SELECT GET_LOCK(%s, 0)',
+                $lock_key
+            )
+        ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Named lock acquisition must be checked.
+
+        return empty( $wpdb->last_error ) && '1' === (string) $acquired;
+    }
+
+    /**
+     * Release the named lock acquired by this database connection.
+     *
+     * @param string $lock_key Lock name.
+     *
+     * @return bool Whether the lock was released.
+     */
+    public static function release_premium_update_visit_lock( $lock_key = 'mainwp_child:mainwp_child_premium_update_visit_lock' ) {
+        global $wpdb;
+
+        $lock_key = self::get_premium_update_lock_key( $lock_key );
+
+        $wpdb->last_error = '';
+        $released         = $wpdb->get_var(
+            $wpdb->prepare(
+                'SELECT RELEASE_LOCK(%s)',
+                $lock_key
+            )
+        ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Named lock release must be checked.
+
+        return empty( $wpdb->last_error ) && '1' === (string) $released;
+    }
+
+
+    /**
+     * Check whether the premium update visit lock is available.
+     *
+     * This is an availability check only. The actual update handler must
+     * acquire the lock again before starting the update.
+     *
+     * @param string $lock_key Lock name.
+     *
+     * @return bool Whether the lock is available.
+     */
+    public static function is_premium_update_visit_lock_available( $lock_key = 'mainwp_child:mainwp_child_premium_update_visit_lock' ) {
+        global $wpdb;
+
+        $lock_key = self::get_premium_update_lock_key( $lock_key );
+
+        $wpdb->last_error = '';
+
+        $acquired = $wpdb->get_var(
+            $wpdb->prepare( 'SELECT GET_LOCK(%s, 0)', $lock_key )
+        ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Named lock availability must be checked.
+
+        if ( ! empty( $wpdb->last_error ) || '1' !== (string) $acquired ) {
             return false;
         }
 
-        $deleted = $wpdb->query( // phpcs:ignore -- query ok.
-            $wpdb->prepare(
-                "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s",
-                'mainwp_child_premium_update_visit_lock',
-                $lock_token
-            )
-        );
+        $wpdb->last_error = '';
 
-        return 1 === $deleted;
+        $released = $wpdb->get_var(
+            $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock_key )
+        ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Release the temporary availability lock.
+
+        return empty( $wpdb->last_error ) && '1' === (string) $released;
     }
-
 
     /**
      * Install a short-lived HTTP timeout guard before triggering premium update detection.
