@@ -184,7 +184,7 @@ class BackupDownloadTokenTest extends WP_UnitTestCase {
 		} else {
 			$this->assertSame( array( 'error', 'error_code' ), array_keys( $answer ) );
 			$this->assertSame( $code, $answer['error_code'] );
-			$this->assertSame( 'Could not read the backup record to check this file. Try the download again. If it keeps failing, check the child site error log or run a new backup.', $answer['error'] );
+			$this->assertSame( 'Could not read the backup record to check this file. Try the download again. If it keeps failing, run a new backup.', $answer['error'] );
 		}
 	}
 
@@ -233,7 +233,7 @@ class BackupDownloadTokenTest extends WP_UnitTestCase {
 	 * Each download error code maps to a specific, non-fallback message.
 	 */
 	public function test_download_error_messages_are_specific() {
-		$this->assertSame( 'Could not read the backup record to check this file. Try the download again. If it keeps failing, check the child site error log or run a new backup.', MainWP_Backup_Error::message( 'mainwp_backup_dl_recorded_hash_unreadable' ) );
+		$this->assertSame( 'Could not read the backup record to check this file. Try the download again. If it keeps failing, run a new backup.', MainWP_Backup_Error::message( 'mainwp_backup_dl_recorded_hash_unreadable' ) );
 		$fallback = MainWP_Backup_Error::message( 'mainwp_backup_nonexistent_code' );
 		$codes    = array(
 			MainWP_Backup_Error::ERR_DL_RECORDED_HASH_UNREADABLE,
