@@ -132,7 +132,7 @@ class MainWP_Pages {
                     $explanation .= ' ' . __( 'It is active again.', 'mainwp-child' );
                 } else {
                     // translators: %d: Current connection window in minutes.
-                    $explanation .= ' ' . sprintf( _n( 'It is active again, and you have %d minute to add this site from your Dashboard.', 'It is active again, and you have %d minutes to add this site from your Dashboard.', $window['minutes'], 'mainwp-child' ), $window['minutes'] );
+                    $explanation .= ' ' . sprintf( _n( 'It is active again, with the same %d-minute limit.', 'It is active again, with the same %d-minute limit.', $window['minutes'], 'mainwp-child' ), $window['minutes'] );
                 }
                 $msg .= '<p>' . esc_html( str_replace( array( 'MainWP Child', 'MainWP Dashboard' ), array( $child_name, $dashboard_name ), $explanation ) ) . '</p>';
             }

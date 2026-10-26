@@ -631,14 +631,17 @@ class MainWP_Child {
                 } elseif ( $lasttime_active < time() - $ttl_pubkey * MINUTE_IN_SECONDS ) {
                     include_once ABSPATH . '/wp-admin/includes/plugin.php'; // NOSONAR -- WP compatible.
                     delete_option( 'mainwp_child_lasttime_not_connected' );
-                    // Silent deactivation skips hooks, so retain the reason for the next activation notice.
-                    MainWP_Helper::update_option(
-                        'mainwp_child_connection_window_expired',
-                        array(
-                            'time' => time(),
-                            'ttl'  => $ttl_pubkey,
-                        )
-                    );
+                    // Silent deactivation skips hooks, so keep the reason for the next activation notice.
+                    // A must-use load is not in active_plugins, never deactivates, and has nothing to explain.
+                    if ( is_plugin_active( $this->plugin_slug ) ) {
+                        MainWP_Helper::update_option(
+                            'mainwp_child_connection_window_expired',
+                            array(
+                                'time' => time(),
+                                'ttl'  => $ttl_pubkey,
+                            )
+                        );
+                    }
                     deactivate_plugins( $this->plugin_slug, true );
                 }
             }
