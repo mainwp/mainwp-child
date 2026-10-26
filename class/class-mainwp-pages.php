@@ -109,14 +109,60 @@ class MainWP_Pages {
             $child_name     = ( '' === $branding_opts['branding_preserve_title'] ) ? 'MainWP Child' : $branding_opts['branding_preserve_title'];
             $dashboard_name = ( '' === $branding_opts['branding_preserve_title'] ) ? 'MainWP Dashboard' : $branding_opts['branding_preserve_title'] . ' Dashboard';
 
-            $msg = '<div style="background:#ffffff;padding:20px;margin:20px 20px 20px 2px;border:1px solid #f4f4f4;">';
+            $window  = MainWP_Child::get_connection_window();
+            $expired = get_option( 'mainwp_child_connection_window_expired' );
+            // Hooks remain loaded in the request that switches Child off; wait for reactivation.
+            if ( false !== $expired && ! is_plugin_active( plugin_basename( MAINWP_CHILD_FILE ) ) ) {
+                return;
+            }
+            $msg = '<div id="mainwp-child-connection-notice" style="background:#ffffff;padding:20px;margin:20px 20px 20px 2px;border:1px solid #f4f4f4;">';
             if ( ! MainWP_Child_Branding::instance()->is_branding() ) {
                 $msg .= '<div style="width:105px;float:left;margin-right:20px">';
                 $msg .= '<img alt="MainWP Icon" style="max-width:105px" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyNi4zLjEsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiDQoJIHZpZXdCb3g9IjAgMCAxNzAgMTcwIiBzdHlsZT0iZW5hYmxlLWJhY2tncm91bmQ6bmV3IDAgMCAxNzAgMTcwOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+DQo8c3R5bGUgdHlwZT0idGV4dC9jc3MiPg0KCS5zdDB7ZmlsbDojN0ZCMTAwO30NCgkuc3Qxe2ZpbGw6I0ZGRkZGRjt9DQo8L3N0eWxlPg0KPGc+DQoJPGNpcmNsZSBjbGFzcz0ic3QwIiBjeD0iODUiIGN5PSI4NSIgcj0iNzguNjciLz4NCgk8Zz4NCgkJPGNpcmNsZSBjbGFzcz0ic3QxIiBjeD0iODUiIGN5PSIzNy44IiByPSIxNS43MyIvPg0KCQk8cG9seWdvbiBjbGFzcz0ic3QxIiBwb2ludHM9IjExMS43NSwxMzIuMiA4NSwxNDcuOTQgNTguMjUsMTMyLjIgODUsMjIuMDYgCQkiLz4NCgk8L2c+DQo8L2c+DQo8L3N2Zz4NCg==" />';
                 $msg .= '</div>';
             }
             $msg .= '<div style="font-size:1.5em;font-weight:bolder;margin-bottom:16px;">' . esc_html( $child_name ) . esc_html__( ' Plugin is Activated', 'mainwp-child' ) . '</div>';
-            $msg .= '<div style="font-size:1.2em;margin-bottom:8px">' . esc_html__( 'This site is now ready for connection. Please proceed with the connection process from your ', 'mainwp-child' ) . esc_html( $dashboard_name ) . ' ' . esc_html__( 'to start managing the site. ', 'mainwp-child' ) . '</div>';
+            $msg .= '<div style="font-size:1.2em;margin-bottom:8px">' . esc_html( str_replace( 'MainWP Dashboard', $dashboard_name, __( 'Next: open your MainWP Dashboard and add this site.', 'mainwp-child' ) ) ) . '</div>';
+            if ( is_array( $expired ) && isset( $expired['ttl'] ) ) {
+                $expired_ttl = (int) $expired['ttl'];
+                // translators: %d: Expired connection window in minutes.
+                $explanation  = sprintf( _n( 'MainWP Child switched itself off because no MainWP Dashboard connected to it within %d minute.', 'MainWP Child switched itself off because no MainWP Dashboard connected to it within %d minutes.', $expired_ttl, 'mainwp-child' ), $expired_ttl );
+                $explanation .= ' ' . __( 'This protects sites where the plugin is left active but unused.', 'mainwp-child' );
+                if ( 'disabled' === $window['state'] ) {
+                    $explanation .= ' ' . __( 'It is active again.', 'mainwp-child' );
+                } else {
+                    // translators: %d: Current connection window in minutes.
+                    $explanation .= ' ' . sprintf( _n( 'It is active again, and you have %d minute to add this site from your Dashboard.', 'It is active again, and you have %d minutes to add this site from your Dashboard.', $window['minutes'], 'mainwp-child' ), $window['minutes'] );
+                }
+                $msg .= '<p>' . esc_html( str_replace( array( 'MainWP Child', 'MainWP Dashboard' ), array( $child_name, $dashboard_name ), $explanation ) ) . '</p>';
+            }
+            $copy_rows = array(
+                'site-url' => array(
+                    'label' => __( 'Site URL', 'mainwp-child' ),
+                    'value' => site_url(),
+                ),
+                'username' => array(
+                    'label' => __( 'Administrator username', 'mainwp-child' ),
+                    'value' => wp_get_current_user()->user_login,
+                ),
+            );
+            foreach ( $copy_rows as $id => $row ) {
+                $input_id = 'mainwp-child-copy-' . $id;
+                $msg     .= '<p><label id="' . esc_attr( $input_id . '-label' ) . '" for="' . esc_attr( $input_id ) . '">' . esc_html( $row['label'] ) . '</label> ';
+                $msg     .= '<input type="text" readonly id="' . esc_attr( $input_id ) . '" value="' . esc_attr( $row['value'] ) . '" /> ';
+                $msg     .= '<button type="button" class="button mainwp-child-copy" data-target="' . esc_attr( $input_id ) . '" data-copied="' . esc_attr__( 'Copied', 'mainwp-child' ) . '" aria-describedby="' . esc_attr( $input_id . '-label' ) . '" aria-live="polite">' . esc_html__( 'Copy', 'mainwp-child' ) . '</button></p>';
+            }
+            if ( 'disabled' !== $window['state'] ) {
+                $minutes = (int) ceil( $window['remaining'] / MINUTE_IN_SECONDS );
+                // translators: %d: Minutes remaining before MainWP Child switches itself off.
+                $singular = _n( "For security, MainWP Child switches itself off in %d minute if it isn't connected.", "For security, MainWP Child switches itself off in %d minutes if it isn't connected.", 1, 'mainwp-child' );
+                // translators: %d: Minutes remaining before MainWP Child switches itself off.
+                $plural = _n( "For security, MainWP Child switches itself off in %d minute if it isn't connected.", "For security, MainWP Child switches itself off in %d minutes if it isn't connected.", 2, 'mainwp-child' );
+                $less   = __( "For security, MainWP Child switches itself off in less than a minute if it isn't connected.", 'mainwp-child' );
+                // translators: %d: Minutes remaining before MainWP Child switches itself off.
+                $countdown = $window['remaining'] < MINUTE_IN_SECONDS ? $less : sprintf( _n( "For security, MainWP Child switches itself off in %d minute if it isn't connected.", "For security, MainWP Child switches itself off in %d minutes if it isn't connected.", $minutes, 'mainwp-child' ), $minutes );
+                $msg      .= '<p class="mainwp-child-countdown" data-remaining="' . esc_attr( $window['remaining'] ) . '" data-minute="' . esc_attr( str_replace( 'MainWP Child', $child_name, $singular ) ) . '" data-minutes="' . esc_attr( str_replace( 'MainWP Child', $child_name, $plural ) ) . '" data-less="' . esc_attr( str_replace( 'MainWP Child', $child_name, $less ) ) . '">' . esc_html( str_replace( 'MainWP Child', $child_name, $countdown ) ) . '</p>';
+            }
             // translators: 1: Opening link tag, 2: Closing link tag.
             $doc_link = sprintf( esc_html__( 'If you need assistance, refer to our %1$sdocumentation%2$s.', 'mainwp-child' ), '<a href="https://docs.mainwp.com/getting-started/get-started-with-mainwp#add-a-site-to-your-dashboard" target="_blank">', '</a>' );
             $msg     .= '<div style="font-size:1.2em;margin-bottom:8px">' . $doc_link . '</div>';
@@ -128,6 +174,58 @@ class MainWP_Pages {
             }
             $msg .= '</div>';
             echo $msg; //phpcs:ignore -- NOSONAR - ok
+            if ( false !== $expired ) {
+                delete_option( 'mainwp_child_connection_window_expired' );
+            }
+            ?>
+            <script>
+            (function () {
+                var notice = document.getElementById('mainwp-child-connection-notice');
+                notice.querySelectorAll('.mainwp-child-copy').forEach(function (button) {
+                    var original = button.textContent;
+                    var reset;
+                    function copied() {
+                        button.textContent = button.getAttribute('data-copied');
+                        window.clearTimeout(reset);
+                        reset = window.setTimeout(function () { button.textContent = original; }, 2000);
+                    }
+                    function selectCopy() {
+                        var input = document.getElementById(button.getAttribute('data-target'));
+                        input.focus();
+                        input.select();
+                        input.setSelectionRange(0, input.value.length);
+                        try {
+                            if (document.execCommand('copy')) {
+                                copied();
+                            }
+                        } catch (error) {
+                            // Leave the value selected so it can be copied manually.
+                        }
+                    }
+                    button.addEventListener('click', function () {
+                        var input = document.getElementById(button.getAttribute('data-target'));
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(input.value).then(copied, selectCopy);
+                        } else {
+                            selectCopy();
+                        }
+                    });
+                });
+                var countdown = notice.querySelector('.mainwp-child-countdown');
+                if (countdown) {
+                    var deadline = Date.now() + Number(countdown.getAttribute('data-remaining')) * 1000;
+                    var interval = window.setInterval(function () {
+                        var seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+                        var minutes = Math.ceil(seconds / 60);
+                        countdown.textContent = seconds < 60 ? countdown.getAttribute('data-less') : countdown.getAttribute(minutes === 1 ? 'data-minute' : 'data-minutes').replace('%d', minutes);
+                        if (seconds === 0) {
+                            window.clearInterval(interval);
+                        }
+                    }, 1000);
+                }
+            }());
+            </script>
+            <?php
         }
 
         if ( isset( $_GET['page'] ) && 'mainwp_child_tab' === $_GET['page'] && isset( $_GET['message'] ) ) { //phpcs:ignore -- ok.

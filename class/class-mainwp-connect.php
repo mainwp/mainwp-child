@@ -186,6 +186,9 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
         MainWP_Helper::update_option( 'mainwp_child_connected_admin', $current_user->user_login, 'yes' );
 
+        // A later Dashboard disconnect needs a fresh connection window.
+        delete_option( 'mainwp_child_lasttime_not_connected' );
+
         // register success.
         $new_verify = $this->may_be_generate_register_verify();
         if ( ! empty( $new_verify ) ) {
