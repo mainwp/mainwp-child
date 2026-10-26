@@ -164,9 +164,15 @@ class MainWP_Pages {
                 $less   = __( "For security, MainWP Child switches itself off in less than a minute if it isn't connected.", 'mainwp-child' );
                 // translators: Shown once the countdown reaches zero. Unless the site was connected first, the plugin switches itself off on the next wp-admin request (page load or background request), so it may already be off.
                 $ended = __( "Time is up. If this site isn't connected yet, MainWP Child switches itself off. Reload the page to check, and if it's off, reactivate it from the Plugins page to start over.", 'mainwp-child' );
-                // translators: %d: Minutes remaining before MainWP Child switches itself off.
-                $countdown = $window['remaining'] < MINUTE_IN_SECONDS ? $less : sprintf( _n( "For security, MainWP Child switches itself off in %d minute if it isn't connected.", "For security, MainWP Child switches itself off in %d minutes if it isn't connected.", $minutes, 'mainwp-child' ), $minutes );
-                $msg      .= '<p class="mainwp-child-countdown" data-remaining="' . esc_attr( $window['remaining'] ) . '" data-minute="' . esc_attr( str_replace( 'MainWP Child', $child_name, $singular ) ) . '" data-minutes="' . esc_attr( str_replace( 'MainWP Child', $child_name, $plural ) ) . '" data-less="' . esc_attr( str_replace( 'MainWP Child', $child_name, $less ) ) . '" data-ended="' . esc_attr( str_replace( 'MainWP Child', $child_name, $ended ) ) . '">' . esc_html( str_replace( 'MainWP Child', $child_name, $countdown ) ) . '</p>';
+                if ( $window['remaining'] <= 0 ) {
+                    $countdown = $ended;
+                } elseif ( $window['remaining'] < MINUTE_IN_SECONDS ) {
+                    $countdown = $less;
+                } else {
+                    // translators: %d: Minutes remaining before MainWP Child switches itself off.
+                    $countdown = sprintf( _n( "For security, MainWP Child switches itself off in %d minute if it isn't connected.", "For security, MainWP Child switches itself off in %d minutes if it isn't connected.", $minutes, 'mainwp-child' ), $minutes );
+                }
+                $msg .= '<p class="mainwp-child-countdown" data-remaining="' . esc_attr( $window['remaining'] ) . '" data-minute="' . esc_attr( str_replace( 'MainWP Child', $child_name, $singular ) ) . '" data-minutes="' . esc_attr( str_replace( 'MainWP Child', $child_name, $plural ) ) . '" data-less="' . esc_attr( str_replace( 'MainWP Child', $child_name, $less ) ) . '" data-ended="' . esc_attr( str_replace( 'MainWP Child', $child_name, $ended ) ) . '">' . esc_html( str_replace( 'MainWP Child', $child_name, $countdown ) ) . '</p>';
             }
             // translators: 1: Opening link tag, 2: Closing link tag.
             $doc_link = sprintf( esc_html__( 'If you need assistance, refer to our %1$sdocumentation%2$s.', 'mainwp-child' ), '<a href="https://docs.mainwp.com/getting-started/get-started-with-mainwp#add-a-site-to-your-dashboard" target="_blank">', '</a>' );

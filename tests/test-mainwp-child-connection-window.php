@@ -116,6 +116,8 @@ class Test_MainWP_Child_Connection_Window extends WP_UnitTestCase {
         $this->assertStringContainsString( esc_html( "For security, MainWP Child switches itself off in 1 minute if it isn't connected." ), $this->notice() );
         update_option( 'mainwp_child_lasttime_not_connected', time() - 10 );
         $this->assertStringContainsString( '>' . esc_html( "For security, MainWP Child switches itself off in less than a minute if it isn't connected." ) . '</p>', $this->notice() );
+        update_option( 'mainwp_child_lasttime_not_connected', time() - MINUTE_IN_SECONDS );
+        $this->assertStringContainsString( '>' . esc_html( "Time is up. If this site isn't connected yet, MainWP Child switches itself off. Reload the page to check, and if it's off, reactivate it from the Plugins page to start over." ) . '</p>', $this->notice() );
     }
 
     public function test_disabled_timeout_has_no_countdown() {
