@@ -116,12 +116,35 @@ class MainWP_Pages {
             if ( false !== $expired && ! $listed ) {
                 return;
             }
-            $msg = '<div id="mainwp-child-connection-notice" style="background:#ffffff;padding:20px;margin:20px 20px 20px 2px;border:1px solid #f4f4f4;">';
+            $msg  = <<<'HTML'
+<style>
+    #mainwp-child-connection-notice { display:flex;align-items:flex-start;gap:20px; }
+    #mainwp-child-connection-notice .mainwp-child-connection-logo { flex:0 0 105px; }
+    #mainwp-child-connection-notice .mainwp-child-connection-content { flex:1;min-width:0; }
+    #mainwp-child-connection-notice .mainwp-child-copy-row { display:flex;align-items:center;gap:12px;margin:8px 0; }
+    #mainwp-child-connection-notice .mainwp-child-copy-row label { flex:0 0 180px; }
+    #mainwp-child-connection-notice .mainwp-child-copy-fields { display:flex;align-items:center;gap:8px;width:38em;max-width:100%;min-width:0; }
+    #mainwp-child-connection-notice .regular-text { flex:1;width:32em;max-width:100%;min-width:0;margin:0; }
+    #mainwp-child-connection-notice .button { flex:none; }
+    #mainwp-child-connection-notice .mainwp-child-countdown { font-size:1.2em; }
+    @media screen and (max-width:782px) {
+        #mainwp-child-connection-notice { flex-direction:column; }
+        #mainwp-child-connection-notice .mainwp-child-connection-logo { flex:none;width:64px; }
+        #mainwp-child-connection-notice .mainwp-child-connection-logo img { width:64px; }
+        #mainwp-child-connection-notice .mainwp-child-connection-content { width:100%; }
+        #mainwp-child-connection-notice .mainwp-child-copy-row { flex-direction:column;align-items:stretch;gap:4px; }
+        #mainwp-child-connection-notice .mainwp-child-copy-row label { flex-basis:auto; }
+        #mainwp-child-connection-notice .mainwp-child-copy-fields { width:100%; }
+    }
+</style>
+HTML;
+            $msg .= '<div id="mainwp-child-connection-notice" style="background:#ffffff;padding:20px;margin:20px 20px 20px 2px;border:1px solid #f4f4f4;">';
             if ( ! MainWP_Child_Branding::instance()->is_branding() ) {
-                $msg .= '<div style="width:105px;float:left;margin-right:20px">';
+                $msg .= '<div class="mainwp-child-connection-logo">';
                 $msg .= '<img alt="MainWP Icon" style="max-width:105px" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyNi4zLjEsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiDQoJIHZpZXdCb3g9IjAgMCAxNzAgMTcwIiBzdHlsZT0iZW5hYmxlLWJhY2tncm91bmQ6bmV3IDAgMCAxNzAgMTcwOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+DQo8c3R5bGUgdHlwZT0idGV4dC9jc3MiPg0KCS5zdDB7ZmlsbDojN0ZCMTAwO30NCgkuc3Qxe2ZpbGw6I0ZGRkZGRjt9DQo8L3N0eWxlPg0KPGc+DQoJPGNpcmNsZSBjbGFzcz0ic3QwIiBjeD0iODUiIGN5PSI4NSIgcj0iNzguNjciLz4NCgk8Zz4NCgkJPGNpcmNsZSBjbGFzcz0ic3QxIiBjeD0iODUiIGN5PSIzNy44IiByPSIxNS43MyIvPg0KCQk8cG9seWdvbiBjbGFzcz0ic3QxIiBwb2ludHM9IjExMS43NSwxMzIuMiA4NSwxNDcuOTQgNTguMjUsMTMyLjIgODUsMjIuMDYgCQkiLz4NCgk8L2c+DQo8L2c+DQo8L3N2Zz4NCg==" />';
                 $msg .= '</div>';
             }
+            $msg .= '<div class="mainwp-child-connection-content">';
             $msg .= '<div style="font-size:1.5em;font-weight:bolder;margin-bottom:16px;">' . esc_html( $child_name ) . esc_html__( ' Plugin is Activated', 'mainwp-child' ) . '</div>';
             // translators: Keep "MainWP Dashboard" as written; it is replaced with the branded name when branding is on.
             $msg .= '<div style="font-size:1.2em;margin-bottom:8px">' . esc_html( str_replace( 'MainWP Dashboard', $dashboard_name, __( 'Next: open your MainWP Dashboard and add this site.', 'mainwp-child' ) ) ) . '</div>';
@@ -150,9 +173,9 @@ class MainWP_Pages {
             );
             foreach ( $copy_rows as $id => $row ) {
                 $input_id = 'mainwp-child-copy-' . $id;
-                $msg     .= '<p><label id="' . esc_attr( $input_id . '-label' ) . '" for="' . esc_attr( $input_id ) . '">' . esc_html( $row['label'] ) . '</label> ';
-                $msg     .= '<input type="text" readonly id="' . esc_attr( $input_id ) . '" value="' . esc_attr( $row['value'] ) . '" /> ';
-                $msg     .= '<button type="button" class="button mainwp-child-copy" data-target="' . esc_attr( $input_id ) . '" data-copied="' . esc_attr__( 'Copied', 'mainwp-child' ) . '" aria-describedby="' . esc_attr( $input_id . '-label' ) . '" aria-live="polite">' . esc_html__( 'Copy', 'mainwp-child' ) . '</button></p>';
+                $msg     .= '<div class="mainwp-child-copy-row"><label id="' . esc_attr( $input_id . '-label' ) . '" for="' . esc_attr( $input_id ) . '">' . esc_html( $row['label'] ) . '</label>';
+                $msg     .= '<div class="mainwp-child-copy-fields"><input type="text" class="regular-text" readonly id="' . esc_attr( $input_id ) . '" value="' . esc_attr( $row['value'] ) . '" />';
+                $msg     .= '<button type="button" class="button mainwp-child-copy" data-target="' . esc_attr( $input_id ) . '" data-copied="' . esc_attr__( 'Copied', 'mainwp-child' ) . '" aria-describedby="' . esc_attr( $input_id . '-label' ) . '" aria-live="polite">' . esc_html__( 'Copy', 'mainwp-child' ) . '</button></div></div>';
             }
             // A must-use load is not in active_plugins and never switches off, so a countdown would be false.
             if ( 'disabled' !== $window['state'] && $listed ) {
@@ -181,9 +204,8 @@ class MainWP_Pages {
                 // translators: 1: Opening link tag, 2: Closing link tag.
                 $settings_link = sprintf( esc_html__( ' %1$splugin settings%2$s. ', 'mainwp-child' ), '<a href="admin.php?page=mainwp_child_tab">', '</a>' );
                 $msg          .= '<div style="font-size:1.2em;">' . esc_html__( 'For additional security options, visit the ', 'mainwp-child' ) . esc_html( $child_name ) . $settings_link . '</div>';
-                $msg          .= '<div style="clear:both"></div>';
             }
-            $msg .= '</div>';
+            $msg .= '</div></div>';
             echo $msg; //phpcs:ignore -- NOSONAR - ok
             if ( false !== $expired ) {
                 delete_option( 'mainwp_child_connection_window_expired' );

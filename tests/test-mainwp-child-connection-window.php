@@ -97,6 +97,8 @@ class Test_MainWP_Child_Connection_Window extends WP_UnitTestCase {
         $this->assertStringContainsString( 'value="' . esc_attr( wp_get_current_user()->user_login ) . '"', $output );
         $this->assertSame( 2, substr_count( $output, '>Copy</button>' ) );
         $this->assertSame( 2, substr_count( $output, 'data-copied="Copied"' ) );
+        $this->assertSame( 2, substr_count( $output, 'class="regular-text" readonly' ) );
+        $this->assertStringContainsString( '#mainwp-child-connection-notice .mainwp-child-countdown { font-size:1.2em; }', $output );
         $this->assertStringContainsString( 'data-remaining="420"', $output );
         $this->assertStringContainsString( esc_html( "For security, MainWP Child switches itself off in 7 minutes if it isn't connected." ), $output );
         $this->assertStringContainsString( 'navigator.clipboard.writeText', $output );
@@ -118,6 +120,39 @@ class Test_MainWP_Child_Connection_Window extends WP_UnitTestCase {
         $this->assertStringContainsString( '>' . esc_html( "For security, MainWP Child switches itself off in less than a minute if it isn't connected." ) . '</p>', $this->notice() );
         update_option( 'mainwp_child_lasttime_not_connected', time() - MINUTE_IN_SECONDS );
         $this->assertStringContainsString( '>' . esc_html( "Time is up. If this site isn't connected yet, MainWP Child switches itself off. Reload the page to check, and if it's off, reactivate it from the Plugins page to start over." ) . '</p>', $this->notice() );
+    }
+
+    /**
+     * Layout changes must preserve the copy controls' label and target associations.
+     */
+    public function test_notice_keeps_copy_rows_in_one_content_column() {
+        $site_url = static function () {
+            return 'http://backupsdash.local/onboard-child2';
+        };
+        add_filter( 'site_url', $site_url );
+        try {
+            $output = $this->notice();
+        } finally {
+            remove_filter( 'site_url', $site_url );
+        }
+        $document = new \DOMDocument();
+        $document->loadHTML( $output );
+        $xpath = new \DOMXPath( $document );
+        $rows  = $xpath->query( '//div[@class="mainwp-child-connection-content"]/div[@class="mainwp-child-copy-row"]' );
+        $this->assertSame( 2, $rows->length );
+        foreach ( $rows as $row ) {
+            $label  = $xpath->query( './label', $row )->item( 0 );
+            $input  = $xpath->query( './div/input[@readonly and @class="regular-text"]', $row )->item( 0 );
+            $button = $xpath->query( './div/button[@type="button"]', $row )->item( 0 );
+            $this->assertNotNull( $label );
+            $this->assertNotNull( $input );
+            $this->assertNotNull( $button );
+            $this->assertSame( $input->getAttribute( 'id' ), $label->getAttribute( 'for' ) );
+            $this->assertSame( $input->getAttribute( 'id' ), $button->getAttribute( 'data-target' ) );
+        }
+        $this->assertSame( 'http://backupsdash.local/onboard-child2', $document->getElementById( 'mainwp-child-copy-site-url' )->getAttribute( 'value' ) );
+        $this->assertStringContainsString( '@media screen and (max-width:782px)', $output );
+        $this->assertStringNotContainsString( 'float:left', $output );
     }
 
     public function test_disabled_timeout_has_no_countdown() {
