@@ -116,14 +116,16 @@ class MainWP_Pages {
             if ( false !== $expired && ! $listed ) {
                 return;
             }
+            // clear:both because the Help and Screen Options tabs float above notices and a flex box narrows beside floats.
+            // The 28em basis drops the copy fields under their label before a typical site URL would be cut off.
             $msg  = <<<'HTML'
 <style>
-    #mainwp-child-connection-notice { display:flex;align-items:flex-start;gap:20px; }
+    #mainwp-child-connection-notice { clear:both;display:flex;align-items:flex-start;gap:20px; }
     #mainwp-child-connection-notice .mainwp-child-connection-logo { flex:0 0 105px; }
     #mainwp-child-connection-notice .mainwp-child-connection-content { flex:1;min-width:0; }
-    #mainwp-child-connection-notice .mainwp-child-copy-row { display:flex;align-items:center;gap:12px;margin:8px 0; }
+    #mainwp-child-connection-notice .mainwp-child-copy-row { display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:8px 0; }
     #mainwp-child-connection-notice .mainwp-child-copy-row label { flex:0 0 180px; }
-    #mainwp-child-connection-notice .mainwp-child-copy-fields { display:flex;align-items:center;gap:8px;width:38em;max-width:100%;min-width:0; }
+    #mainwp-child-connection-notice .mainwp-child-copy-fields { display:flex;align-items:center;gap:8px;flex:1 0 28em;max-width:38em;min-width:0; }
     #mainwp-child-connection-notice .regular-text { flex:1;width:32em;max-width:100%;min-width:0;margin:0; }
     #mainwp-child-connection-notice .button { flex:none; }
     #mainwp-child-connection-notice .mainwp-child-countdown { font-size:1.2em; }
@@ -134,7 +136,7 @@ class MainWP_Pages {
         #mainwp-child-connection-notice .mainwp-child-connection-content { width:100%; }
         #mainwp-child-connection-notice .mainwp-child-copy-row { flex-direction:column;align-items:stretch;gap:4px; }
         #mainwp-child-connection-notice .mainwp-child-copy-row label { flex-basis:auto; }
-        #mainwp-child-connection-notice .mainwp-child-copy-fields { width:100%; }
+        #mainwp-child-connection-notice .mainwp-child-copy-fields { flex:none;width:100%;max-width:none; }
     }
 </style>
 HTML;

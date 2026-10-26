@@ -153,6 +153,9 @@ class Test_MainWP_Child_Connection_Window extends WP_UnitTestCase {
         $this->assertSame( 'http://backupsdash.local/onboard-child2', $document->getElementById( 'mainwp-child-copy-site-url' )->getAttribute( 'value' ) );
         $this->assertStringContainsString( '@media screen and (max-width:782px)', $output );
         $this->assertStringNotContainsString( 'float:left', $output );
+        // The Help and Screen Options tabs float right above notices, and a flex container narrows beside floats.
+        $this->assertStringContainsString( '#mainwp-child-connection-notice { clear:both;', $output );
+        $this->assertStringContainsString( '.mainwp-child-copy-row { display:flex;flex-wrap:wrap;', $output );
     }
 
     public function test_disabled_timeout_has_no_countdown() {
