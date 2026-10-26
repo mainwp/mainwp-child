@@ -29,7 +29,7 @@ class Changes_Handle_WP_User_Profile {
     private static $old_superadmins;
 
     /**
-     * Persisted roles before profile callbacks that can mutate the old user object.
+     * Persisted role snapshots for nested profile saves, grouped by user ID.
      *
      * @var array
      */
@@ -226,15 +226,14 @@ class Changes_Handle_WP_User_Profile {
      * @param int $user_id Updated user ID.
      */
     public static function capture_profile_roles( $user_id ) {
-        unset( self::$profile_roles[ $user_id ] );
         $user = get_userdata( $user_id );
         if ( $user ) {
-            self::$profile_roles[ $user_id ] = $user->roles;
+            self::$profile_roles[ $user_id ][] = $user->roles;
         }
     }
 
     /**
-     * Compares persisted roles after Members has finished saving them.
+     * Compares persisted roles after the outermost profile save finishes.
      *
      * @param int $user_id Updated user ID.
      */
@@ -243,7 +242,10 @@ class Changes_Handle_WP_User_Profile {
             return;
         }
 
-        $old_roles = self::$profile_roles[ $user_id ];
+        $old_roles = array_pop( self::$profile_roles[ $user_id ] );
+        if ( ! empty( self::$profile_roles[ $user_id ] ) ) {
+            return;
+        }
         unset( self::$profile_roles[ $user_id ] );
 
         $user = get_userdata( $user_id );

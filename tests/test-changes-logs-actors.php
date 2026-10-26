@@ -53,6 +53,13 @@ class Test_Changes_Logs_Actors extends WP_UnitTestCase {
 	private $members_callback;
 
 	/**
+	 * Whether delayed events have been flushed for this simulated request.
+	 *
+	 * @var bool
+	 */
+	private $delayed_logs_flushed = false;
+
+	/**
 	 * Prepares real storage and isolates request-local logger state.
 	 */
 	public function set_up() {
@@ -89,6 +96,7 @@ class Test_Changes_Logs_Actors extends WP_UnitTestCase {
 	 * Clears delayed events between simulated requests.
 	 */
 	private function reset_logger() {
+		$this->delayed_logs_flushed = false;
 		foreach ( array( 'delay_logs_items', 'logs_type_queue', 'logs_type_handled', 'cached_log_checks', 'wp_users' ) as $name ) {
 			$property = new ReflectionProperty( Changes_Logs_Logger::class, $name );
 			$property->setAccessible( true );
@@ -114,7 +122,10 @@ class Test_Changes_Logs_Actors extends WP_UnitTestCase {
 	 */
 	private function events( $event ) {
 		global $wpdb;
-		Changes_Logs_Logger::change_process_delay_logs_items();
+		if ( ! $this->delayed_logs_flushed ) {
+			Changes_Logs_Logger::change_process_delay_logs_items();
+			$this->delayed_logs_flushed = true;
+		}
 		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE log_type_id = %d ORDER BY id', Changes_Logs_DB_Log::table_name( 'changes_logs' ), $event ), ARRAY_A );
 		foreach ( $rows as &$row ) {
 			$metadata    = $wpdb->get_results( $wpdb->prepare( 'SELECT name, value FROM %i WHERE log_id = %d', Changes_Logs_DB_Log::table_name( 'changes_meta' ), $row['id'] ), ARRAY_A );
@@ -209,6 +220,46 @@ class Test_Changes_Logs_Actors extends WP_UnitTestCase {
 		$this->assertSame( 'Guest (unverified)', $row['username'] );
 		$this->assertSame( '', $row['user_roles'] );
 		$this->assertSame( $name . ' <' . $email . '> (unverified)', $row['meta']['author'] );
+	}
+
+	/**
+	 * Guest creation events exclude pingbacks, trackbacks, and custom records.
+	 */
+	public function test_guest_events_only_include_real_comments() {
+		$submit_typed_comment = function ( $comment_type, $user_id = 0, $email = 'submitted@example.org' ) {
+			$data       = array(
+				'comment_post_ID'      => self::factory()->post->create(),
+				'comment_author'       => 'Submitted Name',
+				'comment_author_email' => $email,
+				'comment_content'      => 'Typed comment fixture',
+				'comment_approved'     => 1,
+				'comment_type'         => $comment_type,
+				'user_id'              => $user_id,
+			);
+			$comment_id = wp_insert_comment( $data );
+			$this->assertGreaterThan( 0, $comment_id );
+			$this->assertSame( $comment_type, get_comment( $comment_id )->comment_type );
+			do_action( 'comment_post', $comment_id, 1, $data );
+		};
+		wp_set_current_user( 0 );
+		$this->submit_comment();
+		$rows = $this->events( 1565 );
+		$this->assertCount( 1, $rows );
+		$this->assert_guest( $rows[0], 'Submitted Name', 'submitted@example.org' );
+		foreach ( array( 'pingback', 'trackback', 'custom_note' ) as $comment_type ) {
+			$this->clear_logs();
+			$submit_typed_comment( $comment_type );
+			$this->assertCount( 0, $this->events( 1565 ), $comment_type . ' must not produce a guest comment event.' );
+		}
+		$user = self::factory()->user->create_and_get( array( 'role' => 'author' ) );
+		wp_set_current_user( $user->ID );
+		foreach ( array( 'pingback', 'trackback', 'custom_note' ) as $comment_type ) {
+			$this->clear_logs();
+			$submit_typed_comment( $comment_type, $user->ID, $user->user_email );
+			$rows = $this->events( 1565 );
+			$this->assertCount( 1, $rows, 'Registered non-comment behavior must remain unchanged.' );
+			$this->assertSame( $user->ID, (int) $rows[0]['user_id'] );
+		}
 	}
 
 	/**
@@ -331,6 +382,7 @@ class Test_Changes_Logs_Actors extends WP_UnitTestCase {
 		$this->clear_logs();
 		wp_update_user( array( 'ID' => $user->ID ) );
 		$this->assertCount( 0, $this->events( 1615 ) );
+		$this->clear_logs();
 		$_POST['members_user_roles'] = array( 'author' );
 		wp_update_user( array( 'ID' => $user->ID ) );
 		$rows = $this->events( 1615 );
@@ -357,6 +409,64 @@ class Test_Changes_Logs_Actors extends WP_UnitTestCase {
 		$this->clear_logs();
 		wp_update_user( array( 'ID' => $user->ID ) );
 		$this->assertCount( 0, $this->events( 1615 ) );
+	}
+
+	/**
+	 * A nested save preserves the outer roles until all outer callbacks finish.
+	 */
+	public function test_nested_profile_save_keeps_outer_role_snapshot() {
+		$user  = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
+		$admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin );
+		$this->install_members_fixture();
+		$this->clear_logs();
+		$_POST['members_user_roles'] = array( 'editor' );
+		$nested_once                 = false;
+		$inside_nested               = false;
+		$nested_save                 = function ( $user_id ) use ( $user, &$nested_once, &$inside_nested ) {
+			if ( $user_id !== $user->ID || $nested_once ) {
+				return;
+			}
+			$nested_once   = true;
+			$inside_nested = true;
+			try {
+				$this->assertSame(
+					$user_id,
+					wp_update_user(
+						array(
+							'ID'           => $user_id,
+							'display_name' => 'Nested profile name',
+						)
+					)
+				);
+			} finally {
+				$inside_nested = false;
+			}
+		};
+		$late_role_write             = static function ( $user_id ) use ( $user, &$inside_nested ) {
+			if ( $user_id === $user->ID && ! $inside_nested ) {
+				get_userdata( $user_id )->add_role( 'author' );
+			}
+		};
+		add_action( 'profile_update', $nested_save, 15, 1 );
+		add_action( 'profile_update', $late_role_write, 18, 1 );
+		try {
+			$this->assertSame( $user->ID, wp_update_user( array( 'ID' => $user->ID ) ) );
+			$this->assertTrue( $nested_once );
+			$this->assertSame( 'Nested profile name', get_userdata( $user->ID )->display_name );
+			$this->assertSame( array( 'editor', 'author' ), get_userdata( $user->ID )->roles );
+			$rows = $this->events( 1615 );
+			$this->assertCount( 1, $rows );
+			$this->assert_role_event( $rows[0], $user, 'Subscriber', 'Editor, Author' );
+			$this->assertSame( array_column( $rows, 'id' ), array_column( $this->events( 1615 ), 'id' ), 'Reading events again must not insert another physical row.' );
+		} finally {
+			remove_action( 'profile_update', $nested_save, 15 );
+			remove_action( 'profile_update', $late_role_write, 18 );
+			remove_action( 'profile_update', $this->members_callback, 10 );
+		}
+		$this->clear_logs();
+		wp_update_user( array( 'ID' => $user->ID ) );
+		$this->assertCount( 0, $this->events( 1615 ), 'An unchanged later save must not reuse the outer snapshot.' );
 	}
 
 	/**

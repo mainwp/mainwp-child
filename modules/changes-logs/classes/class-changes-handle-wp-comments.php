@@ -151,6 +151,9 @@ class Changes_Handle_WP_Comments {
 
         $comment = get_comment( $comment_id );
         if ( $comment && 'spam' !== $comment->comment_approved ) {
+            if ( 0 === (int) $comment->user_id && ! in_array( $comment->comment_type, array( '', 'comment' ), true ) ) {
+                return;
+            }
             $post   = get_post( $comment->comment_post_ID );
             $fields = array(
                 'posttitle'  => $post->post_title,
