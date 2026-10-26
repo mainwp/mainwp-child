@@ -785,6 +785,8 @@ class MainWP_Child {
         $to_delete[] = 'mainwp_ext_snippets_enabled';
         $to_delete[] = 'mainwp_ext_code_snippets';
         $to_delete[] = 'mainwp_child_openssl_sign_algo';
+        // Sites registered by older versions still hold the pre-connection timestamp, which would switch Child off on the next request.
+        $to_delete[] = 'mainwp_child_lasttime_not_connected';
 
         foreach ( $to_delete as $delete ) {
             if ( get_option( $delete ) ) {

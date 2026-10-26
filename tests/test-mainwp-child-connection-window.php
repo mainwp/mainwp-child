@@ -221,6 +221,22 @@ class Test_MainWP_Child_Connection_Window extends WP_UnitTestCase {
         $this->assertStringNotContainsString( 'switches itself off', $output );
     }
 
+    public function test_dashboard_disconnect_of_older_connection_starts_fresh_window() {
+        wp_set_current_user( 0 );
+        $child              = $this->child();
+        $child->plugin_slug = plugin_basename( MAINWP_CHILD_FILE );
+        update_option( 'mainwp_child_pubkey', 'connected' );
+        update_option( 'mainwp_child_lasttime_not_connected', time() - 2 * DAY_IN_SECONDS );
+        update_option( 'mainwp_child_ttl_active_unconnected_site', 20 );
+        $child->delete_connection_data();
+        $this->assertFalse( get_option( 'mainwp_child_pubkey' ) );
+        $this->assertFalse( get_option( 'mainwp_child_lasttime_not_connected' ) );
+        $child->admin_init();
+        $this->assertContains( $child->plugin_slug, get_option( 'active_plugins' ) );
+        $this->assertFalse( get_option( 'mainwp_child_connection_window_expired' ) );
+        $this->assertGreaterThanOrEqual( 1199, MainWP_Child::get_connection_window()['remaining'] );
+    }
+
     public function test_negative_ttl_keeps_existing_deactivation_behavior() {
         wp_set_current_user( 0 );
         update_option( 'mainwp_child_ttl_active_unconnected_site', -1 );
