@@ -123,12 +123,13 @@ class MainWP_Pages {
                 $msg .= '</div>';
             }
             $msg .= '<div style="font-size:1.5em;font-weight:bolder;margin-bottom:16px;">' . esc_html( $child_name ) . esc_html__( ' Plugin is Activated', 'mainwp-child' ) . '</div>';
+            // translators: Keep "MainWP Dashboard" as written; it is replaced with the branded name when branding is on.
             $msg .= '<div style="font-size:1.2em;margin-bottom:8px">' . esc_html( str_replace( 'MainWP Dashboard', $dashboard_name, __( 'Next: open your MainWP Dashboard and add this site.', 'mainwp-child' ) ) ) . '</div>';
             if ( is_array( $expired ) && isset( $expired['ttl'] ) ) {
                 $expired_ttl = (int) $expired['ttl'];
                 // translators: %d: Expired connection window in minutes.
                 $explanation  = sprintf( _n( 'MainWP Child switched itself off because no MainWP Dashboard connected to it within %d minute.', 'MainWP Child switched itself off because no MainWP Dashboard connected to it within %d minutes.', $expired_ttl, 'mainwp-child' ), $expired_ttl );
-                $explanation .= ' ' . __( 'This protects sites where the plugin is left active but unused.', 'mainwp-child' );
+                $explanation .= ' ' . __( 'This protects sites where the plugin is left active but never connected.', 'mainwp-child' );
                 if ( 'disabled' === $window['state'] ) {
                     $explanation .= ' ' . __( 'It is active again.', 'mainwp-child' );
                 } else {
@@ -161,9 +162,11 @@ class MainWP_Pages {
                 // translators: %d: Minutes remaining before MainWP Child switches itself off.
                 $plural = _n( "For security, MainWP Child switches itself off in %d minute if it isn't connected.", "For security, MainWP Child switches itself off in %d minutes if it isn't connected.", 2, 'mainwp-child' );
                 $less   = __( "For security, MainWP Child switches itself off in less than a minute if it isn't connected.", 'mainwp-child' );
+                // translators: Shown once the countdown reaches zero; the switch-off happens on the next admin page load.
+                $ended = __( 'Time is up: MainWP Child switches itself off on your next page load. Reactivate it from the Plugins page to start over.', 'mainwp-child' );
                 // translators: %d: Minutes remaining before MainWP Child switches itself off.
                 $countdown = $window['remaining'] < MINUTE_IN_SECONDS ? $less : sprintf( _n( "For security, MainWP Child switches itself off in %d minute if it isn't connected.", "For security, MainWP Child switches itself off in %d minutes if it isn't connected.", $minutes, 'mainwp-child' ), $minutes );
-                $msg      .= '<p class="mainwp-child-countdown" data-remaining="' . esc_attr( $window['remaining'] ) . '" data-minute="' . esc_attr( str_replace( 'MainWP Child', $child_name, $singular ) ) . '" data-minutes="' . esc_attr( str_replace( 'MainWP Child', $child_name, $plural ) ) . '" data-less="' . esc_attr( str_replace( 'MainWP Child', $child_name, $less ) ) . '">' . esc_html( str_replace( 'MainWP Child', $child_name, $countdown ) ) . '</p>';
+                $msg      .= '<p class="mainwp-child-countdown" data-remaining="' . esc_attr( $window['remaining'] ) . '" data-minute="' . esc_attr( str_replace( 'MainWP Child', $child_name, $singular ) ) . '" data-minutes="' . esc_attr( str_replace( 'MainWP Child', $child_name, $plural ) ) . '" data-less="' . esc_attr( str_replace( 'MainWP Child', $child_name, $less ) ) . '" data-ended="' . esc_attr( str_replace( 'MainWP Child', $child_name, $ended ) ) . '">' . esc_html( str_replace( 'MainWP Child', $child_name, $countdown ) ) . '</p>';
             }
             // translators: 1: Opening link tag, 2: Closing link tag.
             $doc_link = sprintf( esc_html__( 'If you need assistance, refer to our %1$sdocumentation%2$s.', 'mainwp-child' ), '<a href="https://docs.mainwp.com/getting-started/get-started-with-mainwp#add-a-site-to-your-dashboard" target="_blank">', '</a>' );
@@ -219,7 +222,7 @@ class MainWP_Pages {
                     var interval = window.setInterval(function () {
                         var seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
                         var minutes = Math.ceil(seconds / 60);
-                        countdown.textContent = seconds < 60 ? countdown.getAttribute('data-less') : countdown.getAttribute(minutes === 1 ? 'data-minute' : 'data-minutes').replace('%d', minutes);
+                        countdown.textContent = seconds === 0 ? countdown.getAttribute('data-ended') : seconds < 60 ? countdown.getAttribute('data-less') : countdown.getAttribute(minutes === 1 ? 'data-minute' : 'data-minutes').replace('%d', minutes);
                         if (seconds === 0) {
                             window.clearInterval(interval);
                         }

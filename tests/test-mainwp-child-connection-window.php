@@ -103,6 +103,7 @@ class Test_MainWP_Child_Connection_Window extends WP_UnitTestCase {
         $this->assertStringContainsString( 'input.select()', $output );
         $this->assertStringContainsString( "document.execCommand('copy')", $output );
         $this->assertStringContainsString( 'window.setInterval', $output );
+        $this->assertStringContainsString( 'data-ended="' . esc_attr( 'Time is up: MainWP Child switches itself off on your next page load. Reactivate it from the Plugins page to start over.' ) . '"', $output );
         $this->assertStringContainsString( 'Date.now()', $output );
         $this->assertStringContainsString( 'docs.mainwp.com/getting-started/get-started-with-mainwp#add-a-site-to-your-dashboard', $output );
         $this->assertStringContainsString( 'admin.php?page=mainwp_child_tab', $output );
@@ -126,7 +127,7 @@ class Test_MainWP_Child_Connection_Window extends WP_UnitTestCase {
         update_option( 'mainwp_child_ttl_active_unconnected_site', 9 );
         $this->child()->activation();
         $output = $this->notice();
-        $this->assertStringContainsString( 'MainWP Child switched itself off because no MainWP Dashboard connected to it within 3 minutes. This protects sites where the plugin is left active but unused. It is active again, with a 9-minute limit.', $output );
+        $this->assertStringContainsString( 'MainWP Child switched itself off because no MainWP Dashboard connected to it within 3 minutes. This protects sites where the plugin is left active but never connected. It is active again, with a 9-minute limit.', $output );
         $this->assertFalse( get_option( 'mainwp_child_connection_window_expired' ) );
         $this->assertStringNotContainsString( 'switched itself off because', $this->notice() );
     }
@@ -135,14 +136,14 @@ class Test_MainWP_Child_Connection_Window extends WP_UnitTestCase {
         update_option( 'mainwp_child_connection_window_expired', array( 'time' => time() - 60, 'ttl' => 1 ) );
         update_option( 'mainwp_child_ttl_active_unconnected_site', 1 );
         $this->child()->activation();
-        $this->assertStringContainsString( 'within 1 minute. This protects sites where the plugin is left active but unused. It is active again, with a 1-minute limit.', $this->notice() );
+        $this->assertStringContainsString( 'within 1 minute. This protects sites where the plugin is left active but never connected. It is active again, with a 1-minute limit.', $this->notice() );
     }
 
     public function test_reactivation_with_timeout_disabled_ends_after_active_again() {
         update_option( 'mainwp_child_connection_window_expired', array( 'time' => time() - 60, 'ttl' => 3 ) );
         update_option( 'mainwp_child_ttl_active_unconnected_site', 0 );
         $output = $this->notice();
-        $this->assertStringContainsString( 'within 3 minutes. This protects sites where the plugin is left active but unused. It is active again.</p>', $output );
+        $this->assertStringContainsString( 'within 3 minutes. This protects sites where the plugin is left active but never connected. It is active again.</p>', $output );
         $this->assertStringNotContainsString( 'you have 0 minutes', $output );
         $this->assertStringNotContainsString( 'data-remaining=', $output );
         $this->assertFalse( get_option( 'mainwp_child_connection_window_expired' ) );
