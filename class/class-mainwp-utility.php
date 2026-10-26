@@ -1030,27 +1030,19 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         $full_url = add_query_arg( $get_args, admin_url( '/' . $path ) );
 
         $locked         = false;
-        $outer_lock_key = 'mainwp_child:premium_update_request_lock';
+        $outer_lock_key = 'mainwp_child:mainwp_child_premium_update_visit_lock';
         try {
-
             if ( 'plugin' === $type ) {
                 $locked = MainWP_Child_Updates::acquire_premium_update_visit_lock( $outer_lock_key );
                 if ( ! $locked ) {
                     return array(
-                        'error' => __( 'A premium plugin update is already in progress. Please try again later.', 'mainwp-child' ),
-                    );
-                }
-                $inner_lock_key = 'mainwp_child:mainwp_child_premium_update_visit_lock';
-                if ( ! MainWP_Child_Updates::is_premium_update_visit_lock_available( $inner_lock_key ) ) {
-                    return array(
-                        'error' => __( 'A premium plugin update is already in progress. Please try again later.', 'mainwp-child' ),
+                        'error' => __( 'A premium update request or another update process is already in progress. Please try again later.', 'mainwp-child' ),
                     );
                 }
             }
-
             add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls_child' ), 99, 2 );
             try {
-                // Execute Remote GET.
+                // Execute the synchronous request, including plugins.php inspection.
                 $response = wp_remote_get( $full_url, $request_args );
             } finally {
                 remove_filter(
