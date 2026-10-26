@@ -12,9 +12,12 @@ use MainWP\Child\MainWP_Connect;
 use MainWP\Child\MainWP_Exception;
 use MainWP\Child\MainWP_Helper;
 use MainWP\Child\MainWP_Child_Stats;
+use MainWP\Child\MainWP_Child_Branding;
 use MainWP\Child\MainWP_Child_Keys_Manager;
 use MainWP\Child\Changes\Changes_Logs_Logger;
 use MainWP\Child\Changes\Changes_Logs_DB_Log;
+use MainWP\Child\Changes\Changes_Handle_WP_System;
+use MainWP\Child\SystemMonitor\MainWP_Child_System_Monitor;
 
 /** Output-only seam: retain the helper's real error handling. */
 class MWP1995_Output_Helper extends MainWP_Helper {
@@ -88,13 +91,30 @@ class ConnectRequestProvenanceTest extends WP_UnitTestCase {
 	 * @var mixed
 	 */
 	private $saved_logs_db;
+	/**
+	 * Original delayed log queue.
+	 *
+	 * @var array
+	 */
+	private $saved_delayed_logs;
+	/**
+	 * Original branding cache.
+	 *
+	 * @var array|null
+	 */
+	private $saved_branding_options;
 
 	/** Prepare a fresh simulated request. */
 	public function set_up() {
 		parent::set_up();
 		$this->saved_globals = array( $_POST, $_GET, $_REQUEST, $_COOKIE );
 		$this->saved_helper  = MainWP_Helper::$instance;
-		$property            = new ReflectionProperty( MainWP_Child_Stats::class, 'instance' );
+		$queue               = new ReflectionProperty( Changes_Logs_Logger::class, 'delay_logs_items' );
+		$queue->setAccessible( true );
+		$this->saved_delayed_logs = $queue->getValue();
+		$queue->setValue( null, array() );
+		$this->saved_branding_options = MainWP_Child_Branding::instance()->child_branding_options;
+		$property                     = new ReflectionProperty( MainWP_Child_Stats::class, 'instance' );
 		$property->setAccessible( true );
 		$this->saved_stats = $property->getValue();
 		$property          = new ReflectionProperty( Changes_Logs_DB_Log::class, 'instance' );
@@ -118,8 +138,12 @@ class ConnectRequestProvenanceTest extends WP_UnitTestCase {
 	/** Restore singleton and request state. */
 	public function tear_down() {
 		$this->reset_request();
-		MainWP_Helper::$instance = $this->saved_helper;
-		$property                = new ReflectionProperty( MainWP_Child_Stats::class, 'instance' );
+		$queue = new ReflectionProperty( Changes_Logs_Logger::class, 'delay_logs_items' );
+		$queue->setAccessible( true );
+		$queue->setValue( null, $this->saved_delayed_logs );
+		MainWP_Helper::$instance                                  = $this->saved_helper;
+		MainWP_Child_Branding::instance()->child_branding_options = $this->saved_branding_options;
+		$property = new ReflectionProperty( MainWP_Child_Stats::class, 'instance' );
 		$property->setAccessible( true );
 		$property->setValue( null, $this->saved_stats );
 		$property = new ReflectionProperty( Changes_Logs_DB_Log::class, 'instance' );
@@ -171,6 +195,32 @@ class ConnectRequestProvenanceTest extends WP_UnitTestCase {
 		$this->assertTrue( $this->authenticate( $signature ) );
 		$this->assertTrue( $this->authenticate( $signature ) );
 		$this->assertFalse( $this->authenticate( $signature ) );
+	}
+
+	/** Cookie shadowing cannot give a verified signature another retry. */
+	public function test_cookie_shadow_cannot_reset_legacy_replay() {
+		$signature                = $this->signature();
+		$_POST['mainwpsignature'] = rawurlencode( $signature );
+		foreach ( array( true, true, false ) as $accepted ) {
+			$this->reset_request();
+			$_COOKIE['mainwpsignature']  = base64_encode( wp_generate_uuid4() );
+			$_REQUEST['mainwpsignature'] = $_COOKIE['mainwpsignature'];
+			try {
+				$result = 1 === MainWP_Connect::instance()->auth( rawurldecode( wp_unslash( $_POST['mainwpsignature'] ) ), 'stats', $_REQUEST['nonce'] );
+			} catch ( MainWP_Exception $exception ) {
+				$result = false;
+			}
+			$this->assertSame( $accepted, $result );
+		}
+	}
+
+	/** Historical text blocks follow the argument even when REQUEST differs. */
+	public function test_shadow_cannot_hide_historical_argument_block() {
+		$signature = chunk_split( $this->signature(), 44, "\n" );
+		add_option( 'mainwp_child_blocked_request_id_' . hash( 'sha256', $signature ), time() );
+		$_REQUEST['mainwpsignature'] = base64_encode( 'fixture-cookie-shadow' );
+		$this->expectException( MainWP_Exception::class );
+		MainWP_Connect::instance()->auth( $signature, 'stats', $_REQUEST['nonce'] );
 	}
 
 	/** Equivalent accepted whitespace must consume the same retry. */
@@ -259,8 +309,13 @@ class ConnectRequestProvenanceTest extends WP_UnitTestCase {
 		return array( array( 'canonical', 5 ), array( 'canonical', 30 ), array( 'submitted', 5 ), array( 'submitted', 30 ), array( 'bytes', 5 ), array( 'bytes', 30 ) );
 	}
 
-	/** An advanced request must block its paired legacy bytes too. */
-	public function test_advanced_request_blocks_equivalent_legacy_signature() {
+	/**
+	 * An advanced request blocks the legacy argument despite cookie shadowing.
+	 *
+	 * @dataProvider paired_legacy_requests
+	 * @param bool $shadow Whether REQUEST contains another signature.
+	 */
+	public function test_advanced_request_blocks_equivalent_legacy_signature( $shadow ) {
 		$legacy               = $this->signature();
 		$admin                = self::factory()->user->create_and_get( array( 'role' => 'administrator' ) );
 		$_REQUEST['user']     = $admin->user_login;
@@ -275,11 +330,12 @@ class ConnectRequestProvenanceTest extends WP_UnitTestCase {
 			)
 		);
 		openssl_sign( $data, $bytes, self::$key );
-		$_REQUEST['mainwpsignature'] = rawurlencode( $legacy );
+		$_COOKIE['mainwpsignature']  = base64_encode( str_repeat( 'fixture-shadow', 8 ) );
+		$_REQUEST['mainwpsignature'] = $shadow ? $_COOKIE['mainwpsignature'] : rawurlencode( $legacy );
 		$this->assertSame(
 			1,
 			MainWP_Connect::instance()->auth(
-				'',
+				$legacy,
 				'stats',
 				$_REQUEST['nonce'],
 				array(
@@ -289,6 +345,15 @@ class ConnectRequestProvenanceTest extends WP_UnitTestCase {
 			)
 		);
 		$this->assertFalse( $this->authenticate( chunk_split( $legacy, 40, "\n" ) ) );
+	}
+
+	/**
+	 * Provides paired legacy request sources.
+	 *
+	 * @return array Normal and cookie-shadowed requests.
+	 */
+	public static function paired_legacy_requests() {
+		return array( array( false ), array( true ) );
 	}
 
 	/**
@@ -329,7 +394,45 @@ class ConnectRequestProvenanceTest extends WP_UnitTestCase {
 		$table  = Changes_Logs_DB_Log::table_name( 'changes_logs' );
 		$before = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', $table ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Observe real logger inserts.
 		Changes_Logs_Logger::log_change( 1600, array( 'username' => 'fixture-user' ) );
+		Changes_Logs_Logger::change_process_delay_logs_items();
 		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', $table ) ) - $before; // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Observe real logger inserts.
+	}
+
+	/**
+	 * Missing monitor events wait for the real authentication result before logging.
+	 *
+	 * @dataProvider monitor_request_authentication
+	 * @param bool $valid Whether the request has a valid signature.
+	 */
+	public function test_missing_monitor_event_waits_for_authentication( $valid ) {
+		global $wpdb;
+		Changes_Logs_DB_Log::instance()->install();
+		MainWP_Child_System_Monitor::init();
+		wp_clear_scheduled_hook( MainWP_Child_System_Monitor::CRON_HOOK );
+		Changes_Handle_WP_System::init_hooks();
+		$table     = Changes_Logs_DB_Log::table_name( 'changes_logs' );
+		$before    = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', $table ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Observe real scheduled-event logging.
+		$signature = $this->signature();
+		$_POST     = array(
+			'mainwpsignature' => $valid ? rawurlencode( $signature ) : 'fake',
+			'function'        => 'stats',
+		);
+		$this->assertFalse( MainWP_Connect::is_request_authenticated() );
+		MainWP_Child_System_Monitor::init_schedule_cron();
+		$this->assertNotFalse( wp_next_scheduled( MainWP_Child_System_Monitor::CRON_HOOK ) );
+		$this->assertSame( $before, (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', $table ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- No insert before authentication resolves.
+		$this->assertSame( $valid, $this->authenticate( $valid ? $signature : 'fake' ) );
+		Changes_Logs_Logger::change_process_delay_logs_items();
+		$this->assertSame( $before + ( $valid ? 0 : 1 ), (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', $table ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Only unverified requests retain their event.
+	}
+
+	/**
+	 * Provides valid Dashboard and forged visitor requests.
+	 *
+	 * @return array Authentication outcomes.
+	 */
+	public static function monitor_request_authentication() {
+		return array( array( true ), array( false ) );
 	}
 
 	/** Signed POSTs retain logging suppression; signed GETs retain logging. */
@@ -351,7 +454,6 @@ class ConnectRequestProvenanceTest extends WP_UnitTestCase {
 	public function test_premium_admin_and_signed_paths_remain_suppressed() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 		$_POST = array( 'perform_premium_action' => 'premium_update' );
-		$_GET  = array( '_mainwp_premium_update_nonce_key' => time() - 100 );
 		$this->assertTrue( mainwp_child_is_dashboard_premium_update_request() );
 		$this->assertSame( 0, $this->record_action() );
 		unset( $_POST['perform_premium_action'] );
@@ -385,6 +487,92 @@ class ConnectRequestProvenanceTest extends WP_UnitTestCase {
 			$this->assertSame( 'REG_ERROR2', $exception->getMessage() );
 		}
 		$this->assertSame( $before, get_option( 'mainwp_child_branding_settings' ) );
+	}
+
+	/**
+	 * Only verified administrator credentials can unhide a rejected reconnect.
+	 *
+	 * @dataProvider rejected_reconnect_credentials
+	 * @param string $role Posted user's role.
+	 * @param string $credential Credential supplied.
+	 * @param bool   $changed_admin Whether the connected login differs.
+	 * @param bool   $recover Whether branding should be disconnected.
+	 */
+	public function test_rejected_reconnect_branding_credentials( $role, $credential, $changed_admin, $recover ) {
+		$user = self::factory()->user->create_and_get(
+			array(
+				'role'      => $role,
+				'user_pass' => 'fixture-password',
+			)
+		);
+		update_option( 'mainwp_child_connected_admin', $changed_admin ? 'previous-fixture-admin' : $user->user_login );
+		MainWP_Child_Keys_Manager::update_encrypted_option( 'mainwp_child_server', 'https://old-dashboard.example.test' );
+		MainWP_Helper::$instance = new MWP1995_Output_Helper();
+		update_option(
+			'mainwp_child_branding_settings',
+			array(
+				'branding_disconnected' => '',
+				'hide'                  => 'T',
+				'name'                  => 'Fixture agency',
+			)
+		);
+		$branding                         = MainWP_Child_Branding::instance();
+		$branding->child_branding_options = $branding->init_options();
+		$branding->save_branding_options( 'branding_disconnected', '' );
+		$before = get_option( 'mainwp_child_branding_settings' );
+		$_POST  = array(
+			'user'   => $user->user_login,
+			'pubkey' => 'fixture-replacement-key',
+			'server' => $changed_admin ? 'https://old-dashboard.example.test' : 'https://new-dashboard.example.test',
+		);
+		if ( 'password' === $credential || 'wrong-password' === $credential ) {
+			$_POST['userpwd'] = 'password' === $credential ? 'fixture-password' : 'wrong-password';
+		} elseif ( 'array-password' === $credential || 'array-password-regverify' === $credential ) {
+			$_POST['userpwd'] = array( 'fixture' );
+			if ( 'array-password-regverify' === $credential ) {
+				$_POST['regverify'] = MainWP_Connect::instance()->validate_register( false, 'generate', $user->user_login );
+			}
+		} elseif ( 'array-regverify' === $credential ) {
+			$_POST['regverify'] = array( 'fixture' );
+		} elseif ( 'regverify' === $credential ) {
+			$_POST['regverify'] = MainWP_Connect::instance()->validate_register( false, 'generate', $user->user_login );
+		} elseif ( 'wrong-regverify' === $credential ) {
+			$_POST['regverify'] = 'invalid-fixture-registration';
+		}
+		try {
+			MainWP_Connect::instance()->register_site();
+			$this->fail( 'Changed connection must retain REG_ERROR2.' );
+		} catch ( RuntimeException $exception ) {
+			$this->assertSame( 'REG_ERROR2', $exception->getMessage() );
+		}
+		$expected = $before;
+		if ( $recover ) {
+			$expected['branding_disconnected'] = 'yes';
+		}
+		$this->assertSame( $expected, get_option( 'mainwp_child_branding_settings' ) );
+		$this->assertSame( 0, get_current_user_id() );
+	}
+
+	/**
+	 * Provides rejected reconnect credential combinations.
+	 *
+	 * @return array Credential, role and changed-connection cases.
+	 */
+	public static function rejected_reconnect_credentials() {
+		return array(
+			'array password'              => array( 'administrator', 'array-password', false, false ),
+			'array registration'          => array( 'administrator', 'array-regverify', false, false ),
+			'array password registration' => array( 'administrator', 'array-password-regverify', false, false ),
+			'missing admin credential'    => array( 'administrator', 'missing', false, false ),
+			'wrong admin password'        => array( 'administrator', 'wrong-password', false, false ),
+			'wrong admin registration'    => array( 'administrator', 'wrong-regverify', false, false ),
+			'subscriber password'         => array( 'subscriber', 'password', false, false ),
+			'subscriber registration'     => array( 'subscriber', 'regverify', false, false ),
+			'changed server password'     => array( 'administrator', 'password', false, true ),
+			'changed server registration' => array( 'administrator', 'regverify', false, true ),
+			'changed admin password'      => array( 'administrator', 'password', true, true ),
+			'changed admin registration'  => array( 'administrator', 'regverify', true, true ),
+		);
 	}
 
 	/** A reconnect still validates the real administrator password and stores its key. */

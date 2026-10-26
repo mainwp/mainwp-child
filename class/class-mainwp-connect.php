@@ -136,6 +136,14 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             if ( ! $this->is_enabled_user_passwd_auth( wp_unslash( $_POST['user'] ) ) ) {
                 MainWP_Helper::instance()->error( esc_html__( 'Forced Reconnect requires Administrator Password authentication. Please enable Password Authentication in the MainWP Child Settings on the child site, or remove and re-add the site to resolve the issue.', 'mainwp-child' ), 'REG_ERROR10' );
             }
+            $credentials_are_strings = ( ! isset( $_POST['userpwd'] ) || is_string( $_POST['userpwd'] ) ) && ( ! isset( $_POST['regverify'] ) || is_string( $_POST['regverify'] ) );
+            $reconnect_user          = get_user_by( 'login', wp_unslash( $_POST['user'] ) );
+            $has_password            = $credentials_are_strings && ! empty( $_POST['userpwd'] ) && '' !== trim( rawurldecode( $_POST['userpwd'] ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- Match existing password wire decoding.
+            $has_regverify           = $credentials_are_strings && ! empty( $_POST['regverify'] ) && '' !== sanitize_text_field( wp_unslash( $_POST['regverify'] ) );
+            if ( $reconnect_user && MainWP_Helper::is_admin( $reconnect_user ) && ( $has_password || $has_regverify ) && $this->is_verified_register( $reconnect_user->user_login ) ) {
+                // Let a verified administrator find the hidden plugin to reactivate it.
+                MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
+            }
             MainWP_Helper::instance()->error( esc_html__( 'Public key already set. Please deactivate & reactivate the MainWP Child plugin on the child site and try again.', 'mainwp-child' ), 'REG_ERROR2' );
         }
 
@@ -575,6 +583,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             $others = array();
         }
 
+        $legacy_signature    = $signature;
         $connect_sign        = isset( $others['connect_sign'] ) ? $others['connect_sign'] : '';
         $mainwpsignature_adv = isset( $others['mainwpsignature_adv'] ) ? $others['mainwpsignature_adv'] : '';
 
@@ -614,17 +623,16 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
                 $valid_code = true;
                 if ( $this->is_advanced_signature( $decode_connect_sign ) ) {
                     $valid_code = $this->verify_advanced_authed_request( $decode_connect_sign, $func );
-                    if ( true === $valid_code && isset( $_REQUEST['mainwpsignature'] ) ) {
-                        $request_id = rawurldecode( wp_unslash( $_REQUEST['mainwpsignature'] ) ); // phpcs:ignore --NOSONAR - WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-                        if ( strlen( $request_id ) > 50 ) { // base64 encoded string - Looks like a valid base signature was sent as well, so block it to prevent potential misuse.
-                            $legacy_bytes = base64_decode( $request_id, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Signature wire format.
+                    if ( true === $valid_code ) {
+                        if ( strlen( $legacy_signature ) > 50 ) { // base64 encoded string - Looks like a valid base signature was sent as well, so block it to prevent potential misuse.
+                            $legacy_bytes = base64_decode( $legacy_signature, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Signature wire format.
                             if ( false !== $legacy_bytes ) {
                                 add_option( 'mainwp_child_blocked_request_id_' . hash( 'sha256', $legacy_bytes ), time(), '', false );
                             }
                         }
                     }
                 } else {
-                    $valid_code = $this->verify_authed_request();
+                    $valid_code = $this->verify_authed_request( $signature, $signature_bytes );
                 }
                 if ( true !== $valid_code ) {
                     $auth = false;
@@ -745,20 +753,13 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Method verify_authed_request()
      *
+     * @param string $request_id      Verified legacy wire spelling.
+     * @param string $signature_bytes Verified decoded signature.
      * @return string|bool True if valid request.
      */
-    private function verify_authed_request() { // phpcs:ignore --NOSONAR - complex.
-
-        // phpcs:disable WordPress.Security.NonceVerification
-        $request_id = rawurldecode( isset( $_REQUEST['mainwpsignature'] ) ? wp_unslash( $_REQUEST['mainwpsignature'] ) : '' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        // phpcs:enable WordPress.Security.NonceVerification
+    private function verify_authed_request( $request_id, $signature_bytes ) { // phpcs:ignore --NOSONAR - complex.
 
         $now = time();
-
-        $signature_bytes = base64_decode( $request_id, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Signature wire format.
-        if ( false === $signature_bytes ) {
-            return 'AUTH_INVALID_SIGN';
-        }
 
         $hash_request_id = hash( 'sha256', $signature_bytes );
 
