@@ -180,7 +180,28 @@ class Test_MainWP_Child_Expected_Post_Type extends WP_UnitTestCase {
     }
 
     public static function invalid_types() {
-        return array( 'empty' => array( '' ), 'null' => array( null ), 'array' => array( array( 'post' ) ) );
+        return array( 'empty' => array( '' ), 'null' => array( null ), 'array' => array( array( 'post' ) ), 'html' => array( '<b>post</b>' ), 'whitespace' => array( ' post ' ), 'percent' => array( 'po%20st' ) );
+    }
+
+    /** @dataProvider newpost_malformed_types */
+    public function test_newpost_edit_refuses_normalized_unknown_types( $expected, $custom ) {
+        $id = $this->item( 'update', 'post' );
+        $before = $this->snapshot( $id );
+        $_POST = $this->newpost_request( $id, 'post', $custom );
+        $_POST['expected_post_type'] = $expected;
+        $this->assert_refused( $this->dispatch( 'new_post' ) );
+        $this->assertSame( $before, $this->snapshot( $id ) );
+        $this->assertSame( 0, $this->before_updates );
+    }
+
+    public static function newpost_malformed_types() {
+        $cases = array();
+        foreach ( array( '<b>post</b>', ' post ', 'po%20st' ) as $expected ) {
+            foreach ( array( false, true ) as $custom ) {
+                $cases[] = array( $expected, $custom );
+            }
+        }
+        return $cases;
     }
 
     public function test_update_checks_post_data_id_instead_of_the_outer_id() {

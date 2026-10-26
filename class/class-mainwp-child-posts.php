@@ -2339,10 +2339,10 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
             return '';
         }
         $expected = is_string( $_POST['expected_post_type'] ) ? sanitize_text_field( wp_unslash( $_POST['expected_post_type'] ) ) : '';
-        // phpcs:enable WordPress.Security.NonceVerification
-        if ( ! in_array( $expected, array( 'post', 'page' ), true ) ) {
+        if ( ! in_array( $expected, array( 'post', 'page' ), true ) || wp_unslash( $_POST['expected_post_type'] ) !== $expected ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Raw comparison rejects values changed by sanitization.
             return esc_html__( 'Expected post type must be post or page.', 'mainwp-child' );
         }
+        // phpcs:enable WordPress.Security.NonceVerification
         foreach ( $post_ids as $post_id ) {
             $post = ! empty( $post_id ) && is_scalar( $post_id ) ? get_post( $post_id ) : null;
             if ( ! $post ) {
