@@ -152,7 +152,8 @@ class MainWP_Child_Misc {
      * @return string Parsed favicon.
      */
     private function try_to_parse_favicon( $site_url ) { //phpcs:ignore -- NOSONAR - complex.
-        $request = wp_remote_get( $site_url, array( 'timeout' => 50 ) );
+        // This request loops back to the site's own PHP workers, so a long wait can hold the last free worker on a small host.
+        $request = wp_remote_get( $site_url, array( 'timeout' => 15 ) );
         $favi    = '';
         if ( is_array( $request ) && isset( $request['body'] ) ) {
             $preg_str1 = '/(<link\s+[^\>]*rel="shortcut\s+icon"\s*[^>]*href="([^"]+)"[^>]*>)/is';
