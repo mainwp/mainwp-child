@@ -103,7 +103,8 @@ class Test_MainWP_Child_Connection_Window extends WP_UnitTestCase {
         $this->assertStringContainsString( 'input.select()', $output );
         $this->assertStringContainsString( "document.execCommand('copy')", $output );
         $this->assertStringContainsString( 'window.setInterval', $output );
-        $this->assertStringContainsString( 'data-ended="' . esc_attr( 'Time is up: MainWP Child switches itself off on your next page load. Reactivate it from the Plugins page to start over.' ) . '"', $output );
+        $this->assertStringContainsString( 'data-ended="' . esc_attr( "Time is up. If this site isn't connected yet, MainWP Child switches itself off. Reload the page to check, and if it's off, reactivate it from the Plugins page to start over." ) . '"', $output );
+        $this->assertStringContainsString( "seconds === 0 ? countdown.getAttribute('data-ended')", $output );
         $this->assertStringContainsString( 'Date.now()', $output );
         $this->assertStringContainsString( 'docs.mainwp.com/getting-started/get-started-with-mainwp#add-a-site-to-your-dashboard', $output );
         $this->assertStringContainsString( 'admin.php?page=mainwp_child_tab', $output );
