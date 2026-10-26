@@ -126,7 +126,7 @@ class Test_MainWP_Child_Connection_Window extends WP_UnitTestCase {
         update_option( 'mainwp_child_ttl_active_unconnected_site', 9 );
         $this->child()->activation();
         $output = $this->notice();
-        $this->assertStringContainsString( 'MainWP Child switched itself off because no MainWP Dashboard connected to it within 3 minutes. This protects sites where the plugin is left active but unused. It is active again, with the same 9-minute limit.', $output );
+        $this->assertStringContainsString( 'MainWP Child switched itself off because no MainWP Dashboard connected to it within 3 minutes. This protects sites where the plugin is left active but unused. It is active again, with a 9-minute limit.', $output );
         $this->assertFalse( get_option( 'mainwp_child_connection_window_expired' ) );
         $this->assertStringNotContainsString( 'switched itself off because', $this->notice() );
     }
@@ -135,7 +135,7 @@ class Test_MainWP_Child_Connection_Window extends WP_UnitTestCase {
         update_option( 'mainwp_child_connection_window_expired', array( 'time' => time() - 60, 'ttl' => 1 ) );
         update_option( 'mainwp_child_ttl_active_unconnected_site', 1 );
         $this->child()->activation();
-        $this->assertStringContainsString( 'within 1 minute. This protects sites where the plugin is left active but unused. It is active again, with the same 1-minute limit.', $this->notice() );
+        $this->assertStringContainsString( 'within 1 minute. This protects sites where the plugin is left active but unused. It is active again, with a 1-minute limit.', $this->notice() );
     }
 
     public function test_reactivation_with_timeout_disabled_ends_after_active_again() {
@@ -216,7 +216,9 @@ class Test_MainWP_Child_Connection_Window extends WP_UnitTestCase {
         $child->admin_init();
         $this->assertFalse( get_option( 'mainwp_child_connection_window_expired' ) );
         wp_set_current_user( $admin_id );
-        $this->assertStringContainsString( 'Site URL', $this->notice() );
+        $output = $this->notice();
+        $this->assertStringContainsString( 'Site URL', $output );
+        $this->assertStringNotContainsString( 'switches itself off', $output );
     }
 
     public function test_negative_ttl_keeps_existing_deactivation_behavior() {

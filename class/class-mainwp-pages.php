@@ -111,8 +111,9 @@ class MainWP_Pages {
 
             $window  = MainWP_Child::get_connection_window();
             $expired = get_option( 'mainwp_child_connection_window_expired' );
+            $listed  = is_plugin_active( plugin_basename( MAINWP_CHILD_FILE ) );
             // Hooks remain loaded in the request that switches Child off; wait for reactivation.
-            if ( false !== $expired && ! is_plugin_active( plugin_basename( MAINWP_CHILD_FILE ) ) ) {
+            if ( false !== $expired && ! $listed ) {
                 return;
             }
             $msg = '<div id="mainwp-child-connection-notice" style="background:#ffffff;padding:20px;margin:20px 20px 20px 2px;border:1px solid #f4f4f4;">';
@@ -132,7 +133,7 @@ class MainWP_Pages {
                     $explanation .= ' ' . __( 'It is active again.', 'mainwp-child' );
                 } else {
                     // translators: %d: Current connection window in minutes.
-                    $explanation .= ' ' . sprintf( _n( 'It is active again, with the same %d-minute limit.', 'It is active again, with the same %d-minute limit.', $window['minutes'], 'mainwp-child' ), $window['minutes'] );
+                    $explanation .= ' ' . sprintf( __( 'It is active again, with a %d-minute limit.', 'mainwp-child' ), $window['minutes'] );
                 }
                 $msg .= '<p>' . esc_html( str_replace( array( 'MainWP Child', 'MainWP Dashboard' ), array( $child_name, $dashboard_name ), $explanation ) ) . '</p>';
             }
@@ -152,7 +153,8 @@ class MainWP_Pages {
                 $msg     .= '<input type="text" readonly id="' . esc_attr( $input_id ) . '" value="' . esc_attr( $row['value'] ) . '" /> ';
                 $msg     .= '<button type="button" class="button mainwp-child-copy" data-target="' . esc_attr( $input_id ) . '" data-copied="' . esc_attr__( 'Copied', 'mainwp-child' ) . '" aria-describedby="' . esc_attr( $input_id . '-label' ) . '" aria-live="polite">' . esc_html__( 'Copy', 'mainwp-child' ) . '</button></p>';
             }
-            if ( 'disabled' !== $window['state'] ) {
+            // A must-use load is not in active_plugins and never switches off, so a countdown would be false.
+            if ( 'disabled' !== $window['state'] && $listed ) {
                 $minutes = (int) ceil( $window['remaining'] / MINUTE_IN_SECONDS );
                 // translators: %d: Minutes remaining before MainWP Child switches itself off.
                 $singular = _n( "For security, MainWP Child switches itself off in %d minute if it isn't connected.", "For security, MainWP Child switches itself off in %d minutes if it isn't connected.", 1, 'mainwp-child' );
