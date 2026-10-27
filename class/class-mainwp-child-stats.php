@@ -116,6 +116,12 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
 
         $information['support_advanced_sign'] = 1;
 
+        $window                                   = MainWP_Child::get_connection_window();
+        $information['connection_window_minutes'] = $window['minutes'];
+        if ( 'disabled' !== $window['state'] ) {
+            $information['connection_window_remaining'] = $window['remaining'];
+        }
+
         MainWP_Helper::write( $information );
     }
 
