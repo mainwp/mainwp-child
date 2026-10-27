@@ -126,7 +126,7 @@ class MainWP_Child_Backup_Download_Token { // phpcs:ignore Generic.Classes.Openi
      *
      * @param string $basename Requested file.
      * @param string $hash     Current digest.
-     * @return bool|null Whether recorded evidence exists but none matches; null when the evidence cannot be read.
+     * @return bool|null Whether recorded evidence exists but none matches; null on a failed evidence read unless the probe confirms a missing table.
      */
     private function recorded_hash_mismatch( $basename, $hash ) {
         if ( MainWP_Child_Backup_Task::is_chain_file( $basename ) ) {
@@ -148,7 +148,10 @@ class MainWP_Child_Backup_Download_Token { // phpcs:ignore Generic.Classes.Openi
             // A failed read of an existing table must not pass as "no recorded hash".
             if ( '' !== (string) $wpdb->last_error ) {
                 $wpdb->query( 'SELECT 1 FROM ' . $spine->get_table_name() . ' LIMIT 1' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared -- existence probe on the trusted task table name.
-                return '' === (string) $wpdb->last_error ? null : false;
+                if ( '' !== (string) $wpdb->last_error && $wpdb->dbh instanceof \mysqli && 1146 === mysqli_errno( $wpdb->dbh ) ) { // phpcs:ignore WordPress.DB.RestrictedFunctions.mysql_mysqli_errno -- wpdb exposes no numeric query error.
+                    return false;
+                }
+                return null;
             }
         } finally {
             $wpdb->suppress_errors( $suppress );

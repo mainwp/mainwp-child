@@ -149,6 +149,7 @@ class BackupDownloadTokenTest extends WP_UnitTestCase {
 	public static function token_evidence_read_failures() {
 		return array(
 			'query fails on the existing table' => array( false, 'mainwp_backup_dl_recorded_hash_unreadable' ),
+			'query and probe fail on the existing table' => array( false, 'mainwp_backup_dl_recorded_hash_unreadable', true ),
 			'task table missing (legacy)'        => array( true, null ),
 		);
 	}
@@ -158,18 +159,21 @@ class BackupDownloadTokenTest extends WP_UnitTestCase {
 	 *
 	 * @dataProvider token_evidence_read_failures
 	 */
-	public function test_backup_hash_token_refuses_when_recorded_evidence_cannot_be_read( $table_missing, $code ) {
+	public function test_backup_hash_token_refuses_when_recorded_evidence_cannot_be_read( $table_missing, $code, $probe_fails = false ) {
 		$file = 'backup-evidence-read.zip';
 		$path = $this->create_artifact( $file, 'original' );
 		$this->record_completed_hash( $file, hash_file( 'sha256', $path ) );
 		file_put_contents( $path, 'modified' );
 		$table  = \MainWP\Child\MainWP_Child_Backup_Task::instance()->get_table_name();
-		$filter = function ( $query ) use ( $table, $table_missing ) {
+		$filter = function ( $query ) use ( $table, $table_missing, $probe_fails ) {
 			if ( false !== strpos( $query, 'sub_state LIKE' ) ) {
 				return $table_missing ? str_replace( $table, $table . '_absent', $query ) : str_replace( 'SELECT task_id, sub_state', 'SELECT no_such_column', $query );
 			}
 			if ( $table_missing && 0 === strpos( $query, 'SELECT 1 FROM ' . $table ) ) {
 				return str_replace( $table, $table . '_absent', $query );
+			}
+			if ( $probe_fails && 0 === strpos( $query, 'SELECT 1 FROM ' . $table ) ) {
+				return str_replace( 'SELECT 1', 'SELECT no_such_column', $query );
 			}
 			return $query;
 		};
