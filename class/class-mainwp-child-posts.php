@@ -2135,6 +2135,33 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         if ( isset( $_POST['featured_image_data'] ) ) {
             $others['featured_image_data'] = ! empty( $_POST['featured_image_data'] ) ? json_decode( base64_decode( wp_unslash( $_POST['featured_image_data'] ) ), true ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.PHP.DiscouragedPHPFunctions -- base64_encode function is used for http encode compatible..
         }
+        if ( array_key_exists( 'expected_post_type', $_POST ) ) {
+            $edit_post_ids = array();
+            if ( ! empty( $new_post['ID'] ) ) {
+                $edit_post_ids[] = $new_post['ID'];
+            }
+            if ( ! empty( $post_custom['_mainwp_edit_post_id'] ) ) {
+                $custom_edit_id = current( $post_custom['_mainwp_edit_post_id'] );
+                if ( $custom_edit_id ) {
+                    $custom_post = is_scalar( $custom_edit_id ) ? get_post( $custom_edit_id ) : null;
+                    if ( $custom_post && ( ( ! isset( $new_post['post_type'] ) && 'post' === $custom_post->post_type ) || ( isset( $new_post['post_type'] ) && $new_post['post_type'] === $custom_post->post_type ) ) ) {
+                        $edit_post_ids = array();
+                    }
+                    $edit_post_ids[] = $custom_edit_id;
+                }
+            }
+            if ( $edit_post_ids ) {
+                $type_error = $this->expected_post_type_error( $edit_post_ids );
+                if ( '' !== $type_error ) {
+                    $information = array(
+                        'status' => 'FAIL',
+                        'error'  => $type_error,
+                    );
+                    MainWP_Helper::write( $information );
+                    return;
+                }
+            }
+        }
         // phpcs:enable WordPress.Security.NonceVerification
         $result = $this->create_post( $new_post, $post_custom, $post_category, $post_featured_image, $upload_dir, $post_tags, $others );
 
@@ -2172,6 +2199,21 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         $action  = MainWP_System::instance()->validate_params( 'action' );
         $postId  = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
         $my_post = array();
+
+        $target_id = $postId;
+        if ( 'update' === $action && array_key_exists( 'expected_post_type', $_POST ) ) {
+            $post_data = isset( $_POST['post_data'] ) && is_array( $_POST['post_data'] ) ? wp_unslash( $_POST['post_data'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Only the update target is read here.
+            $target_id = isset( $post_data['ID'] ) ? $post_data['ID'] : 0;
+        }
+        $type_error = $this->expected_post_type_error( array( $target_id ) );
+        if ( '' !== $type_error ) {
+            $information = array(
+                'status' => 'FAIL',
+                'error'  => $type_error,
+            );
+            MainWP_Helper::write( $information );
+            return;
+        }
 
         $old_post_type_name = '';
         $post_current       = false;
@@ -2283,6 +2325,35 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         );
         $information['my_post']    = $my_post;
         MainWP_Helper::write( $information );
+    }
+
+    /**
+     * Check existing content targets only when the Dashboard supplies a type.
+     *
+     * @param array $post_ids Existing posts that the request can update or unlock.
+     * @return string Empty on success, otherwise a plain error message.
+     */
+    private function expected_post_type_error( $post_ids ) {
+        // phpcs:disable WordPress.Security.NonceVerification -- Authenticated Child request.
+        if ( ! array_key_exists( 'expected_post_type', $_POST ) ) {
+            return '';
+        }
+        $expected = is_string( $_POST['expected_post_type'] ) ? sanitize_text_field( wp_unslash( $_POST['expected_post_type'] ) ) : '';
+        if ( ! in_array( $expected, array( 'post', 'page' ), true ) || wp_unslash( $_POST['expected_post_type'] ) !== $expected ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Raw comparison rejects values changed by sanitization.
+            return esc_html__( 'Expected post type must be post or page.', 'mainwp-child' );
+        }
+        // phpcs:enable WordPress.Security.NonceVerification
+        foreach ( $post_ids as $post_id ) {
+            $post = ! empty( $post_id ) && is_scalar( $post_id ) ? get_post( $post_id ) : null;
+            if ( ! $post ) {
+                return esc_html__( 'This item no longer exists.', 'mainwp-child' );
+            }
+            if ( $expected !== $post->post_type ) {
+                // translators: 1: Actual post type, 2: Expected post type.
+                return sprintf( esc_html__( 'This item is a %1$s, not a %2$s.', 'mainwp-child' ), sanitize_key( $post->post_type ), $expected );
+            }
+        }
+        return '';
     }
 
     /**
