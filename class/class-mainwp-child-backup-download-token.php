@@ -83,8 +83,8 @@ class MainWP_Child_Backup_Download_Token { // phpcs:ignore Generic.Classes.Openi
         $mismatch = is_string( $hash ) ? $this->recorded_hash_mismatch( basename( $full_path ), $hash ) : false;
         if ( null === $mismatch ) {
             return array(
-                'error'      => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DB_QUERY_FAILED ),
-                'error_code' => MainWP_Backup_Error::ERR_DB_QUERY_FAILED,
+                'error'      => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DL_RECORDED_HASH_UNREADABLE ),
+                'error_code' => MainWP_Backup_Error::ERR_DL_RECORDED_HASH_UNREADABLE,
             );
         }
         if ( $mismatch ) {

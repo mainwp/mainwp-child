@@ -568,10 +568,49 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         MainWP_Helper::get_wp_filesystem();
 
         include_once ABSPATH . 'wp-admin/includes/file.php'; // NOSONAR -- WP compatible.
-        $upload_dir = wp_upload_dir();
-        add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
-        $temporary_file = download_url( $img_url );
-        remove_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
+        $upload_dir    = wp_upload_dir();
+        $request_args  = static function ( $args, $url ) use ( $img_url ) {
+            return $url === $img_url ? self::image_download_request_args( $args, $url ) : $args;
+        };
+        $safe_ports    = static function ( $ports, $host, $url ) {
+            $home_host = wp_parse_url( get_option( 'home' ), PHP_URL_HOST );
+            $url_host  = wp_parse_url( $url, PHP_URL_HOST );
+            $port      = wp_parse_url( $url, PHP_URL_PORT );
+            // Core checks external addresses before asking which ports are allowed.
+            if ( $port && is_string( $url_host ) && ( ! is_string( $home_host ) || 0 !== strcasecmp( $home_host, $url_host ) ) ) {
+                $ports[] = $port;
+            }
+            return $ports;
+        };
+        $external_host = static function ( $external, $host, $url ) {
+            // Custom post imports can already have a broader request-wide host filter.
+            return self::is_dashboard_image_url( $url );
+        };
+        $redirect      = static function ( $url, &$headers ) {
+            if ( self::is_dashboard_image_url( $url ) ) {
+                $args    = self::image_download_request_args( array( 'headers' => $headers ), $url );
+                $headers = $args['headers'];
+            } else {
+                \WP_Http::validate_redirects( $url );
+                foreach ( array_keys( $headers ) as $name ) {
+                    if ( 0 === strcasecmp( $name, 'Authorization' ) ) {
+                        unset( $headers[ $name ] );
+                    }
+                }
+            }
+        };
+        add_filter( 'http_request_args', $request_args, 99, 2 );
+        add_filter( 'http_allowed_safe_ports', $safe_ports, 99, 3 );
+        add_filter( 'http_request_host_is_external', $external_host, 99, 3 );
+        add_action( 'requests-requests.before_redirect', $redirect, 99, 2 );
+        try {
+            $temporary_file = download_url( $img_url );
+        } finally {
+            remove_filter( 'http_request_args', $request_args, 99 );
+            remove_filter( 'http_allowed_safe_ports', $safe_ports, 99 );
+            remove_filter( 'http_request_host_is_external', $external_host, 99 );
+            remove_action( 'requests-requests.before_redirect', $redirect, 99 );
+        }
 
         if ( is_wp_error( $temporary_file ) ) {
             throw new MainWP_Exception( 'Error: ' . esc_html( $temporary_file->get_error_message() ) );
@@ -616,6 +655,51 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             $wp_filesystem->delete( $temporary_file );
         }
         return null;
+    }
+
+    /**
+     * Retains Dashboard download settings without sending its credentials elsewhere.
+     *
+     * @param array  $args HTTP request arguments.
+     * @param string $url  Image URL.
+     * @return array
+     */
+    private static function image_download_request_args( $args, $url ) {
+        if ( self::is_dashboard_image_url( $url ) ) {
+            return MainWP_Helper::reject_unsafe_urls( $args );
+        }
+        // phpcs:disable WordPress.Security.NonceVerification -- Supplied by the authenticated posting request.
+        if ( isset( $_POST['sslVerify'] ) && '0' === $_POST['sslVerify'] ) {
+            $args['sslverify'] = false;
+        }
+        // phpcs:enable WordPress.Security.NonceVerification
+        return $args;
+    }
+
+    /**
+     * Matches the connected Dashboard while allowing FORCE_SSL_ADMIN media URLs.
+     *
+     * @param string $url Image URL.
+     * @return bool
+     */
+    private static function is_dashboard_image_url( $url ) {
+        $server = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
+        $server = is_string( $server ) ? wp_parse_url( $server ) : false;
+        $image  = is_string( $url ) ? wp_parse_url( $url ) : false;
+        foreach ( array( $server, $image ) as $parsed ) {
+            if ( ! is_array( $parsed ) || empty( $parsed['host'] ) || empty( $parsed['scheme'] ) || ! in_array( strtolower( $parsed['scheme'] ), array( 'http', 'https' ), true ) || isset( $parsed['user'] ) || isset( $parsed['pass'] ) ) {
+                return false;
+            }
+        }
+        if ( 0 !== strcasecmp( $server['host'], $image['host'] ) ) {
+            return false;
+        }
+        // FORCE_SSL_ADMIN can change the scheme and its standard port for media.
+        $server_default_port = 'https' === strtolower( $server['scheme'] ) ? 443 : 80;
+        $image_default_port  = 'https' === strtolower( $image['scheme'] ) ? 443 : 80;
+        $server_port         = isset( $server['port'] ) ? $server['port'] : $server_default_port;
+        $image_port          = isset( $image['port'] ) ? $image['port'] : $image_default_port;
+        return $server_port === $image_port || ( $server_default_port === $server_port && $image_default_port === $image_port );
     }
 
     /**
