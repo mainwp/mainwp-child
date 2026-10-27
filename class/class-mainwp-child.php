@@ -631,12 +631,52 @@ class MainWP_Child {
                 } elseif ( $lasttime_active < time() - $ttl_pubkey * MINUTE_IN_SECONDS ) {
                     include_once ABSPATH . '/wp-admin/includes/plugin.php'; // NOSONAR -- WP compatible.
                     delete_option( 'mainwp_child_lasttime_not_connected' );
+                    // Silent deactivation skips hooks, so keep the reason for the next activation notice.
+                    // A must-use load is not in active_plugins, never deactivates, and has nothing to explain.
+                    if ( is_plugin_active( $this->plugin_slug ) ) {
+                        MainWP_Helper::update_option(
+                            'mainwp_child_connection_window_expired',
+                            array(
+                                'time' => time(),
+                                'ttl'  => $ttl_pubkey,
+                            )
+                        );
+                    }
                     deactivate_plugins( $this->plugin_slug, true );
                 }
             }
         }
 
         MainWP_Child_DB::maybe_cleanup_request_ids();
+    }
+
+    /**
+     * Reads the connection window without starting it during an unauthenticated pre-check.
+     *
+     * @return array Configured minutes, remaining seconds (null when disabled), and state.
+     */
+    public static function get_connection_window() {
+        $minutes = (int) get_option( 'mainwp_child_ttl_active_unconnected_site', 20 );
+        if ( 0 === $minutes ) {
+            return array(
+                'minutes'   => 0,
+                'remaining' => null,
+                'state'     => 'disabled',
+            );
+        }
+
+        // Negative values still expire under the existing nonzero TTL condition.
+        $started   = get_option( 'mainwp_child_lasttime_not_connected' );
+        $remaining = $minutes * MINUTE_IN_SECONDS;
+        if ( ! empty( $started ) ) {
+            $remaining -= time() - (int) $started;
+        }
+
+        return array(
+            'minutes'   => $minutes,
+            'remaining' => max( 0, (int) $remaining ),
+            'state'     => empty( $started ) ? 'not_started' : 'running',
+        );
     }
 
     /**
@@ -745,6 +785,8 @@ class MainWP_Child {
         $to_delete[] = 'mainwp_ext_snippets_enabled';
         $to_delete[] = 'mainwp_ext_code_snippets';
         $to_delete[] = 'mainwp_child_openssl_sign_algo';
+        // Sites registered by older versions still hold the pre-connection timestamp, which would switch Child off on the next request.
+        $to_delete[] = 'mainwp_child_lasttime_not_connected';
 
         foreach ( $to_delete as $delete ) {
             if ( get_option( $delete ) ) {
