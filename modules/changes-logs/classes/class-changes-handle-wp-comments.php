@@ -151,6 +151,9 @@ class Changes_Handle_WP_Comments {
 
         $comment = get_comment( $comment_id );
         if ( $comment && 'spam' !== $comment->comment_approved ) {
+            if ( 0 === (int) $comment->user_id && ! in_array( $comment->comment_type, array( '', 'comment' ), true ) ) {
+                return;
+            }
             $post   = get_post( $comment->comment_post_ID );
             $fields = array(
                 'posttitle'  => $post->post_title,
@@ -161,19 +164,35 @@ class Changes_Handle_WP_Comments {
                 'date'       => $comment->comment_date,
             );
 
-            $user_data = get_user_by( 'email', $comment->comment_author_email );
-
-            if ( $user_data && $user_data instanceof \WP_User ) {
-                $user_roles = Changes_Helper::get_user_roles( $user_data );
-
-                $fields['username']         = $user_data->user_login;
-                $fields['currentuserroles'] = $user_roles;
-                if ( ! empty( $user_data->ID ) ) {
-                    $fields['currentuserid'] = $user_data->ID;
-                }
-                Changes_Logs_Logger::log_change( 1565, $fields );
-            }
+            $fields = array_merge( $fields, self::get_comment_actor_fields( $comment ) );
+            Changes_Logs_Logger::log_change( 1565, $fields );
         }
+    }
+
+    /**
+     * Resolves the account recorded on a comment without trusting submitted identity.
+     *
+     * @param \WP_Comment $comment Comment being created.
+     * @return array Actor fields and unverified guest metadata.
+     */
+    private static function get_comment_actor_fields( $comment ) {
+        $fields = array(
+            'currentuserid'    => (int) $comment->user_id,
+            'currentuserroles' => array(),
+            'username'         => 'Guest (unverified)',
+        );
+
+        if ( $fields['currentuserid'] ) {
+            $user_data          = get_userdata( $fields['currentuserid'] );
+            $fields['username'] = $user_data ? $user_data->user_login : 'Deleted';
+            if ( $user_data ) {
+                $fields['currentuserroles'] = Changes_Helper::get_user_roles( $user_data );
+            }
+        } else {
+            $fields['author'] = $comment->comment_author . ' <' . $comment->comment_author_email . '> (unverified)';
+        }
+
+        return $fields;
     }
 
     /**
@@ -197,6 +216,9 @@ class Changes_Handle_WP_Comments {
             );
 
             if ( 'shop_order' !== $post->post_type && ( property_exists( $comment, 'comment_type' ) && 'order_note' !== $comment->comment_type ) ) {
+                if ( 1530 === $log_code ) {
+                    $fields = array_merge( $fields, self::get_comment_actor_fields( $comment ) );
+                }
                 Changes_Logs_Logger::log_change( $log_code, $fields );
             }
         }
