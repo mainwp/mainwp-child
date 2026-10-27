@@ -118,6 +118,12 @@ class Changes_Logs_Logger { //phpcs:ignore -- NOSONAR -ok.
             return;
         }
 
+        // Resolve late Dashboard authentication before writing early request events.
+        if ( isset( $_POST['mainwpsignature'], $_POST['function'] ) && ! did_action( 'shutdown' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Defer the decision; these fields do not authenticate the request.
+            static::log_change_save_delay( $type_id, $data );
+            return;
+        }
+
         $data = static::prepare_log_data( $data );
 
         static::log_item( $type_id, $data, false );
