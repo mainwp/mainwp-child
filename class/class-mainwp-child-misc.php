@@ -940,6 +940,7 @@ class MainWP_Child_Misc {
         $level = ob_get_level();
         ob_start();
         try {
+            // nosemgrep: AIK_eval-use -- Runs a stored Code Snippets definition; the authenticated Child callable gates who can reach it.
             eval( $code ); // phpcs:ignore Squiz.PHP.Eval, Generic.PHP.ForbiddenFunctions.Found -- Executes an already authorized stored Code Snippets definition under the authenticated Child callable.
             $status = 'succeeded';
         } catch ( \Throwable $exception ) {
