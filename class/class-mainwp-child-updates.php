@@ -163,28 +163,20 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         $plugin_update = false;
 
         $inner_locked   = false;
-        $inner_lock_key = 'mainwp_child:mainwp_child_premium_update_visit_lock';
+        $inner_lock_key = 'mainwp_child:mainwp_child_premium_update_lock';
         try {
             // phpcs:disable WordPress.Security.NonceVerification
             if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {
-                $premium_request = isset( $_GET['_mainwp_premium_update_req'] )
-                ? sanitize_key( wp_unslash( $_GET['_mainwp_premium_update_req'] ) )
-                : '';
-                // The premium detection caller holds the shared lock for the
-                // duration of this synchronous request.
-                if ( empty( $premium_request ) || ! in_array( $premium_request, array( 'detect_plugin', 'update_plugin' ), true ) ) {
-                    // Ordinary update: acquire the lock ourselves.
-                    $inner_locked = self::acquire_premium_update_visit_lock( $inner_lock_key );
-
-                    if ( ! $inner_locked ) {
-                        MainWP_Helper::instance()->error(
-                            esc_html__(
-                                'A premium update request or another update process is already in progress. Please try again later.',
-                                'mainwp-child'
-                            )
-                        );
-                        return;
-                    }
+                // Ordinary update: acquire the lock ourselves.
+                $inner_locked = self::acquire_premium_update_visit_lock( $inner_lock_key );
+                if ( ! $inner_locked ) {
+                    MainWP_Helper::instance()->error(
+                        esc_html__(
+                            'A premium update request or another update process is already in progress. Please try again later.',
+                            'mainwp-child'
+                        )
+                    );
+                    return;
                 }
                 $this->upgrade_plugin( $information, $mwp_premium_updates_to_do, $mwp_premium_updates_to_do_slugs, $premiumUpgrader );
                 $plugin_update = true;
@@ -1315,6 +1307,35 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Named lock acquisition must be checked.
 
         return empty( $wpdb->last_error ) && '1' === (string) $acquired;
+    }
+
+    /**
+     * Check whether a premium update lock is currently held.
+     *
+     * Uses MySQL's IS_USED_LOCK() to determine whether any connection currently
+     * owns the named lock. This is a status check only; it does not acquire the
+     * lock or guarantee that the lock remains held after this method returns.
+     *
+     * @param string $lock_key Lock name.
+     *
+     * @return bool Whether the lock is currently held and the query succeeded.
+     */
+    public static function is_premium_update_locked( $lock_key = 'mainwp_child:mainwp_child_premium_update_lock' ) {
+        global $wpdb;
+
+        $lock_key = self::get_premium_update_lock_key( $lock_key );
+
+        $wpdb->last_error = '';
+        $connection_id = $wpdb->get_var(
+            $wpdb->prepare(
+                'SELECT IS_USED_LOCK(%s)',
+                $lock_key
+            )
+        );
+
+        // If IS_USED_LOCK returns a connection ID, the lock is currently held.
+        // If it returns null or 0, the lock is free.
+        return empty( $wpdb->last_error ) && ! is_null( $connection_id );
     }
 
     /**

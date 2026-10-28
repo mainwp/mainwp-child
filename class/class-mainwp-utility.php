@@ -1029,6 +1029,18 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         // Build Final Target URL.
         $full_url = add_query_arg( $get_args, admin_url( '/' . $path ) );
 
+        $inner_lock_key = 'mainwp_child:mainwp_child_premium_update_lock';
+
+        if ( 'plugin' === $type ) {
+            $is_locked = MainWP_Child_Updates::is_premium_update_locked( $inner_lock_key );
+            // If it IS locked, bail out with the error message.
+            if ( $is_locked ) {
+                return array(
+                    'error' => __( 'A premium update request or another update process is already in progress. Please try again later.', 'mainwp-child' ),
+                );
+            }
+        }
+
         $locked         = false;
         $outer_lock_key = 'mainwp_child:mainwp_child_premium_update_visit_lock';
         try {
