@@ -172,8 +172,8 @@ class BackupExternalLayoutCharacterizationTest extends WP_UnitTestCase {
 
 	/**
 	 * TODAY: only content/uploads roots decide refusal, not plugin/config roots.
-	 * Source: class/class-mainwp-backup.php:1404.
-	 * Outward symlink predicates remain in tests/test-backup-symlinks.php:104-116.
+	 * Source: class/class-mainwp-backup.php:1377.
+	 * Outward symlink predicates remain in tests/test-backup-symlinks.php:99-109.
 	 *
 	 * @param string $name Fixture name.
 	 * @param bool   $refused Expected refusal.
@@ -300,7 +300,7 @@ class BackupExternalLayoutCharacterizationTest extends WP_UnitTestCase {
 
 	/**
 	 * TODAY: the normal v1 manifest has sorted relative paths, sizes and mtimes.
-	 * Source: class/class-mainwp-child-backup-file-walker.php:228,283.
+	 * Source: class/class-mainwp-child-backup-file-walker.php:231,283.
 	 */
 	public function test_normal_walker_v1_golden_rows() {
 		$layout = $this->fixtures->build( 'normal' );
@@ -357,7 +357,7 @@ class BackupExternalLayoutCharacterizationTest extends WP_UnitTestCase {
 
 	/**
 	 * TODAY: the one-root walker omits external plugin and mu-plugin roots.
-	 * Source: class/class-mainwp-child-backup-file-walker.php:228,630-645.
+	 * Source: class/class-mainwp-child-backup-file-walker.php:231,630-645.
 	 */
 	public function test_walker_omits_moved_plugin_roots() {
 		$layout = $this->fixtures->build( 'moved-plugins' );
@@ -374,7 +374,7 @@ class BackupExternalLayoutCharacterizationTest extends WP_UnitTestCase {
 	/**
 	 * TODAY: config discovery finds a parent config, but a site-root walk omits it.
 	 * Source: class/class-mainwp-child-backup-config-includes.php:28-34 and
-	 * class/class-mainwp-child-backup-file-walker.php:228.
+	 * class/class-mainwp-child-backup-file-walker.php:231.
 	 */
 	public function test_parent_config_is_found_outside_walker_root() {
 		$layout = $this->fixtures->build( 'parent-config' );
