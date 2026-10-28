@@ -2665,7 +2665,8 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         // if editing post then will check if image existed.
         $check_image_existed = $edit_post_id ? true : false;
 
-        $this->update_found_images( $new_post, $upload_dir, $check_image_existed );
+        $downloaded_images = array();
+        $this->update_found_images( $new_post, $upload_dir, $check_image_existed, $downloaded_images );
         $this->create_has_shortcode_gallery( $new_post );
 
         if ( $is_post_plus ) {
@@ -2673,8 +2674,8 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         if ( isset( $post_custom['_mainwp_replace_advance_img'] ) && ! empty( $post_custom['_mainwp_replace_advance_img'][0] ) ) {
-            $new_post['post_content'] = static::replace_advanced_image( $new_post['post_content'], $upload_dir );
-            $new_post['post_content'] = static::replace_advanced_image( $new_post['post_content'], $upload_dir, true ); // to fix images url with slashes.
+            $new_post['post_content'] = self::replace_advanced_image_internal( $new_post['post_content'], $upload_dir, false, $downloaded_images );
+            $new_post['post_content'] = self::replace_advanced_image_internal( $new_post['post_content'], $upload_dir, true, $downloaded_images ); // to fix images url with slashes.
             unset( $post_custom['_mainwp_replace_advance_img'] );
         }
 
@@ -2928,15 +2929,17 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
      * @param array  $new_post            Post data array.
      * @param string $upload_dir          Upload directory.
      * @param bool   $check_image_existed TRUE|FALSE, Whether or not featured image already exists.
+     * @param array  $downloaded_images   Download results for this import.
      *
      * @uses \MainWP\Child\MainWP_Utility::upload_image()
      * @uses \MainWP\Child\MainWP_Helper::log_debug()
      */
-    private function update_found_images( &$new_post, $upload_dir, $check_image_existed ) { //phpcs:ignore -- NOSONAR - complex.
+    private function update_found_images( &$new_post, $upload_dir, $check_image_existed, &$downloaded_images ) { //phpcs:ignore -- NOSONAR - complex.
 
         // Some images have a href tag to click to navigate to the image.. we need to replace this too.
         $foundMatches = preg_match_all( '/(<a[^>]+href=\"(.*?)\"[^>]*>)?(<img[^>\/]*src=\"((.*?)(png|gif|jpg|jpeg|avif))\")/ix', $new_post['post_content'], $matches, PREG_SET_ORDER );
 
+        $image_replacements = array();
         if ( $foundMatches > 0 ) {
             // We found images, now to download them so we can start balbal.
             foreach ( $matches as $match ) {
@@ -2956,28 +2959,49 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
                 }
 
                 try {
-                    $downloadfile      = MainWP_Utility::upload_image( $originalImgUrl, array(), $check_image_existed );
+                    $image_key = $originalImgUrl;
+                    if ( ! array_key_exists( $image_key, $downloaded_images ) ) {
+                        $downloaded_images[ $image_key ] = MainWP_Utility::upload_image( $image_key, array(), $check_image_existed );
+                    }
+                    $downloadfile = $downloaded_images[ $image_key ];
+                    if ( null === $downloadfile ) {
+                        $extension_position = strrpos( $image_key, '.' );
+                        $failed_pattern     = '#' . preg_quote( substr( $image_key, 0, $extension_position ), '#' ) . '(?:-\d+x\d+)?' . preg_quote( substr( $image_key, $extension_position ), '#' ) . '#';
+                        preg_match_all( $failed_pattern, str_replace( '\/', '/', $new_post['post_content'] ), $failed_matches );
+                        foreach ( $failed_matches[0] as $failed_url ) {
+                            $downloaded_images[ $failed_url ] = null;
+                        }
+                        continue;
+                    }
                     $localUrl          = $downloadfile['url'];
                     $linkToReplaceWith = dirname( $localUrl );
                     if ( '' !== $hrefLink ) {
                         $server     = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
                         $serverHost = wp_parse_url( $server, PHP_URL_HOST );
                         if ( ! empty( $serverHost ) && strpos( $hrefLink, $serverHost ) !== false ) {
-                            $serverHref               = 'href="' . $serverHost;
-                            $replaceServerHref        = 'href="' . wp_parse_url( $localUrl, PHP_URL_SCHEME ) . '://' . wp_parse_url( $localUrl, PHP_URL_HOST );
-                            $new_post['post_content'] = str_replace( $serverHref, $replaceServerHref, $new_post['post_content'] );
+                            $serverHref                        = 'href="' . $serverHost;
+                            $replaceServerHref                 = 'href="' . wp_parse_url( $localUrl, PHP_URL_SCHEME ) . '://' . wp_parse_url( $localUrl, PHP_URL_HOST );
+                            $image_replacements[ $serverHref ] = $replaceServerHref;
                         }
                     }
                     $lnkToReplace = dirname( $imgUrl );
                     if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
-                        $new_post['post_content'] = str_replace( $imgUrl, $localUrl, $new_post['post_content'] ); // replace src image.
-                        $new_post['post_content'] = str_replace( $lnkToReplace, $linkToReplaceWith, $new_post['post_content'] );
+                        $image_replacements[ $imgUrl ]       = $localUrl; // replace src image.
+                        $image_replacements[ $lnkToReplace ] = $linkToReplaceWith;
                     }
                 } catch ( MainWP_Exception $e ) {
                     MainWP_Helper::log_debug( $e->getMessage() );
                 }
             }
         }
+        foreach ( $downloaded_images as $image_url => $download ) {
+            if ( null === $download ) {
+                $image_replacements[ $image_url ]   = $image_url;
+                $escaped_url                        = str_replace( '/', '\/', $image_url );
+                $image_replacements[ $escaped_url ] = $escaped_url;
+            }
+        }
+        $new_post['post_content'] = strtr( $new_post['post_content'], $image_replacements );
     }
 
     /**
@@ -2992,6 +3016,20 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
      * @return mixed array of result.
      */
     public static function replace_advanced_image( $content, $upload_dir, $withslashes = false ) { //phpcs:ignore -- NOSONAR - complex.
+        $downloaded_images = array();
+        return self::replace_advanced_image_internal( $content, $upload_dir, $withslashes, $downloaded_images );
+    }
+
+    /**
+     * Import advanced image references using this import's download results.
+     *
+     * @param string $content Post content.
+     * @param array  $upload_dir Source upload directory.
+     * @param bool   $withslashes Whether URLs contain escaped slashes.
+     * @param array  $downloaded_images Download results for this import.
+     * @return string Post content.
+     */
+    private static function replace_advanced_image_internal( $content, $upload_dir, $withslashes, &$downloaded_images ) { //phpcs:ignore -- NOSONAR - complex.
 
         if ( empty( $upload_dir ) || ! isset( $upload_dir['baseurl'] ) ) {
             return $content;
@@ -3007,8 +3045,9 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
             $dashboard_url        = str_replace( '/', '\/', $dashboard_url );
         }
 
-        $foundMatches = preg_match_all( '#(' . preg_quote( $site_url_destination, null ) . ')[^\.]*(\.(png|gif|jpg|jpeg|avif))#ix', $content, $matches, PREG_SET_ORDER );
+        $foundMatches = preg_match_all( '#(' . preg_quote( $site_url_destination, null ) . ')[^\s<>\"\']*?(\.(png|gif|jpg|jpeg|avif))#ix', $content, $matches, PREG_SET_ORDER );
 
+        $image_replacements = array();
         if ( 0 < $foundMatches ) {
 
             $matches_checked = array();
@@ -3036,13 +3075,26 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
                 }
 
                 try {
-                    $downloadfile      = MainWP_Utility::upload_image( wp_unslash( $originalImgUrl ), array(), true );
+                    $image_key = wp_unslash( $originalImgUrl );
+                    if ( ! array_key_exists( $image_key, $downloaded_images ) ) {
+                        $downloaded_images[ $image_key ] = MainWP_Utility::upload_image( $image_key, array(), true );
+                    }
+                    $downloadfile = $downloaded_images[ $image_key ];
+                    if ( null === $downloadfile ) {
+                        $extension_position = strrpos( $image_key, '.' );
+                        $failed_pattern     = '#' . preg_quote( substr( $image_key, 0, $extension_position ), '#' ) . '(?:-\d+x\d+)?' . preg_quote( substr( $image_key, $extension_position ), '#' ) . '#';
+                        preg_match_all( $failed_pattern, str_replace( '\/', '/', $content ), $failed_matches );
+                        foreach ( $failed_matches[0] as $failed_url ) {
+                            $downloaded_images[ $failed_url ] = null;
+                        }
+                        continue;
+                    }
                     $localUrl          = $downloadfile['url'];
                     $linkToReplaceWith = dirname( $localUrl );
                     $lnkToReplace      = dirname( $imgUrl );
                     if ( 'http:' !== $lnkToReplace && 'https:' !== $lnkToReplace ) {
-                        $content = str_replace( $imgUrl, $localUrl, $content ); // replace src image.
-                        $content = str_replace( $lnkToReplace, $linkToReplaceWith, $content );
+                        $image_replacements[ $imgUrl ]       = $localUrl; // replace src image.
+                        $image_replacements[ $lnkToReplace ] = $linkToReplaceWith;
                     }
                 } catch ( MainWP_Exception $e ) {
                     // ok.
@@ -3050,10 +3102,17 @@ class MainWP_Child_Posts { //phpcs:ignore -- NOSONAR - multi methods.
             }
             if ( false === strripos( $dashboard_url, $site_url_destination ) ) {
                 // replace other images src outside dashboard upload folder.
-                $content = str_replace( $dashboard_url, $site_url_destination, $content );
+                $image_replacements[ $dashboard_url ] = $site_url_destination;
             }
         }
-        return $content;
+        foreach ( $downloaded_images as $image_url => $download ) {
+            if ( null === $download ) {
+                $image_replacements[ $image_url ]   = $image_url;
+                $escaped_url                        = str_replace( '/', '\/', $image_url );
+                $image_replacements[ $escaped_url ] = $escaped_url;
+            }
+        }
+        return strtr( $content, $image_replacements );
     }
 
     /**

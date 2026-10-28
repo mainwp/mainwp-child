@@ -661,7 +661,10 @@ class MainWP_Custom_Post_Type {
                 }
 
                 try {
-                    $downloadfile      = MainWP_Utility::upload_image( $originalImgUrl, array(), $check_image );
+                    $downloadfile = MainWP_Utility::upload_image( $originalImgUrl, array(), $check_image );
+                    if ( null === $downloadfile ) {
+                        continue;
+                    }
                     $localUrl          = $downloadfile['url'];
                     $linkToReplaceWith = dirname( $localUrl );
                     if ( '' !== $hrefLink ) {
