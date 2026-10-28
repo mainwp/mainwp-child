@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 7.1.3
 Requires PHP: 7.4
-Stable tag: 6.4-rc.2
+Stable tag: 6.4-rc.3
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -114,6 +114,15 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 11. Dashboard Insights
 
 == Changelog ==
+
+= 6.4-rc.3 - 10-28-2026 =
+
+* Fixed: Corrected guest comment attribution and user role change entries in Changes Logs.
+* Fixed: Displayed clearer backup download errors when verification information cannot be read.
+* Updated: Strengthened Dashboard request verification and replay protection.
+* Updated: Improved handling of folder names in Restore/Clone navigation.
+* Updated: Strengthened post and page checks to prevent actions on the wrong content type.
+* Updated: Strengthened download validation for imported post and page images while preserving imports from the connected Dashboard.
 
 = 6.4-rc.2 - 10-23-2026 =
 
