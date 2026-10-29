@@ -5,9 +5,9 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 6.2
-Tested up to: 7.1.3
+Tested up to: 7.1.4
 Requires PHP: 7.4
-Stable tag: 6.4-rc.3
+Stable tag: 6.4
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -115,33 +115,22 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 
 == Changelog ==
 
-= 6.4-rc.3 - 10-28-2026 =
+= 6.4 - 10-29-2026 =
 
+* Added: Support for MainWP Built-In Backups (beta), enabling Dashboard-managed full, database-only, files-only, and incremental backups, resumable transfers, and snapshot restores without an additional backup plugin.
+* Fixed: Registered the System Monitor’s one-minute cron schedule before initialization to prevent scheduling errors.
+* Fixed: Viewing the Menus page no longer captures unnecessary snapshots of every navigation menu. Menu and Customizer changes continue to be captured when saved.
+* Fixed: Change logging now preserves the existing database error-suppression setting after checking for a table.
+* Fixed: The PHP Error Reporting hardening check now correctly detects enabled error display, including during signed Dashboard requests. Both `display_errors` and `display_startup_errors` must be disabled for the check to pass.
 * Fixed: Corrected guest comment attribution and user role change entries in Changes Logs.
-* Fixed: Displayed clearer backup download errors when verification information cannot be read.
+* Fixed: Missing Cache Control sync data when Dashboard connections use the front-end fallback.
+* Fixed: Child settings redirects and access to Tools pages hidden by branding.
+* Fixed: Code Snippets output now preserves valid text when invalid characters are encountered.
 * Updated: Strengthened Dashboard request verification and replay protection.
 * Updated: Improved handling of folder names in Restore/Clone navigation.
 * Updated: Strengthened post and page checks to prevent actions on the wrong content type.
 * Updated: Strengthened download validation for imported post and page images while preserving imports from the connected Dashboard.
-
-= 6.4-rc.2 - 10-23-2026 =
-
-* Fixed: Missing Cache Control sync data when Dashboard connections use the front-end fallback.
-* Fixed: Long filenames and files changing during TAR backup creation could produce incomplete or damaged archives. Oversized files are now skipped and reported.
-* Fixed: Improved preservation of international characters in fallback database exports.
-* Fixed: Leftover database dump files are cleaned up after files-only restores.
-* Fixed: Child settings redirects and access to Tools pages hidden by branding.
-* Fixed: Code Snippets output now preserves valid text when invalid characters are encountered.
-* Updated: Strengthened backup file permissions, archive validation, database restore checks and clone extraction.
 * Updated: Improved protection of database credentials and temporary files during cPanel database backups.
-
-= 6.4-rc.1 - 10-20-2026 =
-
-* Added: Support for MainWP Native Backups (beta), enabling Dashboard-managed full, database-only, files-only, and incremental backups, resumable transfers, and snapshot restores without an additional backup plugin.
-* Fixed: Registered the System Monitor’s one-minute cron schedule before initialization to prevent scheduling errors.
-* Fixed: Viewing the Menus page no longer captures unnecessary snapshots of every navigation menu. Menu and Customizer changes continue to be captured when saved.
-* Fixed: Change logging now preserves the existing database error-suppression setting after checking for a table.
-* Fixed: The PHP Error Reporting hardening check now correctly detects enabled error display, including during signed Dashboard requests. Both display_errors and display_startup_errors must be disabled for the check to pass.
 
 = 6.3 - 10-13-2026 =
 
