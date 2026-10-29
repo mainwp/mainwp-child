@@ -124,6 +124,11 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      * @param mixed  $code Contains the error code.
      */
     public function error( $error, $code = null ) {
+        if ( is_string( $error ) ) {
+            // Keep absolute paths, SQL fragments and table names out of Dashboard-facing
+            // error responses; full context belongs in server-side logs only.
+            $error = MainWP_Backup_Error::sanitize_message( $error );
+        }
         $information['error'] = $error;
         if ( null !== $code ) {
             $information['error_code'] = $code;
@@ -136,8 +141,9 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * Get the MainWP directory.
      *
-     * @param string $newdir Contains directory name.
+     * @param string $subdir Contains directory name.
      * @param bool   $die_on_error If true, process will die on error, if false, process will continue.
+     * @param bool   $direct_access If true, allow direct access to the directory.
      *
      * @return array Return directory and directory URL.
      * @throws MainWP_Exception Error Message.
@@ -177,19 +183,44 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         $url = $upload_dir['baseurl'] . '/mainwp/';
 
         if ( 'backup' === $subdir ) {
-            $newdir = $dir . 'backup' . DIRECTORY_SEPARATOR;
+            // The directory name carries a per-site secret so backup
+            // artifacts are not enumerable at a predictable path - .htaccess
+            // protection below is Apache-only and treated as defense-in-depth.
+            $dir_hash = static::get_backup_dir_hash();
+            $newdir   = $dir . 'backup-' . $dir_hash . DIRECTORY_SEPARATOR;
             static::check_dir( $newdir, $die_on_error );
+            $protected = true;
             if ( ! $wp_filesystem->exists( $newdir . 'index.php' ) ) {
-                touch( $newdir . 'index.php' );
+                $protected = @touch( $newdir . 'index.php' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- warnings disclose the private backup path; failure is reported below.
             }
 
             $another_name = '.htaccess';
-            if ( ! $wp_filesystem->exists( $newdir . $another_name ) ) {
-                $file = fopen( $newdir . $another_name, 'w+' );
-                fwrite( $file, 'deny from all' );
-                fclose( $file );
+            if ( $protected && ! $wp_filesystem->exists( $newdir . $another_name ) ) {
+                $file = @fopen( $newdir . $another_name, 'w+' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- warnings disclose the private backup path; failure is reported below.
+                if ( false === $file ) {
+                    $protected = false;
+                } else {
+                    $protected = strlen( 'deny from all' ) === @fwrite( $file, 'deny from all' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- warnings disclose the private backup path; failure is reported below.
+                    $protected = @fclose( $file ) && $protected; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- warnings disclose the private backup path; failure is reported below.
+                    if ( ! $protected ) {
+                        // A retry skips an existing .htaccess, so an empty one must not survive.
+                        wp_delete_file( $newdir . $another_name );
+                    }
+                }
             }
-            $url .= 'backup/';
+            if ( ! $protected ) {
+                $error = sprintf(
+                    /* translators: %s: site-relative folder path, such as wp-content/uploads/mainwp */
+                    esc_html__( 'The backup folder inside %s exists, but its index.php and .htaccess protection files could not be written. A security or folder-lock plugin may be locking that parent folder or the folders inside it, or permissions may not allow the web server to write there. Unlock the parent folder or fix its permissions, then try again.', 'mainwp-child' ),
+                    esc_html( self::message_dir_label( $dir ) )
+                );
+                if ( $die_on_error ) {
+                    static::instance()->error( $error );
+                } else {
+                    throw new MainWP_Exception( $error ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- translated message is escaped.
+                }
+            }
+            $url .= 'backup-' . $dir_hash . '/';
         } else {
             $newdir = ! empty( $subdir ) ? $dir . $subdir . DIRECTORY_SEPARATOR : $dir;
             $url   .= $subdir . '/';
@@ -209,6 +240,95 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
         return array( $newdir, $url );
     }
 
+
+    /**
+     * Make a native backup storage path private to the PHP user: files at most 0600, directories at most 0700.
+     *
+     * Every reader of this storage is the Child's own PHP (task runners, and downloads streamed
+     * through readfile_chunked()), so other accounts on a shared host need no access. A host that
+     * refuses chmod keeps its default modes rather than failing the backup.
+     *
+     * @param string        $path   Created storage path.
+     * @param callable|null $create Optional operation whose temporary files also need a private umask.
+     * @return mixed Operation result, or null.
+     */
+    public static function protect_backup_path( $path, $create = null ) {
+        $mask = null !== $create ? umask( 0077 ) : null;
+        try {
+            return null !== $create ? $create() : null;
+        } finally {
+            if ( null !== $mask ) {
+                umask( $mask );
+            }
+            $perms = function_exists( 'chmod' ) && ! @is_link( $path ) ? @fileperms( $path ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- permission probes must remain silent when the host cannot stat a path.
+            // Only group and other bits are cleared: granting the owner a bit it lacked would hide
+            // an unwritable directory from the checks that refuse it.
+            if ( false !== $perms ) {
+                @chmod( $path, $perms & ( @is_dir( $path ) ? 0700 : 0600 ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_chmod -- hosts may refuse chmod; warnings must not corrupt the response.
+            }
+        }
+    }
+
+    /**
+     * Method get_backup_dir_hash()
+     *
+     * Get (or generate once) the per-site backup directory secret.
+     *
+     * SECURITY: the hash IS the directory secret - the only protection on
+     * servers that ignore .htaccess (Nginx, LiteSpeed proxy, IIS). Never echo
+     * it into HTML source, a public REST response, or any output a
+     * non-administrator can see; it may only leave the site inside an
+     * authenticated MainWP Dashboard response (backup_preflight).
+     *
+     * @return string 16-character alphanumeric secret.
+     * @throws MainWP_Exception When the stored secret is missing or invalid.
+     */
+    public static function get_backup_dir_hash() {
+        $dir_hash = get_option( 'mainwp_backup_dir_hash' );
+        if ( false === $dir_hash ) {
+            // add_option() so a concurrent first backup cannot overwrite the
+            // winner's value; autoload disabled to keep the secret out of the
+            // alloptions preload.
+            add_option( 'mainwp_backup_dir_hash', wp_generate_password( 16, false ), '', 'no' );
+            $dir_hash = get_option( 'mainwp_backup_dir_hash' );
+        }
+        if ( ! is_string( $dir_hash ) || 1 !== preg_match( '/^[A-Za-z0-9]{16}$/D', $dir_hash ) ) {
+            throw new MainWP_Exception( esc_html__( 'The backup directory secret is missing or invalid. Check the child site database options before retrying the backup.', 'mainwp-child' ), null, MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped; code identifies an unusable backup directory.
+        }
+        return $dir_hash;
+    }
+
+    /**
+     * Method locate_backup_file()
+     *
+     * Find an existing backup file: the randomized directory first, then the
+     * legacy uploads/mainwp/backup/ directory. The legacy directory is never
+     * renamed (an in-flight backup may be writing to it), so pre-upgrade
+     * files stay downloadable through this fallback.
+     *
+     * @param string $filename Backup file name (no path).
+     *
+     * @return string|false Full path of the file, or false when not found or invalid.
+     */
+    public static function locate_backup_file( $filename ) {
+        if ( ! is_string( $filename ) || '' === $filename || false !== strpos( $filename, '..' ) || false !== strpos( $filename, '/' ) || false !== strpos( $filename, '\\' ) ) {
+            return false;
+        }
+
+        $dirs     = static::get_mainwp_dir( 'backup' );
+        $new_path = $dirs[0] . $filename;
+        if ( file_exists( $new_path ) ) {
+            return $new_path;
+        }
+
+        $upload_dir  = wp_upload_dir();
+        $legacy_path = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . 'mainwp' . DIRECTORY_SEPARATOR . 'backup' . DIRECTORY_SEPARATOR . $filename;
+        if ( file_exists( $legacy_path ) ) {
+            return $legacy_path;
+        }
+
+        return false;
+    }
 
     /**
      * Method fs_is_connected()
@@ -334,7 +454,16 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
             }
 
             if ( ! file_exists( $dir ) ) {
-                $error = esc_html__( 'Unable to create directory ', 'mainwp-child' ) . str_replace( ABSPATH, '', $dir ) . '.' . esc_html__( ' Is its parent directory writable by the server?', 'mainwp-child' );
+                if ( preg_match( '/^backup-[A-Za-z0-9]{16}$/', basename( untrailingslashit( $dir ) ) ) ) {
+                    // Name the parent only: the backup folder name is the per-site secret.
+                    $error = sprintf(
+                        /* translators: %s: site-relative folder path, such as wp-content/uploads/mainwp */
+                        esc_html__( 'Could not create the backup folder inside %s. A security or folder-lock plugin may be locking that folder, or its permissions may not allow the web server to write to it. Unlock the folder or fix its permissions, then try again.', 'mainwp-child' ),
+                        esc_html( self::message_dir_label( dirname( untrailingslashit( $dir ) ) ) )
+                    );
+                } else {
+                    $error = esc_html__( 'Unable to create directory ', 'mainwp-child' ) . str_replace( ABSPATH, '', $dir ) . '.' . esc_html__( ' Is its parent directory writable by the server?', 'mainwp-child' );
+                }
                 if ( $die_on_error ) {
                     static::instance()->error( $error );
                 } else {
@@ -342,6 +471,29 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
                 }
             }
         }
+    }
+
+    /**
+     * Name a folder in a Dashboard-facing message without the server's absolute path.
+     *
+     * @param string $dir Absolute folder path.
+     *
+     * @return string The path relative to the site root, or its last two folder names when the folder is outside the site root.
+     */
+    private static function message_dir_label( $dir ) {
+        $dir  = untrailingslashit( wp_normalize_path( $dir ) );
+        $root = trailingslashit( wp_normalize_path( ABSPATH ) );
+        if ( 0 === strpos( $dir . '/', $root ) && strlen( $dir ) >= strlen( $root ) ) {
+            return substr( $dir, strlen( $root ) );
+        }
+        // Drop the root slash and drive letter so a folder at a filesystem root never reads as an absolute path.
+        $names = array_filter(
+            explode( '/', $dir ),
+            static function ( $name ) {
+                return '' !== $name && '.' !== $name && 1 !== preg_match( '/^[A-Za-z]:$/', $name );
+            }
+        );
+        return implode( '/', array_slice( $names, -2 ) );
     }
 
     /**
@@ -884,6 +1036,53 @@ class MainWP_Helper { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
         return false;
+    }
+
+    /**
+     * Method is_dump_litter()
+     *
+     * Whether a site-relative path is a database-dump byproduct at the
+     * site root or directly under wp-content - the exact set the restore
+     * litter sweep deletes. Litter must never be archived: a stale dump
+     * riding inside a backup can win extraction on a later restore and
+     * silently roll the site back.
+     *
+     * @param string $value Site-relative path.
+     *
+     * @return bool true|false If dump litter, return true, if not, return false.
+     */
+    public static function is_dump_litter( $value ) {
+        $value = ltrim( (string) $value, '/' );
+        if ( '' === $value ) {
+            return false;
+        }
+
+        $dir = dirname( $value );
+        if ( '.' !== $dir && 'wp-content' !== $dir ) {
+            return false;
+        }
+
+        $base = basename( $value );
+        if ( 0 !== strpos( $base, 'dbBackup' ) ) {
+            return false;
+        }
+
+        return static::ends_with( $base, '.sql' ) || static::ends_with( $base, '.sql.php' );
+    }
+
+    /**
+     * Method excluded_from_backup()
+     *
+     * Whether a backup traversal must skip a site-relative path: either
+     * the exclude list covers it or it is dump litter.
+     *
+     * @param array  $excludes Array containing the list of excludes.
+     * @param string $value Site-relative path to check.
+     *
+     * @return bool true|false If excluded, return true, if not, return false.
+     */
+    public static function excluded_from_backup( $excludes, $value ) {
+        return static::in_excludes( $excludes, $value ) || static::is_dump_litter( $value );
     }
 
     /**

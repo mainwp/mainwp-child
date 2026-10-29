@@ -1,0 +1,4372 @@
+<?php
+/**
+ * MainWP Child Restore Task Runner - restore phases on the task spine.
+ *
+ * Restore rides the same persisted task table, lease/CAS discipline,
+ * slice budget, and watchdog as backups - this runner only swaps the
+ * phase dispatch. The phases: artifacts arrive into a per-task scratch
+ * directory (via the chunk-receive callable, plus adoption of artifacts
+ * already on this site), get hash-verified, file archives extract over
+ * the site root through the zip-slip guard, the database replays into
+ * tmp tables and swaps atomically (or in place under maintenance mode
+ * when the dump declares foreign keys), URLs rewrite
+ * serialization-aware, and a final verification gates the drop of the
+ * old aside tables.
+ *
+ * Failure discipline: any phase error lands the task in the terminal
+ * failed phase with tmp tables dropped, maintenance mode lifted, and
+ * the scratch directory removed - but the old-prefixed aside tables are
+ * deliberately kept. They are the instant database rollback until a
+ * verified restore (or an operator) retires them.
+ *
+ * @package MainWP\Child
+ */
+
+namespace MainWP\Child;
+
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
+/**
+ * Class MainWP_Child_Restore_Task_Runner
+ *
+ * @package MainWP\Child
+ */
+class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningBraceSameLine.ContentAfterBrace -- NOSONAR.
+
+    /**
+     * Restore-task resume cap: a restore spans many more slices than a
+     * backup (transfer + extraction + replay), so the watchdog gets more
+     * re-entries before declaring failure.
+     */
+    const RESTORE_MAX_RESUMES = 20;
+
+    /**
+     * Minimum wall-clock horizon for a restore task, seconds.
+     */
+    const RESTORE_MIN_DEADLINE_SECONDS = 3600;
+
+    const MAX_REMOVAL_DEPTH = 64;
+
+    /**
+     * Swap evidence captured before terminal cleanup removes tmp tables.
+     *
+     * @var array|null
+     */
+    protected $failure_outcome;
+
+    /**
+     * Shared by extraction and the pre-extraction dump sweep.
+     *
+     * @var callable|null
+     */
+    protected $after_file_change;
+
+    /**
+     * Uncertainty about live changes must not read as an untouched restore.
+     *
+     * @param string    $type           Restore type.
+     * @param string    $phase          Pre-terminal phase.
+     * @param array     $sub_state      Pre-terminal cursor.
+     * @param string    $terminal_kind  completed, failed, or cancelled.
+     * @param string    $error_code     Terminal failure code.
+     * @param bool|null $swap_committed Read-only swap probe, or unknown.
+     * @return array Outcome without claims of a file safety copy.
+     */
+    public static function derive_outcome( $type, $phase, $sub_state, $terminal_kind, $error_code = '', $swap_committed = null ) {
+        $after_files = in_array( $phase, array( MainWP_Child_Backup_Task::PHASE_SNAPSHOTTING_DB, MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, MainWP_Child_Backup_Task::PHASE_PRESERVING_WOO, MainWP_Child_Backup_Task::PHASE_SWAPPING_DB, MainWP_Child_Backup_Task::PHASE_REWRITING_URLS, MainWP_Child_Backup_Task::PHASE_MERGING_WOO, MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY, MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK ), true );
+        $files       = 'not_started';
+        if ( 'restore_db' === $type ) {
+            $files = 'not_applicable';
+        } elseif ( 'completed' === $terminal_kind || $after_files ) {
+            $files = 'applied';
+        } elseif ( MainWP_Child_Backup_Task::PHASE_RESTORING_FILES === $phase && ( ! array_key_exists( 'files_touched', $sub_state ) || $sub_state['files_touched'] ) ) {
+            $files = 'left_partial';
+        }
+
+        $database = 'not_started';
+        if ( 'restore_files' === $type ) {
+            $database = 'not_applicable';
+        } elseif ( 'completed' === $terminal_kind ) {
+            $database = 'applied';
+        } elseif ( MainWP_Backup_Error::ERR_RESTORE_ROLLED_BACK === $error_code && MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK === $phase && ! empty( $sub_state['db_replay']['fk_path'] ) ) {
+            $database = 'rolled_back';
+        } elseif ( isset( $sub_state['old_tables'] ) || isset( $sub_state['restored_mutex'] )
+            || in_array( $phase, array( MainWP_Child_Backup_Task::PHASE_REWRITING_URLS, MainWP_Child_Backup_Task::PHASE_MERGING_WOO, MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY, MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK ), true )
+            || ( ! empty( $sub_state['db_replay']['fk_path'] ) && MainWP_Child_Backup_Task::PHASE_REPLAYING_DB === $phase )
+            || ( MainWP_Child_Backup_Task::PHASE_SWAPPING_DB === $phase && false !== $swap_committed ) ) {
+            $database = 'left_partial';
+        }
+
+        return array(
+            'files'            => $files,
+            'database'         => $database,
+            'files_copy_taken' => false,
+            'phase_reached'    => $phase,
+        );
+    }
+
+    /**
+     * The probe needs tmp tables, so terminal writers call this before cleanup.
+     *
+     * @param object     $task          Pre-terminal row.
+     * @param array|null $sub_state     Its resolved cursor, or null to read it.
+     * @param string     $terminal_kind Terminal disposition.
+     * @param string     $error_code    Terminal failure code.
+     * @return array Outcome bound to this row and cursor.
+     */
+    public function terminal_outcome( $task, $sub_state = null, $terminal_kind = 'failed', $error_code = '' ) {
+        if ( null === $sub_state ) {
+            $sub_state = $this->report_cursor( $task );
+        }
+        $sub_state = is_array( $sub_state ) ? $sub_state : array();
+        $committed = null;
+        $stems     = MainWP_Child_Backup_Task::PHASE_SWAPPING_DB === $task->phase ? $this->loaded_stems( $sub_state ) : array();
+        // With no stems the probe answers false without looking, which would read as untouched.
+        if ( ! empty( $stems ) ) {
+            $old_tables = array();
+            try {
+                $committed = $this->restore_engine()->is_swap_committed(
+                    $stems,
+                    array(
+                        'restore_id'    => $sub_state['params']['restore_id'] ?? $task->restore_id,
+                        'target_prefix' => $this->target_prefix(),
+                    ),
+                    $old_tables
+                );
+            } catch ( \Throwable $probe_error ) {
+                // Missing swap evidence cannot change the terminal writer's error.
+                $committed = null;
+            }
+        }
+        return self::derive_outcome( $task->type, $task->phase, $sub_state, $terminal_kind, $error_code, $committed );
+    }
+
+    /**
+     * Read a cursor for the report without letting the read block a terminal write.
+     *
+     * Resolving the backup dir needs a filesystem connection; when it fails the
+     * inline cursor still answers, and a sidecar cursor reads as unknown, which
+     * derive_outcome() treats conservatively.
+     *
+     * @param object $task Task row.
+     * @return array Cursor, or an empty array when it cannot be read.
+     */
+    protected function report_cursor( $task ) {
+        try {
+            $state = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $this->backup_dir() );
+        } catch ( \Throwable $read_error ) {
+            $state = json_decode( isset( $task->sub_state ) ? (string) $task->sub_state : '', true );
+            if ( is_array( $state ) && ! empty( $state['_sidecar'] ) ) {
+                $state = array();
+            }
+        }
+        return is_array( $state ) ? $state : array();
+    }
+
+    /**
+     * Keep restore evidence beside the slice trap's existing error.
+     *
+     * @param object $task      Pre-terminal row.
+     * @param array  $sub_state Its resolved cursor.
+     * @param string $message   Existing failure message.
+     * @param string $code      Existing failure code.
+     * @return array Failure cursor for the slice trap.
+     */
+    protected function failure_sub_state( $task, $sub_state, $message, $code ) {
+        $failed                            = parent::failure_sub_state( $task, $sub_state, $message, $code );
+        $failed['verification']['outcome'] = null !== $this->failure_outcome
+            ? $this->failure_outcome : $this->terminal_outcome( $task, $sub_state, 'failed', $code );
+        $this->failure_outcome             = null;
+        return $failed;
+    }
+
+    /**
+     * Terminal cancel details stay nested so the callable preserves its result.
+     *
+     * @param object $task   Stored terminal row.
+     * @param string $result Existing cancel result.
+     * @return array Terminal cancel answer without a request-level error.
+     */
+    protected function terminal_cancel_answer( $task, $result ) {
+        $answer = array(
+            'result' => $result,
+            'phase'  => $task->phase,
+        );
+        $state  = $this->report_cursor( $task );
+        if ( isset( $state['verification']['outcome'] ) ) {
+            $answer['verification']['outcome'] = $state['verification']['outcome'];
+        }
+        if ( MainWP_Child_Backup_Task::PHASE_FAILED === $task->phase && isset( $state['error'] ) ) {
+            $answer['failure'] = array(
+                'message' => MainWP_Backup_Error::sanitize_message( $state['error']['message'] ),
+                'code'    => $state['error']['code'] ?? '',
+            );
+        }
+        return $answer;
+    }
+
+    /**
+     * Options whose live presence, raw value and autoload survive database restore.
+     * Values stay as stored, including encrypted mainwp_child_server. Dump-only
+     * rows are removed. siteurl/home follow url_pairs(); active_plugins follows
+     * the dump.
+     *
+     * The task-spine marker mainwp_child_backup_task_db_version rides along
+     * because the restore keeps the live spine table (it is in skip_stems)
+     * while a dump from before the spine reverted the marker that describes
+     * that table's schema. MainWP_Backup gates assert_no_active_spine_task()
+     * on that marker, so without it a legacy backup skips the active-task
+     * check and overlaps the restore's tail.
+     */
+    const IDENTITY_OPTIONS = array(
+        'mainwp_child_pubkey',
+        'mainwp_child_uniqueId',
+        'mainwp_child_nonce',
+        'mainwp_child_connected_admin',
+        'mainwp_child_server',
+        'mainwp_child_auth',
+        'mainwp_child_openssl_sign_algo',
+        'mainwp_child_backup_task_db_version',
+        'mainwp_backup_dir_hash',
+    );
+
+    /**
+     * Replay ledgers must survive a restore to keep previously seen requests rejected.
+     */
+    const IDENTITY_PREFIXES = array(
+        'mainwp_child_request_id_',
+        'mainwp_child_blocked_request_id_',
+        'mainwp_child_advanced_request_id_',
+    );
+
+    /**
+     * How many live ledger rows per family survive a restore. Lowering it to keep the
+     * capture inline does not work: at 90 the capture alone is 44 KB of the 49152-byte
+     * inline limit, and the rest of the cursor grows per restored table, so a stock
+     * 12-table site spills a sidecar anyway. Since the sidecar cannot be avoided by
+     * capping, the cap only decides how many blocked request ids survive, and a smaller
+     * number is strictly worse. Making the capture inline needs the aside-table read,
+     * not a constant.
+     */
+    const IDENTITY_LEDGER_CAPTURE_LIMIT = 500;
+
+    /**
+     * Singleton (separate from the backup runner's).
+     *
+     * @var MainWP_Child_Restore_Task_Runner|null
+     */
+    protected static $restore_instance = null;
+
+    /**
+     * Get the singleton instance.
+     *
+     * @return MainWP_Child_Restore_Task_Runner
+     */
+    public static function instance() {
+        if ( null === static::$restore_instance ) {
+            static::$restore_instance = new self();
+        }
+        return static::$restore_instance;
+    }
+
+    /**
+     * Whether a task type belongs to this runner.
+     *
+     * @param string $type Task type.
+     *
+     * @return bool True for restore types.
+     */
+    public static function is_restore_type( $type ) {
+        return in_array( $type, array( 'restore', 'restore_db', 'restore_files' ), true );
+    }
+
+    /**
+     * Advance one slice for a stalled restore task. Backup types are the
+     * backup runner's; this listener only takes restore tasks.
+     *
+     * @param object      $task    Stalled task row (pre-resume state).
+     * @param int         $version Row version after the watchdog's bookkeeping.
+     * @param string|null $owner   Lease token, or null to read it from the matching row.
+     */
+    public function handle_watchdog_resume( $task, $version, $owner = null ) {
+        if ( ! static::is_restore_type( $task->type ) ) {
+            return;
+        }
+        parent::handle_watchdog_resume( $task, $version, $owner );
+    }
+
+    /**
+     * Validate params and create a restore task.
+     *
+     * @param string $sub_type 'full', 'db', or 'files'.
+     * @param array  $params   Restore params persisted into the cursor:
+     *                         { restore_id, source_prefix, artifacts,
+     *                         has_foreign_keys }.
+     * @param bool   $reused   Whether the restore was already created.
+     *
+     * @throws MainWP_Exception On multisite, an already-active task, or a
+     *                          failed insert.
+     *
+     * @return string Task id.
+     */
+    public function create_restore_task( $sub_type, $params, &$reused = false ) {
+        global $wpdb;
+        $reused = false;
+
+        if ( 'db' !== $sub_type && MainWP_Backup::content_outside_site_root( $this->site_root(), $this->content_roots(), true ) ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT ) ), null, MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+        }
+
+        $spine = MainWP_Child_Backup_Task::instance();
+        $spine->install();
+        // An idle site's watchdog may never clear a deadline-expired task.
+        $spine->reclaim_expired_tasks( $this->backup_dir() );
+
+        $owner = 'restore-create-' . strtolower( wp_generate_password( 12, false ) );
+        $held  = MainWP_Child_Backup_Mutex::acquire( 'native', $owner, 60 );
+        if ( null === $held ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_MUTEX_WRITE_FAILED ) ), null, MainWP_Backup_Error::ERR_MUTEX_WRITE_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+        }
+        if ( true !== $held ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+        }
+        try {
+            if ( ! empty( $params['restore_id'] ) ) {
+                $existing = $spine->get_task_by_restore_id( $params['restore_id'] );
+                if ( null !== $existing ) {
+                    $reused = true;
+                    return $existing->task_id;
+                }
+            }
+            if ( ! empty( $spine->get_active_tasks() ) ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
+
+            $total_bytes = 0;
+            foreach ( (array) $params['artifacts'] as $artifact ) {
+                $total_bytes += isset( $artifact['size'] ) ? (int) $artifact['size'] : 0;
+            }
+            // The horizon scales with payload (transfer, extraction, and replay
+            // all do): one hour base plus a second per half-megabyte.
+            $deadline = self::RESTORE_MIN_DEADLINE_SECONDS + (int) ( $total_bytes / 524288 );
+
+            $type = 'restore';
+            if ( 'db' === $sub_type ) {
+                $type = 'restore_db';
+            } elseif ( 'files' === $sub_type ) {
+                $type = 'restore_files';
+            }
+            $initial = array( 'params' => $params );
+            if ( 'restore_db' !== $type ) {
+                $initial['files_touched'] = false;
+            }
+            $task_id = $spine->create_task( $type, $initial, self::RESTORE_MAX_RESUMES, $deadline, null, true );
+            if ( null === $task_id ) {
+                if ( false !== strpos( $wpdb->last_error, 'Duplicate entry' ) && false !== strpos( $wpdb->last_error, 'uniq_restore_id' ) ) {
+                    $existing = $spine->get_task_by_restore_id( $params['restore_id'] );
+                    if ( null !== $existing ) {
+                        $reused = true;
+                        return $existing->task_id;
+                    }
+                    throw new MainWP_Exception( 'The restore task could not be created on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+                }
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ALREADY_RUNNING ) ), null, MainWP_Backup_Error::ERR_ALREADY_RUNNING ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
+            if ( false === $task_id ) {
+                throw new MainWP_Exception( 'The restore task could not be created on this site.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+            }
+        } finally {
+            MainWP_Child_Backup_Mutex::release( $owner );
+        }
+
+        $scratch = $this->scratch_dir( $task_id, $this->backup_dir() );
+        if ( ! is_dir( $scratch ) ) {
+            wp_mkdir_p( $scratch );
+            MainWP_Helper::protect_backup_path( $scratch );
+        }
+
+        // A previous failed restore with the same id left tmp litter at
+        // most; clearing it here keeps the replay idempotent.
+        $this->restore_engine()->cleanup_tmp_tables( $params['restore_id'] );
+
+        // The active-task guard above means no restore is in flight, so every
+        // old<id>_/tmp<id>_ table belongs to a terminal, superseded restore.
+        // Retire them now so failed-restore litter never accumulates. Includes
+        // this task's own id (a no-op on a fresh id; clears a same-id retry's
+        // collision). Best-effort: a housekeeping failure must not block the
+        // restore.
+        try {
+            $this->restore_engine()->prune_aside_tables( $spine->get_restore_ids( $this->backup_dir() ) );
+        } catch ( \Throwable $e ) {
+            MainWP_Helper::log_debug( 'aside-table prune skipped: ' . $e->getMessage() );
+        }
+
+        return $task_id;
+    }
+
+    /**
+     * Whether this install is a WordPress multisite (test seam).
+     *
+     * @return bool
+     */
+    protected function is_multisite_install() {
+        return is_multisite();
+    }
+
+    /**
+     * The URL-rewrite exclusion map: every posts table's guid column
+     * stays untouched, covering the main site's table and each
+     * sub-blog's numbered table on a multisite network.
+     *
+     * @param array  $stems         Loaded table stems.
+     * @param string $target_prefix Live table prefix.
+     *
+     * @return array<string,array> Excluded columns by table name.
+     */
+    public function guid_exclusions( $stems, $target_prefix ) {
+        $exclude = array();
+        foreach ( (array) $stems as $stem ) {
+            if ( 'posts' === $stem || preg_match( '/^\d+_posts$/', (string) $stem ) ) {
+                $exclude[ $target_prefix . $stem ] = array( 'guid' );
+            }
+        }
+        return $exclude;
+    }
+
+    /**
+     * Sanitize a cloud-pull manifest from the wire against the task's
+     * own artifact list.
+     *
+     * Rejection is wholesale: any malformed entry, any URL that is not
+     * https, any hash that is not hex sha256, or any basename outside
+     * the artifact list (or adopt-only) invalidates the whole manifest.
+     * The caller then creates the task without it and the restore takes
+     * the staged transfer path.
+     *
+     * @param mixed $raw       Decoded pull_manifest_json.
+     * @param array $artifacts Sanitized task artifact entries.
+     *
+     * @return array|null Clean manifest, or null when rejected.
+     */
+    public static function sanitize_pull_manifest( $raw, $artifacts ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- ordered validation gates on wire input.
+        if ( ! is_array( $raw ) || empty( $raw['artifacts'] ) || ! is_array( $raw['artifacts'] ) ) {
+            return null;
+        }
+
+        $allowed = array();
+        foreach ( $artifacts as $artifact ) {
+            if ( empty( $artifact['adopt_only'] ) && isset( $artifact['file'] ) ) {
+                $allowed[ (string) $artifact['file'] ] = true;
+            }
+        }
+
+        $clean = array();
+        foreach ( $raw['artifacts'] as $entry ) {
+            if ( ! is_array( $entry ) || empty( $entry['file'] ) || empty( $allowed[ (string) $entry['file'] ] ) ) {
+                return null;
+            }
+            if ( ! isset( $entry['sha256'] ) || ! is_string( $entry['sha256'] ) || ! preg_match( '/^[a-f0-9]{64}$/', $entry['sha256'] ) ) {
+                return null;
+            }
+
+            $item = array(
+                'file'   => (string) $entry['file'],
+                'sha256' => $entry['sha256'],
+                'size'   => isset( $entry['size'] ) ? (int) $entry['size'] : 0,
+            );
+
+            if ( isset( $entry['chunks'] ) && is_array( $entry['chunks'] ) && ! empty( $entry['chunks'] ) ) {
+                $chunks = array();
+                foreach ( $entry['chunks'] as $chunk ) {
+                    if ( ! is_array( $chunk ) ) {
+                        return null;
+                    }
+                    // Chunks are content-addressed with the algorithm the
+                    // upload recorded; only known, locally available
+                    // algorithms are verifiable here.
+                    $algo = isset( $chunk['algo'] ) ? (string) $chunk['algo'] : 'sha256';
+                    if ( ! in_array( $algo, array( 'sha256', 'xxh128' ), true ) || ! in_array( $algo, hash_algos(), true ) ) {
+                        return null;
+                    }
+                    $length = 'sha256' === $algo ? 64 : 32;
+                    if ( ! isset( $chunk['hash'] ) || ! is_string( $chunk['hash'] ) || ! preg_match( '/^[a-f0-9]{' . $length . '}$/', $chunk['hash'] ) ) {
+                        return null;
+                    }
+                    if ( ! static::is_https_url( isset( $chunk['url'] ) ? $chunk['url'] : '' ) ) {
+                        return null;
+                    }
+                    $chunks[] = array(
+                        'hash' => $chunk['hash'],
+                        'algo' => $algo,
+                        'url'  => (string) $chunk['url'],
+                    );
+                }
+                $item['chunks'] = $chunks;
+            } else {
+                if ( ! static::is_https_url( isset( $entry['url'] ) ? $entry['url'] : '' ) ) {
+                    return null;
+                }
+                $item['url'] = (string) $entry['url'];
+            }
+
+            $clean[] = $item;
+        }
+
+        return array( 'artifacts' => $clean );
+    }
+
+    /**
+     * Whether a value is a safe https pull URL. Retained as the call seam
+     * inside sanitize_pull_manifest(); delegates to is_safe_remote_url() so
+     * the manifest URL gates also block SSRF targets.
+     *
+     * @param mixed $url Candidate.
+     *
+     * @return bool
+     */
+    protected static function is_https_url( $url ) {
+        return static::is_safe_remote_url( $url );
+    }
+
+    /**
+     * Whether a pull URL is safe to fetch.
+     *
+     * Requires https. Cloud-metadata and link-local targets (169.254.0.0/16,
+     * the metadata hostnames, IPv6 ::1, fd00:ec2::254 and fe80::/10) are rejected
+     * unconditionally. Other private/loopback hosts (RFC1918, 127.0.0.0/8,
+     * fc00::/7) are rejected unless an operator opts in with the
+     * MAINWP_BACKUP_ALLOW_PRIVATE_PULL constant or the
+     * mainwp_backup_allow_private_pull option (the on-prem MinIO case). Both
+     * the literal host and a resolved IPv4 are checked. This is deliberately
+     * not a blanket wp_http_validate_url(): a configured private endpoint
+     * must stay reachable when the override is set.
+     *
+     * @param mixed $url Candidate.
+     *
+     * @return bool
+     */
+    protected static function is_safe_remote_url( $url ) {
+        if ( ! is_string( $url ) || '' === $url ) {
+            return false;
+        }
+        $parts = wp_parse_url( $url );
+        if ( ! is_array( $parts ) || ! isset( $parts['scheme'], $parts['host'] ) || 'https' !== strtolower( $parts['scheme'] ) ) {
+            return false;
+        }
+
+        $host = strtolower( $parts['host'] );
+
+        // Metadata aliases are blocked by name, before any resolution.
+        if ( in_array( $host, array( 'metadata', 'metadata.google.internal' ), true ) ) {
+            return false;
+        }
+
+        // Candidate IPs: the literal host when it is an IP, otherwise every A
+        // and AAAA record the name resolves to. A name that resolves to
+        // nothing yields no IP and is treated as public (it cannot be reached
+        // anyway). Resolving both families closes the IPv6-only bypass.
+        $literal = trim( $host, '[]' );
+        if ( false !== filter_var( $literal, FILTER_VALIDATE_IP ) ) {
+            $ips = array( $literal );
+        } else {
+            $ips = static::resolve_host_ips( $host );
+        }
+
+        // PHP before 8.3 does not apply private-range flags to IPv4-mapped IPv6.
+        foreach ( $ips as $index => $ip ) {
+            $packed = inet_pton( $ip );
+            if ( false !== $packed && 16 === strlen( $packed ) && str_repeat( "\x00", 10 ) . "\xff\xff" === substr( $packed, 0, 12 ) ) {
+                $ips[ $index ] = inet_ntop( substr( $packed, 12, 4 ) );
+            }
+        }
+
+        foreach ( $ips as $ip ) {
+            if ( static::ip_is_metadata_or_link_local( $ip ) ) {
+                return false;
+            }
+        }
+
+        $allow_private = ( defined( 'MAINWP_BACKUP_ALLOW_PRIVATE_PULL' ) && MAINWP_BACKUP_ALLOW_PRIVATE_PULL )
+            || (bool) get_option( 'mainwp_backup_allow_private_pull' );
+        if ( $allow_private ) {
+            return true;
+        }
+
+        foreach ( $ips as $ip ) {
+            // NO_PRIV_RANGE + NO_RES_RANGE reject RFC1918, loopback,
+            // link-local and other reserved blocks; a public IP survives.
+            if ( false === filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Whether an IP is a cloud-metadata / link-local address that no
+     * override may reach: IPv4 169.254.0.0/16, IPv6 ::1, fd00:ec2::254 and fe80::/10.
+     *
+     * @param string $ip Validated IP literal.
+     *
+     * @return bool
+     */
+    protected static function ip_is_metadata_or_link_local( $ip ) {
+        if ( false !== strpos( $ip, ':' ) ) {
+            $packed = inet_pton( $ip );
+            if ( false === $packed || 16 !== strlen( $packed ) ) {
+                return false;
+            }
+            if ( inet_pton( '::1' ) === $packed || inet_pton( 'fd00:ec2::254' ) === $packed ) {
+                return true;
+            }
+            // fe80::/10 -> first 10 bits 1111111010.
+            return 0xfe === ord( $packed[0] ) && 0x80 === ( ord( $packed[1] ) & 0xc0 );
+        }
+        return 0 === strpos( $ip, '169.254.' );
+    }
+
+    /**
+     * Resolve a hostname to every IP it points at - both IPv4 (A) and IPv6
+     * (AAAA). Resolving only IPv4 would let an IPv6-only private or metadata
+     * host pass the guard as "public" while wp_remote_get still connects to
+     * it. Returns an empty array when nothing resolves. Isolated so tests can
+     * script resolution without real DNS.
+     *
+     * @param string $host Hostname.
+     *
+     * @return string[] Validated IP literals (may be empty).
+     */
+    protected static function resolve_host_ips( $host ) {
+        $ips = array();
+
+        $v4 = gethostbynamel( $host );
+        if ( is_array( $v4 ) ) {
+            foreach ( $v4 as $ip ) {
+                if ( false !== filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+                    $ips[] = $ip;
+                }
+            }
+        }
+
+        if ( function_exists( 'dns_get_record' ) ) {
+            $aaaa = @dns_get_record( $host, DNS_AAAA ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- a failed AAAA lookup is non-fatal; IPv4 still covers the host.
+            if ( is_array( $aaaa ) ) {
+                foreach ( $aaaa as $record ) {
+                    if ( isset( $record['ipv6'] ) && false !== filter_var( $record['ipv6'], FILTER_VALIDATE_IP ) ) {
+                        $ips[] = $record['ipv6'];
+                    }
+                }
+            }
+        }
+
+        return array_values( array_unique( $ips ) );
+    }
+
+    /**
+     * Cancel a restore task cleanly.
+     *
+     * The cancel respects the lease: while another runner is mid-slice
+     * the task state is theirs, so the cancel reports busy and the
+     * caller retries after the slice (or the lease TTL) ends. Once the
+     * lease is held, the task gets the same treatment as a phase
+     * failure - tmp tables dropped, maintenance lifted, scratch removed,
+     * old aside tables kept as the rollback - and lands terminal failed
+     * with the cancelled error code.
+     *
+     * @param string $task_id Task id.
+     *
+     * @return array { result: ok|rolling_back|busy|already_terminal, phase } or
+     *               { error, error_code } when the task is unknown.
+     */
+    public function cancel_restore_task( $task_id ) {
+        $spine = MainWP_Child_Backup_Task::instance();
+        $spine->install();
+
+        $task = $spine->get_task( $task_id );
+        if ( null === $task || ! static::is_restore_type( $task->type ) ) {
+            return array(
+                'error'      => esc_html__( 'Restore task not found. It may have been cleaned up or was never created on this site.', 'mainwp-child' ),
+                'error_code' => '',
+            );
+        }
+
+        if ( MainWP_Child_Backup_Task::is_terminal_phase( $task->phase ) ) {
+            return $this->terminal_cancel_answer( $task, 'already_terminal' );
+        }
+
+        $owner   = 'cancel:' . wp_generate_uuid4();
+        $version = (int) $task->version;
+        if ( ! $spine->acquire_lease( $task_id, $owner, $version ) ) {
+            return array(
+                'result' => 'busy',
+                'phase'  => $task->phase,
+            );
+        }
+        ++$version;
+
+        $backup_dir = $this->backup_dir();
+        MainWP_Helper::protect_backup_path( $backup_dir );
+        $sub_state = $spine->read_sub_state( $task, $backup_dir );
+        $sub_state = is_array( $sub_state ) ? $sub_state : array();
+
+        // On the foreign-key in-place path the aside snapshot dumps under the
+        // scratch dir are the only rollback source, and the in-place replay may
+        // have already half-overwritten the live tables. terminal_cleanup()
+        // removes the scratch dir, which would destroy that rollback source, so
+        // a cancel caught mid-replay reroutes to the rollback phase instead -
+        // mirroring reroute_fk_replay_to_rollback() - and lets the runner or
+        // watchdog replay the aside dumps back before any scratch removal.
+        $db                = isset( $sub_state['db_replay'] ) && is_array( $sub_state['db_replay'] ) ? $sub_state['db_replay'] : array();
+        $fk_snapshot_taken = ! empty( $db['fk_path'] ) && ! empty( $db['snapshot_done'] );
+
+        // Already rolling back: the aside dumps are being replayed back right
+        // now. Leave the row in place and let the rollback finish rather than
+        // deleting its recovery source.
+        if ( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK === $task->phase ) {
+            $spine->release_lease( $task_id, $owner, $version );
+            return array(
+                'result' => 'rolling_back',
+                'phase'  => MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK,
+            );
+        }
+
+        // In-flight in-place replay: reroute to the rollback carrying the
+        // cancelled reason, with a fresh rollback deadline and reset resume
+        // budget so the bounded rollback has room to finish.
+        if ( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB === $task->phase && $fk_snapshot_taken ) {
+            $sub_state['fk_rollback'] = array(
+                'original_error'      => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_CANCELLED ),
+                'original_error_code' => MainWP_Backup_Error::ERR_RESTORE_CANCELLED,
+                'cursor'              => array(),
+                'seen_resumes'        => (int) $task->resume_count,
+            );
+
+            $serialized = $spine->write_sub_state( $task_id, $sub_state, $backup_dir, $version );
+            if ( false === $serialized ) {
+                $serialized = wp_json_encode( $sub_state );
+            }
+
+            $spine->extend_wall_clock( $task_id, MainWP_Child_Backup_Task::FK_ROLLBACK_DEADLINE_SECONDS );
+            $rolled_version = $spine->checkpoint(
+                $task_id,
+                $version,
+                array(
+                    'phase'        => MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK,
+                    'sub_state'    => $serialized,
+                    'resume_count' => 0,
+                )
+            );
+            if ( false === $rolled_version ) {
+                // Lost the compare-and-swap to another writer (the wall-clock
+                // enforcer is the only one that ignores leases); report what the
+                // row now holds instead of claiming a reroute that never landed.
+                $spine->release_lease( $task_id, $owner, $version );
+                $fresh = $spine->get_task( $task_id );
+                $phase = null !== $fresh ? $fresh->phase : '';
+                if ( MainWP_Child_Backup_Task::is_terminal_phase( $phase ) ) {
+                    return $this->terminal_cancel_answer( $fresh, 'already_terminal' );
+                }
+                return array(
+                    'result' => 'busy',
+                    'phase'  => $phase,
+                );
+            }
+
+            // The aside dumps and cursor sidecar must survive for the rollback,
+            // so neither terminal_cleanup() nor delete_sidecar() runs here.
+            $spine->release_lease( $task_id, $owner, $rolled_version );
+            return array(
+                'result' => 'rolling_back',
+                'phase'  => MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK,
+            );
+        }
+
+        $terminal_state = array(
+            'error'        => array(
+                'message' => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_CANCELLED ),
+                'code'    => MainWP_Backup_Error::ERR_RESTORE_CANCELLED,
+            ),
+            'verification' => array( 'outcome' => $this->terminal_outcome( $task, $sub_state, 'cancelled', MainWP_Backup_Error::ERR_RESTORE_CANCELLED ) ),
+        );
+        if ( false === $this->terminal_cleanup( $task, $sub_state, $backup_dir, $owner ) ) {
+            $spine->release_lease( $task_id, $owner, $version );
+            $fresh = $spine->get_task( $task_id );
+            if ( null !== $fresh && MainWP_Child_Backup_Task::is_terminal_phase( $fresh->phase ) ) {
+                return $this->terminal_cancel_answer( $fresh, 'already_terminal' );
+            }
+            return array(
+                'result' => 'busy',
+                'phase'  => null !== $fresh ? $fresh->phase : '',
+            );
+        }
+
+        $new_version = $spine->checkpoint(
+            $task_id,
+            $version,
+            array(
+                'phase'     => MainWP_Child_Backup_Task::PHASE_FAILED,
+                'sub_state' => $terminal_state,
+            ),
+            true,
+            $backup_dir
+        );
+        if ( false === $new_version ) {
+            // Something else wrote the row between the acquire and the
+            // checkpoint (the wall-clock enforcer is the only writer that
+            // ignores leases). Report what the row actually holds instead
+            // of claiming a cancel that never landed.
+            $spine->release_lease( $task_id, $owner, $version );
+            $fresh = $spine->get_task( $task_id );
+            $phase = null !== $fresh ? $fresh->phase : '';
+            if ( MainWP_Child_Backup_Task::is_terminal_phase( $phase ) ) {
+                return $this->terminal_cancel_answer( $fresh, 'already_terminal' );
+            }
+            return array(
+                'result' => 'busy',
+                'phase'  => $phase,
+            );
+        }
+
+        $spine->delete_sidecar( $task_id, $backup_dir );
+        $spine->release_lease( $task_id, $owner, $new_version );
+
+        return $this->terminal_cancel_answer( $spine->get_task( $task_id ), 'ok' );
+    }
+
+    /**
+     * Receive one hash-verified piece of a restore artifact.
+     *
+     * The write path derives from the task id (scratch dir) plus the
+     * artifact's basename, which must be in the list the task was
+     * created with - nothing on the wire becomes a path. A duplicate of
+     * a confirmed chunk is acknowledged without writing; a gap returns
+     * the current size so the sender realigns; the final chunk verifies
+     * the whole artifact's sha256 and discards the file on mismatch.
+     *
+     * @param string $task_id      Task id.
+     * @param string $file         Artifact basename (pre-sanitized).
+     * @param int    $offset       Byte offset of this chunk.
+     * @param string $raw          Decoded chunk bytes.
+     * @param string $chunk_sha256 Expected sha256 of the chunk bytes.
+     * @param bool   $is_final     Whether this is the artifact's last chunk.
+     *
+     * @return array Ack { result, file, bytes_received, phase } or
+     *               error { error, error_code, bytes_received? }.
+     */
+    public function receive_chunk( $task_id, $file, $offset, $raw, $chunk_sha256, $is_final ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- ordered integrity gates on the only write path from the wire.
+        $spine = MainWP_Child_Backup_Task::instance();
+        $spine->install();
+
+        $task = $spine->get_task( $task_id );
+        if ( null === $task || ! static::is_restore_type( $task->type ) ) {
+            return $this->chunk_error( esc_html__( 'Restore task not found. It may have been cleaned up or was never created on this site.', 'mainwp-child' ), '' );
+        }
+        $chunk_phases = array(
+            MainWP_Child_Backup_Task::PHASE_QUEUED,
+            MainWP_Child_Backup_Task::PHASE_PULLING_ARTIFACTS,
+            MainWP_Child_Backup_Task::PHASE_RECEIVING_ARTIFACTS,
+        );
+        if ( ! in_array( $task->phase, $chunk_phases, true ) ) {
+            return $this->chunk_error( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_WRONG_PHASE ), MainWP_Backup_Error::ERR_RESTORE_WRONG_PHASE );
+        }
+
+        $backup_dir = $this->backup_dir();
+        MainWP_Helper::protect_backup_path( $backup_dir );
+        $sub_state = $spine->read_sub_state( $task, $backup_dir );
+        $sub_state = is_array( $sub_state ) ? $sub_state : array();
+        $artifacts = isset( $sub_state['params']['artifacts'] ) ? (array) $sub_state['params']['artifacts'] : array();
+
+        $expected = null;
+        foreach ( $artifacts as $artifact ) {
+            if ( isset( $artifact['file'] ) && $artifact['file'] === $file ) {
+                $expected = $artifact;
+                break;
+            }
+        }
+        if ( null === $expected || ! empty( $expected['adopt_only'] ) ) {
+            return $this->chunk_error( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ARTIFACT_UNKNOWN ), MainWP_Backup_Error::ERR_ARTIFACT_UNKNOWN );
+        }
+
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        if ( ! is_dir( $scratch ) ) {
+            wp_mkdir_p( $scratch );
+            MainWP_Helper::protect_backup_path( $scratch );
+        }
+
+        // Refuse a transfer the disk cannot hold before the first wire byte
+        // lands. assert_pull_disk_space guards the cloud-pull path; the chunk
+        // path otherwise streamed the whole archive into scratch with no
+        // space check. The guard keys off whether any non-adopt artifact has
+        // received bytes yet, NOT the presence of sub_state['receiving'] -
+        // run_receiving() seeds that cursor for adoption bookkeeping before
+        // the first chunk arrives, so an empty() check on it would skip the
+        // guard in the normal flow.
+        if ( ! $this->wire_bytes_started( $artifacts, $scratch ) && $this->receive_exceeds_disk( $artifacts, $scratch ) ) {
+            return $this->chunk_error( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ), MainWP_Backup_Error::ERR_DISK_FULL );
+        }
+
+        $path = $scratch . $file;
+        $size = file_exists( $path ) ? (int) filesize( $path ) : 0;
+
+        if ( $offset < 0 || $offset > $size ) {
+            return array(
+                'error'          => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CHUNK_GAP ),
+                'error_code'     => MainWP_Backup_Error::ERR_CHUNK_GAP,
+                'bytes_received' => $size,
+            );
+        }
+
+        if ( ! MainWP_Child_Chunk_Append_Helper::valid_chunk_hash( $raw, $chunk_sha256 ) ) {
+            return $this->chunk_error( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CHUNK_HASH ), MainWP_Backup_Error::ERR_CHUNK_HASH );
+        }
+
+        if ( $offset < $size ) {
+            // Already-written bytes: a duplicate of a confirmed chunk.
+            return $this->chunk_ack( $spine, $task, $file, $size );
+        }
+
+        $write_error = MainWP_Child_Chunk_Append_Helper::append_chunk( $path, $raw, $offset );
+        if ( null !== $write_error ) {
+            return $this->chunk_error( esc_html__( 'The artifact data could not be written. The site may be out of disk space.', 'mainwp-child' ), $write_error );
+        }
+        if ( '' !== $raw ) {
+            // The append streamed through fopen/fwrite, which leaves the
+            // pre-append size in PHP's stat cache on some PHP versions;
+            // acking that stale count tells the sender no bytes landed.
+            clearstatcache( true, $path );
+            $size = (int) filesize( $path );
+        }
+
+        $done = false;
+        if ( $is_final ) {
+            $expected_hash = isset( $expected['sha256'] ) ? (string) $expected['sha256'] : '';
+            if ( ! MainWP_Child_Chunk_Append_Helper::verify_final( $path, $expected_hash ) ) {
+                wp_delete_file( $path );
+                return $this->chunk_error( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_ARTIFACT_CORRUPT ), MainWP_Backup_Error::ERR_ARTIFACT_CORRUPT );
+            }
+            $done = true;
+        }
+
+        $this->record_chunk_progress( $spine, $task, $backup_dir, $file, $size, $done );
+        return $this->chunk_ack( $spine, $task, $file, $size );
+    }
+
+    /**
+     * Persist per-artifact receive progress onto the task cursor.
+     *
+     * Runs under CAS with a couple of retries - the runner may
+     * checkpoint concurrently. Every successful write also refreshes
+     * last_progress_at, which keeps the watchdog from stall-killing an
+     * active transfer.
+     *
+     * @param MainWP_Child_Backup_Task $spine      Spine instance.
+     * @param object                   $task       Task row (refreshed inside).
+     * @param string                   $backup_dir Backup scratch root.
+     * @param string                   $file       Artifact basename.
+     * @param int                      $size       Bytes received so far.
+     * @param bool                     $done       Whether the artifact verified complete.
+     */
+    protected function record_chunk_progress( $spine, $task, $backup_dir, $file, $size, $done ) {
+        $path = $this->scratch_dir( $task->task_id, $backup_dir ) . $file;
+
+        for ( $attempt = 0; $attempt < 3; $attempt++ ) {
+            $fresh = $spine->get_task( $task->task_id );
+            if ( null === $fresh ) {
+                return;
+            }
+            $sub_state = $spine->read_sub_state( $fresh, $backup_dir );
+            $sub_state = is_array( $sub_state ) ? $sub_state : array();
+            if ( ! isset( $sub_state['receiving'] ) ) {
+                $sub_state['receiving'] = array(
+                    'adoption_done' => false,
+                    'files'         => array(),
+                    'hashes'        => array(),
+                );
+            }
+
+            // Re-read the staging file so a write retried under CAS (or
+            // racing a concurrent append) records the bytes actually on
+            // disk instead of the size captured before the race.
+            clearstatcache( true, $path );
+            $bytes = file_exists( $path ) ? (int) filesize( $path ) : $size;
+
+            $sub_state['receiving']['files'][ $file ] = array(
+                'bytes' => $bytes,
+                'done'  => $done,
+            );
+
+            $serialized = $spine->write_sub_state( $fresh->task_id, $sub_state, $backup_dir, (int) $fresh->version );
+            if ( false === $serialized ) {
+                $serialized = wp_json_encode( $sub_state );
+            }
+            if ( false !== $spine->checkpoint( $fresh->task_id, (int) $fresh->version, array( 'sub_state' => $serialized ) ) ) {
+                return;
+            }
+        }
+    }
+
+    /**
+     * Build a chunk acknowledgment with the task's current phase.
+     *
+     * @param MainWP_Child_Backup_Task $spine Spine instance.
+     * @param object                   $task  Task row.
+     * @param string                   $file  Artifact basename.
+     * @param int                      $size  Bytes received.
+     *
+     * @return array Ack payload.
+     */
+    protected function chunk_ack( $spine, $task, $file, $size ) {
+        $fresh = $spine->get_task( $task->task_id );
+        return array(
+            'result'         => 'ok',
+            'file'           => $file,
+            'bytes_received' => $size,
+            'phase'          => null !== $fresh ? $fresh->phase : $task->phase,
+        );
+    }
+
+    /**
+     * Build a chunk error payload.
+     *
+     * @param string $message Error message.
+     * @param string $code    Error code.
+     *
+     * @return array Error payload.
+     */
+    protected function chunk_error( $message, $code ) {
+        return array(
+            'error'      => $message,
+            'error_code' => $code,
+        );
+    }
+
+    /**
+     * The per-task scratch directory all artifact paths derive from.
+     *
+     * Nothing about this path comes from the wire beyond the task id the
+     * child itself generated.
+     *
+     * @param string $task_id    Task id.
+     * @param string $backup_dir Backup scratch root.
+     *
+     * @return string Scratch directory with trailing slash.
+     */
+    public function scratch_dir( $task_id, $backup_dir ) {
+        return rtrim( $backup_dir, '/' ) . '/restore-' . MainWP_Helper::sanitize_filename( $task_id ) . '/';
+    }
+
+    /**
+     * Dispatch one restore phase step.
+     *
+     * Any throwable triggers terminal cleanup (tmp tables, maintenance
+     * mode, scratch dir - old tables stay) before the spine's failure
+     * trap records the terminal phase.
+     *
+     * @param object $task       Fresh task row.
+     * @param int    $version    Version this runner owns.
+     * @param array  $sub_state  Resolved resume cursor.
+     * @param int    $deadline   Slice deadline (unix time).
+     * @param string $backup_dir Scratch directory.
+     *
+     * @throws MainWP_Exception On an unknown phase.
+     * @throws \Throwable Re-thrown phase failures after cleanup.
+     *
+     * @return array { version: int, yield: bool, abandon: bool }
+     */
+    protected function run_phase( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        $this->failure_outcome   = null;
+        $this->after_file_change = null;
+        try {
+            switch ( $task->phase ) {
+                case MainWP_Child_Backup_Task::PHASE_QUEUED:
+                    $this->preflight_restore( $task, $backup_dir );
+                    return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_PULLING_ARTIFACTS:
+                    return $this->run_pulling( $task, $version, $sub_state, $deadline, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_RECEIVING_ARTIFACTS:
+                    return $this->run_receiving( $task, $version, $sub_state, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_VERIFYING_ARTIFACTS:
+                    return $this->run_verifying( $task, $version, $sub_state, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_RESTORING_FILES:
+                    return $this->run_restoring_files( $task, $version, $sub_state, $deadline, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_SNAPSHOTTING_DB:
+                    return $this->run_snapshotting_db( $task, $version, $sub_state, $deadline, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_REPLAYING_DB:
+                    return $this->run_replaying_db( $task, $version, $sub_state, $deadline, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_PRESERVING_WOO:
+                    return $this->run_preserving_woo( $task, $version, $sub_state, $deadline, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_MERGING_WOO:
+                    return $this->run_merging_woo( $task, $version, $sub_state, $deadline, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK:
+                    return $this->run_fk_rollback( $task, $version, $sub_state, $deadline, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_SWAPPING_DB:
+                    return $this->run_swapping_db( $task, $version, $sub_state, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_REWRITING_URLS:
+                    return $this->run_rewriting_urls( $task, $version, $sub_state, $deadline, $backup_dir );
+                case MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY:
+                    return $this->run_post_restore_verify( $task, $version, $sub_state, $backup_dir );
+                default:
+                    throw new MainWP_Exception( 'Unknown restore phase: ' . esc_html( $task->phase ), null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+            }
+        } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - cleanup must run on any phase failure.
+            $this->after_file_change = null;
+            $fresh                   = MainWP_Child_Backup_Task::instance()->get_task( $task->task_id );
+            if ( null !== $fresh ) {
+                $task        = $fresh;
+                $fresh_state = MainWP_Child_Backup_Task::instance()->read_sub_state( $fresh, $backup_dir );
+                $sub_state   = is_array( $fresh_state ) ? $fresh_state : ( is_array( $sub_state ) ? $sub_state : array() );
+            }
+            $code                  = $e instanceof MainWP_Exception ? $e->get_message_error_code() : '';
+            $this->failure_outcome = $this->terminal_outcome( $task, $sub_state, 'failed', $code );
+            if ( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK !== $task->phase ) {
+                $this->terminal_cleanup( $task, $sub_state, $backup_dir );
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Restore preflight: fail fast on the cheap, high-value checks before any
+     * file or database change. A non-writable scratch target, or a database
+     * user missing the table-swap grants, is surfaced here with a stable code
+     * instead of after the transfer work is already spent. The dashboard
+     * confirms remote-artifact availability; the disk check rides the pull
+     * phase.
+     *
+     * @param object $task       Task row.
+     * @param string $backup_dir Scratch root.
+     *
+     * @throws MainWP_Exception When a target is not writable or a grant is missing.
+     *
+     * @return void
+     */
+    protected function preflight_restore( $task, $backup_dir ) {
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        if ( ! is_dir( $scratch ) ) {
+            wp_mkdir_p( $scratch );
+            MainWP_Helper::protect_backup_path( $scratch );
+        }
+        if ( ! is_dir( $scratch ) || ! is_writable( $scratch ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- a cheap readiness probe; WP_Filesystem is not initialized this early in a restore slice.
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ) ), null, MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+
+        // A database-bearing restore swaps tables with CREATE/RENAME/DROP;
+        // probe those grants so a missing one stops the restore here, not
+        // mid-swap. A files-only restore never touches the database.
+        if ( 'restore_files' !== $task->type && ! $this->restore_engine()->probe_swap_grants() ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_DB_PERMS ) ), null, MainWP_Backup_Error::ERR_RESTORE_DB_PERMS ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+    }
+
+    /**
+     * Pulling phase: download artifacts straight from cloud storage
+     * using the presigned URLs in the task's pull manifest. When the
+     * dashboard supplied no manifest, the phase is a transparent no-op
+     * and the task advances straight to receiving, keeping the staged
+     * chunk transfer path exactly as it was.
+     *
+     * Every pulled file verifies against the sha256 the task was
+     * created with; manifest basenames must belong to the task's own
+     * artifact list, so nothing in the manifest can name a new write
+     * path. Failures land terminal with the cloud-pull error code -
+     * the dashboard reacts by re-staging through the standard transfer.
+     * Presigned URLs never appear in errors or in anything logged.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param int    $deadline   Slice deadline.
+     * @param string $backup_dir Scratch root.
+     *
+     * @throws MainWP_Exception On insufficient disk space or any pull failure.
+     *
+     * @return array Slice result.
+     */
+    protected function run_pulling( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        $params = isset( $sub_state['params'] ) ? $sub_state['params'] : array();
+        $pull   = isset( $params['pull_manifest'] ) && is_array( $params['pull_manifest'] ) ? $params['pull_manifest'] : array();
+        $list   = isset( $pull['artifacts'] ) && is_array( $pull['artifacts'] ) ? array_values( $pull['artifacts'] ) : array();
+
+        if ( empty( $list ) ) {
+            return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+        }
+
+        $allowed = array();
+        foreach ( isset( $params['artifacts'] ) ? (array) $params['artifacts'] : array() as $artifact ) {
+            if ( empty( $artifact['adopt_only'] ) && isset( $artifact['file'] ) ) {
+                $allowed[ (string) $artifact['file'] ] = true;
+            }
+        }
+
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        if ( ! is_dir( $scratch ) ) {
+            wp_mkdir_p( $scratch );
+            MainWP_Helper::protect_backup_path( $scratch );
+        }
+
+        $pulling = isset( $sub_state['pulling'] ) && is_array( $sub_state['pulling'] ) ? $sub_state['pulling'] : array( 'next' => 0 );
+
+        if ( empty( $pulling['disk_checked'] ) ) {
+            $this->assert_pull_disk_space( $list, (int) $pulling['next'], $scratch );
+            $pulling['disk_checked'] = true;
+        }
+
+        $count    = count( $list );
+        $progress = false;
+        while ( $pulling['next'] < $count ) {
+            if ( $progress && time() >= $deadline ) {
+                $sub_state['pulling'] = $pulling;
+                return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+            }
+
+            $artifact = (array) $list[ $pulling['next'] ];
+            $base     = isset( $artifact['file'] ) ? (string) $artifact['file'] : '';
+            if ( '' === $base || empty( $allowed[ $base ] ) ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ) ), null, MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
+
+            if ( ! empty( $artifact['chunks'] ) ) {
+                if ( ! $this->pull_chunked_artifact( $artifact, $scratch, $pulling, $deadline ) ) {
+                    $sub_state['pulling'] = $pulling;
+                    return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+                }
+            } else {
+                $this->pull_whole_artifact( $artifact, $scratch );
+            }
+
+            $sub_state = $this->mark_artifact_pulled( $sub_state, $scratch, $base );
+            ++$pulling['next'];
+            unset( $pulling['chunk'] );
+            $progress = true;
+        }
+
+        $sub_state['pulling'] = $pulling;
+        return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Download one whole artifact and verify it before promoting it
+     * into the scratch staging area.
+     *
+     * @param array  $artifact Pull manifest entry: file, sha256, url.
+     * @param string $scratch  Scratch dir with trailing slash.
+     *
+     * @throws MainWP_Exception When the download, hash, or promote fails.
+     */
+    protected function pull_whole_artifact( $artifact, $scratch ) {
+        $base = (string) $artifact['file'];
+        $path = $scratch . $base;
+        $tmp  = $path . '.pulling';
+        $url  = isset( $artifact['url'] ) ? (string) $artifact['url'] : '';
+
+        if ( ! $this->download_url_to_file( $url, $tmp ) ) {
+            if ( file_exists( $tmp ) ) {
+                wp_delete_file( $tmp );
+            }
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ) ), null, MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+
+        $expected = isset( $artifact['sha256'] ) ? (string) $artifact['sha256'] : '';
+        $actual   = hash_file( 'sha256', $tmp );
+        if ( '' === $expected || ! is_string( $actual ) || ! hash_equals( $expected, $actual ) ) {
+            wp_delete_file( $tmp );
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ) ), null, MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+
+        if ( ! rename( $tmp, $path ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic promote of the pulled artifact.
+            wp_delete_file( $tmp );
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ) ), null, MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+    }
+
+    /**
+     * Reassemble one chunked artifact from per-chunk presigned URLs.
+     *
+     * Each piece verifies against its content hash before appending;
+     * the finished file verifies against the artifact's sha256 (and
+     * recorded size) before promoting. The chunk cursor lives on the
+     * pulling state, so a slice that runs out of budget resumes at the
+     * next chunk.
+     *
+     * @param array  $artifact Pull manifest entry: file, sha256, size, chunks.
+     * @param string $scratch  Scratch dir with trailing slash.
+     * @param array  $pulling  Pulling cursor (by reference).
+     * @param int    $deadline Slice deadline.
+     *
+     * @throws MainWP_Exception When a download, hash, write, or promote fails.
+     *
+     * @return bool True when the artifact finished; false to yield mid-chunk.
+     */
+    protected function pull_chunked_artifact( $artifact, $scratch, &$pulling, $deadline ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- resumable verify-then-append loop.
+        $base     = (string) $artifact['file'];
+        $assembly = $scratch . $base . '.assembling';
+        $chunks   = array_values( (array) $artifact['chunks'] );
+        $cursor   = isset( $pulling['chunk'] ) && is_array( $pulling['chunk'] ) ? $pulling['chunk'] : array(
+            'next'  => 0,
+            'bytes' => 0,
+        );
+
+        // A stale assembly file that does not match the cursor restarts
+        // clean - appending to unknown bytes would corrupt the artifact.
+        $on_disk = file_exists( $assembly ) ? (int) filesize( $assembly ) : 0;
+        if ( $on_disk !== (int) $cursor['bytes'] ) {
+            wp_delete_file( $assembly );
+            $cursor = array(
+                'next'  => 0,
+                'bytes' => 0,
+            );
+        }
+
+        $count    = count( $chunks );
+        $progress = false;
+        while ( $cursor['next'] < $count ) {
+            if ( $progress && time() >= $deadline ) {
+                $pulling['chunk'] = $cursor;
+                return false;
+            }
+
+            $chunk = (array) $chunks[ $cursor['next'] ];
+            $piece = $scratch . $base . '.chunk';
+            $url   = isset( $chunk['url'] ) ? (string) $chunk['url'] : '';
+
+            if ( ! $this->download_url_to_file( $url, $piece ) ) {
+                if ( file_exists( $piece ) ) {
+                    wp_delete_file( $piece );
+                }
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ) ), null, MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
+
+            $algo   = isset( $chunk['algo'] ) && in_array( (string) $chunk['algo'], hash_algos(), true ) ? (string) $chunk['algo'] : 'sha256';
+            $actual = hash_file( $algo, $piece );
+            if ( empty( $chunk['hash'] ) || ! is_string( $actual ) || ! hash_equals( (string) $chunk['hash'], $actual ) ) {
+                wp_delete_file( $piece );
+                wp_delete_file( $assembly );
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ) ), null, MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
+
+            $bytes = (string) file_get_contents( $piece ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- verified chunk bytes.
+            wp_delete_file( $piece );
+
+            $fh = fopen( $assembly, 'ab' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming append to the assembly file.
+            MainWP_Helper::protect_backup_path( $assembly );
+            if ( false === $fh || strlen( $bytes ) !== fwrite( $fh, $bytes ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming append.
+                if ( false !== $fh ) {
+                    fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+                }
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) ), null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
+            fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
+
+            $cursor['bytes'] += strlen( $bytes );
+            ++$cursor['next'];
+            $progress = true;
+        }
+
+        $expected_size = isset( $artifact['size'] ) ? (int) $artifact['size'] : 0;
+        $expected_hash = isset( $artifact['sha256'] ) ? (string) $artifact['sha256'] : '';
+        clearstatcache( true, $assembly );
+        $whole = hash_file( 'sha256', $assembly );
+        if ( ( $expected_size > 0 && (int) filesize( $assembly ) !== $expected_size )
+            || '' === $expected_hash || ! is_string( $whole ) || ! hash_equals( $expected_hash, $whole )
+            || ! rename( $assembly, $scratch . $base ) // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic promote of the reassembled artifact.
+        ) {
+            wp_delete_file( $assembly );
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ) ), null, MainWP_Backup_Error::ERR_CLOUD_PULL_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+
+        unset( $pulling['chunk'] );
+        return true;
+    }
+
+    /**
+     * Record a pulled artifact on the receiving state, so the receiving
+     * phase finds it complete and advances without any wire transfer.
+     *
+     * @param array  $sub_state Cursor.
+     * @param string $scratch   Scratch dir with trailing slash.
+     * @param string $base      Artifact basename.
+     *
+     * @return array Updated cursor.
+     */
+    protected function mark_artifact_pulled( $sub_state, $scratch, $base ) {
+        if ( ! isset( $sub_state['receiving'] ) || ! is_array( $sub_state['receiving'] ) ) {
+            $sub_state['receiving'] = array(
+                'adoption_done' => false,
+                'files'         => array(),
+                'hashes'        => array(),
+            );
+        }
+
+        clearstatcache( true, $scratch . $base );
+        $sub_state['receiving']['files'][ $base ] = array(
+            'bytes' => (int) filesize( $scratch . $base ),
+            'done'  => true,
+        );
+
+        return $sub_state;
+    }
+
+    /**
+     * Fail before the first download when free disk space cannot hold
+     * the artifacts still to pull (plus a working margin).
+     *
+     * @param array  $artifacts Pull manifest artifacts.
+     * @param int    $next    Index of the next artifact to pull.
+     * @param string $scratch Scratch dir.
+     *
+     * @throws MainWP_Exception When free space is insufficient.
+     */
+    protected function assert_pull_disk_space( $artifacts, $next, $scratch ) {
+        $needed = 0;
+        $count  = count( $artifacts );
+        for ( $i = $next; $i < $count; $i++ ) {
+            $needed += isset( $artifacts[ $i ]['size'] ) ? (int) $artifacts[ $i ]['size'] : 0;
+        }
+
+        $free = $this->free_disk_space( $scratch );
+        if ( null !== $free && $free < $needed + 64 * 1024 * 1024 ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_DISK_FULL ) ), null, MainWP_Backup_Error::ERR_DISK_FULL ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+    }
+
+    /**
+     * Whether the artifacts still to receive cannot fit in free disk plus a
+     * working margin. The chunk-transfer path writes every artifact into
+     * scratch before applying, so this mirrors assert_pull_disk_space for
+     * the chunk path, which otherwise had no space check. Unknowable free
+     * space skips the guard rather than refusing the transfer.
+     *
+     * @param array  $artifacts Task artifact list.
+     * @param string $scratch   Scratch dir the chunks land in.
+     *
+     * @return bool True when the transfer would not fit.
+     */
+    protected function receive_exceeds_disk( $artifacts, $scratch ) {
+        $needed = 0;
+        foreach ( $artifacts as $artifact ) {
+            if ( ! empty( $artifact['adopt_only'] ) ) {
+                continue;
+            }
+            $needed += isset( $artifact['size'] ) ? (int) $artifact['size'] : 0;
+        }
+        if ( $needed <= 0 ) {
+            return false;
+        }
+
+        $free = $this->free_disk_space( $scratch );
+        return null !== $free && $free < $needed + 64 * 1024 * 1024;
+    }
+
+    /**
+     * Whether any non-adopt artifact has already received wire bytes into
+     * scratch. The disk guard keys off this rather than the presence of the
+     * receiving cursor: run_receiving() seeds sub_state['receiving'] for
+     * adoption bookkeeping before the first chunk lands, so an empty() check
+     * on the cursor would skip the guard. Adopt-only artifacts are ignored -
+     * they are on-disk rollback sources, not incoming wire data.
+     *
+     * @param array  $artifacts Task artifact list.
+     * @param string $scratch   Scratch dir the chunks land in.
+     *
+     * @return bool True once a non-adopt artifact has bytes on disk.
+     */
+    protected function wire_bytes_started( $artifacts, $scratch ) {
+        foreach ( $artifacts as $artifact ) {
+            if ( ! empty( $artifact['adopt_only'] ) || empty( $artifact['file'] ) ) {
+                continue;
+            }
+            $path = $scratch . $artifact['file'];
+            if ( file_exists( $path ) && filesize( $path ) > 0 ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Free disk space for a directory, or null when unknowable.
+     *
+     * @param string $dir Directory.
+     *
+     * @return float|null
+     */
+    protected function free_disk_space( $dir ) {
+        $free = function_exists( 'disk_free_space' ) ? @disk_free_space( $dir ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- some hosts disable the call; unknown free space skips the check.
+        return false === $free ? null : (float) $free;
+    }
+
+    /**
+     * Extra wall-clock seconds the foreign-key path needs over the replay
+     * alone, covering the aside snapshot and a possible rollback replay.
+     *
+     * @param int $bytes Estimated size of the tables being snapshotted.
+     *
+     * @return int Seconds to add to the task's deadline.
+     */
+    protected function fk_extra_budget_seconds( $bytes ) {
+        // Two extra passes over the snapshotted bytes (snapshot + rollback) at
+        // the same per-byte rate the create-time replay budget uses, plus a
+        // base allowance for the fixed overhead of each pass.
+        $per_pass = (int) ( (int) $bytes / 524288 );
+        return self::RESTORE_MIN_DEADLINE_SECONDS + ( $per_pass * 2 );
+    }
+
+    /**
+     * Sum the on-disk size of the named live tables from information_schema.
+     *
+     * @param string[] $tables Fully-qualified live table names.
+     *
+     * @return int Estimated bytes, or 0 when the size is unknowable.
+     */
+    protected function estimate_live_tables_bytes( $tables ) {
+        global $wpdb;
+
+        $tables = array_values( array_filter( array_map( 'strval', (array) $tables ) ) );
+        if ( empty( $tables ) ) {
+            return 0;
+        }
+
+        $placeholders = implode( ',', array_fill( 0, count( $tables ), '%s' ) );
+        $bytes        = $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- size estimate, no caching applicable.
+            $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- table list expands the placeholders.
+                'SELECT SUM(DATA_LENGTH + INDEX_LENGTH) FROM information_schema.TABLES
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (' . $placeholders . ')', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- the %s placeholders are built above and bound below.
+                $tables
+            )
+        );
+        return null === $bytes ? 0 : (int) $bytes;
+    }
+
+    /**
+     * Require enough free disk for the aside snapshot before it starts.
+     *
+     * Advisory hosts (disk_free_space disabled) pass: the during-snapshot
+     * dumper failure still catches a full disk and reports the same code with
+     * the live database untouched, so this is a faster, cleaner failure rather
+     * than the only guard. The multiplier is filterable for cautious hosts and
+     * defaults to 1.0 so the check only fires when the copy clearly cannot fit.
+     *
+     * @param int    $needed_bytes Estimated aside-copy size.
+     * @param string $scratch      Directory the aside copy is written to.
+     *
+     * @throws MainWP_Exception When free space is below the estimate.
+     */
+    protected function preflight_snapshot_disk( $needed_bytes, $scratch ) {
+        $needed_bytes = (int) $needed_bytes;
+        if ( $needed_bytes <= 0 ) {
+            return;
+        }
+
+        $free = $this->free_disk_space( $scratch );
+        if ( null === $free ) {
+            return;
+        }
+
+        $multiplier = (float) apply_filters( 'mainwp_restore_snapshot_disk_multiplier', 1.0 );
+        $required   = (float) $needed_bytes * $multiplier;
+        if ( (float) $free < $required ) {
+            throw new MainWP_Exception(
+                sprintf(
+                    /* translators: 1: estimated space needed, 2: free space available */
+                    esc_html__( 'Not enough free disk space to copy the database aside before the restore. Estimated need %1$s, available %2$s. Free up disk space on the child site and try again.', 'mainwp-child' ),
+                    esc_html( size_format( $required ) ),
+                    esc_html( size_format( $free ) )
+                ),
+                null,
+                MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message parts escaped above, code is a registry constant.
+            );
+        }
+    }
+
+    /**
+     * Stream a presigned URL to a local file over HTTPS.
+     *
+     * The URL carries its own query authentication; nothing else is
+     * sent. The response body streams to disk, so artifact bytes never
+     * pass through memory. Redirects are refused - a presigned URL
+     * never redirects, and following one would widen where these
+     * requests can land.
+     *
+     * @param string $url       Presigned URL.
+     * @param string $dest_path Local target path.
+     *
+     * @return bool Whether the download completed with HTTP 200.
+     */
+    protected function download_url_to_file( $url, $dest_path ) {
+        $response = MainWP_Helper::protect_backup_path(
+            $dest_path,
+            static function () use ( $url, $dest_path ) {
+                return wp_remote_get(
+                    $url,
+                    array(
+                        'stream'      => true,
+                        'filename'    => $dest_path,
+                        'timeout'     => 120,
+                        'sslverify'   => true,
+                        'redirection' => 0,
+                    )
+                );
+            }
+        );
+
+        if ( is_wp_error( $response ) ) {
+            return false;
+        }
+
+        return 200 === (int) wp_remote_retrieve_response_code( $response );
+    }
+
+    /**
+     * Receiving phase: adopt artifacts already on this site, then wait
+     * for the wire transfer (driven by the chunk callable) to finish.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param string $backup_dir Scratch root.
+     *
+     * @throws MainWP_Exception When an adopt-only artifact cannot be found.
+     *
+     * @return array Slice result.
+     */
+    protected function run_receiving( $task, $version, $sub_state, $backup_dir ) {
+        $params    = isset( $sub_state['params'] ) ? $sub_state['params'] : array();
+        $artifacts = isset( $params['artifacts'] ) ? (array) $params['artifacts'] : array();
+        $receiving = isset( $sub_state['receiving'] ) ? $sub_state['receiving'] : array(
+            'adoption_done' => false,
+            'files'         => array(),
+            'hashes'        => array(),
+        );
+
+        if ( empty( $receiving['adoption_done'] ) ) {
+            $receiving                  = $this->adopt_local_artifacts( $task, $artifacts, $receiving, $backup_dir );
+            $receiving['adoption_done'] = true;
+            $sub_state['receiving']     = $receiving;
+        }
+
+        foreach ( $artifacts as $artifact ) {
+            $base = $artifact['file'];
+            if ( ! empty( $artifact['adopt_only'] ) && empty( $receiving['files'][ $base ]['done'] ) ) {
+                throw new MainWP_Exception( esc_html( 'Rollback artifact not found on this site: ' . $base ), null, MainWP_Backup_Error::ERR_DL_FILE_NOT_FOUND ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+            }
+        }
+
+        if ( $this->all_artifacts_received( $artifacts, $receiving ) ) {
+            return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+        }
+
+        // Wire transfer still in flight; persist adoption state and yield.
+        return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+    }
+
+    /**
+     * Verifying phase: every artifact's bytes match its expected hash.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param string $backup_dir Scratch root.
+     *
+     * @throws MainWP_Exception On a hash mismatch or a missing artifact.
+     *
+     * @return array Slice result.
+     */
+    protected function run_verifying( $task, $version, $sub_state, $backup_dir ) {
+        $params  = $sub_state['params'];
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        $hashes  = $this->expected_hashes( $sub_state );
+
+        foreach ( (array) $params['artifacts'] as $artifact ) {
+            $base = $artifact['file'];
+            $path = $scratch . $base;
+            if ( 'manifest' === $artifact['role'] ) {
+                $expected                                 = isset( $hashes[ $base ] ) ? $hashes[ $base ] : '';
+                $actual                                   = is_file( $path ) && ! is_link( $path ) ? hash_file( 'sha256', $path ) : false;
+                $sub_state['verified_manifests'][ $base ] = '' !== $expected && is_string( $actual ) && hash_equals( $expected, $actual ) ? $actual : '';
+                continue;
+            }
+            if ( ! is_file( $path ) ) {
+                throw new MainWP_Exception( esc_html( 'Restore artifact missing from the staging area: ' . $base ), null, MainWP_Backup_Error::ERR_FILE_CORRUPT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+            }
+            $expected = isset( $hashes[ $base ] ) ? $hashes[ $base ] : '';
+            $actual   = hash_file( 'sha256', $path );
+            if ( '' === $expected || ! is_string( $actual ) || ! hash_equals( $expected, $actual ) ) {
+                throw new MainWP_Exception( esc_html( 'Restore artifact failed its integrity check: ' . $base ), null, MainWP_Backup_Error::ERR_FILE_CORRUPT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+            }
+        }
+
+        $options = isset( $params['reconcile'] ) ? MainWP_Child_Backup_Reconciler::sanitize_options( $params['reconcile'] ) : array();
+        if ( ! empty( $options['manifest'] ) && empty( $sub_state['verified_manifests'][ $options['manifest'] ] ) ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_RECONCILE ) ), null, MainWP_Backup_Error::ERR_RESTORE_RECONCILE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+
+        return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * File phase: extract part archives over the site root and apply
+     * tombstones, in the order the artifact list prescribes.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param int    $deadline   Slice deadline.
+     * @param string $backup_dir Scratch root.
+     *
+     * @throws MainWP_Exception On an extraction or tombstone failure.
+     *
+     * @return array Slice result.
+     */
+    protected function run_restoring_files( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        $scratch        = $this->scratch_dir( $task->task_id, $backup_dir );
+        $hashes         = $this->expected_hashes( $sub_state );
+        $ops            = array();
+        $archive_count  = 0;
+        $has_tombstones = false;
+        $manifests      = array();
+        foreach ( (array) $sub_state['params']['artifacts'] as $artifact ) {
+            if ( 'manifest' === $artifact['role'] ) {
+                $manifests[] = $artifact['file'];
+            }
+            if ( in_array( $artifact['role'], array( 'full', 'part', 'tombstones' ), true ) ) {
+                $ops[] = $artifact;
+                if ( 'tombstones' === $artifact['role'] ) {
+                    $has_tombstones = true;
+                } else {
+                    ++$archive_count;
+                }
+            }
+        }
+
+        if ( ! isset( $sub_state['mu_plugins_preserve'] ) || ! isset( $sub_state['config_include'] ) || ! isset( $sub_state['unreadable_cover'] ) ) {
+            $options = isset( $sub_state['params']['reconcile'] ) ? MainWP_Child_Backup_Reconciler::sanitize_options( $sub_state['params']['reconcile'] ) : array();
+            $named   = ! empty( $options['manifest'] );
+            $chain   = $archive_count > 1 || $has_tombstones;
+            // A withheld reconcile block can still ship the leaf manifest.
+            $name     = $named ? $options['manifest'] : ( 1 === count( $manifests ) ? $manifests[0] : '' );
+            $verified = isset( $sub_state['verified_manifests'][ $name ] ) ? $sub_state['verified_manifests'][ $name ] : '';
+            $manifest = $scratch . $name;
+            $actual   = is_file( $manifest ) && ! is_link( $manifest ) ? hash_file( 'sha256', $manifest ) : false;
+            $manifest = '' !== $verified && is_string( $actual ) && hash_equals( $verified, $actual ) ? $manifest : null;
+            if ( $named && null === $manifest ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_RECONCILE ) ), null, MainWP_Backup_Error::ERR_RESTORE_RECONCILE ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+            }
+            // Archives carry no snapshot identity, so a chain with no usable manifest protects live files from every archive.
+            $without_manifest = null === $manifest && $chain;
+
+            if ( ! isset( $sub_state['mu_plugins_preserve'] ) ) {
+                $sub_state['mu_plugins_preserve'] = ( new MainWP_Child_Backup_Mu_Plugins() )->capture(
+                    $this->site_root(),
+                    $this->mu_plugins_directory(),
+                    $named || $chain ? $manifest : null,
+                    isset( $sub_state['file_restore'] ),
+                    $this->mu_plugins_preserve_limit(),
+                    $without_manifest
+                );
+            }
+            if ( ! isset( $sub_state['config_include'] ) ) {
+                // Older cursors can capture late: extraction never replaces these live config sources.
+                $sub_state['config_include'] = $this->config_includes()->capture( $this->site_root(), $manifest );
+            }
+            if ( ! isset( $sub_state['unreadable_cover'] ) ) {
+                // Params are immutable, so older cursors capture the same leaf coverage even after a partial restore.
+                $sub_state['unreadable_cover'] = array(
+                    'all'      => isset( $options['skip_reason'] ),
+                    'prefixes' => $options['walk']['unarchived'] ?? array(),
+                );
+            }
+            // A crash before this checkpoint must leave extraction entirely untouched.
+            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+        }
+
+        $cursor = isset( $sub_state['file_restore'] ) ? $sub_state['file_restore'] : array(
+            'op_index'    => 0,
+            'part_cursor' => array(),
+        );
+
+        if ( empty( $sub_state['files_touched'] ) ) {
+            $sub_state['files_touched'] = true;
+            $checkpoint                 = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
+            if ( $checkpoint['abandon'] ) {
+                return $checkpoint;
+            }
+            $version = $checkpoint['version'];
+        }
+
+        $reported                = false;
+        $after_change            = function () use ( $task, &$reported ) {
+            if ( ! $reported ) {
+                $reported = true;
+                // The restorer or dump sweep establishes this boundary before reconcile, so reconcile slices omit it.
+                do_action( 'mainwp_child_restore_checkpoint', 'after_first_file_change', $task->task_id );
+            }
+        };
+        $this->after_file_change = $after_change;
+
+        if ( ! isset( $sub_state['file_restore'] ) ) {
+            // Sweep before extraction so a failed restore's dumps cannot enter replay.
+            // The slice checkpoint persists the sweep; an interrupted first slice restarts extraction.
+            $this->cleanup_dump_litter( true );
+            $cursor['dump_litter_swept']         = true;
+            $sub_state['dump_files']             = array();
+            $cursor['part_cursor']['dump_files'] = array();
+            $sub_state['file_restore']           = $cursor;
+        }
+
+        $restorer = $this->file_restorer();
+        $op_count = count( $ops );
+
+        while ( $cursor['op_index'] < $op_count ) {
+            if ( time() >= $deadline ) {
+                $sub_state['file_restore'] = $cursor;
+                return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+            }
+
+            $op   = $ops[ $cursor['op_index'] ];
+            $path = $scratch . $op['file'];
+
+            if ( 'tombstones' === $op['role'] ) {
+                $outcome = $restorer->apply_tombstones( $path, $this->site_root(), $sub_state['mu_plugins_preserve'], $cursor['part_cursor'], $after_change, $sub_state['config_include'], $sub_state['unreadable_cover'] );
+                if ( null !== $outcome['error'] ) {
+                    throw new MainWP_Exception( esc_html( $outcome['error'] ), null, $outcome['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+                }
+                ++$cursor['op_index'];
+                continue;
+            }
+
+            $checkpoint_abandoned = false;
+            $outcome              = $restorer->restore_slice(
+                $cursor['part_cursor'],
+                array(
+                    'parts'               => array( $path ),
+                    'hashes'              => array( $op['file'] => isset( $hashes[ $op['file'] ] ) ? $hashes[ $op['file'] ] : '' ),
+                    'extract_to'          => $this->site_root(),
+                    'mu_plugins_preserve' => $sub_state['mu_plugins_preserve'],
+                    'temp_owner'          => substr( hash( 'sha256', $task->task_id ), 0, 16 ),
+                    'after_file_change'   => $after_change,
+                    'checkpoint_cursor'   => function ( $part_cursor ) use ( $task, &$version, &$sub_state, &$cursor, $backup_dir, &$checkpoint_abandoned ) {
+                        $cursor['part_cursor']     = $part_cursor;
+                        $sub_state['file_restore'] = $cursor;
+                        $checkpoint = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
+                        $version = $checkpoint['version'];
+                        $checkpoint_abandoned = ! empty( $checkpoint['abandon'] );
+                        return ! $checkpoint_abandoned;
+                    },
+                ),
+                $deadline
+            );
+            if ( isset( $outcome['cursor']['dump_files'] ) ) {
+                $sub_state['dump_files'] = $outcome['cursor']['dump_files'];
+            }
+            if ( $checkpoint_abandoned ) {
+                return $this->slice_result( $version, true, true );
+            }
+            if ( null !== $outcome['error'] ) {
+                throw new MainWP_Exception( esc_html( $outcome['error'] ), null, $outcome['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+            }
+            if ( ! $outcome['done'] ) {
+                $cursor['part_cursor']     = $outcome['cursor'];
+                $sub_state['file_restore'] = $cursor;
+                return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+            }
+
+            ++$cursor['op_index'];
+            // Archive boundaries must not reset the restore's cumulative limits.
+            $cursor['part_cursor']                = $outcome['cursor'];
+            $cursor['part_cursor']['part_index']  = 0;
+            $cursor['part_cursor']['entry_index'] = 0;
+        }
+
+        $sub_state['file_restore'] = $cursor;
+        // Legacy file-runner callers hand in a bare cursor object with no task type; only a typed restore reconciles.
+        if ( isset( $task->type ) && in_array( $task->type, array( 'restore', 'restore_files' ), true ) ) {
+            return $this->run_reconcile( $task, $version, $sub_state, $deadline, $backup_dir );
+        }
+        return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Reconciliation shares extraction's checkpoint and lease discipline.
+     *
+     * @param object $task Task row.
+     * @param int    $version Owned version.
+     * @param array  $sub_state Cursor.
+     * @param int    $deadline Slice deadline.
+     * @param string $backup_dir Backup root.
+     * @return array Slice result.
+     */
+    protected function run_reconcile( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        $params  = $sub_state['params'];
+        $options = isset( $params['reconcile'] ) ? MainWP_Child_Backup_Reconciler::sanitize_options( $params['reconcile'] ) : array();
+        $reason  = null;
+        if ( ! array_key_exists( 'reconcile', $params ) ) {
+            $reason = 'no_manifest';
+        } elseif ( empty( $options['manifest'] ) ) {
+            $reason = 'manifest_unverified';
+        } elseif ( isset( $options['skip_reason'] ) ) {
+            $reason = $options['skip_reason'];
+        } elseif ( ! isset( $options['walk'] ) ) {
+            $reason = 'no_walk_params';
+        }
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        if ( null === $reason ) {
+            $name     = $options['manifest'];
+            $verified = isset( $sub_state['verified_manifests'][ $name ] ) ? $sub_state['verified_manifests'][ $name ] : '';
+            $path     = $scratch . $name;
+            $actual   = is_file( $path ) && ! is_link( $path ) ? hash_file( 'sha256', $path ) : false;
+            if ( '' === $verified || ! is_string( $actual ) || ! hash_equals( $verified, $actual ) ) {
+                $reason = 'manifest_unverified';
+            }
+        }
+        if ( null !== $reason ) {
+            $sub_state['verification']['reconcile'] = $this->merge_kept_symlinks(
+                array(
+                    'status' => 'skipped',
+                    'reason' => $reason,
+                ),
+                $sub_state['file_restore']['part_cursor'] ?? array()
+            );
+            if ( ! empty( $sub_state['mu_plugins_preserve']['reason'] ) ) {
+                $sub_state['verification']['reconcile']['mu_plugins_reason'] = $sub_state['mu_plugins_preserve']['reason'];
+            }
+            return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+        }
+
+        $reconcile_dir = $scratch . 'reconcile/';
+        if ( ! is_dir( $reconcile_dir ) ) {
+            wp_mkdir_p( $reconcile_dir );
+            MainWP_Helper::protect_backup_path( $reconcile_dir );
+        }
+        $outcome                = $this->reconciler()->reconcile_slice(
+            isset( $sub_state['reconcile'] ) ? $sub_state['reconcile'] : array(),
+            array(
+                'task_type'            => $task->type,
+                'mu_plugins_directory' => $this->mu_plugins_directory(),
+                'config_include'       => $sub_state['config_include'],
+                'manifest'             => $path,
+                'walk'                 => $options['walk'],
+                'root'                 => $this->site_root(),
+                'backup_dir'           => $backup_dir,
+                'scratch'              => $reconcile_dir,
+                'kept_symlink_seen'    => $sub_state['file_restore']['part_cursor']['kept_symlink_seen'] ?? array(),
+                'progress_callback'    => function () use ( $task ) {
+                    MainWP_Child_Backup_Task::instance()->touch_progress( $task->task_id );
+                },
+                'checkpoint_cursor'    => function ( $cursor ) use ( $task, &$version, &$sub_state, $backup_dir ) {
+                    $sub_state['reconcile'] = $cursor;
+                    $checkpoint = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
+                    $version = $checkpoint['version'];
+                    return empty( $checkpoint['abandon'] );
+                },
+            ),
+            $deadline
+        );
+        $sub_state['reconcile'] = $outcome['cursor'];
+        if ( $outcome['abandon'] ) {
+            return $this->slice_result( $version, true, true );
+        }
+        if ( ! $outcome['done'] ) {
+            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+        }
+        if ( ! empty( $sub_state['mu_plugins_preserve']['reason'] ) ) {
+            $outcome['outcome']['mu_plugins_reason'] = $sub_state['mu_plugins_preserve']['reason'];
+        }
+        $sub_state['verification']['reconcile'] = $this->merge_kept_symlinks( $outcome['outcome'], $sub_state['file_restore']['part_cursor'] ?? array() );
+        if ( 'aborted' === $outcome['outcome']['status'] ) {
+            if ( false === $this->terminal_cleanup( $task, $sub_state, $backup_dir ) ) {
+                return $this->slice_result( $version, true, true );
+            }
+            return $this->fail_terminal( $task, $version, $sub_state, $backup_dir, MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_RECONCILE ), MainWP_Backup_Error::ERR_RESTORE_RECONCILE );
+        }
+        return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Extraction and tombstones can keep links even when reconciliation is withheld.
+     *
+     * @param array $outcome Reconciliation result.
+     * @param array $cursor  Persisted extraction counts.
+     * @return array Combined kept-file result.
+     */
+    private function merge_kept_symlinks( $outcome, $cursor ) {
+        if ( empty( $cursor['kept_symlinks'] ) ) {
+            return $outcome;
+        }
+        $outcome['kept']                      = ( $outcome['kept'] ?? 0 ) + $cursor['kept_symlinks'];
+        $outcome['kept_by_reason']['symlink'] = ( $outcome['kept_by_reason']['symlink'] ?? 0 ) + $cursor['kept_symlinks'];
+        $outcome['kept_paths']                = array_slice( array_values( array_unique( array_merge( $cursor['kept_symlink_paths'], $outcome['kept_paths'] ?? array() ) ) ), 0, 20 );
+        return $outcome;
+    }
+
+    /**
+     * Use the configured host directory even on sites with custom content roots.
+     *
+     * @return string Absolute mu-plugins directory.
+     */
+    protected function mu_plugins_directory() {
+        return defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins';
+    }
+
+    /**
+     * Allow deterministic config and prepend capture in restore tests.
+     *
+     * @return MainWP_Child_Backup_Config_Includes Config dependency scanner.
+     */
+    protected function config_includes() {
+        return new MainWP_Child_Backup_Config_Includes();
+    }
+
+    /**
+     * Bound persisted live paths; larger installations keep the whole directory.
+     *
+     * @return int Preserve-set cap.
+     */
+    protected function mu_plugins_preserve_limit() {
+        return 500;
+    }
+
+    /**
+     * Allow deterministic interruption tests without changing the task deadline.
+     *
+     * @return MainWP_Child_Backup_Reconciler Reconciliation engine.
+     */
+    protected function reconciler() {
+        return new MainWP_Child_Backup_Reconciler();
+    }
+
+    /**
+     * DB phase: extract the dump archive, decide the path (atomic swap
+     * vs in-place under maintenance), and replay slices.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param int    $deadline   Slice deadline.
+     * @param string $backup_dir Scratch root.
+     *
+     * @throws MainWP_Exception On extraction or a swap-path replay failure.
+     * @throws \Throwable Re-thrown swap-path replay errors (the foreign-key path routes to rollback instead).
+     *
+     * @return array Slice result.
+     */
+    protected function run_replaying_db( $task, $version, $sub_state, $deadline, $backup_dir ) { // phpcs:ignore Generic.Metrics.CyclomaticComplexity -- staged extract/route/replay flow.
+        $params  = $sub_state['params'];
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        $engine  = $this->restore_engine();
+
+        if ( ! isset( $sub_state['db_replay'] ) ) {
+            $prepared = $this->prepare_db_replay( $task, $sub_state, $scratch, $deadline );
+            if ( null !== $prepared ) {
+                // The dump archive extraction needs more budget; persist
+                // its cursor and yield.
+                return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+            }
+        }
+
+        $db = $sub_state['db_replay'];
+
+        // WooCommerce order preservation runs once, before any replay touches
+        // the live database: the gate confirms a supported store, maintenance
+        // is entered, and the customers and stock the kept orders reference are
+        // captured while the live tables are still current. The done flag keeps
+        // the jump from re-firing when preserve_woo routes back here.
+        if ( $this->should_preserve_woo( $sub_state ) && empty( $sub_state['woo_capture']['done'] ) ) {
+            return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_PRESERVING_WOO );
+        }
+
+        // The in-place foreign-key replay overwrites the live tables with no
+        // staging, so a copy of those tables is taken aside first. The replay
+        // only runs once the snapshot is complete; on failure it can be undone.
+        if ( ! empty( $db['fk_path'] ) && empty( $db['snapshot_done'] ) ) {
+            return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_SNAPSHOTTING_DB );
+        }
+
+        // A resume after a stall restarts the in-flight dump file; the
+        // file's own leading DROP keeps that idempotent.
+        $unclean = (int) $task->resume_count > (int) $db['seen_resumes'];
+        if ( $unclean ) {
+            $db['seen_resumes'] = (int) $task->resume_count;
+        }
+
+        $config = array(
+            'restore_id'    => $params['restore_id'],
+            'source_prefix' => $db['source_prefix'],
+            'target_prefix' => $this->target_prefix(),
+            'files'         => $db['files'],
+            'fk_path'       => $db['fk_path'],
+            // The running restore's own state lives in the task spine;
+            // replaying the dump's copy would clobber it mid-flight. When
+            // preserving orders, the live WooCommerce order tables are kept too.
+            'skip_stems'    => array_merge( array( 'mainwp_child_backup_task' ), $this->build_woo_skip_stems( $sub_state ) ),
+        );
+
+        try {
+            $outcome = $engine->replay_slice( $db['cursor'], $config, $deadline, $unclean );
+        } catch ( \Throwable $e ) {
+            // On the foreign-key path the live tables may already be half
+            // overwritten, so any replay failure (returned or thrown) routes
+            // to the rollback phase instead of a bare terminal failure.
+            if ( ! empty( $db['fk_path'] ) ) {
+                $code = ( $e instanceof MainWP_Exception ) ? $e->get_message_error_code() : MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY;
+                return $this->enter_fk_rollback( $task, $version, $sub_state, $backup_dir, $e->getMessage(), $code );
+            }
+            throw $e;
+        }
+        $db['cursor']           = $outcome['cursor'];
+        $sub_state['db_replay'] = $db;
+
+        if ( null !== $outcome['error'] ) {
+            if ( ! empty( $db['fk_path'] ) ) {
+                return $this->enter_fk_rollback( $task, $version, $sub_state, $backup_dir, $outcome['error'], $outcome['error_code'] );
+            }
+            throw new MainWP_Exception( esc_html( $outcome['error'] ), null, $outcome['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+        }
+
+        if ( ! $outcome['done'] ) {
+            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+        }
+
+        // Dump files are restore byproducts, never site content: the
+        // embedded set just replayed, and any older litter a previous
+        // full-archive restore deposited must not ride into the next
+        // backup (a stale options dump archived beside the fresh one
+        // can win extraction and silently roll the site back).
+        $this->cleanup_dump_litter();
+
+        if ( $db['fk_path'] ) {
+            // In-place replay finished: leave maintenance mode and skip
+            // the swap phase entirely (the live tables already hold the
+            // restored data).
+            $sub_state['restored_mutex'] = MainWP_Child_Backup_Mutex::raw_value();
+            if ( ! isset( $sub_state['identity_preserve'] ) || ! is_array( $sub_state['identity_preserve'] ) ) {
+                return $this->enter_fk_rollback( $task, $version, $sub_state, $backup_dir, 'The restore could not preserve the site connection because its identity capture is missing. The restore was rolled back. Retry the restore.', MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+            }
+            try {
+                $this->restore_connection_identity( $sub_state );
+            } catch ( \Throwable $e ) {
+                return $this->enter_fk_rollback( $task, $version, $sub_state, $backup_dir, $e->getMessage(), MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+            }
+            $this->flush_caches();
+            $engine->exit_maintenance();
+            return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_REWRITING_URLS );
+        }
+
+        return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Snapshot phase (foreign-key path only): copy the live tables the
+     * in-place replay will overwrite to aside dump files under the scratch
+     * dir, so a failed replay can be rolled back. Maintenance mode is entered
+     * here and carried through the replay that follows. Resumable: the dumper
+     * cursor and the file list are checkpointed across slices.
+     *
+     * @param object    $task       Task row.
+     * @param int       $version    Owned version.
+     * @param array     $sub_state  Cursor.
+     * @param float|int $deadline   Slice deadline.
+     * @param string    $backup_dir Scratch root.
+     *
+     * @throws MainWP_Exception When the aside snapshot cannot be written.
+     *
+     * @return array Slice result.
+     */
+    protected function run_snapshotting_db( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        $engine  = $this->restore_engine();
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        $db      = $sub_state['db_replay'];
+
+        if ( ! isset( $sub_state['fk_snapshot'] ) ) {
+            $split = $engine->list_dump_live_tables( $db['files'], $db['source_prefix'], $this->target_prefix(), array_merge( array( 'mainwp_child_backup_task' ), $this->build_woo_skip_stems( $sub_state ) ) );
+
+            // The aside copy needs room for the live tables it replaces, and the
+            // snapshot + replay + rollback passes need more wall-clock than the
+            // replay alone. Both are sized once, before maintenance starts, so a
+            // disk shortfall fails with the site still online and the live
+            // database untouched.
+            if ( ! empty( $split['existing'] ) ) {
+                $bytes = $this->estimate_live_tables_bytes( $split['existing'] );
+                $this->preflight_snapshot_disk( $bytes, $scratch );
+                MainWP_Child_Backup_Task::instance()->extend_wall_clock( $task->task_id, $this->fk_extra_budget_seconds( $bytes ) );
+            }
+
+            $sub_state['fk_snapshot'] = array(
+                'existing'  => $split['existing'],
+                'new_stems' => $split['new_stems'],
+                'cursor'    => array(),
+                'files'     => array(),
+            );
+        }
+
+        // Capture before maintenance to retain the serving site's identity, as on the swap path.
+        $this->capture_connection_identity( $sub_state );
+        // The live tables are read while the site is offline so the aside copy
+        // is consistent; the replay re-enters maintenance, which is idempotent.
+        $engine->begin_maintenance();
+        $fk = $sub_state['fk_snapshot'];
+
+        // Nothing live to copy (a fresh-install target): no aside is needed,
+        // the rollback would just drop whatever the replay creates.
+        if ( empty( $fk['existing'] ) ) {
+            $db['snapshot_done']    = true;
+            $db['aside_files']      = array();
+            $sub_state['db_replay'] = $db;
+            return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_REPLAYING_DB );
+        }
+
+        $aside_dir = $scratch . 'aside/';
+        if ( ! is_dir( $aside_dir ) ) {
+            wp_mkdir_p( $aside_dir );
+            MainWP_Helper::protect_backup_path( $aside_dir );
+        }
+
+        $snap                     = $engine->snapshot_tables_slice(
+            $fk['cursor'],
+            array(
+                'tables'       => $fk['existing'],
+                'aside_prefix' => $aside_dir . 'aside',
+            ),
+            $deadline
+        );
+        $fk['cursor']             = $snap['cursor'];
+        $fk['files']              = $snap['files'];
+        $sub_state['fk_snapshot'] = $fk;
+
+        if ( null !== $snap['error'] ) {
+            // The snapshot runs before any live table changes, so a failure
+            // here leaves the database untouched.
+            throw new MainWP_Exception( esc_html( $snap['error'] ), null, $snap['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+        }
+
+        if ( ! $snap['done'] ) {
+            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+        }
+
+        $db['snapshot_done']    = true;
+        $db['aside_files']      = $fk['files'];
+        $sub_state['db_replay'] = $db;
+        return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_REPLAYING_DB );
+    }
+
+    /**
+     * Enter the rollback phase, carrying the original replay error so the
+     * terminal failure reports what went wrong.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param string $backup_dir Scratch root.
+     * @param string $error      Original replay error message.
+     * @param string $error_code Original replay error code.
+     *
+     * @return array Slice result.
+     */
+    protected function enter_fk_rollback( $task, $version, $sub_state, $backup_dir, $error, $error_code ) {
+        $sub_state['fk_rollback'] = array(
+            'original_error'      => (string) $error,
+            'original_error_code' => (string) $error_code,
+            'cursor'              => array(),
+            'seen_resumes'        => (int) $task->resume_count,
+        );
+        return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK );
+    }
+
+    /**
+     * Rollback phase (foreign-key path only): drop the half-restored live
+     * tables and replay the aside snapshot back, returning the database to its
+     * pre-restore state. Resumable. On success the task fails with a rolled-back
+     * code (the original restore still did not apply); if the rollback itself
+     * cannot finish, maintenance mode is deliberately kept on and the task
+     * fails with a rollback-failed code so the site is not served broken.
+     *
+     * @param object    $task       Task row.
+     * @param int       $version    Owned version.
+     * @param array     $sub_state  Cursor.
+     * @param float|int $deadline   Slice deadline.
+     * @param string    $backup_dir Scratch root.
+     *
+     * @return array Slice result.
+     */
+    protected function run_fk_rollback( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        $engine        = $this->restore_engine();
+        $target_prefix = $this->target_prefix();
+
+        // Hold the site offline through the rollback. Entry from a replay
+        // failure is already in maintenance; entry from a post-replay verify
+        // failure is not, because the successful replay had exited it. The
+        // call is idempotent and refreshes the flag for a long rollback.
+        $engine->begin_maintenance();
+
+        // Entry from enter_fk_rollback carries the original replay error. Entry
+        // from a deadline-forced reroute does not, so the bookkeeping is
+        // initialised cold with the wall-clock reason.
+        $fkr = isset( $sub_state['fk_rollback'] ) ? $sub_state['fk_rollback'] : array(
+            'original_error'      => MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_WALL_CLOCK ),
+            'original_error_code' => MainWP_Backup_Error::ERR_WALL_CLOCK,
+            'cursor'              => array(),
+            'seen_resumes'        => (int) $task->resume_count,
+        );
+        $fk  = isset( $sub_state['fk_snapshot'] ) ? $sub_state['fk_snapshot'] : array(
+            'existing'  => array(),
+            'new_stems' => array(),
+            'files'     => array(),
+        );
+
+        $drop_tables = isset( $fk['existing'] ) ? $fk['existing'] : array();
+        foreach ( (array) ( isset( $fk['new_stems'] ) ? $fk['new_stems'] : array() ) as $stem ) {
+            $drop_tables[] = $target_prefix . $stem;
+        }
+        $aside_files = isset( $sub_state['db_replay']['aside_files'] ) ? $sub_state['db_replay']['aside_files'] : ( isset( $fk['files'] ) ? $fk['files'] : array() );
+
+        $unclean = (int) $task->resume_count > (int) $fkr['seen_resumes'];
+        if ( $unclean ) {
+            $fkr['seen_resumes'] = (int) $task->resume_count;
+        }
+
+        $rb                       = $engine->rollback_aside_slice(
+            isset( $fkr['cursor'] ) ? $fkr['cursor'] : array(),
+            array(
+                'drop_tables'   => $drop_tables,
+                'aside_files'   => $aside_files,
+                'target_prefix' => $target_prefix,
+                'restore_id'    => isset( $sub_state['params']['restore_id'] ) ? (string) $sub_state['params']['restore_id'] : '',
+                'skip_stems'    => array_merge( array( 'mainwp_child_backup_task' ), $this->build_woo_skip_stems( $sub_state ) ),
+            ),
+            $deadline,
+            $unclean
+        );
+        $fkr['cursor']            = $rb['cursor'];
+        $sub_state['fk_rollback'] = $fkr;
+
+        if ( null !== $rb['error'] ) {
+            // Recovery could not finish: the database may be inconsistent, so
+            // the site is left in maintenance mode on purpose.
+            return $this->fail_terminal( $task, $version, $sub_state, $backup_dir, $rb['error'], MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED );
+        }
+
+        if ( ! $rb['done'] ) {
+            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+        }
+
+        // The live database is back to its pre-restore state.
+        $engine->exit_maintenance();
+        $this->remove_scratch_dir( $task, $backup_dir );
+        $owner = $this->current_lease_owner;
+        $this->sweep_terminal_dump_litter(
+            $task,
+            function () use ( $task, $owner ) {
+                return $this->terminal_dump_lease_holds( $task->task_id, $owner );
+            }
+        );
+        return $this->fail_terminal( $task, $version, $sub_state, $backup_dir, $fkr['original_error'], MainWP_Backup_Error::ERR_RESTORE_ROLLED_BACK );
+    }
+
+    /**
+     * Checkpoint the task terminal-failed with an explicit error and code.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param string $backup_dir Scratch root.
+     * @param string $message    Error message.
+     * @param string $code       Error code.
+     *
+     * @return array Slice result.
+     */
+    protected function fail_terminal( $task, $version, $sub_state, $backup_dir, $message, $code ) {
+        $sub_state['error']                   = array(
+            'message' => (string) $message,
+            'code'    => (string) $code,
+        );
+        $sub_state['verification']['outcome'] = $this->terminal_outcome( $task, $sub_state, 'failed', $code );
+        return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_FAILED );
+    }
+
+    /**
+     * Swap phase: one atomic RENAME promotes the loaded tmp tables.
+     *
+     * Maintenance mode is entered immediately before the rename and exited
+     * immediately after, so live traffic is never served a transitional
+     * schema. The window starts here, not earlier: the loaded tables are tmp
+     * tables until this rename, so live traffic during loading is harmless.
+     * A failure here is covered by the runner's existing terminal cleanup,
+     * which unconditionally exits maintenance - no extra handling is needed
+     * for the failure path.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param string $backup_dir Scratch root.
+     *
+     * @throws MainWP_Exception When the swap fails.
+     * @throws \Throwable When identity write-back fails after the swap.
+     *
+     * @return array Slice result.
+     */
+    protected function run_swapping_db( $task, $version, $sub_state, $backup_dir ) {
+        $engine  = $this->restore_engine();
+        $stems   = $this->loaded_stems( $sub_state );
+        $reentry = isset( $sub_state['identity_preserve'] );
+
+        if ( ! $reentry ) {
+            $this->capture_connection_identity( $sub_state );
+            // Persist before the rename so a resumed slice keeps the live identity.
+            $checkpoint = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
+            if ( $checkpoint['abandon'] ) {
+                return $checkpoint;
+            }
+            $version = $checkpoint['version'];
+        }
+
+        $engine->begin_maintenance();
+
+        $config     = array(
+            'restore_id'    => $sub_state['params']['restore_id'],
+            'target_prefix' => $this->target_prefix(),
+        );
+        $old_tables = array();
+        $committed  = false;
+        if ( $reentry ) {
+            for ( $attempt = 1; $attempt <= 3; ++$attempt ) {
+                $committed = $engine->is_swap_committed( $stems, $config, $old_tables );
+                if ( null !== $committed ) {
+                    break;
+                }
+                if ( 3 === $attempt ) {
+                    try {
+                        $this->restore_connection_identity( $sub_state );
+                    } catch ( \Throwable $e ) {
+                        // Identity recovery must not mask the indeterminate-swap refusal.
+                    }
+                    throw new MainWP_Exception( 'Could not determine whether the restore database swap committed.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+                }
+                usleep( 100000 );
+            }
+        }
+        if ( true === $committed ) {
+            $outcome = array(
+                'done'       => true,
+                'old_tables' => $old_tables,
+            );
+        } else {
+            $outcome = $engine->swap_tables( $stems, $config );
+        }
+        if ( ! $outcome['done'] ) {
+            throw new MainWP_Exception( esc_html( $outcome['error'] ), null, $outcome['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+        }
+
+        $sub_state['restored_mutex'] = MainWP_Child_Backup_Mutex::raw_value();
+        try {
+            $this->restore_connection_identity( $sub_state );
+        } catch ( \Throwable $e ) {
+            // run_phase() catches with its own by-value copy of the cursor, which
+            // predates the capture above, so the dump's mutex would outlive the
+            // failed restore unless it is cleared here.
+            MainWP_Child_Backup_Mutex::clear_after_restore( $sub_state['restored_mutex'] );
+            throw $e;
+        }
+        $engine->exit_maintenance();
+
+        $sub_state['old_tables'] = $outcome['old_tables'];
+        $this->flush_caches();
+        $checkpoint = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
+        if ( $checkpoint['abandon'] ) {
+            return $checkpoint;
+        }
+        $version = $checkpoint['version'];
+        do_action( 'mainwp_child_restore_checkpoint', 'after_swap_commit', $task->task_id );
+
+        return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * URL rewrite phase: serialization-aware replacement of the dump's
+     * URLs and explicit prefix-derived keys in the live tables.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param int    $deadline   Slice deadline.
+     * @param string $backup_dir Scratch root.
+     *
+     * @return array Slice result.
+     */
+    protected function run_rewriting_urls( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        $pairs       = $this->url_pairs( $sub_state );
+        $prefix_pair = $this->prefix_pair( $sub_state );
+        if ( empty( $pairs ) && empty( $prefix_pair ) ) {
+            return $this->advance_or_merge_woo( $task, $version, $sub_state, $backup_dir );
+        }
+
+        $target_prefix = $this->target_prefix();
+        $tables        = array();
+        foreach ( $this->loaded_stems( $sub_state ) as $stem ) {
+            $tables[] = $target_prefix . $stem;
+        }
+
+        $source_prefix       = isset( $sub_state['db_replay']['source_prefix'] ) ? (string) $sub_state['db_replay']['source_prefix'] : '';
+        $rename_option_names = array();
+        if ( '' !== $source_prefix && $source_prefix !== $target_prefix ) {
+            foreach ( $this->loaded_stems( $sub_state ) as $stem ) {
+                if ( 'options' === $stem || preg_match( '/^(\d+)_options$/', (string) $stem ) ) {
+                    $blog_suffix                                   = substr( $stem, 0, -7 );
+                    $rename_option_names[ $target_prefix . $stem ] = array( $source_prefix . $blog_suffix . 'user_roles' => $target_prefix . $blog_suffix . 'user_roles' );
+                }
+            }
+        }
+
+        $exclude         = $this->guid_exclusions( $this->loaded_stems( $sub_state ), $target_prefix );
+        $prefix_anchored = array();
+        foreach ( $this->loaded_stems( $sub_state ) as $stem ) {
+            if ( 'meta' === substr( $stem, -4 ) ) {
+                $exclude[ $target_prefix . $stem ] = array( 'meta_key' );
+            }
+            if ( ! empty( $prefix_pair ) && ( 'usermeta' === $stem || preg_match( '/^\d+_usermeta$/', (string) $stem ) ) ) {
+                $prefix_anchored[ $target_prefix . $stem ] = array( 'meta_key' );
+            }
+        }
+
+        $cursor  = isset( $sub_state['url_rewrite'] ) ? $sub_state['url_rewrite'] : array();
+        $outcome = $this->url_rewriter()->rewrite_slice(
+            $cursor,
+            array(
+                'tables'                   => $tables,
+                'pairs'                    => $pairs,
+                'exclude'                  => $exclude,
+                'rename_option_names'      => $rename_option_names,
+                'prefix_pair'              => $prefix_pair,
+                'prefix_anchored'          => $prefix_anchored,
+                'preserve_options'         => array( $target_prefix . 'options' => self::IDENTITY_OPTIONS ),
+                // Dump-only ledger rows also need protection from URL replacement.
+                'preserve_option_prefixes' => array( $target_prefix . 'options' => self::IDENTITY_PREFIXES ),
+            ),
+            $deadline
+        );
+
+        $sub_state['url_rewrite'] = $outcome['cursor'];
+        foreach ( $outcome['renamed_over'] ?? array() as $table => $count ) {
+            $prior = $sub_state['url_rewrite_renamed_over'][ $table ] ?? 0;
+            $sub_state['url_rewrite_renamed_over'][ $table ] = $prior + $count;
+        }
+        if ( ! empty( $outcome['failed_updates'] ) ) {
+            // A failed write leaves that row's URLs un-rewritten. The
+            // restored data is intact, so this is not fatal, but it must
+            // not pass silently: carry the count into the verification
+            // payload the dashboard surfaces.
+            $prior                                   = isset( $sub_state['url_rewrite_failed_updates'] ) ? (int) $sub_state['url_rewrite_failed_updates'] : 0;
+            $sub_state['url_rewrite_failed_updates'] = $prior + (int) $outcome['failed_updates'];
+            $sub_state['url_rewrite_error']          = (string) $outcome['last_error'];
+        }
+        if ( ! $outcome['done'] ) {
+            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+        }
+
+        $this->flush_caches();
+        return $this->advance_or_merge_woo( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Whether this restore opted in to WooCommerce order preservation.
+     *
+     * @param array $sub_state Cursor.
+     *
+     * @return bool
+     */
+    protected function should_preserve_woo( $sub_state ) {
+        return ! empty( $sub_state['params']['preserve_orders'] );
+    }
+
+    /**
+     * Route the end of the URL-rewrite phase: into the WooCommerce merge phase
+     * when preserving (once), otherwise straight on to verification. This is the
+     * single entry to merge_woo, so both the swap path and the in-place
+     * foreign-key path converge here after the database is live.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param string $backup_dir Scratch root.
+     *
+     * @return array Slice result.
+     */
+    protected function advance_or_merge_woo( $task, $version, $sub_state, $backup_dir ) {
+        if ( $this->should_preserve_woo( $sub_state ) && empty( $sub_state['woo_merge']['done'] ) ) {
+            return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_MERGING_WOO );
+        }
+        return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * WooCommerce preserve phase (jump-only): confirm the store and backup are a
+     * supported configuration, then capture - while the live database is still
+     * current - the customer accounts and product stock the kept orders
+     * reference. The order tables themselves stay in place via
+     * build_woo_skip_stems(); this phase handles only the customers and stock
+     * that live in shared tables and would otherwise be reverted.
+     *
+     * The gate runs before any database change, so an unsupported store is left
+     * exactly as it was. Capture reads the live tables directly and the site is
+     * NOT held in maintenance mode: the restore is driven by the dashboard
+     * polling the child, and WordPress maintenance mode returns a 503 to that
+     * poll, which would break the restore. Any customer or stock change between
+     * capture and the swap is surfaced by the post-restore orphan scan instead.
+     *
+     * @param object    $task       Task row.
+     * @param int       $version    Owned version.
+     * @param array     $sub_state  Cursor.
+     * @param float|int $deadline   Slice deadline (capture is bounded; unused).
+     * @param string    $backup_dir Scratch root.
+     *
+     * @return array Slice result.
+     */
+    protected function run_preserving_woo( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        $db   = $sub_state['db_replay'];
+        $gate = $this->woo_preserve_gate( $db['files'], $db['source_prefix'] );
+        if ( null !== $gate ) {
+            return $this->fail_terminal( $task, $version, $sub_state, $backup_dir, MainWP_Backup_Error::message( $gate ), $gate );
+        }
+
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        if ( ! is_dir( $scratch ) ) {
+            wp_mkdir_p( $scratch );
+            MainWP_Helper::protect_backup_path( $scratch );
+        }
+        $summary = $this->capture_woo_state( $sub_state, $scratch );
+
+        $sub_state['woo_capture'] = array(
+            'done'      => true,
+            'file'      => $summary['file'],
+            'customers' => $summary['customers'],
+            'stock'     => $summary['stock'],
+        );
+
+        return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_REPLAYING_DB );
+    }
+
+    /**
+     * WooCommerce merge phase (jump-only): re-insert the captured customer
+     * accounts the restore reverted away, and re-apply the captured live product
+     * stock. Runs after the database is live and after URL rewriting. Idempotent
+     * and resumable: re-inserts use INSERT IGNORE and stock re-apply is an
+     * UPDATE, so a re-run after a killed slice converges. The outcome counts are
+     * recorded for the dashboard, never a silent partial success.
+     *
+     * @param object    $task       Task row.
+     * @param int       $version    Owned version.
+     * @param array     $sub_state  Cursor.
+     * @param float|int $deadline   Slice deadline (merge is bounded; unused).
+     * @param string    $backup_dir Scratch root.
+     *
+     * @return array Slice result.
+     */
+    protected function run_merging_woo( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        $summary = $this->merge_woo_state( $sub_state, $scratch );
+
+        $progress                 = isset( $sub_state['progress'] ) && is_array( $sub_state['progress'] ) ? $sub_state['progress'] : array();
+        $progress['woo_preserve'] = $summary;
+        $sub_state['progress']    = $progress;
+        $sub_state['woo_merge']   = array( 'done' => true );
+
+        $this->flush_caches();
+
+        return $this->jump_phase( $task, $version, $sub_state, $backup_dir, MainWP_Child_Backup_Task::PHASE_POST_RESTORE_VERIFY );
+    }
+
+    /**
+     * Confirm the live store and the backup are a supported configuration for
+     * keeping live WooCommerce orders through a restore. Returns an error code
+     * to abort with, or null when preservation is safe to proceed.
+     *
+     * Supported only when the live store uses High-Performance Order Storage as
+     * the sole source of orders (custom orders table enabled, posts sync off),
+     * the backup also used HPOS (its dump carries a wc_orders table), and the
+     * backup's WooCommerce version matches the live version so the kept tables
+     * and the reverted woocommerce_db_version agree.
+     *
+     * @param string[] $files         Dump file paths.
+     * @param string   $source_prefix Prefix the dump's tables carry.
+     *
+     * @return string|null Error code to abort with, or null to proceed.
+     */
+    protected function woo_preserve_gate( $files, $source_prefix ) {
+        // The backup must store orders in HPOS, or reverting wp_posts would
+        // bring shop_order posts back alongside the kept live wc_orders.
+        if ( null === $this->find_dump_file_for_table( $files, $source_prefix . 'wc_orders' ) ) {
+            return MainWP_Backup_Error::ERR_RESTORE_WOO_LEGACY_ORDERS;
+        }
+
+        // The live store must read orders only from HPOS; on the legacy posts
+        // storage the kept wc_orders are not authoritative.
+        if ( 'yes' !== $this->woo_live_option( 'woocommerce_custom_orders_table_enabled' ) ) {
+            return MainWP_Backup_Error::ERR_RESTORE_WOO_LEGACY_ORDERS;
+        }
+
+        // Sync mode keeps a shop_order mirror in wp_posts that the restore would
+        // revert under the kept orders, leaving the two representations at odds.
+        if ( 'yes' === $this->woo_live_option( 'woocommerce_custom_orders_table_data_sync_enabled' ) ) {
+            return MainWP_Backup_Error::ERR_RESTORE_WOO_SYNC_MODE;
+        }
+
+        // A WooCommerce version change can migrate the order schema, leaving the
+        // kept tables and the reverted woocommerce_db_version out of step. An
+        // unreadable backup version fails closed.
+        $backup_ver = $this->read_dump_option( $files, $source_prefix, 'woocommerce_db_version' );
+        $live_ver   = $this->woo_live_option( 'woocommerce_db_version' );
+        if ( '' === (string) $backup_ver || (string) $backup_ver !== (string) $live_ver ) {
+            return MainWP_Backup_Error::ERR_RESTORE_WOO_VERSION_SKEW;
+        }
+
+        return null;
+    }
+
+    /**
+     * The live Woo order-storage answers for the dashboard's initiate-time
+     * preserve-orders check: the same option reads the apply-phase
+     * woo_preserve_gate makes, exposed before any transfer so a certain
+     * refusal happens before the restore job is even created. The
+     * apply-phase gate stays in place as the authoritative backstop.
+     *
+     * @return array { woo_hpos_enabled: bool, woo_sync_enabled: bool }
+     */
+    public function live_woo_preflight() {
+        return array(
+            'woo_hpos_enabled' => 'yes' === $this->woo_live_option( 'woocommerce_custom_orders_table_enabled' ),
+            'woo_sync_enabled' => 'yes' === $this->woo_live_option( 'woocommerce_custom_orders_table_data_sync_enabled' ),
+            'woo_db_version'   => $this->woo_live_option( 'woocommerce_db_version' ),
+        );
+    }
+
+    /**
+     * Capture the live connection rows once, before either database path changes them.
+     *
+     * @param array $sub_state Restore cursor, updated in place.
+     * @throws MainWP_Exception When the live identity cannot be read.
+     */
+    protected function capture_connection_identity( &$sub_state ) {
+        if ( isset( $sub_state['identity_preserve'] ) ) {
+            return;
+        }
+
+        global $wpdb;
+        $table    = $this->target_prefix() . 'options';
+        $suppress = $wpdb->suppress_errors( true );
+        try {
+            $names = implode( ', ', array_fill( 0, count( self::IDENTITY_OPTIONS ), '%s' ) );
+            $rows  = $wpdb->get_results( $wpdb->prepare( 'SELECT option_name, option_value, autoload FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name IN (' . $names . ')', self::IDENTITY_OPTIONS ), ARRAY_A ); // phpcs:ignore WordPress.DB -- raw identity read from the target table.
+            if ( '' !== $wpdb->last_error || ! is_array( $rows ) ) {
+                throw new MainWP_Exception( 'Could not capture the live Child connection identity.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+            }
+            foreach ( self::IDENTITY_PREFIXES as $prefix ) {
+                // The dump supplies older ledger rows; keep the newest live additions without bloating every checkpoint.
+                $ledger = $wpdb->get_results( $wpdb->prepare( 'SELECT option_name, option_value, autoload FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name LIKE %s ORDER BY option_id DESC LIMIT %d', $wpdb->esc_like( $prefix ) . '%', self::IDENTITY_LEDGER_CAPTURE_LIMIT ), ARRAY_A ); // phpcs:ignore WordPress.DB -- raw replay ledger capture.
+                if ( '' !== $wpdb->last_error || ! is_array( $ledger ) ) {
+                    throw new MainWP_Exception( 'Could not capture the live Child connection identity.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+                }
+                $rows = array_merge( $rows, $ledger );
+            }
+            if ( empty( $sub_state['db_replay']['fk_path'] ) && in_array( 'options', $this->loaded_stems( $sub_state ), true ) ) {
+                // Persist the dump baseline before the rename, including across a partial write-back.
+                $tmp_table                        = $this->restore_engine()->tmp_prefix( $sub_state['params']['restore_id'] ) . 'options';
+                $sub_state['identity_dump_count'] = self::identity_count( $tmp_table );
+            }
+            $sub_state['identity_preserve'] = $rows;
+        } finally {
+            $wpdb->suppress_errors( $suppress );
+        }
+    }
+
+    /**
+     * Use the same row scope before and after write-back so retries cannot skew verification.
+     *
+     * @param string $table Options table.
+     * @throws MainWP_Exception When the identity rows cannot be read.
+     * @return int Identity and ledger row count.
+     */
+    private static function identity_count( $table ) {
+        global $wpdb;
+        $where = 'option_name IN (' . implode( ', ', array_fill( 0, count( self::IDENTITY_OPTIONS ), '%s' ) ) . ')';
+        $args  = self::IDENTITY_OPTIONS;
+        foreach ( self::IDENTITY_PREFIXES as $prefix ) {
+            $where .= ' OR option_name LIKE %s';
+            $args[] = $wpdb->esc_like( $prefix ) . '%';
+        }
+        $count = $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . self::prepare_table_ident( $table ) . ' WHERE ' . $where, $args ) ); // phpcs:ignore WordPress.DB -- identity scope includes all dump-only ledger rows.
+        if ( '' !== $wpdb->last_error || null === $count ) {
+            throw new MainWP_Exception( 'Could not read the restored Child connection identity.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+        }
+        return (int) $count;
+    }
+
+    /**
+     * Restore captured rows and remove dump-only identity rows while maintenance is on.
+     *
+     * @param array $sub_state Restore cursor, updated with the fixed row-count delta.
+     * @throws MainWP_Exception When all identity write-back attempts fail.
+     */
+    protected function restore_connection_identity( &$sub_state ) {
+        // Older cursors have no capture; reading here would preserve the dump's identity.
+        if ( ! isset( $sub_state['identity_preserve'] ) || ! is_array( $sub_state['identity_preserve'] ) ) {
+            return;
+        }
+
+        $saved = array();
+        foreach ( $sub_state['identity_preserve'] as $row ) {
+            if ( ! is_array( $row ) || ! isset( $row['option_name'], $row['option_value'], $row['autoload'] ) || ! is_string( $row['option_name'] ) ) {
+                continue;
+            }
+            $allowed = in_array( $row['option_name'], self::IDENTITY_OPTIONS, true );
+            foreach ( self::IDENTITY_PREFIXES as $prefix ) {
+                $allowed = $allowed || 0 === strpos( $row['option_name'], $prefix );
+            }
+            if ( $allowed ) {
+                $saved[ $row['option_name'] ] = $row;
+            }
+        }
+        if ( ! empty( $sub_state['identity_preserve'] ) && empty( $saved ) ) {
+            return;
+        }
+
+        global $wpdb;
+        $table    = $this->target_prefix() . 'options';
+        $suppress = $wpdb->suppress_errors( true );
+        try {
+            $ledgers = array_diff_key( $saved, array_flip( self::IDENTITY_OPTIONS ) );
+            for ( $attempt = 1; $attempt <= 3; ++$attempt ) {
+                $result         = false;
+                $last_exception = null;
+                try {
+                    if ( ! isset( $sub_state['identity_dump_count'] ) ) {
+                        // FK replay has no tmp options table; keep its baseline before the first write.
+                        $sub_state['identity_dump_count'] = self::identity_count( $table );
+                    }
+                    foreach ( self::IDENTITY_OPTIONS as $name ) {
+                        // The live site always has this row while a restore runs, so a capture without it came
+                        // from an older build; deleting the restored row would re-key the backup directory.
+                        if ( ! isset( $saved[ $name ] ) && 'mainwp_backup_dir_hash' === $name ) {
+                            continue;
+                        }
+                        if ( ! isset( $saved[ $name ] ) ) {
+                            $result = $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name = %s', $name ) ); // phpcs:ignore WordPress.DB -- remove a dump-only identity row.
+                        } else {
+                            $exists = $wpdb->get_var( $wpdb->prepare( 'SELECT option_name FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name = %s', $name ) ); // phpcs:ignore WordPress.DB -- cache cannot establish restored row presence.
+                            if ( '' !== $wpdb->last_error ) {
+                                throw new MainWP_Exception( 'Could not read the restored Child connection identity.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+                            }
+                            $row = $saved[ $name ];
+                            if ( null === $exists ) {
+                                $result = $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $this->prepare_table_ident( $table ) . ' (option_name, option_value, autoload) VALUES (%s, %s, %s)', $name, $row['option_value'], $row['autoload'] ) ); // phpcs:ignore WordPress.DB -- preserve the raw stored row.
+                            } else {
+                                $result = $wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->prepare_table_ident( $table ) . ' SET option_value = %s, autoload = %s WHERE option_name = %s', $row['option_value'], $row['autoload'], $name ) ); // phpcs:ignore WordPress.DB -- preserve raw value and autoload, including unchanged rows.
+                            }
+                        }
+                        if ( false === $result ) {
+                            break;
+                        }
+                        wp_cache_delete( $name, 'options' );
+                    }
+                    if ( false !== $result ) {
+                        foreach ( array_chunk( $ledgers, 250, true ) as $chunk ) {
+                            $args = array();
+                            foreach ( $chunk as $row ) {
+                                $args[] = $row['option_name'];
+                                $args[] = $row['option_value'];
+                                $args[] = $row['autoload'];
+                            }
+                            $values = implode( ', ', array_fill( 0, count( $chunk ), '(%s, %s, %s)' ) );
+                            // The dump may lack a unique key; replace only captured names so dump-only ledger rows survive.
+                            $names  = implode( ', ', array_fill( 0, count( $chunk ), '%s' ) );
+                            $result = $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name IN (' . $names . ')', array_keys( $chunk ) ) ); // phpcs:ignore WordPress.DB -- bounded deletion includes only rows written straight back.
+                            if ( false === $result ) {
+                                break;
+                            }
+                            $result = $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $this->prepare_table_ident( $table ) . ' (option_name, option_value, autoload) VALUES ' . $values, $args ) ); // phpcs:ignore WordPress.DB -- bounded replay ledger inserts preserve raw captured rows.
+                            if ( false === $result ) {
+                                break;
+                            }
+                            foreach ( $chunk as $name => $row ) {
+                                wp_cache_delete( $name, 'options' );
+                            }
+                        }
+                    }
+                    if ( false !== $result ) {
+                        $delta = self::identity_count( $table ) - $sub_state['identity_dump_count'];
+                    }
+                } catch ( MainWP_Exception $e ) {
+                    $last_exception = $e;
+                    $result         = false;
+                }
+                if ( false !== $result ) {
+                    wp_cache_delete( 'alloptions', 'options' );
+                    wp_cache_delete( 'notoptions', 'options' );
+                    $sub_state['identity_preserve_delta'] = $delta;
+                    return;
+                }
+                if ( 3 === $attempt ) {
+                    $message = null !== $last_exception ? $last_exception->getMessage() : 'Could not restore the live Child connection identity.';
+                    $code    = null !== $last_exception && '' !== $last_exception->get_message_error_code() ? $last_exception->get_message_error_code() : MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY;
+                    throw new MainWP_Exception( $message, null, $code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+                }
+                usleep( 100000 );
+            }
+        } finally {
+            $wpdb->suppress_errors( $suppress );
+        }
+    }
+
+    /**
+     * Read one option value straight from the live options table by the target
+     * prefix, bypassing the object cache (the restore is mid-flight, pre-swap).
+     *
+     * @param string $name Option name.
+     *
+     * @return string Option value, empty string when absent.
+     */
+    protected function woo_live_option( $name ) {
+        global $wpdb;
+        $table = $this->target_prefix() . 'options';
+        $value = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name = %s', $name ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- live read by prefix, cache bypassed.
+        return null === $value ? '' : (string) $value;
+    }
+
+    /**
+     * Read one option's value from the backup's options dump file without
+     * replaying it - the gate needs the backup's woocommerce_db_version before
+     * any replay runs. Returns an empty string when the option is not found.
+     *
+     * @param string[] $files         Dump file paths.
+     * @param string   $source_prefix Prefix the dump's tables carry.
+     * @param string   $name          Option name.
+     *
+     * @return string Option value, empty string when absent.
+     */
+    protected function read_dump_option( $files, $source_prefix, $name ) {
+        $file = $this->find_dump_file_for_table( $files, $source_prefix . 'options' );
+        if ( null === $file ) {
+            return '';
+        }
+        $sql = file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bounded local dump read.
+        if ( false === $sql ) {
+            return '';
+        }
+        // The options dump writes (option_id, 'name', 'value', 'autoload')
+        // tuples; the value is the quoted field right after the option name.
+        if ( preg_match( '/' . preg_quote( "'" . $name . "'", '/' ) . "\\s*,\\s*'((?:[^'\\\\]|\\\\.)*)'/", $sql, $m ) ) {
+            return stripslashes( $m[1] );
+        }
+        return '';
+    }
+
+    /**
+     * The dump file whose single table matches a given name, or null.
+     *
+     * @param string[] $files Dump file paths.
+     * @param string   $table Source-prefixed table name to find.
+     *
+     * @return string|null Matching file path, or null.
+     */
+    protected function find_dump_file_for_table( $files, $table ) {
+        $engine = $this->restore_engine();
+        foreach ( (array) $files as $file ) {
+            if ( $table === $engine->peek_table_name( $file ) ) {
+                return $file;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Capture, from the live database, the customer accounts and product stock
+     * the kept orders reference, writing them to a scratch file the merge phase
+     * reads after the swap. Customers are bounded to those a revert could drop
+     * (registered since the backup, with a day of clock-skew margin); product
+     * stock covers every managed-stock product. No row cap - a silent cap would
+     * be the data loss this feature exists to prevent.
+     *
+     * @param array  $sub_state Cursor.
+     * @param string $scratch   Per-task scratch directory (with trailing slash).
+     *
+     * @throws MainWP_Exception When the customer capture cannot be read or written.
+     *
+     * @return array { file: string, customers: int, stock: int }
+     */
+    protected function capture_woo_state( $sub_state, $scratch ) {
+        global $wpdb;
+        $prefix = $this->target_prefix();
+        $since  = (int) ( isset( $sub_state['params']['woo_order_since'] ) ? $sub_state['params']['woo_order_since'] : 0 );
+
+        $orders_tb = $prefix . 'wc_orders';
+        $users_tb  = $prefix . 'users';
+        $meta_tb   = $prefix . 'usermeta';
+
+        $where = '';
+        if ( $since > 0 ) {
+            $where = $wpdb->prepare( ' AND u.user_registered >= %s', gmdate( 'Y-m-d H:i:s', max( 0, $since - DAY_IN_SECONDS ) ) );
+        }
+
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- raw reads by live prefix, pre-swap, into a scratch capture file.
+        $users = $wpdb->get_results(
+            'SELECT u.* FROM `' . $users_tb . '` u'
+            . ' WHERE u.ID IN ( SELECT DISTINCT customer_id FROM `' . $orders_tb . '` WHERE customer_id > 0 )' . $where,
+            ARRAY_A
+        );
+        if ( '' !== $wpdb->last_error || ! is_array( $users ) ) {
+            throw new MainWP_Exception( 'Could not read the live WooCommerce customers to preserve.', null, MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+        }
+
+        $ids = array();
+        foreach ( $users as $u ) {
+            $ids[] = (int) $u['ID'];
+        }
+        $usermeta = array();
+        if ( ! empty( $ids ) ) {
+            $usermeta = $wpdb->get_results( 'SELECT * FROM `' . $meta_tb . '` WHERE user_id IN (' . implode( ',', array_map( 'intval', $ids ) ) . ')', ARRAY_A );
+            if ( '' !== $wpdb->last_error || ! is_array( $usermeta ) ) {
+                throw new MainWP_Exception( 'Could not read the live WooCommerce customers to preserve.', null, MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+            }
+        }
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
+
+        $stock   = $this->capture_woo_stock( $prefix );
+        $payload = array(
+            'users'    => $users,
+            'usermeta' => $usermeta,
+            'stock'    => $stock,
+        );
+
+        // The merge phase reads this file after the swap; if the write or the
+        // atomic rename fails, abort here (before any replay) rather than mark
+        // the capture done and silently re-apply nothing later.
+        $file    = $scratch . 'woo-preserve.json';
+        $tmp     = $file . '.tmp';
+        $written = file_put_contents( $tmp, wp_json_encode( $payload ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic temp-then-rename.
+        MainWP_Helper::protect_backup_path( $tmp );
+        if ( false === $written || ! rename( $tmp, $file ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- atomic rename.
+            if ( file_exists( $tmp ) ) {
+                wp_delete_file( $tmp );
+            }
+            throw new MainWP_Exception( 'Could not write the WooCommerce order-preservation capture file.', null, MainWP_Backup_Error::ERR_RESTORE_SNAPSHOT_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+        }
+        // The capture carries user_pass hashes, so keep it owner-only rather
+        // than whatever the umask gave it.
+        MainWP_Helper::protect_backup_path( $file );
+
+        return array(
+            'file'      => 'woo-preserve.json',
+            'customers' => count( $users ),
+            'stock'     => count( $stock ),
+        );
+    }
+
+    /**
+     * Snapshot the live stock of every managed-stock product: the _stock,
+     * _stock_status, and _manage_stock postmeta, plus the product lookup row
+     * when the lookup table exists.
+     *
+     * @param string $prefix Live table prefix.
+     *
+     * @return array<int,array> Stock rows keyed by index, each with product_id.
+     */
+    protected function capture_woo_stock( $prefix ) {
+        global $wpdb;
+        $postmeta = $prefix . 'postmeta';
+
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- raw reads by live prefix into a scratch file.
+        // nosemgrep: AIK_tainted-sql-string -- The table name is the live wpdb prefix plus the fixed postmeta suffix.
+        $managed = $wpdb->get_col( 'SELECT post_id FROM `' . $postmeta . "` WHERE meta_key = '_manage_stock' AND meta_value = 'yes'" );
+        $managed = is_array( $managed ) ? array_map( 'intval', $managed ) : array();
+        if ( empty( $managed ) ) {
+            return array();
+        }
+        $in   = implode( ',', $managed );
+        $rows = $wpdb->get_results(
+            // nosemgrep: AIK_tainted-sql-string -- The table uses the live wpdb prefix plus a fixed suffix, and product IDs pass through intval.
+            'SELECT post_id, meta_key, meta_value FROM `' . $postmeta . '`'
+            . ' WHERE post_id IN (' . $in . ") AND meta_key IN ('_stock','_stock_status','_manage_stock')",
+            ARRAY_A
+        );
+        $rows = is_array( $rows ) ? $rows : array();
+
+        $stock = array();
+        foreach ( $rows as $r ) {
+            $pid = (int) $r['post_id'];
+            if ( ! isset( $stock[ $pid ] ) ) {
+                $stock[ $pid ] = array( 'product_id' => $pid );
+            }
+            $stock[ $pid ][ $r['meta_key'] ] = $r['meta_value'];
+        }
+
+        $lookup = $prefix . 'wc_product_meta_lookup';
+        if ( $this->table_exists( $lookup ) ) {
+            // nosemgrep: AIK_tainted-sql-string -- The table uses the live wpdb prefix plus a fixed suffix, and product IDs pass through intval.
+            $lrows = $wpdb->get_results( 'SELECT product_id, stock_quantity, stock_status FROM `' . $lookup . '` WHERE product_id IN (' . $in . ')', ARRAY_A );
+            foreach ( (array) $lrows as $lr ) {
+                $pid = (int) $lr['product_id'];
+                if ( ! isset( $stock[ $pid ] ) ) {
+                    $stock[ $pid ] = array( 'product_id' => $pid );
+                }
+                $stock[ $pid ]['lookup_quantity'] = $lr['stock_quantity'];
+                $stock[ $pid ]['lookup_status']   = $lr['stock_status'];
+            }
+        }
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
+
+        return array_values( $stock );
+    }
+
+    /**
+     * Apply the captured customers and stock to the live (restored) database:
+     * re-insert each customer the restore reverted away, preserving the original
+     * ID, and re-apply live stock for products that still exist. Returns the
+     * outcome counts for the dashboard.
+     *
+     * @param array  $sub_state Cursor.
+     * @param string $scratch   Per-task scratch directory (with trailing slash).
+     *
+     * @return array { customers_restored, customers_present, stock_applied, products_missing }
+     */
+    protected function merge_woo_state( $sub_state, $scratch ) {
+        global $wpdb;
+        $prefix  = $this->target_prefix();
+        $summary = array(
+            'customers_restored' => 0,
+            'customers_present'  => 0,
+            'stock_applied'      => 0,
+            'products_missing'   => 0,
+        );
+
+        $file = $scratch . ( isset( $sub_state['woo_capture']['file'] ) ? basename( (string) $sub_state['woo_capture']['file'] ) : 'woo-preserve.json' );
+        if ( ! is_file( $file ) ) {
+            return $summary;
+        }
+        $payload = json_decode( (string) file_get_contents( $file ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- local scratch read.
+        if ( ! is_array( $payload ) ) {
+            return $summary;
+        }
+
+        $users_tb = $prefix . 'users';
+        $meta_tb  = $prefix . 'usermeta';
+
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- raw writes by live prefix, post-swap, cache bypassed.
+        foreach ( (array) ( isset( $payload['users'] ) ? $payload['users'] : array() ) as $u ) {
+            $id     = (int) $u['ID'];
+            $exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $this->prepare_table_ident( $users_tb ) . ' WHERE ID = %d', $id ) );
+            if ( $exists > 0 ) {
+                ++$summary['customers_present'];
+                continue;
+            }
+            // A since-backup registrant holds an auto-increment ID above the
+            // backup's max, so the reverted table cannot already hold it;
+            // INSERT IGNORE is the belt-and-braces against a reused id.
+            $wpdb->query(
+                $wpdb->prepare(
+                    'INSERT IGNORE INTO ' . $this->prepare_table_ident( $users_tb ) . ' (ID, user_login, user_pass, user_nicename, user_email, user_url, user_registered, user_activation_key, user_status, display_name)'
+                    . ' VALUES (%d, %s, %s, %s, %s, %s, %s, %s, %d, %s)',
+                    $id,
+                    (string) $u['user_login'],
+                    (string) $u['user_pass'],
+                    (string) $u['user_nicename'],
+                    (string) $u['user_email'],
+                    (string) $u['user_url'],
+                    (string) $u['user_registered'],
+                    '', // A captured reset token is a live credential; the customer row does not need it back.
+                    (int) $u['user_status'],
+                    (string) $u['display_name']
+                )
+            );
+            ++$summary['customers_restored'];
+        }
+
+        foreach ( (array) ( isset( $payload['usermeta'] ) ? $payload['usermeta'] : array() ) as $m ) {
+            $wpdb->query(
+                $wpdb->prepare(
+                    'INSERT IGNORE INTO ' . $this->prepare_table_ident( $meta_tb ) . ' (umeta_id, user_id, meta_key, meta_value) VALUES (%d, %d, %s, %s)',
+                    (int) $m['umeta_id'],
+                    (int) $m['user_id'],
+                    (string) $m['meta_key'],
+                    (string) $m['meta_value']
+                )
+            );
+        }
+
+        $postmeta   = $prefix . 'postmeta';
+        $lookup     = $prefix . 'wc_product_meta_lookup';
+        $has_lookup = $this->table_exists( $lookup );
+        foreach ( (array) ( isset( $payload['stock'] ) ? $payload['stock'] : array() ) as $s ) {
+            $pid    = (int) $s['product_id'];
+            $exists = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $this->prepare_table_ident( $postmeta ) . ' WHERE post_id = %d', $pid ) );
+            if ( 0 === $exists ) {
+                ++$summary['products_missing'];
+                continue;
+            }
+            // Upsert each meta row: a product unmanaged in the backup has no
+            // _stock row to UPDATE, so re-applying live stock would silently do
+            // nothing. Insert the row when it is absent.
+            foreach ( array( '_stock', '_stock_status', '_manage_stock' ) as $key ) {
+                if ( ! isset( $s[ $key ] ) ) {
+                    continue;
+                }
+                $has_meta = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . $this->prepare_table_ident( $postmeta ) . ' WHERE post_id = %d AND meta_key = %s', $pid, $key ) );
+                if ( $has_meta > 0 ) {
+                    $wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->prepare_table_ident( $postmeta ) . ' SET meta_value = %s WHERE post_id = %d AND meta_key = %s', (string) $s[ $key ], $pid, $key ) );
+                } else {
+                    $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $this->prepare_table_ident( $postmeta ) . ' (post_id, meta_key, meta_value) VALUES (%d, %s, %s)', $pid, $key, (string) $s[ $key ] ) );
+                }
+            }
+            if ( $has_lookup && isset( $s['lookup_status'] ) ) {
+                $wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->prepare_table_ident( $lookup ) . ' SET stock_quantity = %s, stock_status = %s WHERE product_id = %d', isset( $s['lookup_quantity'] ) ? (string) $s['lookup_quantity'] : '', (string) $s['lookup_status'], $pid ) );
+            }
+            ++$summary['stock_applied'];
+        }
+        // phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery
+
+        return $summary;
+    }
+
+    /**
+     * Count kept orders whose customer the merge could not bring back. Should be
+     * zero after a clean merge; a nonzero count is surfaced, not hidden.
+     *
+     * @return array { orphan_customer_orders: int }
+     */
+    protected function scan_woo_orphans() {
+        global $wpdb;
+        $prefix  = $this->target_prefix();
+        $orders  = $prefix . 'wc_orders';
+        $users   = $prefix . 'users';
+        $sql     = 'SELECT COUNT(*) FROM `' . $orders . '` o LEFT JOIN `' . $users . '` u ON o.customer_id = u.ID WHERE o.customer_id > 0 AND u.ID IS NULL';
+        $orphans = (int) $wpdb->get_var( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- table names from the live prefix.
+        return array( 'orphan_customer_orders' => $orphans );
+    }
+
+    /**
+     * Whether a fully-qualified table exists.
+     *
+     * @param string $table Table name with prefix.
+     *
+     * @return bool
+     */
+    protected function table_exists( $table ) {
+        global $wpdb;
+        $found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- existence probe.
+        return (string) $found === (string) $table;
+    }
+
+    /**
+     * Purge once, at the top of a slice that follows the strict checks' checkpoint.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param string $backup_dir Scratch root.
+     *
+     * @return array Slice result.
+     */
+    protected function run_page_cache_purge( $task, $version, $sub_state, $backup_dir ) {
+        if ( ! empty( $sub_state['cache_purge_started'] ) ) {
+            // The purge request died without returning (time or memory limit, a provider exit).
+            // Retrying it on every resume could fail a restore that is already applied.
+            $sub_state['cache_purge'] = array(
+                'attempted' => true,
+                'error'     => 'Cache purge did not complete.',
+            );
+        } else {
+            $sub_state['cache_purge_started'] = true;
+            $started                          = $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, false );
+            if ( ! empty( $started['abandon'] ) ) {
+                return $started;
+            }
+            $version                  = $started['version'];
+            $sub_state['cache_purge'] = $this->purge_page_cache();
+        }
+
+        $sub_state['verification']['cache_purge'] = $sub_state['cache_purge'];
+        unset( $sub_state['cache_purge_started'] );
+        return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+    }
+
+    /**
+     * Keep provider failures and output out of the restore response.
+     *
+     * @return array Advisory purge outcome.
+     */
+    protected function purge_page_cache() {
+        $advisory     = array( 'attempted' => true );
+        $buffer_level = ob_get_level();
+        ob_start();
+        try {
+            $this->cache_purger()->auto_purge_cache();
+
+            // The no-argument API returns nothing and saves its result in this option.
+            $result = json_decode( (string) get_option( 'mainwp_cache_control_log', '' ), true );
+            if ( ! is_array( $result ) || ! isset( $result['action'] ) ) {
+                $advisory['error'] = 'Cache purge outcome unavailable.';
+            } elseif ( isset( $result['result_basis'] ) && 'not_attempted' === $result['result_basis'] ) {
+                $advisory = array( 'attempted' => false );
+            } else {
+                // Provider methods also report their own failure as provider_missing, so an ERROR counts as attempted.
+                $advisory['attempted'] = 'ERROR' === $result['action'] || ! isset( $result['result_basis'] ) || 'provider_missing' !== $result['result_basis'] || ! empty( $result['cloudflare'] );
+                if ( $advisory['attempted'] && ! empty( $result['Cache Solution'] ) && is_string( $result['Cache Solution'] ) ) {
+                    $advisory['solution'] = substr( sanitize_text_field( $result['Cache Solution'] ), 0, 80 );
+                }
+                if ( 'ERROR' === $result['action'] || ( isset( $result['cloudflare']['action'] ) && 'ERROR' === $result['cloudflare']['action'] ) ) {
+                    $advisory['error'] = 'Cache purge attempt failed.';
+                }
+            }
+        } catch ( \Throwable $e ) {
+            // Provider messages may contain credentials or paths; expose only the advisory failure.
+            $advisory['error'] = 'Cache purge attempt failed.';
+        } finally {
+            while ( ob_get_level() > $buffer_level ) {
+                ob_end_clean();
+            }
+        }
+        return $advisory;
+    }
+
+    /**
+     * Resolve the cache dispatcher used by the restore.
+     *
+     * @return MainWP_Child_Cache_Purge Cache provider dispatcher.
+     */
+    protected function cache_purger() {
+        return MainWP_Child_Cache_Purge::instance();
+    }
+
+    /**
+     * Verification phase: row counts, a sentinel write/read on the live
+     * options table, a page cache purge for files and full restores, and an
+     * advisory loopback. Only a pass retires the old aside tables and the
+     * scratch directory.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param string $backup_dir Scratch root.
+     *
+     * @throws MainWP_Exception When verification fails (old tables kept).
+     *
+     * @return array Slice result.
+     */
+    protected function run_post_restore_verify( $task, $version, $sub_state, $backup_dir ) {
+        if ( isset( $sub_state['verify_strict'] ) ) {
+            return $this->finish_post_restore_verify( $task, $version, $sub_state, $backup_dir );
+        }
+
+        $engine        = $this->restore_engine();
+        $target_prefix = $this->target_prefix();
+
+        $expected = array();
+        if ( isset( $sub_state['db_replay']['cursor']['tables'] ) ) {
+            foreach ( $sub_state['db_replay']['cursor']['tables'] as $stem => $info ) {
+                if ( isset( $info['status'] ) && 'ok' === $info['status'] ) {
+                    $expected[ $stem ] = (int) $info['rows'];
+                }
+            }
+        }
+
+        $identity_verify_delta = 0;
+        if ( isset( $expected['options'], $sub_state['identity_dump_count'] ) ) {
+            // The request ledger grows after identity write-back; verification runs in a later request.
+            $identity_verify_delta = self::identity_count( $target_prefix . 'options' ) - (int) $sub_state['identity_dump_count'];
+            $expected['options']  += $identity_verify_delta;
+        }
+
+        foreach ( $sub_state['url_rewrite_renamed_over'] ?? array() as $table => $count ) {
+            $stem = substr( $table, strlen( $target_prefix ) );
+            if ( isset( $expected[ $stem ] ) ) {
+                $expected[ $stem ] -= (int) $count;
+            }
+        }
+
+        // A preserve restore re-inserts the kept customers into users and
+        // usermeta after the swap, so those tables hold more rows than the
+        // backup by design. Drop them from the strict row-count check; their
+        // integrity is covered by the orphan scan, not a count match. Stock is
+        // re-applied with UPDATE, so postmeta and the lookup keep their counts.
+        if ( $this->should_preserve_woo( $sub_state ) ) {
+            unset( $expected['users'], $expected['usermeta'] );
+        }
+
+        // WooCommerce's Action Scheduler writes to its log and action tables
+        // continuously through the async runner, which the restore's own
+        // loopback can wake mid-restore. Those transient bookkeeping rows are
+        // not restored content, so a count drift there is not a failed restore.
+        // Drop the actionscheduler_* tables on every path (a no-op on sites
+        // without them); the sentinel round trip remains the integrity gate.
+        foreach ( array_keys( $expected ) as $stem ) {
+            if ( 0 === strpos( (string) $stem, 'actionscheduler_' ) ) {
+                unset( $expected[ $stem ] );
+            }
+        }
+
+        // The Woo analytics lookup tables drift the same way: Action
+        // Scheduler regenerates them from the order tables on any live
+        // store, so their counts move between the dump and this check after
+        // a fully successful replay and swap. They are derived data, not
+        // restored content. The real order tables are not in this list and
+        // stay under the strict check.
+        foreach ( array( 'wc_order_product_lookup', 'wc_order_stats', 'wc_order_tax_lookup', 'wc_order_coupon_lookup', 'wc_customer_lookup' ) as $stem ) {
+            unset( $expected[ $stem ] );
+        }
+
+        // On the foreign-key path the live tables were overwritten in place,
+        // so a verification failure here is a wrong restore that must be undone
+        // from the aside snapshot (still on disk until this phase passes), not
+        // a bare failure that would discard it. The swap path keeps its old
+        // tables aside, so it fails terminally as before.
+        $is_fk = ! empty( $sub_state['db_replay']['fk_path'] );
+
+        do_action( 'mainwp_child_restore_checkpoint', 'before_post_swap_check', $task->task_id );
+        $counts = $engine->verify_row_counts( $expected, $target_prefix );
+        if ( ! $counts['ok'] ) {
+            $detail = 'Post-restore row counts do not match the replayed data. Mismatches: ' . wp_json_encode( $counts['mismatches'] );
+            if ( $is_fk ) {
+                return $this->enter_fk_rollback( $task, $version, $sub_state, $backup_dir, $detail, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+            }
+            throw new MainWP_Exception( esc_html( $detail . ' The previous tables were kept for rollback.' ), null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+        }
+
+        if ( ! $this->sentinel_round_trip( $target_prefix, $sub_state['params']['restore_id'] ) ) {
+            if ( $is_fk ) {
+                return $this->enter_fk_rollback( $task, $version, $sub_state, $backup_dir, 'The restored options table failed a write/read round trip.', MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+            }
+            throw new MainWP_Exception( 'The restored options table failed a write/read round trip. The previous tables were kept for rollback.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+        }
+
+        // The dump was taken while its backup held the engine mutex, so the
+        // replayed options table carries that row. Drop it only now: the
+        // row-count check above compares the live table against the dump,
+        // and removing the row earlier fails a correct restore by one row.
+        MainWP_Child_Backup_Mutex::clear_after_restore( isset( $sub_state['restored_mutex'] ) ? $sub_state['restored_mutex'] : '' );
+
+        $sub_state['verify_strict'] = array( 'identity_verify_delta' => $identity_verify_delta );
+        if ( 'restore_db' !== $task->type ) {
+            // Cache providers write rows of their own (transients, logs), so the strict checks
+            // above must run before any purge, and the purge gets a fresh slice for its HTTP calls.
+            return $this->checkpoint_sub_state( $task, $version, $sub_state, $backup_dir, true );
+        }
+
+        return $this->finish_post_restore_verify( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Verification after the strict checks passed: the page cache purge for
+     * files and full restores, then the probes, then retire the rollback
+     * tables and staging.
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param string $backup_dir Scratch root.
+     *
+     * @return array Slice result.
+     */
+    protected function finish_post_restore_verify( $task, $version, $sub_state, $backup_dir ) {
+        // Every files/full path, including adopted rollback archives and Woo merges, converges here.
+        if ( 'restore_db' !== $task->type && ! isset( $sub_state['cache_purge'] ) ) {
+            return $this->run_page_cache_purge( $task, $version, $sub_state, $backup_dir );
+        }
+
+        $reconcile                 = isset( $sub_state['verification']['reconcile'] ) ? $sub_state['verification']['reconcile'] : null;
+        $sub_state['verification'] = array(
+            'row_counts_ok'              => true,
+            'identity_verify_delta'      => (int) $sub_state['verify_strict']['identity_verify_delta'],
+            'sentinel_ok'                => true,
+            'loopback_status'            => $this->loopback_status(),
+            'sub_site_probes'            => $this->sub_site_probes(),
+            'url_rewrite_renamed_over'   => $sub_state['url_rewrite_renamed_over'] ?? array(),
+            'url_rewrite_failed_updates' => isset( $sub_state['url_rewrite_failed_updates'] ) ? (int) $sub_state['url_rewrite_failed_updates'] : 0,
+            'url_rewrite_error'          => isset( $sub_state['url_rewrite_error'] ) ? (string) $sub_state['url_rewrite_error'] : '',
+        );
+
+        if ( null !== $reconcile ) {
+            $sub_state['verification']['reconcile'] = $reconcile;
+        }
+        if ( isset( $sub_state['cache_purge'] ) ) {
+            $sub_state['verification']['cache_purge'] = $sub_state['cache_purge'];
+        }
+
+        // A preserve restore keeps the live orders in place; surface how many
+        // still reference a customer the merge could not bring back so the
+        // dashboard flags a shortfall rather than hiding it. Advisory only.
+        if ( $this->should_preserve_woo( $sub_state ) ) {
+            $sub_state['verification']['woo_orphans'] = $this->scan_woo_orphans();
+        }
+
+        $sub_state['verification']['outcome'] = $this->terminal_outcome( $task, $sub_state, 'completed' );
+
+        // Verification passed: retire the rollback tables and staging.
+        $this->restore_engine()->drop_old_tables( $sub_state['params']['restore_id'] );
+        $this->remove_scratch_dir( $task, $backup_dir );
+
+        if ( 'restore_files' === $task->type ) {
+            $owner = $this->current_lease_owner;
+            $this->sweep_terminal_dump_litter(
+                $task,
+                function () use ( $task, $owner ) {
+                    return $this->terminal_dump_lease_holds( $task->task_id, $owner );
+                }
+            );
+        }
+
+        return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Adopt expected artifacts already present in the backup directory.
+     *
+     * An artifact whose hash matches the manifest is moved into the
+     * scratch dir and marked received - this is how a rollback restore
+     * (whose artifacts never left this site) runs with zero transfer.
+     * Adopt-only artifacts trust the local bytes and record their hash
+     * for the verification phase.
+     *
+     * @param object $task       Task row.
+     * @param array  $artifacts  Expected artifact list.
+     * @param array  $receiving  Receiving cursor.
+     * @param string $backup_dir Backup scratch root.
+     *
+     * @return array Updated receiving cursor.
+     */
+    protected function adopt_local_artifacts( $task, $artifacts, $receiving, $backup_dir ) {
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        $root    = rtrim( $backup_dir, '/' ) . '/';
+
+        foreach ( $artifacts as $artifact ) {
+            $base = $artifact['file'];
+            if ( ! empty( $receiving['files'][ $base ]['done'] ) ) {
+                continue;
+            }
+
+            $candidate = $root . $base;
+            if ( ! is_file( $candidate ) ) {
+                continue;
+            }
+
+            $actual = hash_file( 'sha256', $candidate );
+            if ( ! is_string( $actual ) ) {
+                continue;
+            }
+
+            $expected = isset( $artifact['sha256'] ) ? (string) $artifact['sha256'] : '';
+            if ( '' !== $expected && ! hash_equals( $expected, $actual ) ) {
+                continue; // Same name, different bytes - the wire copy wins.
+            }
+
+            if ( ! copy( $candidate, $scratch . $base ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- staging a local artifact copy.
+                continue;
+            }
+
+            MainWP_Helper::protect_backup_path( $scratch . $base );
+            $receiving['files'][ $base ]  = array(
+                'bytes' => (int) filesize( $scratch . $base ),
+                'done'  => true,
+            );
+            $receiving['hashes'][ $base ] = $actual;
+        }
+
+        return $receiving;
+    }
+
+    /**
+     * Whether every expected artifact is received (wire or adoption).
+     *
+     * @param array $artifacts Expected artifact list.
+     * @param array $receiving Receiving cursor.
+     *
+     * @return bool True when all are in.
+     */
+    public function all_artifacts_received( $artifacts, $receiving ) {
+        foreach ( $artifacts as $artifact ) {
+            if ( empty( $receiving['files'][ $artifact['file'] ]['done'] ) ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Consolidated expected hashes: the manifest's, overlaid with hashes
+     * recorded at adoption (covers adopt-only artifacts).
+     *
+     * @param array $sub_state Cursor.
+     *
+     * @return array<string,string> sha256 by basename.
+     */
+    protected function expected_hashes( $sub_state ) {
+        $hashes = array();
+        foreach ( (array) $sub_state['params']['artifacts'] as $artifact ) {
+            if ( ! empty( $artifact['sha256'] ) ) {
+                $hashes[ $artifact['file'] ] = (string) $artifact['sha256'];
+            }
+        }
+        if ( isset( $sub_state['receiving']['hashes'] ) ) {
+            foreach ( (array) $sub_state['receiving']['hashes'] as $base => $hash ) {
+                if ( empty( $hashes[ $base ] ) ) {
+                    $hashes[ $base ] = (string) $hash;
+                }
+            }
+        }
+        return $hashes;
+    }
+
+    /**
+     * Extract the dump archive and resolve the replay route.
+     *
+     * Returns null when preparation finished and sub_state['db_replay']
+     * is initialized; returns a truthy marker when extraction must
+     * yield (its cursor is stored on the sub_state for the caller to
+     * checkpoint).
+     *
+     * @param object $task      Task row.
+     * @param array  $sub_state Cursor (by reference).
+     * @param string $scratch   Scratch dir.
+     * @param int    $deadline  Slice deadline.
+     *
+     * @throws MainWP_Exception When the dump archive is missing or bad.
+     *
+     * @return true|null True to yield with the extraction cursor, null
+     *                   when the replay route is ready.
+     */
+    protected function prepare_db_replay( $task, &$sub_state, $scratch, $deadline ) {
+        $params      = $sub_state['params'];
+        $db_artifact = null;
+        foreach ( (array) $params['artifacts'] as $artifact ) {
+            if ( 'db' === $artifact['role'] ) {
+                $db_artifact = $artifact; // The dashboard sends exactly one: the chain-newest dump.
+            }
+        }
+        if ( null === $db_artifact ) {
+            // A plain full backup embeds its dump inside the site archive;
+            // the file phase already extracted those .sql.php files. Replay
+            // them in place and remove them once the replay is done.
+            $embedded = $this->find_embedded_dump_files( $sub_state );
+            if ( empty( $embedded ) ) {
+                throw new MainWP_Exception( 'No database artifact was provided for this restore.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+            }
+            $sub_state['db_replay'] = $this->build_db_replay_state( $task, $embedded, $params, true );
+            return null;
+        }
+
+        $hashes = $this->expected_hashes( $sub_state );
+        $db_dir = $scratch . 'db/';
+        if ( ! is_dir( $db_dir ) ) {
+            wp_mkdir_p( $db_dir );
+            MainWP_Helper::protect_backup_path( $db_dir );
+        }
+
+        $cursor  = isset( $sub_state['db_extract'] ) ? $sub_state['db_extract'] : array();
+        $outcome = MainWP_Helper::protect_backup_path(
+            $db_dir,
+            function () use ( $cursor, $scratch, $db_artifact, $hashes, $db_dir, $task, $deadline ) {
+                return $this->file_restorer()->restore_slice(
+                    $cursor,
+                    array(
+                        'parts'      => array( $scratch . $db_artifact['file'] ),
+                        'hashes'     => array( $db_artifact['file'] => isset( $hashes[ $db_artifact['file'] ] ) ? $hashes[ $db_artifact['file'] ] : '' ),
+                        'extract_to' => $db_dir,
+                        'temp_owner' => substr( hash( 'sha256', $task->task_id ), 0, 16 ),
+                    ),
+                    $deadline
+                );
+            }
+        );
+        if ( null !== $outcome['error'] ) {
+            throw new MainWP_Exception( esc_html( $outcome['error'] ), null, $outcome['error_code'] ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+        }
+        if ( ! $outcome['done'] ) {
+            $sub_state['db_extract'] = $outcome['cursor'];
+            return true;
+        }
+
+        $files = glob( $db_dir . '*.sql.php' );
+        if ( empty( $files ) ) {
+            throw new MainWP_Exception( 'The database archive contained no table dump files.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+        }
+
+        $sub_state['db_replay'] = $this->build_db_replay_state( $task, $files, $params, false );
+
+        return null;
+    }
+
+    /**
+     * Build the replay route state for a set of dump files.
+     *
+     * @param object   $task     Task row.
+     * @param string[] $files    Per-table .sql.php files.
+     * @param array    $params   Restore params.
+     * @param bool     $embedded Whether the files were embedded in the
+     *                           site archive (removed after replay).
+     *
+     * @throws MainWP_Exception When no table prefix can be determined.
+     *
+     * @return array db_replay state.
+     */
+    protected function build_db_replay_state( $task, $files, $params, $embedded ) {
+        sort( $files );
+
+        $engine = $this->restore_engine();
+        $banner = $engine->read_banner( $files[0] );
+
+        $source_prefix = '';
+        if ( ! empty( $params['source_prefix'] ) ) {
+            $source_prefix = (string) $params['source_prefix'];
+        } elseif ( isset( $banner['info']['table_prefix'] ) ) {
+            $source_prefix = (string) $banner['info']['table_prefix'];
+        }
+        if ( '' === $source_prefix ) {
+            // Older embedded dumps carry no banner; the live prefix is the
+            // only sane default for a same-site restore.
+            $source_prefix = $embedded ? $this->target_prefix() : '';
+        }
+        if ( '' === $source_prefix ) {
+            throw new MainWP_Exception( 'The dump does not record its table prefix and none was provided.', null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
+        }
+
+        $fk = null;
+        if ( isset( $params['has_foreign_keys'] ) && null !== $params['has_foreign_keys'] && '' !== $params['has_foreign_keys'] ) {
+            $fk = (bool) $params['has_foreign_keys'];
+        } elseif ( isset( $banner['meta']['has_foreign_keys'] ) && null !== $banner['meta']['has_foreign_keys'] ) {
+            $fk = (bool) $banner['meta']['has_foreign_keys'];
+        }
+        if ( null === $fk ) {
+            $fk = $engine->probe_fk( $files );
+        }
+
+        // A cross-prefix restore rewrites only the CREATE TABLE name, not the
+        // REFERENCES clauses in foreign keys, so replaying a FK-bearing dump
+        // into a different prefix would point constraints at the wrong (or a
+        // missing) table. Refuse here - before any maintenance or write - so
+        // the operator restores to a same-prefix site rather than risk a
+        // silently broken database. Rewriting REFERENCES is intentionally not
+        // attempted - it could corrupt a production DB on a rare combination.
+        if ( $fk && $source_prefix !== $this->target_prefix() ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_CROSS_PREFIX_FK ) ), null, MainWP_Backup_Error::ERR_RESTORE_CROSS_PREFIX_FK ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry messages are pre-escaped.
+        }
+
+        return array(
+            'files'         => $files,
+            'source_prefix' => $source_prefix,
+            'fk_path'       => $fk,
+            'banner_info'   => isset( $banner['info'] ) ? $banner['info'] : null,
+            'embedded'      => $embedded,
+            'cursor'        => array(),
+            'seen_resumes'  => (int) $task->resume_count,
+        );
+    }
+
+    /**
+     * Remove database dump litter from the live site.
+     *
+     * @param bool          $require_deleted Fail if litter survives deletion.
+     * @param callable|null $fence           Check terminal cleanup ownership before each delete.
+     *
+     * @throws MainWP_Exception When pre-extraction litter cannot be removed.
+     */
+    protected function cleanup_dump_litter( $require_deleted = false, $fence = null ) {
+        $roots = array(
+            rtrim( $this->site_root(), '/' ),
+            rtrim( $this->site_root(), '/' ) . '/wp-content',
+        );
+        foreach ( $roots as $root ) {
+            foreach ( array_merge( (array) glob( $root . '/dbBackup*.sql.php' ), (array) glob( $root . '/dbBackup*.sql' ) ) as $litter ) {
+                if ( is_file( $litter ) ) {
+                    if ( null !== $fence && ! $fence() ) {
+                        return;
+                    }
+                    wp_delete_file( $litter );
+                    clearstatcache( true, $litter );
+                    if ( ! file_exists( $litter ) && null !== $this->after_file_change ) {
+                        call_user_func( $this->after_file_change );
+                    }
+                    if ( $require_deleted && file_exists( $litter ) ) {
+                        MainWP_Helper::log_debug( '[MainWP Backup] Could not remove stale database dump before extraction: ' . $litter );
+                        throw new MainWP_Exception( esc_html( 'Could not remove stale database dump before extraction: ' . basename( $litter ) ), null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Locate dump files a full archive extracted over the site.
+     *
+     * The full backup places its per-table dumps under wp-content, and
+     * some generations used the site root.
+     *
+     * @param array $sub_state Restore cursor, including extracted dump paths when recorded.
+     *
+     * @return string[] Dump file paths.
+     */
+    protected function find_embedded_dump_files( $sub_state = array() ) {
+        $candidates = array_merge(
+            (array) glob( rtrim( $this->site_root(), '/' ) . '/dbBackup*.sql.php' ),
+            (array) glob( rtrim( $this->site_root(), '/' ) . '/wp-content/dbBackup*.sql.php' )
+        );
+        $candidates = array_values( array_filter( $candidates, 'is_file' ) );
+        if ( isset( $sub_state['dump_files'] ) ) {
+            // An empty extraction record is authoritative too; only older cursors use the glob.
+            foreach ( array_diff( $candidates, $sub_state['dump_files'] ) as $ignored ) {
+                MainWP_Helper::log_debug( '[MainWP Backup] Ignoring database dump not recorded by extraction: ' . $ignored );
+            }
+            return $sub_state['dump_files'];
+        }
+        return $candidates;
+    }
+
+    /**
+     * Checkpoint into an explicit phase (used to skip the swap on the
+     * in-place path).
+     *
+     * @param object $task       Task row.
+     * @param int    $version    Owned version.
+     * @param array  $sub_state  Cursor.
+     * @param string $backup_dir Scratch root.
+     * @param string $phase      Destination phase.
+     *
+     * @return array Slice result.
+     */
+    protected function jump_phase( $task, $version, $sub_state, $backup_dir, $phase ) {
+        $spine      = MainWP_Child_Backup_Task::instance();
+        $sub_state  = $this->stamp_progress( $task, $sub_state, $backup_dir );
+        $serialized = $spine->write_sub_state( $task->task_id, $sub_state, $backup_dir, $version );
+        if ( false === $serialized ) {
+            $serialized = wp_json_encode( $sub_state );
+        }
+
+        $new_version = $spine->checkpoint(
+            $task->task_id,
+            $version,
+            array(
+                'phase'     => $phase,
+                'sub_state' => $serialized,
+            ),
+            true,
+            $backup_dir
+        );
+        if ( false === $new_version ) {
+            return $this->slice_result( $version, true, true );
+        }
+
+        return $this->slice_result( $new_version, false );
+    }
+
+    /**
+     * Build the URL replacement pairs from the dump banner.
+     *
+     * @param array $sub_state Cursor.
+     *
+     * @return array<int,array{from:string,to:string}> Pairs.
+     */
+    protected function url_pairs( $sub_state ) {
+        $info  = isset( $sub_state['db_replay']['banner_info'] ) ? (array) $sub_state['db_replay']['banner_info'] : array();
+        $pairs = array();
+
+        $upload  = wp_upload_dir();
+        $current = array(
+            'site_url'    => site_url(),
+            'home_url'    => home_url(),
+            'content_url' => content_url(),
+            'upload_url'  => isset( $upload['baseurl'] ) ? $upload['baseurl'] : '',
+        );
+
+        foreach ( $current as $key => $to ) {
+            $from = isset( $info[ $key ] ) ? (string) $info[ $key ] : '';
+            if ( '' !== $from && '' !== $to && $from !== $to ) {
+                $pairs[] = array(
+                    'from' => $from,
+                    'to'   => $to,
+                );
+            }
+        }
+
+        return $pairs;
+    }
+
+    /**
+     * Keep prefix replacement separate so stored option and meta values can omit it.
+     *
+     * @param array $sub_state Cursor.
+     *
+     * @return array Prefix pair, or an empty array when unchanged.
+     */
+    private function prefix_pair( $sub_state ) {
+        $source_prefix = isset( $sub_state['db_replay']['source_prefix'] ) ? (string) $sub_state['db_replay']['source_prefix'] : '';
+        $target_prefix = $this->target_prefix();
+        if ( '' !== $source_prefix && $source_prefix !== $target_prefix ) {
+            return array(
+                'from' => $source_prefix,
+                'to'   => $target_prefix,
+            );
+        }
+        return array();
+    }
+
+    /**
+     * Escape identifiers before embedding them in a prepare() format string.
+     *
+     * @param string $table Table name.
+     *
+     * @return string Quoted identifier with literal percent signs.
+     */
+    private static function prepare_table_ident( $table ) {
+        return '`' . str_replace( array( '`', '%' ), array( '``', '%%' ), (string) $table ) . '`';
+    }
+
+    /**
+     * The WooCommerce HPOS order tables to leave untouched during a restore
+     * when the operator asked to preserve live orders.
+     *
+     * Returns an empty list for every restore that did not opt in, so a
+     * non-preserve restore replays exactly as before. The order, order-item,
+     * and order-derived analytics tables are dedicated HPOS tables, so skipping
+     * their stems keeps the live rows in place on both the swap path and the
+     * in-place foreign-key path. The customer accounts and product stock those
+     * orders reference live in shared tables (users, postmeta) and are handled
+     * by the preserve_woo and merge_woo phases instead, not here.
+     *
+     * @param array $sub_state Resume cursor, carrying params.preserve_orders.
+     *
+     * @return string[] Bare table stems, empty when not preserving.
+     */
+    protected function build_woo_skip_stems( $sub_state ) {
+        if ( empty( $sub_state['params']['preserve_orders'] ) ) {
+            return array();
+        }
+        return array(
+            'wc_orders',
+            'wc_orders_meta',
+            'wc_order_addresses',
+            'wc_order_operational_data',
+            'woocommerce_order_items',
+            'woocommerce_order_itemmeta',
+            'wc_order_product_lookup',
+            'wc_order_stats',
+            'wc_order_coupon_lookup',
+            'wc_order_tax_lookup',
+            'wc_customer_lookup',
+        );
+    }
+
+    /**
+     * Stems whose tmp tables loaded cleanly.
+     *
+     * @param array $sub_state Cursor.
+     *
+     * @return string[] Bare table stems.
+     */
+    protected function loaded_stems( $sub_state ) {
+        $stems = array();
+        if ( isset( $sub_state['db_replay']['cursor']['tables'] ) ) {
+            foreach ( $sub_state['db_replay']['cursor']['tables'] as $stem => $info ) {
+                if ( isset( $info['status'] ) && 'ok' === $info['status'] ) {
+                    $stems[] = $stem;
+                }
+            }
+        }
+        return $stems;
+    }
+
+    /**
+     * Sentinel write/read/delete against the live options table.
+     *
+     * Raw queries on purpose: the options table was just swapped, and a
+     * get_option would happily answer from the object cache.
+     *
+     * @param string $target_prefix Live table prefix.
+     * @param string $restore_id    Restore id (key uniqueness).
+     *
+     * @return bool True when the round trip held.
+     */
+    protected function sentinel_round_trip( $target_prefix, $restore_id ) {
+        global $wpdb;
+
+        $table = $target_prefix . 'options';
+        $key   = 'mainwp_restore_sentinel_' . $restore_id;
+        $value = 'sentinel-' . $restore_id . '-' . time();
+
+        //phpcs:disable WordPress.DB -- deliberate raw round trip against the just-swapped table, bypassing the object cache.
+        $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name = %s', $key ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from the live prefix.
+        $inserted = $wpdb->query( $wpdb->prepare( 'INSERT INTO ' . $this->prepare_table_ident( $table ) . ' (option_name, option_value, autoload) VALUES (%s, %s, %s)', $key, $value, 'no' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from the live prefix.
+        $read     = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name = %s', $key ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from the live prefix.
+        $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . $this->prepare_table_ident( $table ) . ' WHERE option_name = %s', $key ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from the live prefix.
+        //phpcs:enable WordPress.DB
+
+        return false !== $inserted && $read === $value;
+    }
+
+    /**
+     * Advisory loopback check; many hosts block loopback, so the status
+     * is recorded but never fails the restore.
+     *
+     * @return int HTTP status, or 0 when the request failed.
+     */
+    protected function loopback_status() {
+        $response = wp_remote_get(
+            home_url( '/' ),
+            array(
+                'timeout'   => 10,
+                'sslverify' => false,
+            )
+        );
+        if ( is_wp_error( $response ) ) {
+            return 0;
+        }
+        return (int) wp_remote_retrieve_response_code( $response );
+    }
+
+    /**
+     * Active non-main sub-blog home URLs on a multisite network.
+     *
+     * Bounded on purpose: the smoke check probes a single sub-site, so a
+     * large network is never loaded wholesale. Archived, spam, and
+     * deleted sub-blogs are skipped - a probe against one of those is not
+     * a meaningful health signal.
+     *
+     * @return array<int,string> Blog id => home URL.
+     */
+    protected function sub_site_urls() {
+        if ( ! function_exists( 'get_sites' ) ) {
+            return array();
+        }
+        $ids  = get_sites(
+            array(
+                'fields'   => 'ids',
+                'number'   => 10,
+                'archived' => 0,
+                'spam'     => 0,
+                'deleted'  => 0,
+            )
+        );
+        $urls = array();
+        foreach ( (array) $ids as $id ) {
+            $id = (int) $id;
+            if ( is_main_site( $id ) ) {
+                continue;
+            }
+            $urls[ $id ] = get_home_url( $id );
+        }
+        return $urls;
+    }
+
+    /**
+     * Advisory per-sub-blog smoke check for multisite restores.
+     *
+     * After a network restore every sub-blog's tables were swapped too,
+     * but the main-site loopback says nothing about them. This probes the
+     * first sub-site over HTTP and records the result. Advisory like
+     * loopback_status(): it never throws and never fails the restore, so
+     * it is safe to call before the rollback tables are retired.
+     *
+     * @return array<int,array> List of blog_id/url/status entries.
+     */
+    protected function sub_site_probes() {
+        if ( ! $this->is_multisite_install() ) {
+            return array();
+        }
+        $urls = $this->sub_site_urls();
+        if ( empty( $urls ) ) {
+            return array();
+        }
+
+        $probes = array();
+        foreach ( $urls as $blog_id => $url ) {
+            $response = wp_remote_get(
+                $url,
+                array(
+                    'timeout'   => 10,
+                    'sslverify' => false,
+                )
+            );
+            $status   = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+            $probes[] = array(
+                'blog_id' => (int) $blog_id,
+                'url'     => (string) $url,
+                'status'  => $status,
+            );
+            break; // First sub-site only - a smoke check, not a network sweep.
+        }
+        return $probes;
+    }
+
+    /**
+     * Flush caches that hold pre-restore data.
+     */
+    protected function flush_caches() {
+        wp_cache_flush();
+    }
+
+    /**
+     * Terminal cleanup on any phase failure: tmp tables dropped,
+     * maintenance lifted, scratch removed. The old aside tables stay -
+     * they are the rollback.
+     *
+     * @param object      $task       Task row.
+     * @param array       $sub_state  Cursor at failure time.
+     * @param string      $backup_dir Scratch root.
+     * @param string|null $owner Cancellation lease token; null for forced-terminal cleanup.
+     * @return bool Whether cleanup retained ownership.
+     */
+    protected function terminal_cleanup( $task, $sub_state, $backup_dir, $owner = '' ) {
+        $this->after_file_change = null;
+        $owner                   = null === $owner ? '' : ( '' !== $owner ? $owner : $this->current_lease_owner );
+        $fence                   = null;
+        if ( '' !== $owner ) {
+            // A slice that overran its lease but was never taken over still owns the
+            // task and must land its failure; only a successor's lease stops cleanup.
+            $fence = function () use ( $task, $owner ) {
+                if ( MainWP_Child_Backup_Task::instance()->renew_lease( $task->task_id, $owner, self::LEASE_TTL_SECONDS, true ) ) {
+                    return true;
+                }
+                $this->lease_lost = true;
+                return false;
+            };
+        }
+        if ( null !== $fence && ! $fence() ) {
+            return false;
+        }
+        try {
+            if ( isset( $sub_state['restored_mutex'] ) && is_string( $sub_state['restored_mutex'] ) && '' !== $sub_state['restored_mutex'] ) {
+                MainWP_Child_Backup_Mutex::clear_after_restore( $sub_state['restored_mutex'] );
+            }
+            if ( null !== $fence && ! $fence() ) {
+                return false;
+            }
+            $engine = $this->restore_engine();
+            if ( isset( $sub_state['params']['restore_id'] ) ) {
+                $engine->cleanup_tmp_tables( $sub_state['params']['restore_id'] );
+            }
+            if ( null !== $fence && ! $fence() ) {
+                return false;
+            }
+            $engine->exit_maintenance();
+            if ( null !== $fence && ! $fence() ) {
+                return false;
+            }
+            $this->remove_scratch_dir( $task, $backup_dir );
+        } catch ( \Throwable $cleanup_error ) {
+            // Cleanup must never mask the original failure, so the error is not
+            // rethrown. Record it for support instead - a failed cleanup can
+            // leave tmp tables, the maintenance flag, or scratch behind.
+            // Credentials are scrubbed in case the error came from the database.
+            MainWP_Helper::log_debug(
+                '[MainWP Backup] Restore terminal cleanup failed for task ' .
+                ( isset( $task->task_id ) ? $task->task_id : '?' ) . ': ' .
+                MainWP_Backup_Error::scrub_db_credentials( $cleanup_error->getMessage() )
+            );
+        }
+        if ( null !== $fence ) {
+            $this->sweep_terminal_dump_litter( $task, $fence );
+        }
+        return null === $fence || $fence();
+    }
+
+    /**
+     * Renew the invocation's live lease before touching shared dump files.
+     *
+     * @param string $task_id Task id.
+     * @param string $owner   Lease token.
+     * @return bool Whether this invocation still owns cleanup.
+     */
+    protected function terminal_dump_lease_holds( $task_id, $owner ) {
+        return '' !== $owner && MainWP_Child_Backup_Task::instance()->renew_lease( $task_id, $owner, self::LEASE_TTL_SECONDS );
+    }
+
+    /**
+     * Dump deletion is best-effort; preserve the original restore outcome.
+     *
+     * @param object   $task  Task row.
+     * @param callable $fence Cleanup ownership check.
+     */
+    protected function sweep_terminal_dump_litter( $task, $fence ) {
+        try {
+            $this->cleanup_dump_litter( true, $fence );
+        } catch ( \Throwable $cleanup_error ) {
+            MainWP_Helper::log_debug(
+                '[MainWP Backup] Warning: restore dump cleanup failed for task ' . $task->task_id . ': ' .
+                MainWP_Backup_Error::scrub_db_credentials( $cleanup_error->getMessage() )
+            );
+        }
+    }
+
+    /**
+     * Run terminal cleanup for a restore failed from OUTSIDE the runner - the
+     * wall-clock enforcer and the watchdog resume cap both write the terminal
+     * row directly and never reach run_phase()'s catch, so a non-FK restore
+     * would otherwise leave tmp tables, the .maintenance flag, and scratch
+     * behind. A timed-out FK rollback deliberately keeps maintenance on (its
+     * aside tables are the recovery), so it is left untouched.
+     *
+     * @param object $task Pre-fail task row. Its sub_state still carries the
+     *                     restore cursor (restore_id) the cleanup needs; the
+     *                     terminal write only overwrote the column and any
+     *                     sidecar survives.
+     */
+    public function cleanup_terminal_task( $task ) {
+        if ( ! MainWP_Child_Backup_Task::is_restore_type( $task->type ) ) {
+            return;
+        }
+        if ( MainWP_Child_Backup_Task::PHASE_FK_ROLLBACK === $task->phase ) {
+            return;
+        }
+
+        $backup_dir = $this->backup_dir();
+        MainWP_Helper::protect_backup_path( $backup_dir );
+        $sub_state = MainWP_Child_Backup_Task::instance()->read_sub_state( $task, $backup_dir );
+        $this->terminal_cleanup( $task, is_array( $sub_state ) ? $sub_state : array(), $backup_dir, null );
+
+        // External writers already released the slot. Restore creation takes
+        // this mutex too, so the slot check and sweep cannot admit a successor.
+        $owner = 'restore-terminal-' . wp_generate_uuid4();
+        if ( true !== MainWP_Child_Backup_Mutex::acquire( 'native', $owner, 60 ) ) {
+            return;
+        }
+        try {
+            $fence = function () use ( $owner ) {
+                global $wpdb;
+                $holder = MainWP_Child_Backup_Mutex::holder();
+                if ( null === $holder || $holder['owner'] !== $owner || $holder['expires_at'] < time() || ! MainWP_Child_Backup_Mutex::refresh( $owner, 60 ) ) {
+                    return false;
+                }
+                $active = MainWP_Child_Backup_Task::instance()->get_active_tasks();
+                return empty( $active ) && '' === $wpdb->last_error;
+            };
+            if ( ! $fence() ) {
+                return;
+            }
+            $this->sweep_terminal_dump_litter( $task, $fence );
+        } finally {
+            MainWP_Child_Backup_Mutex::release( $owner );
+        }
+    }
+
+    /**
+     * Remove the per-task scratch directory.
+     *
+     * @param object $task       Task row.
+     * @param string $backup_dir Scratch root.
+     */
+    protected function remove_scratch_dir( $task, $backup_dir ) {
+        $scratch = $this->scratch_dir( $task->task_id, $backup_dir );
+        if ( ! is_dir( $scratch ) ) {
+            return;
+        }
+        $this->rrmdir( $scratch );
+    }
+
+    /**
+     * Recursive directory removal, bounded to the scratch tree.
+     *
+     * @param string $dir   Directory.
+     * @param int    $depth Depth below the cleanup root.
+     */
+    private function rrmdir( $dir, $depth = 0 ) {
+        if ( is_link( $dir ) ) {
+            @unlink( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions -- best-effort scratch cleanup.
+            return;
+        }
+        if ( $depth > $this->removal_depth_limit() ) {
+            MainWP_Helper::log_debug( 'Restore cleanup depth limit reached: ' . $dir );
+            return;
+        }
+        foreach ( (array) scandir( $dir ) as $entry ) {
+            if ( '.' === $entry || '..' === $entry ) {
+                continue;
+            }
+            $path = rtrim( $dir, '/' ) . '/' . $entry;
+            if ( is_dir( $path ) && ! is_link( $path ) ) {
+                $this->rrmdir( $path, $depth + 1 );
+            } else {
+                @unlink( $path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions -- best-effort scratch cleanup.
+            }
+        }
+        @rmdir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions -- best-effort scratch cleanup.
+    }
+
+    /**
+     * Allow shallow fixtures to exercise the cleanup depth bound.
+     *
+     * @return int Maximum depth below the cleanup root.
+     */
+    protected function removal_depth_limit() {
+        return self::MAX_REMOVAL_DEPTH;
+    }
+
+    /**
+     * The live table prefix - never taken from the wire.
+     *
+     * @return string Prefix.
+     */
+    protected function target_prefix() {
+        global $wpdb;
+        return $wpdb->prefix;
+    }
+
+    /**
+     * DB restore engine (test seam).
+     *
+     * @return MainWP_Backup_Db_Restore_Engine
+     */
+    protected function restore_engine() {
+        return new MainWP_Backup_Db_Restore_Engine();
+    }
+
+    /**
+     * Public handle on the restore engine for callers outside this class
+     * (the spine's prune_task), without exposing the protected test seam.
+     *
+     * @return MainWP_Backup_Db_Restore_Engine
+     */
+    public function get_restore_engine() {
+        return $this->restore_engine();
+    }
+
+    /**
+     * File restorer (test seam).
+     *
+     * @return MainWP_Child_Backup_File_Restorer
+     */
+    protected function file_restorer() {
+        return new MainWP_Child_Backup_File_Restorer(
+            function ( $owner ) {
+                global $wpdb;
+                static $queried     = false;
+                static $live_owners = null;
+
+                // Cache per restorer, not per file; a failed read cannot establish abandonment.
+                if ( ! $queried ) {
+                    $queried  = true;
+                    $suppress = $wpdb->suppress_errors( true );
+                    try {
+                        $tasks = MainWP_Child_Backup_Task::instance()->get_live_restore_tasks();
+                        if ( '' === $wpdb->last_error ) {
+                            $live_owners = array();
+                            foreach ( $tasks as $task ) {
+                                if ( MainWP_Child_Backup_Task::is_restore_type( $task->type ) ) {
+                                    $live_owners[ substr( hash( 'sha256', $task->task_id ), 0, 16 ) ] = true;
+                                }
+                            }
+                        }
+                    } finally {
+                        $wpdb->suppress_errors( $suppress );
+                    }
+                }
+                return null === $live_owners ? null : isset( $live_owners[ $owner ] );
+            }
+        );
+    }
+
+    /**
+     * URL rewriter (test seam).
+     *
+     * @return MainWP_Backup_Url_Rewriter
+     */
+    protected function url_rewriter() {
+        return new MainWP_Backup_Url_Rewriter();
+    }
+}

@@ -334,9 +334,14 @@ class MainWP_Clone_Page {
         $page         = isset( $_REQUEST['page'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['page'] ) ) : '';
         $sitesToClone = get_option( 'mainwp_child_clone_sites' );
         $url          = admin_url( 'options-general.php?page=mainwp_child_tab&tab=restore-clone#title_03' );
-        $dirs         = MainWP_Helper::get_mainwp_dir( 'backup', false );
-        $current_dir  = $dirs[0];
-        $backup_dir   = $current_dir;
+        try {
+            $dirs = MainWP_Helper::get_mainwp_dir( 'backup', false );
+        } catch ( MainWP_Exception $e ) {
+            echo '<div class="mainwp-child_info-box-red"><strong>' . esc_html( $e->getMessage() ) . '</strong></div>';
+            return;
+        }
+        $current_dir = $dirs[0];
+        $backup_dir  = $current_dir;
 
         if ( isset( $_REQUEST['dir'] ) ) {
             $current_dir = isset( $_REQUEST['dir'] ) ? stripslashes( rawurldecode( wp_unslash( $_REQUEST['dir'] ) ) ) : ''; //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
@@ -378,11 +383,11 @@ class MainWP_Clone_Page {
                 $adir = ltrim( $adir, '/' );
             }
             $durl     = add_query_arg( array( 'dir' => rawurlencode( $adir ) ), $url );
-            $dirparts = '<a href="' . esc_url( $durl ) . '">' . $part . DIRECTORY_SEPARATOR . '</a>' . $dirparts;
+            $dirparts = '<a href="' . esc_url( $durl ) . '">' . esc_html( $part . DIRECTORY_SEPARATOR ) . '</a>' . $dirparts;
         }
 
         // translators: 1: Opening strong tag, 2: Closing strong tag, 3: Current directory path.
-        echo '<div style="padding: 8px 12px; background-color: #e5e5e5; margin-top: 1em;">' . sprintf( esc_html__( '%1$sCurrent Directory:%2$s %3$s', 'mainwp-child' ), '<strong>', '</strong>', '<span>' . $dirparts . '</span>' ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput
+        echo '<div style="padding: 8px 12px; background-color: #e5e5e5; margin-top: 1em;">' . sprintf( esc_html__( '%1$sCurrent Directory:%2$s %3$s', 'mainwp-child' ), '<strong>', '</strong>', '<span>' . $dirparts . '</span>' ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput -- Breadcrumb URLs and text are escaped when the links are built.
         $quick_dirs   = array();
         $quick_dirs[] = array( esc_html__( 'Site Root', 'mainwp-child' ), ABSPATH );
         $quick_dirs[] = array( esc_html__( 'Backup', 'mainwp-child' ), $backup_dir );
@@ -404,7 +409,7 @@ class MainWP_Clone_Page {
         }
 
         if ( ! empty( $quick_links ) ) {
-            echo '<div style="padding: 8px 12px; border-bottom: 1px solid #e5e5e5; margin-bottom: 1em;"><strong>' . esc_html__( 'Quick Jump:', 'mainwp-child' ) . '</strong> ' . implode( ' | ', $quick_links ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput
+            echo '<div style="padding: 8px 12px; border-bottom: 1px solid #e5e5e5; margin-bottom: 1em;"><strong>' . esc_html__( 'Quick Jump:', 'mainwp-child' ) . '</strong> ' . implode( ' | ', $quick_links ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput -- Quick Jump URLs and text are escaped when the links are built.
         }
 
         self::render_clone_from_server_form( $current_dir, $url );

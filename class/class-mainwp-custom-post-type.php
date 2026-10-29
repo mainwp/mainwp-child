@@ -23,6 +23,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 class MainWP_Custom_Post_Type {
 
     /**
+     * Bound work when serialized references repeatedly share the same subtree.
+     */
+    private const MAX_SERIALIZED_VISITS = 100000;
+
+    /**
      * Public static variable to hold the single instance of the class.
      *
      * @var mixed Default null
@@ -107,9 +112,10 @@ class MainWP_Custom_Post_Type {
             }
 
             if ( isset( $data['sync_cpt_limit'] ) ) {
-                $current_limit = get_option( 'mainwp_child_recent_custom_cpt_ids_limit', 20 );
-                if ( (int) ( $data['sync_cpt_limit'] ) !== (int) $current_limit && ! empty( $data['sync_cpt_limit'] ) ) {
-                    update_option( 'mainwp_child_recent_custom_cpt_ids_limit', $data['sync_cpt_limit'] );
+                $current_limit = (int) get_option( 'mainwp_child_recent_custom_cpt_ids_limit', 20 );
+                $new_cpt_limit = (int) $data['sync_cpt_limit'];
+                if ( 0 < $new_cpt_limit && $current_limit !== $new_cpt_limit ) {
+                    update_option( 'mainwp_child_recent_custom_cpt_ids_limit', $new_cpt_limit );
                 }
             }
         }
@@ -655,7 +661,10 @@ class MainWP_Custom_Post_Type {
                 }
 
                 try {
-                    $downloadfile      = MainWP_Utility::upload_image( $originalImgUrl, array(), $check_image );
+                    $downloadfile = MainWP_Utility::upload_image( $originalImgUrl, array(), $check_image );
+                    if ( null === $downloadfile ) {
+                        continue;
+                    }
                     $localUrl          = $downloadfile['url'];
                     $linkToReplaceWith = dirname( $localUrl );
                     if ( '' !== $hrefLink ) {
@@ -1072,13 +1081,65 @@ class MainWP_Custom_Post_Type {
                     }
                 }
 
-                $meta_value = maybe_unserialize( $meta_value ); // NOSONARR .
+                if ( is_string( $meta_value ) && is_serialized( $meta_value ) ) {
+                    $serialized_meta_value = trim( $meta_value );
+                    // nosemgrep: AIK_unserialize-use -- Restricted decode uses allowed_classes false and max_depth 32; object values are rejected before storage.
+                    $meta_value = @unserialize( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions, WordPress.PHP.NoSilencedErrors -- restricted decode; suppress malformed-value warnings as WordPress core does.
+                        $serialized_meta_value,
+                        array(
+                            'allowed_classes' => false,
+                            'max_depth'       => 32,
+                        )
+                    );
+                    $visits     = 0;
+                    if ( ( false === $meta_value && 'b:0;' !== $serialized_meta_value ) || $this->value_contains_object( $meta_value, 0, $visits ) ) {
+                        if ( is_array( $v2_failed_stages ) ) {
+                            $v2_failed_stages[] = 'postmeta';
+                        }
+                        continue; // Refuse failed decodes and unsafe values before WordPress re-serializes them.
+                    }
+                }
                 if ( add_post_meta( $post_id, $key['meta_key'], $meta_value ) === false ) {
                     return array( 'error' => esc_html__( 'Error when adding post meta', 'mainwp-child' ) . ' `' . esc_html( $key['meta_key'] ) . '`' );
                 }
             }
         }
         return true;
+    }
+
+    /**
+     * Method value_contains_object()
+     *
+     * Report whether a value is, or contains anywhere within it, a PHP object.
+     * After a restricted unserialize() ( allowed_classes => false ) any object
+     * in a dashboard-fed payload arrives as a __PHP_Incomplete_Class, both at
+     * the top level and nested inside arrays. Such a payload must not be stored,
+     * because add_post_meta() re-serializes it back to the original class string
+     * and WordPress core re-instantiates it on the next get_post_meta() read.
+     *
+     * @param mixed $value Value to inspect.
+     * @param int   $depth Current nesting depth.
+     * @param int   $visits Number of values inspected in this payload.
+     *
+     * @return bool True if the value contains an object or exceeds the depth or visit budget.
+     */
+    private function value_contains_object( $value, $depth = 0, &$visits = 0 ) {
+        ++$visits;
+        if ( is_object( $value ) ) {
+            return true;
+        }
+        // Serialized references can produce cyclic or repeatedly shared arrays.
+        if ( $depth > 32 || $visits > self::MAX_SERIALIZED_VISITS ) {
+            return true;
+        }
+        if ( is_array( $value ) ) {
+            foreach ( $value as $item ) {
+                if ( $this->value_contains_object( $item, $depth + 1, $visits ) ) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**

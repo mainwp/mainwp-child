@@ -19,11 +19,66 @@ if ( ! defined( 'ABSPATH' ) ) {
 // phpcs:disable WordPress.WP.AlternativeFunctions, Generic.Metrics.CyclomaticComplexity -- Required to achieve desired results, pull request solutions appreciated.
 
 /**
+ * PclZip writes the callback's filename, which can differ from its archive listing.
+ *
+ * @param int   $p_event  PclZip callback event.
+ * @param array $p_header Extraction header, including the destination filename.
+ *
+ * @return int Zero to preserve a destination file or link, one to extract.
+ * @throws \Exception When the destination is outside the site root.
+ */
+function mainwp_child_clone_pclzip_pre_extract( $p_event, &$p_header ) {
+    $prefix   = ABSPATH;
+    $filename = $p_header['filename'];
+    // PclZip writes Windows paths with forward slashes while ABSPATH may keep backslashes,
+    // including a trailing one, so fold before trimming.
+    if ( '\\' === DIRECTORY_SEPARATOR ) {
+        $prefix   = str_replace( '\\', '/', $prefix );
+        $filename = str_replace( '\\', '/', $filename );
+    }
+    $prefix = rtrim( $prefix, '/' ) . '/';
+    if ( 0 !== strpos( $filename, $prefix ) ) {
+        throw new \Exception( 'Archive entry is outside the site root. Extraction aborted.' );
+    }
+    $name   = substr( $filename, strlen( $prefix ) );
+    $target = MainWP_Clone_Install::clone_entry_target( $name, ABSPATH );
+    if ( null === $target ) {
+        return 0;
+    }
+    $directory = ! empty( $p_header['folder'] );
+    MainWP_Clone_Install::make_entry_dirs( $directory ? $target : dirname( $target ), ABSPATH );
+    return $directory ? 0 : 1;
+}
+
+/**
+ * PclZip does not reliably propagate short writes or chmod failures.
+ *
+ * @param int   $p_event Callback event.
+ * @param array $p_header Extracted entry.
+ * @return int Continue extraction.
+ * @throws \Exception When writing or setting permissions failed.
+ */
+function mainwp_child_clone_pclzip_post_extract( $p_event, &$p_header ) {
+    if ( 'skipped' === $p_header['status'] ) {
+        return 1;
+    }
+    $mode = defined( 'FS_CHMOD_FILE' ) ? FS_CHMOD_FILE : 0644;
+    clearstatcache( true, $p_header['filename'] );
+    if ( 'ok' !== $p_header['status'] || filesize( $p_header['filename'] ) !== $p_header['size'] || ( ! chmod( $p_header['filename'], $mode ) && ! $p_header['mainwp_clone_existed'] ) ) {
+        throw new \Exception( 'Could not write an archive entry. Extraction aborted.' );
+    }
+    return 1;
+}
+
+// phpcs:disable Universal.Files.SeparateFunctionsFromOO.Mixed -- PclZip requires a named function callback.
+
+/**
  * Class MainWP_Clone_Install
  *
  * This file handles installing a cloned child site.
  */
 class MainWP_Clone_Install {
+    // phpcs:enable Universal.Files.SeparateFunctionsFromOO.Mixed
 
     /**
      * Maximum recursion depth accepted while processing serialized clone data.
@@ -147,9 +202,13 @@ class MainWP_Clone_Install {
         } elseif ( $this->check_zip_support() ) {
             $zip    = new \ZipArchive();
             $zipRes = $zip->open( $this->file );
-            if ( $zipRes ) {
-                $zip->deleteName( 'wp-config.php' );
-                $zip->deleteName( 'clone' );
+            if ( true === $zipRes ) {
+                for ( $index = 0; $index < $zip->numFiles; ++$index ) {
+                    $name = $zip->getNameIndex( $index );
+                    if ( false !== $name && in_array( self::normalize_entry_name( $name ), array( 'wp-config.php', 'clone' ), true ) ) {
+                        $zip->deleteIndex( $index );
+                    }
+                }
                 $zip->close();
 
                 return true;
@@ -157,10 +216,18 @@ class MainWP_Clone_Install {
 
             return false;
         } else {
-            $zip   = new \PclZip( $this->file );
-            $list  = $zip->delete( PCLZIP_OPT_BY_NAME, 'wp-config.php' );
-            $list2 = $zip->delete( PCLZIP_OPT_BY_NAME, 'clone' );
-            if ( 0 === $list ) {
+            $zip     = new \PclZip( $this->file );
+            $entries = $zip->listContent();
+            if ( ! is_array( $entries ) ) {
+                return false;
+            }
+            $drop = array();
+            foreach ( $entries as $entry ) {
+                if ( in_array( self::normalize_entry_name( $entry['filename'] ), array( 'wp-config.php', 'clone' ), true ) ) {
+                    $drop[] = $entry['index'];
+                }
+            }
+            if ( ! empty( $drop ) && 0 === $zip->delete( PCLZIP_OPT_BY_INDEX, implode( ',', $drop ) ) ) {
                 return false;
             }
 
@@ -539,86 +606,459 @@ class MainWP_Clone_Install {
             return false;
         }
 
-        if ( null !== $this->archiver ) {
-            if ( ! $this->archiver->is_open() ) {
-                $this->archiver->read( $this->file );
+        $htaccess = ABSPATH . '.htaccess';
+        $original = file_exists( $htaccess ) ? file_get_contents( $htaccess ) : null; //phpcs:ignore WordPress.WP.AlternativeFunctions
+        if ( false === $original ) {
+            throw new \Exception( esc_html__( 'Could not read the destination .htaccess before clone extraction.', 'mainwp-child' ) );
+        }
+
+        try {
+            if ( null !== $this->archiver ) {
+                if ( ! $this->archiver->is_open() ) {
+                    $this->archiver->read( $this->file );
+                }
+                return $this->archiver->extract_to( ABSPATH );
+            } elseif ( $this->check_zip_support() ) {
+                return filesize( $this->file ) >= 50000000 && $this->check_wp_zip() ? $this->extract_wp_zip_backup() : $this->extract_zip_backup(); // NOSONAR.
+            } elseif ( $this->check_wp_zip() ) {
+                return $this->extract_wp_zip_backup();
+            } else {
+                return $this->extract_zip_pcl_backup();
             }
-            return $this->archiver->extract_to( ABSPATH );
-        } elseif ( ( filesize( $this->file ) >= 50000000 ) && $this->check_wp_zip() ) { // NOSONAR.
-            return $this->extract_wp_zip_backup();
-        } elseif ( $this->check_zip_console() ) {
-            return $this->extract_zip_console_backup();
-        } elseif ( $this->check_zip_support() ) {
-            return $this->extract_zip_backup();
-        } elseif ( ( filesize( $this->file ) < 50000000 ) && $this->check_wp_zip() ) { // NOSONAR.
-            return $this->extract_wp_zip_backup();
-        } else {
-            return $this->extract_zip_pcl_backup();
+        } finally {
+            try {
+                if ( null !== $original ) {
+                    $current = file_exists( $htaccess ) ? file_get_contents( $htaccess ) : null; //phpcs:ignore WordPress.WP.AlternativeFunctions
+                    if ( $current !== $original && false === file_put_contents( $htaccess, $original ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions
+                        error_log( 'Could not restore the destination .htaccess after clone extraction.' ); //phpcs:ignore -- NOSONAR - for dev.
+                    }
+                } elseif ( file_exists( $htaccess ) && ! unlink( $htaccess ) ) { //phpcs:ignore WordPress.WP.AlternativeFunctions
+                    error_log( 'Could not remove the cloned root .htaccess.' ); //phpcs:ignore -- NOSONAR - for dev.
+                }
+            } catch ( \Throwable $error ) {
+                error_log( 'Could not preserve the destination .htaccess after clone extraction.' ); //phpcs:ignore -- NOSONAR - for dev.
+            }
         }
     }
 
     /**
-     * Extract backup using default PHP zip library.
+     * Reserved names must survive separator and Windows filename aliases.
      *
-     * @return bool true|false.
+     * @param string $name Archive entry name.
+     * @return string Comparison key, never a write path.
      */
-    public function extract_zip_backup() {
-        $zip    = new \ZipArchive();
-        $zipRes = $zip->open( $this->file );
-        if ( $zipRes ) {
-            $zip->extract_to( ABSPATH );
-            $zip->close();
-
-            return true;
+    public static function normalize_entry_name( $name ) {
+        $parts = array_values( array_diff( preg_split( '/[\\\\\/]/', $name ), array( '', '.' ) ) );
+        $parts = array_map(
+            static function ( $part ) {
+                return strtolower( rtrim( $part, '. ' ) );
+            },
+            $parts
+        );
+        if ( ! empty( $parts ) ) {
+            $last           = count( $parts ) - 1;
+            $parts[ $last ] = explode( ':', $parts[ $last ], 2 )[0];
         }
-
-        return false;
+        return implode( '/', $parts );
     }
 
     /**
-     * Extract with unzip_file.
+     * Validation must work before PHP or the filesystem transport creates parents.
      *
-     * @return bool true|false.
+     * @param string $name Raw archive name.
+     * @param string $root Existing destination root.
+     * @return string|null Raw destination, or null to preserve the destination.
+     * @throws \Exception When an entry cannot be safely contained.
+     */
+    public static function clone_entry_target( $name, $root ) {
+        if ( false !== strpos( $name, "\0" ) ) {
+            throw new \Exception( sprintf( 'Archive entry name contains a NUL byte: %s. Extraction aborted.', esc_html( self::entry_label( $name ) ) ) );
+        }
+        if ( preg_match( '/^(?:[\\\\\/]|[a-z]:)/i', $name ) ) {
+            throw new \Exception( sprintf( 'Archive contains absolute path entry: %s. Extraction aborted.', esc_html( self::entry_label( $name ) ) ) );
+        }
+        $parts = preg_split( '/[\\\\\/]/', $name );
+        foreach ( $parts as $part ) {
+            if ( '' !== $part && '.' !== $part && preg_match( '/^[. ]+$/D', $part ) ) {
+                throw new \Exception( sprintf( 'Archive contains path traversal entry: %s. Extraction aborted.', esc_html( self::entry_label( $name ) ) ) );
+            }
+        }
+        clearstatcache( true );
+        $resolved_root = realpath( $root );
+        if ( false === $resolved_root || ! is_dir( $resolved_root ) ) {
+            throw new \Exception( 'Invalid extraction root. Extraction aborted.' );
+        }
+        if ( empty( array_diff( $parts, array( '', '.' ) ) ) ) {
+            return null;
+        }
+        $target = rtrim( $root, '/' ) . '/' . $name;
+        if ( is_link( rtrim( $target, '/' ) ) ) {
+            return null;
+        }
+        $parent = dirname( $target );
+        while ( ! file_exists( $parent ) && ! is_link( $parent ) ) {
+            $parent = dirname( $parent );
+        }
+        self::check_clone_directory( $parent, $resolved_root, $name );
+        $directory = '/' === substr( $name, -1 );
+        if ( file_exists( rtrim( $target, '/' ) ) && ( $directory ? ! is_dir( $target ) : is_dir( $target ) ) ) {
+            throw new \Exception( sprintf( 'Archive entry conflicts with the destination: %s. Extraction aborted.', esc_html( self::entry_label( $name ) ) ) );
+        }
+        $key = self::normalize_entry_name( $name );
+        if ( 'wp-config.php' === $key || ( realpath( dirname( $target ) ) === $resolved_root && 'wp-config.php' === basename( $key ) ) ) {
+            return null;
+        }
+        $config = $resolved_root . '/wp-config.php';
+        if ( is_file( $target ) && is_file( $config ) ) {
+            $target_stat = stat( $target );
+            $config_stat = stat( $config );
+            if ( false !== $target_stat && false !== $config_stat && 0 !== (int) $target_stat['ino'] && $target_stat['ino'] === $config_stat['ino'] && $target_stat['dev'] === $config_stat['dev'] ) {
+                return null;
+            }
+        }
+        return $target;
+    }
+
+    /**
+     * Every newly created level must still resolve inside the original root.
      *
-     * @uses \MainWP\Child\MainWP_Helper::get_wp_filesystem()
+     * @param string      $dir Directory to verify.
+     * @param string      $root Resolved root.
+     * @param string|null $name Archive entry being checked, named in the refusal.
+     * @throws \Exception When a directory escapes or cannot be resolved.
+     */
+    private static function check_clone_directory( $dir, $root, $name = null ) {
+        clearstatcache( true );
+        $resolved = realpath( $dir );
+        // Windows realpath() returns backslashes; elsewhere a backslash is a filename character.
+        if ( '\\' === DIRECTORY_SEPARATOR ) {
+            $root     = str_replace( '\\', '/', $root );
+            $resolved = false === $resolved ? false : str_replace( '\\', '/', $resolved );
+        }
+        $prefix = rtrim( $root, '/' ) . '/';
+        if ( false === $resolved || ! is_dir( $resolved ) || 0 !== strpos( rtrim( $resolved, '/' ) . '/', $prefix ) ) {
+            if ( null !== $name ) {
+                throw new \Exception( sprintf( 'Archive entry resolves outside the site root: %s. Extraction aborted.', esc_html( self::entry_label( $name ) ) ) );
+            }
+            throw new \Exception( 'Archive entry is outside the site root. Extraction aborted.' );
+        }
+    }
+
+    /**
+     * Entry names go into refusal messages. esc_html() empties invalid UTF-8, and before
+     * WordPress 6.9 wp_check_invalid_utf8() strips through iconv(), which returns false for it,
+     * so non-UTF-8 bytes become "?" here; a NUL would end the name early in logs.
+     *
+     * @param string $name Raw archive entry name.
+     * @return string Name safe to pass to esc_html().
+     */
+    public static function entry_label( $name ) {
+        $name = str_replace( "\0", '\\0', (string) $name );
+        return preg_match( '//u', $name ) ? $name : preg_replace( '/[\x80-\xFF]/', '?', $name );
+    }
+
+    /**
+     * FTP paths may use a different root from PHP's local view.
+     *
+     * @param string      $path Local path.
+     * @param object|null $fs Filesystem transport.
+     * @return string Transport path.
+     */
+    public static function clone_fs_path( $path, $fs = null ) {
+        $prefix = rtrim( ABSPATH, '/' ) . '/';
+        if ( null !== $fs && 'ftpext' === $fs->method && defined( 'FTP_BASE' ) && 0 === strpos( $path, $prefix ) ) {
+            return trailingslashit( FTP_BASE ) . substr( $path, strlen( $prefix ) );
+        }
+        return $path;
+    }
+
+    /**
+     * Transport-created parents must be checked through the local view as well.
+     * Transport permissions are requested through the transport, not verified.
+     *
+     * @param string      $dir Required directory.
+     * @param string      $root Existing root.
+     * @param object|null $fs Non-direct filesystem transport, or null.
+     * @throws \Exception When creation or containment fails.
+     */
+    public static function make_entry_dirs( $dir, $root, $fs = null ) {
+        $resolved_root = realpath( $root );
+        if ( false === $resolved_root ) {
+            throw new \Exception( 'Invalid extraction root. Extraction aborted.' );
+        }
+        $missing = array();
+        $dir     = rtrim( $dir, '/' );
+        while ( ! file_exists( $dir ) && ! is_link( $dir ) ) {
+            $missing[] = $dir;
+            $dir       = dirname( $dir );
+        }
+        self::check_clone_directory( $dir, $resolved_root );
+        $mode = defined( 'FS_CHMOD_DIR' ) ? FS_CHMOD_DIR : 0755;
+        foreach ( array_reverse( $missing ) as $path ) {
+            if ( file_exists( $path ) || is_link( $path ) ) {
+                self::check_clone_directory( $path, $resolved_root );
+                continue;
+            }
+            $made = null !== $fs ? $fs->mkdir( self::clone_fs_path( $path, $fs ), $mode ) : mkdir( $path, $mode );
+            if ( ! $made || ( null === $fs && ! chmod( $path, $mode ) ) ) {
+                throw new \Exception( 'Could not create an extraction directory. Extraction aborted.' );
+            }
+            self::check_clone_directory( $path, $resolved_root );
+        }
+    }
+
+    /**
+     * Short reads and failed writes must stop an in-place clone.
+     * Transport permissions are requested through the transport, not verified.
+     *
+     * @param string      $target Validated destination.
+     * @param resource    $stream Member data.
+     * @param int         $size Expected uncompressed size.
+     * @param object|null $fs Non-direct filesystem transport, or null.
+     * @throws \Exception When reading, writing or setting permissions on a new file fails.
+     */
+    public static function write_clone_file( $target, $stream, $size, $fs = null ) {
+        $mode    = defined( 'FS_CHMOD_FILE' ) ? FS_CHMOD_FILE : 0644;
+        $existed = file_exists( $target );
+        // Large members need bounded memory whenever PHP can write the destination.
+        $out = null === $fs || $size >= 2000000 ? fopen( $target, 'wb' ) : false;
+        if ( false === $out && null !== $fs ) {
+            // Transports take whole strings; exceeding memory_limit would be a fatal that skips cleanup.
+            $limit = wp_convert_hr_to_bytes( ini_get( 'memory_limit' ) );
+            if ( $limit > 0 && $size * 2 > $limit - memory_get_usage() ) {
+                throw new \Exception( 'Archive entry is too large to write through the filesystem transport. Extraction aborted.' );
+            }
+            $data = 0 === $size ? '' : stream_get_contents( $stream, $size );
+            if ( false === $data || strlen( $data ) !== $size || ! $fs->put_contents( self::clone_fs_path( $target, $fs ), $data, $mode ) ) {
+                throw new \Exception( 'Could not write an archive entry. Extraction aborted.' );
+            }
+            return;
+        }
+        if ( false === $out ) {
+            throw new \Exception( 'Could not open an extraction file. Extraction aborted.' );
+        }
+        try {
+            $copied = stream_copy_to_stream( $stream, $out, $size );
+        } finally {
+            $closed = fclose( $out );
+        }
+        if ( $copied !== $size || ! $closed || ( ! chmod( $target, $mode ) && ! $existed ) ) {
+            throw new \Exception( 'Could not write an archive entry. Extraction aborted.' );
+        }
+    }
+
+    /**
+     * One ZIP reader must supply both the validated name and the member stream.
+     *
+     * @param object|null $fs Non-direct filesystem transport, or null.
+     * @return bool Whether the archive opened and extracted.
+     * @throws \Exception When containment or writing fails.
+     */
+    public function extract_zip_backup( $fs = null ) {
+        $zip = new \ZipArchive();
+        if ( true !== $zip->open( $this->file ) ) {
+            return false;
+        }
+        try {
+            $seen = array();
+            for ( $index = 0; $index < $zip->numFiles; ++$index ) {
+                $name = $zip->getNameIndex( $index );
+                if ( false === $name ) {
+                    throw new \Exception( 'Could not read archive entry. Extraction aborted.' );
+                }
+                if ( isset( $seen[ $name ] ) ) {
+                    throw new \Exception( 'Duplicate archive entry. Extraction aborted.' );
+                }
+                $seen[ $name ] = true;
+                self::clone_entry_target( $name, ABSPATH );
+            }
+            for ( $index = 0; $index < $zip->numFiles; ++$index ) {
+                $name   = $zip->getNameIndex( $index );
+                $target = self::clone_entry_target( $name, ABSPATH );
+                if ( null === $target ) {
+                    continue;
+                }
+                $directory = '/' === substr( $name, -1 );
+                self::make_entry_dirs( $directory ? $target : dirname( $target ), ABSPATH, $fs );
+                if ( $directory ) {
+                    continue;
+                }
+                $in   = $zip->getStream( $name );
+                $stat = $zip->statIndex( $index );
+                if ( false === $in || false === $stat ) {
+                    if ( is_resource( $in ) ) {
+                        fclose( $in );
+                    }
+                    throw new \Exception( 'Could not read archive entry. Extraction aborted.' );
+                }
+                try {
+                    self::write_clone_file( $target, $in, $stat['size'], $fs );
+                } finally {
+                    fclose( $in );
+                }
+            }
+            return true;
+        } finally {
+            $zip->close();
+        }
+    }
+
+    /**
+     * WordPress may switch ZIP readers, so it is used only on PclZip-only hosts.
+     *
+     * @return bool Whether extraction succeeded.
+     * @throws \Exception When preflight or extraction fails.
      */
     public function extract_wp_zip_backup() {
         MainWP_Helper::get_wp_filesystem();
-
-        /**
-         * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
-         *
-         * @global object $wp_filesystem Filesystem object.
-         */
         global $wp_filesystem;
 
-        $tmpdir = ABSPATH;
-        if ( ( 'ftpext' === $wp_filesystem->method ) && defined( 'FTP_BASE' ) ) {
-            $ftpBase = FTP_BASE;
-            $ftpBase = trailingslashit( $ftpBase );
-            $tmpdir  = str_replace( ABSPATH, $ftpBase, $tmpdir );
+        if ( $this->check_zip_support() ) {
+            return $this->extract_zip_backup( 'direct' === $wp_filesystem->method ? null : $wp_filesystem );
         }
-
-        \unzip_file( $this->file, $tmpdir ); // NOSONAR.
-
+        $entries = $this->drop_protected_zip_entries();
+        if ( empty( $entries ) ) {
+            return true;
+        }
+        $pcl_only = static function () {
+            return false;
+        };
+        add_filter( 'unzip_file_use_ziparchive', $pcl_only, PHP_INT_MAX );
+        try {
+            $result = \unzip_file( $this->file, self::clone_fs_path( ABSPATH, $wp_filesystem ) ); // NOSONAR.
+        } finally {
+            remove_filter( 'unzip_file_use_ziparchive', $pcl_only, PHP_INT_MAX );
+        }
+        if ( is_wp_error( $result ) ) {
+            return false;
+        }
+        // WP_Filesystem_Direct::chmod() ORs 0644 into the current mode before comparing, so a
+        // file created 0600 under a strict umask reads as already FS_CHMOD_FILE and keeps 0600.
+        if ( 'direct' === $wp_filesystem->method ) {
+            $mode = defined( 'FS_CHMOD_FILE' ) ? FS_CHMOD_FILE : 0644;
+            foreach ( $entries as $entry ) {
+                $target = self::clone_entry_target( $entry['filename'], ABSPATH );
+                if ( null !== $target && empty( $entry['folder'] ) && is_file( $target ) && ! chmod( $target, $mode ) && ! $entry['mainwp_clone_existed'] ) {
+                    throw new \Exception( 'Could not set extraction permissions. Extraction aborted.' );
+                }
+            }
+        }
         return true;
     }
 
     /**
-     * Extract PCLZIP.
+     * PclZip's normal listing reduces traversal segments before returning both names.
+     * Preserve the raw stored name so preflight can reject it before any extraction.
      *
-     * @return bool true|false.
-     * @throws \Exception Error on failure.
+     * @return \PclZip Reader retaining raw stored names.
+     */
+    private function clone_pclzip() {
+        return new class( $this->file ) extends \PclZip {
+            /**
+             * PclZip rebuilds callback headers, so retain which files predated extraction.
+             *
+             * @var array
+             */
+            private $existing = array();
+
+            /**
+             * Raw names prevent the listing from concealing traversal segments.
+             *
+             * @param array $header Archive header.
+             * @param array $info Converted entry.
+             * @return int PclZip conversion result.
+             */
+            public function privConvertHeader2FileInfo( $header, &$info ) {
+                $result                  = parent::privConvertHeader2FileInfo( $header, $info );
+                $info['stored_filename'] = $header['stored_filename'];
+                $info['filename']        = $header['filename'];
+                $name                    = $header['stored_filename'];
+                if ( ! isset( $this->existing[ $name ] ) ) {
+                    // A NUL name is refused later; some PHP versions throw ValueError on it here.
+                    $this->existing[ $name ] = false === strpos( $name, "\0" ) && file_exists( rtrim( ABSPATH, '/' ) . '/' . $name );
+                }
+                $info['mainwp_clone_existed'] = $this->existing[ $name ];
+                return $result;
+            }
+        };
+    }
+
+    /**
+     * Both PclZip names must pass even when one is protected and would be skipped.
+     *
+     * @param array $entry PclZip entry.
+     * @return bool Whether to preserve the destination.
+     * @throws \Exception When either name is unsafe.
+     */
+    private function protected_pclzip_entry( $entry ) {
+        $target = self::clone_entry_target( $entry['filename'], ABSPATH );
+        $stored = self::clone_entry_target( $entry['stored_filename'], ABSPATH );
+        return null === $target || null === $stored;
+    }
+
+    /**
+     * WordPress writes every remaining PclZip member, so protected members must be removed.
+     *
+     * @return array Entries remaining after preflight.
+     * @throws \Exception When listing, validation or archive rewriting fails.
+     */
+    private function drop_protected_zip_entries() {
+        $pcl     = $this->clone_pclzip();
+        $entries = $pcl->listContent();
+        if ( ! is_array( $entries ) ) {
+            throw new \Exception( 'Could not read archive entries. Extraction aborted.' );
+        }
+        $drop = array();
+        $keep = array();
+        foreach ( $entries as $entry ) {
+            if ( $this->protected_pclzip_entry( $entry ) ) {
+                $drop[] = $entry['index'];
+            } else {
+                $keep[] = $entry;
+            }
+        }
+        if ( ! empty( $drop ) ) {
+            if ( 0 === $pcl->delete( PCLZIP_OPT_BY_INDEX, implode( ',', $drop ) ) ) {
+                throw new \Exception( 'Could not remove protected archive entries. Extraction aborted.' );
+            }
+            // PclZip can report success after a failed replacement of the archive.
+            $keep = $pcl->listContent();
+            if ( ! is_array( $keep ) ) {
+                throw new \Exception( 'Could not read archive entries. Extraction aborted.' );
+            }
+            foreach ( $keep as $entry ) {
+                if ( $this->protected_pclzip_entry( $entry ) ) {
+                    throw new \Exception( 'Could not remove protected archive entries. Extraction aborted.' );
+                }
+            }
+        }
+        return $keep;
+    }
+
+    /**
+     * PclZip's callback must recheck the destination immediately before writing.
+     *
+     * @return bool Whether extraction succeeded.
+     * @throws \Exception When validation or writing fails.
      */
     public function extract_zip_pcl_backup() {
-        $zip = new \PclZip( $this->file );
-        if ( 0 === (int) $zip->extract( PCLZIP_OPT_PATH, ABSPATH, PCLZIP_OPT_REPLACE_NEWER ) ) {
-            return false;
+        $zip     = $this->clone_pclzip();
+        $entries = $zip->listContent();
+        if ( ! is_array( $entries ) ) {
+            throw new \Exception( 'Could not read archive entries. Extraction aborted.' );
         }
-        if ( PCLZIP_ERR_NO_ERROR !== $zip->error_code ) {
-            throw new \Exception( $zip->errorInfo( true ) ); //phpcs:ignore -- compatible.
+        foreach ( $entries as $entry ) {
+            $this->protected_pclzip_entry( $entry );
         }
-
+        $result = $zip->extract( PCLZIP_OPT_PATH, ABSPATH, PCLZIP_OPT_REPLACE_NEWER, PCLZIP_OPT_STOP_ON_ERROR, PCLZIP_CB_PRE_EXTRACT, __NAMESPACE__ . '\mainwp_child_clone_pclzip_pre_extract', PCLZIP_CB_POST_EXTRACT, __NAMESPACE__ . '\mainwp_child_clone_pclzip_post_extract' );
+        if ( ! is_array( $result ) || PCLZIP_ERR_NO_ERROR !== $zip->error_code ) {
+            throw new \Exception( 'Could not extract archive entries. Extraction aborted.' );
+        }
+        foreach ( $result as $entry ) {
+            if ( ! isset( $entry['status'] ) || ! in_array( $entry['status'], array( 'ok', 'skipped' ), true ) ) {
+                throw new \Exception( 'Could not extract archive entries. Extraction aborted.' );
+            }
+        }
         return true;
     }
 

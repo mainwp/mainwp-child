@@ -3842,16 +3842,27 @@ class MainWP_Child_Back_Up_Buddy { //phpcs:ignore -- NOSONAR - multi methods.
         $newBackup = new \pb_backupbuddy_backup();
         $data      = isset( $_POST['data'] ) ? wp_unslash( $_POST['data'] ) : '';
         if ( is_array( $data ) && isset( $data['serial_override'] ) ) {
+			$export_plugins = [];
+			$deploy_destination = [];
+			$post_backup_steps = isset( $data['post_backup_steps'] ) && is_array( $data['post_backup_steps'] ) ? $data['post_backup_steps'] : array();
+			if ( isset( $data['export_plugins'] ) && is_array( $data['export_plugins'] ) ) {
+				$export_plugins = $data['export_plugins'];
+			}
+
+			if ( isset( $data['deployDestination'] ) && is_array( $data['deployDestination'] ) ) {
+				$deploy_destination = $data['deployDestination'];
+			}
+
             if ( $newBackup->start_backup_process(
                 $data['profile_array'],
                 $data['trigger'],
                 array(),
-                isset( $data['post_backup_steps'] ) && is_array( $data['post_backup_steps'] ) ? $data['post_backup_steps'] : array(),
+                $post_backup_steps,
                 '',
                 $data['serial_override'],
-                isset( $data['export_plugins'] ) ? $data['export_plugins'] : '',
+                $export_plugins,
                 $data['direction'],
-                isset( $data['deployDestination'] ) ? $data['deployDestination'] : ''
+                $deploy_destination
             ) !== true ) {
                 return array( 'error' => esc_html__( 'Fatal Error #4344443: Backup failure. Please see any errors listed in the Status Log for details.', 'mainwp-child' ) );
             }
