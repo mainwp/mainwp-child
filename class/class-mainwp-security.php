@@ -52,6 +52,27 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
     private static $listingDirectories = null;
 
     /**
+     * Private static variable to hold the site's display_errors value from before a
+     * signed Dashboard request turned it off.
+     *
+     * @var string|false|null Default null when no value has been saved.
+     */
+    private static $saved_display_errors = null;
+
+    /**
+     * Method save_php_reporting_state()
+     *
+     * Save the site's display_errors value before a signed Dashboard request turns
+     * it off, so the hardening check reports the site's own setting. Only the first
+     * call in a request saves a value.
+     */
+    public static function save_php_reporting_state() {
+        if ( null === self::$saved_display_errors ) {
+            self::$saved_display_errors = ini_get( 'display_errors' );
+        }
+    }
+
+    /**
      * Method init_listing_directories()
      *
      * Get directories array to prevent listing.
@@ -113,6 +134,8 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
             error_reporting( 0 ); //phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
             ini_set( 'display_errors', 'off' ); //phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
             ini_set( 'display_startup_errors', 0 ); //phpcs:ignore -- required to achieve desired results, pull request solutions appreciated.
+            // The child now keeps error display off on every request, so the live values are the site's setting.
+            self::$saved_display_errors = null;
         }
     }
 
@@ -206,23 +229,35 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * Check if the PHP error reporting has been disabled.
      *
+     * On a signed Dashboard request display_errors is already off for that request, so
+     * the value saved by save_php_reporting_state() also has to be off.
+     *
      * @used-by MainWP_Security::get_stats_security() Calculate total number of detected secutiry issues.
      *
      * @return bool true|false If the PHP error reporting has been disabled, return true, if not, return false.
      */
     public static function remove_php_reporting_ok() {
-        $is_ok       = true;
-        $display_off = ini_get( 'display_errors' );
-        if ( ! empty( $display_off ) ) {
-            $display_off = strtolower( $display_off );
-            $is_ok       = ( $is_ok || 'off' === $display_off );
+        if ( null !== self::$saved_display_errors && ! self::ini_value_is_off( self::$saved_display_errors ) ) {
+            return false;
         }
-        $display_startup_off = ini_get( 'display_startup_errors' );
-        if ( ! empty( $display_startup_off ) ) {
-            $display_startup_off = strtolower( $display_startup_off );
-            $is_ok               = ( $is_ok || 'off' === $display_startup_off );
+        return self::ini_value_is_off( ini_get( 'display_errors' ) ) && self::ini_value_is_off( ini_get( 'display_startup_errors' ) );
+    }
+
+    /**
+     * Method ini_value_is_off()
+     *
+     * Check whether an ini value is one of PHP's recognised off values.
+     * Anything else, including "stderr", counts as on.
+     *
+     * @param string|false $value Value returned by ini_get().
+     *
+     * @return bool true if the value is off, false otherwise.
+     */
+    private static function ini_value_is_off( $value ) {
+        if ( false === $value || '' === $value ) {
+            return true;
         }
-        return $is_ok;
+        return in_array( strtolower( trim( (string) $value ) ), array( '0', 'off', 'no', 'false', 'none' ), true );
     }
 
     /**

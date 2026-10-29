@@ -465,7 +465,7 @@ class Changes_Handle_WP_Database {
         try {
             global $wpdb;
 
-            $wpdb->suppress_errors( true );
+            $prior_suppress = $wpdb->suppress_errors( true );
 
             $ob_start_clean = false;
 
@@ -480,11 +480,11 @@ class Changes_Handle_WP_Database {
                 ob_end_clean();
             }
 
-            $wpdb->suppress_errors( false );
+            $wpdb->suppress_errors( $prior_suppress );
 
             return 1 === $db_result;
         } catch ( \Exception $e ) {
-            $wpdb->suppress_errors( false );
+            $wpdb->suppress_errors( $prior_suppress );
             return false;
         }
     }

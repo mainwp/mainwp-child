@@ -215,9 +215,87 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         if ( empty( $file ) || stristr( $file, '..' ) ) {
             return false;
         }
-        $dirs      = MainWP_Helper::get_mainwp_dir( 'backup' );
-        $backupdir = $dirs[0];
-        $this->upload_file( $file, $backupdir, $offset );
+        // Randomized directory first, legacy backup/ fallback - pre-upgrade
+        // backups stay downloadable.
+        $fullpath = MainWP_Helper::locate_backup_file( basename( $file ) );
+        if ( false === $fullpath ) {
+            return false;
+        }
+        return $this->upload_file( basename( $fullpath ), dirname( $fullpath ) . DIRECTORY_SEPARATOR, $offset );
+    }
+
+    /**
+     * Method resolve_download_availability()
+     *
+     * Decide whether a resolved backup file path is ready to stream. A file
+     * that is missing or unexpectedly empty is the child's post-completion settle
+     * window, so the refusal invites a retry; a wp-config path is a security
+     * refusal and does not.
+     *
+     * @param string $fullpath Resolved path.
+     *
+     * @return array { ok: bool, status: int, retry_after: int|null }
+     */
+    public function resolve_download_availability( $fullpath ) {
+        if ( false !== stripos( $fullpath, 'wp-config.php' ) ) {
+            return array(
+                'ok'          => false,
+                'status'      => 403,
+                'retry_after' => null,
+            );
+        }
+        // No deletions produces a valid empty tombstones list; other empty artifacts are not ready.
+        if ( ! file_exists( $fullpath ) || ( 0 === (int) filesize( $fullpath ) && MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST !== basename( $fullpath ) ) ) {
+            return array(
+                'ok'          => false,
+                'status'      => 503,
+                'retry_after' => 5,
+            );
+        }
+        return array(
+            'ok'          => true,
+            'status'      => 200,
+            'retry_after' => null,
+        );
+    }
+
+    /**
+     * Method emit_download_refusal()
+     *
+     * Stamp the availability verdict on the response so the wire carries
+     * the real refusal: 403 for a security refusal, 503 + Retry-After for
+     * the not-ready settle window. Without this the bail-out falls through
+     * to refuse_unserved_download()'s blanket 503 and a security refusal
+     * reads as retryable.
+     *
+     * @param array $availability Verdict from resolve_download_availability().
+     */
+    protected function emit_download_refusal( $availability ) {
+        if ( headers_sent() ) {
+            return;
+        }
+        http_response_code( (int) $availability['status'] );
+        foreach ( $this->get_refusal_headers( $availability ) as $header_line ) {
+            header( $header_line );
+        }
+    }
+
+    /**
+     * Method get_refusal_headers()
+     *
+     * Header lines for a download refusal: a retryable verdict carries its
+     * Retry-After invitation, a security refusal carries nothing.
+     *
+     * @param array $availability Verdict from resolve_download_availability().
+     *
+     * @return string[] Header lines.
+     */
+    public function get_refusal_headers( $availability ) {
+        $headers = array();
+        if ( ! empty( $availability['retry_after'] ) ) {
+            $headers[] = 'Retry-After: ' . (int) $availability['retry_after'];
+        }
+        return $headers;
     }
 
     /**
@@ -244,44 +322,210 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             $fullpath = $dir . $file;
         }
 
-        if ( false !== stripos( $fullpath, 'wp-config.php' ) || ! file_exists( $fullpath ) ) {
+        $availability = $this->resolve_download_availability( $fullpath );
+        if ( ! $availability['ok'] ) {
+            $this->emit_download_refusal( $availability );
             return false;
         }
 
-        header( 'Content-Description: File Transfer' );
-        header( 'Content-Type: application/octet-stream' );
-        header( 'Content-Disposition: attachment; filename="' . basename( $file ) . '"' );
-        header( 'Expires: 0' );
-        header( 'Cache-Control: must-revalidate' );
-        header( 'Pragma: public' );
-        header( 'Content-Length: ' . filesize( $fullpath ) );
+        $file_size    = (int) filesize( $fullpath );
+        $range_header = isset( $_SERVER['HTTP_RANGE'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_RANGE'] ) ) : null;
+        $range        = $this->resolve_download_range( $file_size, $range_header, $offset );
+
+        if ( ! headers_sent() ) {
+            http_response_code( $range['status'] );
+        }
+        foreach ( $this->get_download_headers( basename( $file ), $file_size, $range ) as $header_line ) {
+            header( $header_line );
+        }
+        if ( 416 === $range['status'] ) {
+            return false;
+        }
         while ( ob_get_level() ) {
             ob_end_clean();
         }
-        $this->readfile_chunked( $fullpath, $offset );
+        if ( 0 < $file_size ) {
+            $this->readfile_chunked( $fullpath, $range['start'], $range['end'] - $range['start'] + 1 );
+        }
         return true;
+    }
+
+    /**
+     * Method resolve_download_range()
+     *
+     * Resolve an HTTP Range header (primary) or a legacy foffset value
+     * (fallback for older Dashboards) into the byte window to stream.
+     *
+     * Only the single-range "bytes=START-END" form is accepted; multi-range
+     * and suffix forms are rejected with 416. Values longer than PHP_INT_MAX
+     * (19 digits on 64-bit builds) are rejected by string length before
+     * casting. NOTE this guard does not help 32-bit PHP: there PHP_INT_MAX is
+     * 10 digits, and filesize()/fseek() cannot handle files over 2GB anyway,
+     * so on 32-bit builds (PHP_INT_SIZE === 4) range requests whose values
+     * exceed the representable size are refused with 416.
+     *
+     * @param int         $file_size    Size of the file being served.
+     * @param string|null $range_header Raw HTTP Range header value, null when absent.
+     * @param int         $offset       Legacy foffset value, used only when no Range header is present.
+     *
+     * @return array{status:int,start:int,end:int} Resolved status (200/206/416) and byte window.
+     */
+    public function resolve_download_range( $file_size, $range_header, $offset = 0 ) {
+        $file_size = (int) $file_size;
+        $offset    = (int) $offset;
+
+        // An empty tombstones list is a valid empty 200 only when nothing asked
+        // for a byte window; an explicit range or resume offset against zero
+        // bytes is unsatisfiable and falls through to the 416 below.
+        if ( 0 === $file_size && 0 === $offset && ( null === $range_header || '' === $range_header ) ) {
+            return array(
+                'status' => 200,
+                'start'  => 0,
+                'end'    => -1,
+            );
+        }
+
+        $unsatisfiable = array(
+            'status' => 416,
+            'start'  => 0,
+            'end'    => 0,
+        );
+
+        if ( null !== $range_header && '' !== $range_header ) {
+            // Single range only - multi-range, suffix and malformed forms are rejected.
+            if ( ! preg_match( '/^bytes=(\d+)-(\d*)$/', $range_header, $matches ) ) {
+                return $unsatisfiable;
+            }
+            // Reject values that cannot be represented as an integer on this build
+            // instead of letting the cast clamp them silently.
+            $int_max_digits = strlen( (string) PHP_INT_MAX );
+            foreach ( array( $matches[1], $matches[2] ) as $value ) {
+                if ( '' === $value ) {
+                    continue;
+                }
+                if ( strlen( $value ) > $int_max_digits || ( strlen( $value ) === $int_max_digits && strcmp( $value, (string) PHP_INT_MAX ) > 0 ) ) {
+                    return $unsatisfiable;
+                }
+            }
+            $range_start = (int) $matches[1];
+            $range_end   = ( '' !== $matches[2] ) ? (int) $matches[2] : $file_size - 1;
+            if ( $range_end > $file_size - 1 ) {
+                $range_end = $file_size - 1; // RFC 7233: clamp an end past EOF.
+            }
+            if ( $range_start >= $file_size || $range_end < $range_start ) {
+                return $unsatisfiable;
+            }
+            return array(
+                'status' => 206,
+                'start'  => $range_start,
+                'end'    => $range_end,
+            );
+        }
+
+        // Legacy fallback: old Dashboards send foffset instead of a Range header.
+        if ( $offset > 0 ) {
+            if ( $offset >= $file_size ) {
+                return $unsatisfiable; // No zero-byte responses for a seek past EOF.
+            }
+            return array(
+                'status' => 206,
+                'start'  => $offset,
+                'end'    => $file_size - 1,
+            );
+        }
+
+        return array(
+            'status' => 200,
+            'start'  => 0,
+            'end'    => $file_size - 1,
+        );
+    }
+
+    /**
+     * Method get_download_headers()
+     *
+     * Build the response headers for a download from a resolved range. The
+     * Content-Length always matches the number of bytes actually streamed -
+     * mismatches are what corrupted resumed downloads historically. Backup
+     * artifacts are sensitive, so caching is disabled at browsers, proxies
+     * and CDNs.
+     *
+     * @param string $basename  File name for the Content-Disposition header.
+     * @param int    $file_size Size of the file being served.
+     * @param array  $range     Resolved range from resolve_download_range().
+     *
+     * @return string[] Header lines to emit.
+     */
+    public function get_download_headers( $basename, $file_size, $range ) {
+        $file_size = (int) $file_size;
+        $headers   = array(
+            'Content-Description: File Transfer',
+            'Content-Type: application/octet-stream',
+            'Content-Disposition: attachment; filename="' . $basename . '"',
+            'Accept-Ranges: bytes',
+            'Cache-Control: no-store, private, max-age=0',
+            'Pragma: no-cache',
+            'Expires: 0',
+            'X-Content-Type-Options: nosniff',
+        );
+
+        if ( 416 === $range['status'] ) {
+            $headers[] = 'Content-Range: bytes */' . $file_size;
+            return $headers;
+        }
+
+        if ( 206 === $range['status'] ) {
+            $headers[] = 'Content-Range: bytes ' . $range['start'] . '-' . $range['end'] . '/' . $file_size;
+        }
+        $headers[] = 'Content-Length: ' . ( 0 === $file_size ? 0 : $range['end'] - $range['start'] + 1 );
+
+        return $headers;
     }
 
     /**
      * Method readfile_chunked()
      *
-     * Read chunked backup file.
+     * Stream a file in chunks, starting at $offset, stopping after $length
+     * bytes (or at EOF when $length is null). Streaming exactly the declared
+     * byte count is what keeps resumed downloads from corrupting.
      *
-     * @param string $filename Backup file name.
-     * @param int    $offset Offset value.
+     * @param string   $filename Backup file name.
+     * @param int      $offset Offset value.
+     * @param int|null $length Number of bytes to stream, null to stream to EOF.
      *
-     * @return mixed Close file.
+     * @return bool True on success, false on open/seek failure.
      */
-    public function readfile_chunked( $filename, $offset ) {
+    public function readfile_chunked( $filename, $offset, $length = null ) {
         //phpcs:disable WordPress.WP.AlternativeFunctions
-        $chunksize = 1024;
-        $handle    = fopen( $filename, 'rb' );
+        $chunksize = 65536; // 64KB chunks - balances memory use and request overhead.
+        if ( ! is_readable( $filename ) ) {
+            return false;
+        }
+        $handle = fopen( $filename, 'rb' );
         if ( false === $handle ) {
             return false;
         }
-        fseek( $handle, $offset );
+        if ( $offset > 0 && 0 !== fseek( $handle, $offset ) ) {
+            fclose( $handle );
+            return false;
+        }
+        $remaining = null === $length ? null : (int) $length;
         while ( ! feof( $handle ) ) {
-            $buffer = fread( $handle, $chunksize );
+            if ( null !== $remaining ) {
+                if ( $remaining <= 0 ) {
+                    break;
+                }
+                $read_size = min( $chunksize, $remaining );
+            } else {
+                $read_size = $chunksize;
+            }
+            $buffer = fread( $handle, $read_size );
+            if ( false === $buffer || '' === $buffer ) {
+                break;
+            }
+            if ( null !== $remaining ) {
+                $remaining -= strlen( $buffer );
+            }
             echo $buffer; // phpcs:ignore WordPress.Security.EscapeOutput
             if ( ob_get_length() ) {
                 ob_flush();
@@ -324,10 +568,49 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         MainWP_Helper::get_wp_filesystem();
 
         include_once ABSPATH . 'wp-admin/includes/file.php'; // NOSONAR -- WP compatible.
-        $upload_dir = wp_upload_dir();
-        add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
-        $temporary_file = download_url( $img_url );
-        remove_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls' ), 99, 2 );
+        $upload_dir    = wp_upload_dir();
+        $request_args  = static function ( $args, $url ) use ( $img_url ) {
+            return $url === $img_url ? self::image_download_request_args( $args, $url ) : $args;
+        };
+        $safe_ports    = static function ( $ports, $host, $url ) {
+            $home_host = wp_parse_url( get_option( 'home' ), PHP_URL_HOST );
+            $url_host  = wp_parse_url( $url, PHP_URL_HOST );
+            $port      = wp_parse_url( $url, PHP_URL_PORT );
+            // Core checks external addresses before asking which ports are allowed.
+            if ( $port && is_string( $url_host ) && ( ! is_string( $home_host ) || 0 !== strcasecmp( $home_host, $url_host ) ) ) {
+                $ports[] = $port;
+            }
+            return $ports;
+        };
+        $external_host = static function ( $external, $host, $url ) {
+            // Custom post imports can already have a broader request-wide host filter.
+            return self::is_dashboard_image_url( $url );
+        };
+        $redirect      = static function ( $url, &$headers ) {
+            if ( self::is_dashboard_image_url( $url ) ) {
+                $args    = self::image_download_request_args( array( 'headers' => $headers ), $url );
+                $headers = $args['headers'];
+            } else {
+                \WP_Http::validate_redirects( $url );
+                foreach ( array_keys( $headers ) as $name ) {
+                    if ( 0 === strcasecmp( $name, 'Authorization' ) ) {
+                        unset( $headers[ $name ] );
+                    }
+                }
+            }
+        };
+        add_filter( 'http_request_args', $request_args, 99, 2 );
+        add_filter( 'http_allowed_safe_ports', $safe_ports, 99, 3 );
+        add_filter( 'http_request_host_is_external', $external_host, 99, 3 );
+        add_action( 'requests-requests.before_redirect', $redirect, 99, 2 );
+        try {
+            $temporary_file = download_url( $img_url );
+        } finally {
+            remove_filter( 'http_request_args', $request_args, 99 );
+            remove_filter( 'http_allowed_safe_ports', $safe_ports, 99 );
+            remove_filter( 'http_request_host_is_external', $external_host, 99 );
+            remove_action( 'requests-requests.before_redirect', $redirect, 99 );
+        }
 
         if ( is_wp_error( $temporary_file ) ) {
             throw new MainWP_Exception( 'Error: ' . esc_html( $temporary_file->get_error_message() ) );
@@ -372,6 +655,51 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             $wp_filesystem->delete( $temporary_file );
         }
         return null;
+    }
+
+    /**
+     * Retains Dashboard download settings without sending its credentials elsewhere.
+     *
+     * @param array  $args HTTP request arguments.
+     * @param string $url  Image URL.
+     * @return array
+     */
+    private static function image_download_request_args( $args, $url ) {
+        if ( self::is_dashboard_image_url( $url ) ) {
+            return MainWP_Helper::reject_unsafe_urls( $args );
+        }
+        // phpcs:disable WordPress.Security.NonceVerification -- Supplied by the authenticated posting request.
+        if ( isset( $_POST['sslVerify'] ) && '0' === $_POST['sslVerify'] ) {
+            $args['sslverify'] = false;
+        }
+        // phpcs:enable WordPress.Security.NonceVerification
+        return $args;
+    }
+
+    /**
+     * Matches the connected Dashboard while allowing FORCE_SSL_ADMIN media URLs.
+     *
+     * @param string $url Image URL.
+     * @return bool
+     */
+    private static function is_dashboard_image_url( $url ) {
+        $server = MainWP_Child_Keys_Manager::get_encrypted_option( 'mainwp_child_server' );
+        $server = is_string( $server ) ? wp_parse_url( $server ) : false;
+        $image  = is_string( $url ) ? wp_parse_url( $url ) : false;
+        foreach ( array( $server, $image ) as $parsed ) {
+            if ( ! is_array( $parsed ) || empty( $parsed['host'] ) || empty( $parsed['scheme'] ) || ! in_array( strtolower( $parsed['scheme'] ), array( 'http', 'https' ), true ) || isset( $parsed['user'] ) || isset( $parsed['pass'] ) ) {
+                return false;
+            }
+        }
+        if ( 0 !== strcasecmp( $server['host'], $image['host'] ) ) {
+            return false;
+        }
+        // FORCE_SSL_ADMIN can change the scheme and its standard port for media.
+        $server_default_port = 'https' === strtolower( $server['scheme'] ) ? 443 : 80;
+        $image_default_port  = 'https' === strtolower( $image['scheme'] ) ? 443 : 80;
+        $server_port         = isset( $server['port'] ) ? $server['port'] : $server_default_port;
+        $image_port          = isset( $image['port'] ) ? $image['port'] : $image_default_port;
+        return $server_port === $image_port || ( $server_default_port === $server_port && $image_default_port === $image_port );
     }
 
     /**

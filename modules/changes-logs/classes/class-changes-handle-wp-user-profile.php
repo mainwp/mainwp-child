@@ -29,6 +29,13 @@ class Changes_Handle_WP_User_Profile {
     private static $old_superadmins;
 
     /**
+     * Persisted role snapshots for nested profile saves, grouped by user ID.
+     *
+     * @var array
+     */
+    private static $profile_roles = array();
+
+    /**
      * Inits the main hooks
      *
      * @return void
@@ -38,7 +45,9 @@ class Changes_Handle_WP_User_Profile {
         add_action( 'edit_user_profile', array( __CLASS__, 'callback_change_open_profile' ), 10, 1 );
         add_action( 'grant_super_admin', array( __CLASS__, 'change_set_super_admins' ) );
         add_action( 'granted_super_admin', array( __CLASS__, 'callback_change_super_access_granted' ), 10, 1 );
+        add_action( 'profile_update', array( __CLASS__, 'capture_profile_roles' ), 5, 1 );
         add_action( 'profile_update', array( __CLASS__, 'callback_change_user_updated' ), 10, 2 );
+        add_action( 'profile_update', array( __CLASS__, 'compare_profile_roles' ), 20, 1 );
         add_action( 'revoke_super_admin', array( __CLASS__, 'change_set_super_admins' ) );
         add_action( 'revoked_super_admin', array( __CLASS__, 'callback_change_super_access_revoked' ), 10, 1 );
         add_action( 'set_user_role', array( __CLASS__, 'callback_change_user_role_changed' ), 10, 3 );
@@ -209,9 +218,39 @@ class Changes_Handle_WP_User_Profile {
             );
             Changes_Logs_Logger::log_change( 1715, $log_data );
         }
+    }
 
-        if ( isset( $_POST['members_user_roles'] ) && is_array( $_POST['members_user_roles'] ) && $old_userdata->roles !== $_POST['members_user_roles'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
-            self::callback_change_user_role_changed( $user_id, $_POST['members_user_roles'], $old_userdata->roles, true );
+    /**
+     * Captures roles after core role assignment and before Members saves at priority 10.
+     *
+     * @param int $user_id Updated user ID.
+     */
+    public static function capture_profile_roles( $user_id ) {
+        $user = get_userdata( $user_id );
+        if ( $user ) {
+            self::$profile_roles[ $user_id ][] = $user->roles;
+        }
+    }
+
+    /**
+     * Compares persisted roles after the outermost profile save finishes.
+     *
+     * @param int $user_id Updated user ID.
+     */
+    public static function compare_profile_roles( $user_id ) {
+        if ( ! isset( self::$profile_roles[ $user_id ] ) ) {
+            return;
+        }
+
+        $old_roles = array_pop( self::$profile_roles[ $user_id ] );
+        if ( ! empty( self::$profile_roles[ $user_id ] ) ) {
+            return;
+        }
+        unset( self::$profile_roles[ $user_id ] );
+
+        $user = get_userdata( $user_id );
+        if ( $user && $old_roles !== $user->roles ) {
+            self::callback_change_user_role_changed( $user_id, '', $old_roles );
         }
     }
 
@@ -219,21 +258,19 @@ class Changes_Handle_WP_User_Profile {
      * When a user role is changed.
      *
      * @param int     $user_id         User ID of the user.
-     * @param string  $new_role        New role.
+     * @param string  $new_role        Hook argument; persisted roles determine the event.
      * @param array   $old_roles       Array of old roles.
-     * @param boolean $use_posted_data If true, posted user data is used.
+     * @param boolean $use_posted_data Retained for compatibility; posted roles are ignored.
      */
-    public static function callback_change_user_role_changed( $user_id, $new_role, $old_roles, $use_posted_data = false ) {
+    public static function callback_change_user_role_changed( $user_id, $new_role, $old_roles, $use_posted_data = false ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- Retain the existing callback signature.
         $user = get_userdata( $user_id );
 
         if ( ! $user ) {
             return;
         }
 
-        $roles_to_process = ( $use_posted_data ) ? $new_role : $user->roles;
-
         $old_roles = Changes_Helper::get_role_names( $old_roles );
-        $new_roles = Changes_Helper::get_role_names( $roles_to_process );
+        $new_roles = Changes_Helper::get_role_names( $user->roles );
 
         if ( $old_roles !== $new_roles ) {
             $log_data = array(

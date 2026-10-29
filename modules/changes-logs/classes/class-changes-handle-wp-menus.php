@@ -327,40 +327,60 @@ class Changes_Handle_WP_Menus {
     }
 
     /**
-     * Set old menu terms and items.
+     * Set old menu terms and items for the specified menus.
+     *
+     * Captures the original state of the specified menus and their items
+     * before changes are applied. If no menu IDs are provided, all menus
+     * are included.
+     *
+     * @param int[] $menu_ids Menu term IDs to capture. Empty array captures all menus.
      */
-    private static function change_build_old_menu_terms_and_items() {
-        $menus = wp_get_nav_menus();
-        if ( ! empty( $menus ) ) {
-            foreach ( $menus as $menu ) {
-                array_push(
-                    self::$old_menu_terms,
-                    array(
-                        'term_id' => $menu->term_id,
-                        'name'    => $menu->name,
-                    )
+    private static function change_build_old_menu_terms_and_items( $menu_ids = array() ) {
+
+        if ( empty( $menu_ids ) ) {
+            $menus    = wp_get_nav_menus();
+            $menu_ids = wp_list_pluck( $menus, 'term_id' );
+        }
+
+        $menu_ids = array_unique(
+            array_filter(
+                array_map( 'absint', (array) $menu_ids )
+            )
+        );
+
+        foreach ( $menu_ids as $menu_id ) {
+            $menu = wp_get_nav_menu_object( $menu_id );
+
+            if ( ! $menu ) {
+                continue;
+            }
+
+            self::$old_menu_terms[] = array(
+                'term_id' => $menu->term_id,
+                'name'    => $menu->name,
+            );
+
+            $items = wp_get_nav_menu_items( $menu_id );
+
+            if ( empty( $items ) ) {
+                continue;
+            }
+
+            foreach ( $items as $item ) {
+                self::$old_menu_items[] = array(
+                    'menu_id'          => $menu->term_id,
+                    'item_id'          => $item->ID,
+                    'title'            => $item->title,
+                    'object'           => $item->object,
+                    'menu_name'        => $menu->name,
+                    'menu_order'       => $item->menu_order,
+                    'url'              => $item->url,
+                    'menu_item_parent' => $item->menu_item_parent,
                 );
-                $items = wp_get_nav_menu_items( $menu->term_id );
-                if ( ! empty( $items ) ) {
-                    foreach ( $items as $item ) {
-                        array_push(
-                            self::$old_menu_items,
-                            array(
-                                'menu_id'          => $menu->term_id,
-                                'item_id'          => $item->ID,
-                                'title'            => $item->title,
-                                'object'           => $item->object,
-                                'menu_name'        => $menu->name,
-                                'menu_order'       => $item->menu_order,
-                                'url'              => $item->url,
-                                'menu_item_parent' => $item->menu_item_parent,
-                            )
-                        );
-                    }
-                }
             }
         }
     }
+
 
     /**
      * When a user accesses the admin area.
@@ -368,22 +388,41 @@ class Changes_Handle_WP_Menus {
     public static function callback_change_admin_init() {
         $server_vars = filter_input_array( INPUT_SERVER );
         $get_vars    = filter_input_array( INPUT_GET );
+        $post_vars   = filter_input_array( INPUT_POST );
 
-        $script_name = '';
-        if ( ! empty( $server_vars['SCRIPT_NAME'] ) ) {
-            $script_name = \sanitize_text_field( \wp_unslash( $server_vars['SCRIPT_NAME'] ) );
+        if ( ! is_array( $server_vars ) || ! isset( $server_vars['SCRIPT_NAME'] ) ) {
+            return;
         }
 
-        $is_nav_menu = basename( $script_name ) === 'nav-menus.php';
-        if ( $is_nav_menu ) {
-            if ( isset( $get_vars['action'] ) && 'delete' === $get_vars['action'] ) {
-                if ( isset( $get_vars['menu'] ) ) {
-                    self::$old_menu = wp_get_nav_menu_object( $get_vars['menu'] );
-                }
-            } else {
-                self::change_build_old_menu_terms_and_items();
+        $script_name = $server_vars['SCRIPT_NAME'];
+        $is_nav_menu = 'nav-menus.php' === basename( $script_name );
+
+        if ( ! $is_nav_menu ) {
+            return;
+        }
+
+        // Capture the menu being deleted before WordPress deletes it.
+        if (
+            isset( $get_vars['action'], $get_vars['menu'] ) &&
+            'delete' === $get_vars['action']
+        ) {
+            self::$old_menu = wp_get_nav_menu_object( absint( $get_vars['menu'] ) );
+            return;
+        }
+
+        // Capture the old state only when an existing menu is actually being saved.
+        if (
+            isset( $post_vars['menu'], $post_vars['update-nav-menu-nonce'] ) &&
+            wp_verify_nonce( $post_vars['update-nav-menu-nonce'], 'update-nav_menu' )
+        ) {
+            $menu_id = absint( $post_vars['menu'] );
+
+            if ( $menu_id > 0 ) {
+                self::change_build_old_menu_terms_and_items( array( $menu_id ) );
+
+                // Needed by callback_change_update_menu() for menu-location changes.
+                self::$old_menu_locations = get_nav_menu_locations();
             }
-            self::$old_menu_locations = get_nav_menu_locations();
         }
     }
 

@@ -1,0 +1,66 @@
+{
+    "phase": "dumping_db",
+    "type": "full",
+    "cursor": {
+        "params": {
+            "ext": "tar",
+            "excludes": [
+                "wp-content/cache/*"
+            ]
+        },
+        "db_prefix": "<backup_dir>/db-dump-prefix",
+        "db_tier": 2,
+        "tier1_started": 1,
+        "db_files": [
+            "<backup_dir>/db-posts.sql.php"
+        ],
+        "progress": {
+            "current_file": "wp_posts",
+            "files_done": 1,
+            "files_total": 2
+        },
+        "db_cursor": {
+            "tables": [
+                "wp_posts",
+                "wp_options"
+            ],
+            "index": 1,
+            "files": [
+                "<backup_dir>/db-posts.sql.php"
+            ],
+            "offset": 20,
+            "started": true
+        }
+    },
+    "projected": {
+        "params": {
+            "ext": "tar",
+            "excludes": [
+                "wp-content/cache/*"
+            ]
+        },
+        "db_prefix": "db-dump-prefix",
+        "db_tier": 2,
+        "tier1_started": 1,
+        "db_files": [
+            "db-posts.sql.php"
+        ],
+        "progress": {
+            "current_file": "wp_posts",
+            "files_done": 1,
+            "files_total": 2
+        },
+        "db_cursor": {
+            "tables": [
+                "wp_posts",
+                "wp_options"
+            ],
+            "index": 1,
+            "files": [
+                "db-posts.sql.php"
+            ],
+            "offset": 20,
+            "started": true
+        }
+    }
+}

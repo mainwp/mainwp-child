@@ -116,6 +116,12 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
 
         $information['support_advanced_sign'] = 1;
 
+        $window                                   = MainWP_Child::get_connection_window();
+        $information['connection_window_minutes'] = $window['minutes'];
+        if ( 'disabled' !== $window['state'] ) {
+            $information['connection_window_remaining'] = $window['remaining'];
+        }
+
         MainWP_Helper::write( $information );
     }
 
@@ -193,6 +199,12 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         if ( ! is_array( $params ) ) {
             $params = array();
         }
+
+        // Self-heal a stuck backup on every sync so an idle child with no cron
+        // traffic does not stay blocked until the next backup attempt. Runs
+        // before the rest of the sync so a task that flips terminal here is
+        // reflected in this same response.
+        $this->reclaim_expired_backup_tasks();
 
         if ( $exit_done ) {
             $this->update_external_settings();
@@ -455,6 +467,36 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
         return $information;
     }
 
+    /**
+     * Reclaim backup tasks that blew past their wall-clock deadline.
+     *
+     * The dashboard sync is the highest-frequency child endpoint, so running the
+     * reclaim here lets an idle child with no cron traffic self-heal a stuck
+     * backup instead of waiting for the next backup attempt to admit it. Gated
+     * on the spine table existing at the current version so a site that never
+     * ran a native backup is not queried, and wrapped so a task-table hiccup can
+     * never fail the whole sync response - a single backup detail must not take
+     * down the sync for everything else.
+     *
+     * @return void
+     *
+     * @uses \MainWP\Child\MainWP_Child_Backup_Task::reclaim_expired_tasks()
+     * @uses \MainWP\Child\MainWP_Helper::log_debug()
+     */
+    public function reclaim_expired_backup_tasks() {
+        try {
+            if ( MainWP_Child_Backup_Task::DB_VERSION === get_option( MainWP_Child_Backup_Task::DB_VERSION_OPTION ) ) {
+                $dirs = MainWP_Helper::get_mainwp_dir( 'backup', false );
+                if ( ! is_array( $dirs ) || empty( $dirs[0] ) || ! is_dir( $dirs[0] ) ) {
+                    MainWP_Helper::log_debug( 'backup orphan reclaim on sync skipped: backup directory unavailable.' );
+                    return;
+                }
+                MainWP_Child_Backup_Task::instance()->reclaim_expired_tasks( $dirs[0] );
+            }
+        } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - a backup-table hiccup must never fail the whole sync.
+            MainWP_Helper::log_debug( 'backup orphan reclaim on sync skipped: ' . $e->getMessage() );
+        }
+    }
 
     /**
      * Method is_sync_data().
@@ -489,6 +531,12 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
 
             $update_list = wp_unslash( $_POST['syncdata'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON payload; only the json_decode-validated, re-encoded array is persisted below, the raw string never is.
             $update      = false;
+
+            // json_decode() below takes a string. An array-valued syncdata post is a
+            // TypeError on PHP 8, which fatals the whole sync request.
+            if ( ! is_string( $update_list ) ) {
+                $update_list = '';
+            }
 
             if ( $update_list !== $sync_data_settings ) {
                 $sync_data_settings = $update_list;
@@ -1238,7 +1286,7 @@ class MainWP_Child_Stats { //phpcs:ignore -- NOSONAR - multi methods.
             return 0;
         }
 
-        // Convert bytes → MB.
+        // Convert bytes to MB.
         return $size > 0 ? round( $size / 1024 / 1024, 2 ) : 0;
     }
 

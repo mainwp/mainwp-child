@@ -152,7 +152,8 @@ class MainWP_Child_Misc {
      * @return string Parsed favicon.
      */
     private function try_to_parse_favicon( $site_url ) { //phpcs:ignore -- NOSONAR - complex.
-        $request = wp_remote_get( $site_url, array( 'timeout' => 50 ) );
+        // This request loops back to the site's own PHP workers, so a long wait can hold the last free worker on a small host.
+        $request = wp_remote_get( $site_url, array( 'timeout' => 15 ) );
         $favi    = '';
         if ( is_array( $request ) && isset( $request['body'] ) ) {
             $preg_str1 = '/(<link\s+[^\>]*rel="shortcut\s+icon"\s*[^>]*href="([^"]+)"[^>]*>)/is';
@@ -939,6 +940,7 @@ class MainWP_Child_Misc {
         $level = ob_get_level();
         ob_start();
         try {
+            // nosemgrep: AIK_eval-use -- Runs a stored Code Snippets definition; the authenticated Child callable gates who can reach it.
             eval( $code ); // phpcs:ignore Squiz.PHP.Eval, Generic.PHP.ForbiddenFunctions.Found -- Executes an already authorized stored Code Snippets definition under the authenticated Child callable.
             $status = 'succeeded';
         } catch ( \Throwable $exception ) {
@@ -955,12 +957,11 @@ class MainWP_Child_Misc {
         // recorded above: output_truncated is the only field that can say the Dashboard is not getting
         // what the run printed, and a discard is exactly that.
         $output = 'succeeded' === $status ? $produced : '';
-        // JSON cannot carry invalid UTF-8 at all, and without stripping wp_check_invalid_utf8()
-        // answers one bad byte by discarding the whole string, so a run would report empty output
-        // next to 'succeeded'. Returning the valid text is the truthful half of that choice.
-        // Stripping runs before the cap because it can change the byte length, and the cap has to
-        // describe what actually ships.
-        $output = wp_check_invalid_utf8( $output, true );
+        // JSON cannot carry invalid UTF-8 at all, and dropping the whole string for one bad byte
+        // would report empty output next to 'succeeded'. Returning the valid text is the truthful
+        // half of that choice. Stripping runs before the cap because it can change the byte
+        // length, and the cap has to describe what actually ships.
+        $output = $this->snippet_v2_strip_invalid_utf8( $output );
         // output_truncated is the only field saying the shipped text is not what the run produced,
         // so it covers output a failed run discarded, bytes the strip removed, and bytes the cap
         // cut. It does not mean "cut at the end"; a scrubbed run can lose bytes from the middle and
@@ -975,6 +976,25 @@ class MainWP_Child_Misc {
             'output'           => $output,
             'output_truncated' => $truncated,
         );
+    }
+
+    /**
+     * Drop the bytes that are not part of a well-formed UTF-8 sequence.
+     *
+     * Before WordPress 6.9, wp_check_invalid_utf8() strip mode goes through iconv() without
+     * //IGNORE and returns false for exactly the input that needs stripping.
+     *
+     * @param string $value Raw output.
+     * @return string Valid UTF-8; empty when PCRE cannot finish.
+     */
+    protected function snippet_v2_strip_invalid_utf8( $value ) {
+        if ( preg_match( '//u', $value ) ) {
+            return $value;
+        }
+        // Bounded runs: an unbounded one hits the backtrack limit on long output when PCRE JIT is off.
+        $valid    = '[\x00-\x7F]|[\xC2-\xDF][\x80-\xBF]|\xE0[\xA0-\xBF][\x80-\xBF]|[\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}|\xED[\x80-\x9F][\x80-\xBF]|\xF0[\x90-\xBF][\x80-\xBF]{2}|[\xF1-\xF3][\x80-\xBF]{3}|\xF4[\x80-\x8F][\x80-\xBF]{2}';
+        $stripped = preg_replace( '/((?:' . $valid . '){1,64}+)|./s', '$1', $value );
+        return is_string( $stripped ) ? $stripped : '';
     }
 
     /**

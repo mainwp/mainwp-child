@@ -109,14 +109,96 @@ class MainWP_Pages {
             $child_name     = ( '' === $branding_opts['branding_preserve_title'] ) ? 'MainWP Child' : $branding_opts['branding_preserve_title'];
             $dashboard_name = ( '' === $branding_opts['branding_preserve_title'] ) ? 'MainWP Dashboard' : $branding_opts['branding_preserve_title'] . ' Dashboard';
 
-            $msg = '<div style="background:#ffffff;padding:20px;margin:20px 20px 20px 2px;border:1px solid #f4f4f4;">';
+            $window  = MainWP_Child::get_connection_window();
+            $expired = get_option( 'mainwp_child_connection_window_expired' );
+            $listed  = is_plugin_active( plugin_basename( MAINWP_CHILD_FILE ) );
+            // Hooks remain loaded in the request that switches Child off; wait for reactivation.
+            if ( false !== $expired && ! $listed ) {
+                return;
+            }
+            // clear:both because the Help and Screen Options tabs float above notices and a flex box narrows beside floats.
+            // The 28em basis drops the copy fields under their label before a typical site URL would be cut off.
+            $msg  = <<<'HTML'
+<style>
+    #mainwp-child-connection-notice { clear:both;display:flex;align-items:flex-start;gap:20px; }
+    #mainwp-child-connection-notice .mainwp-child-connection-logo { flex:0 0 105px; }
+    #mainwp-child-connection-notice .mainwp-child-connection-content { flex:1;min-width:0; }
+    #mainwp-child-connection-notice .mainwp-child-copy-row { display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:8px 0; }
+    #mainwp-child-connection-notice .mainwp-child-copy-row label { flex:0 0 180px; }
+    #mainwp-child-connection-notice .mainwp-child-copy-fields { display:flex;align-items:center;gap:8px;flex:1 0 28em;max-width:38em;min-width:0; }
+    #mainwp-child-connection-notice .regular-text { flex:1;width:32em;max-width:100%;min-width:0;margin:0; }
+    #mainwp-child-connection-notice .button { flex:none; }
+    #mainwp-child-connection-notice .mainwp-child-countdown { font-size:1.2em; }
+    @media screen and (max-width:782px) {
+        #mainwp-child-connection-notice { flex-direction:column; }
+        #mainwp-child-connection-notice .mainwp-child-connection-logo { flex:none;width:64px; }
+        #mainwp-child-connection-notice .mainwp-child-connection-logo img { width:64px; }
+        #mainwp-child-connection-notice .mainwp-child-connection-content { width:100%; }
+        #mainwp-child-connection-notice .mainwp-child-copy-row { flex-direction:column;align-items:stretch;gap:4px; }
+        #mainwp-child-connection-notice .mainwp-child-copy-row label { flex-basis:auto; }
+        #mainwp-child-connection-notice .mainwp-child-copy-fields { flex:none;width:100%;max-width:none; }
+    }
+</style>
+HTML;
+            $msg .= '<div id="mainwp-child-connection-notice" style="background:#ffffff;padding:20px;margin:20px 20px 20px 2px;border:1px solid #f4f4f4;">';
             if ( ! MainWP_Child_Branding::instance()->is_branding() ) {
-                $msg .= '<div style="width:105px;float:left;margin-right:20px">';
+                $msg .= '<div class="mainwp-child-connection-logo">';
                 $msg .= '<img alt="MainWP Icon" style="max-width:105px" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyNi4zLjEsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiDQoJIHZpZXdCb3g9IjAgMCAxNzAgMTcwIiBzdHlsZT0iZW5hYmxlLWJhY2tncm91bmQ6bmV3IDAgMCAxNzAgMTcwOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+DQo8c3R5bGUgdHlwZT0idGV4dC9jc3MiPg0KCS5zdDB7ZmlsbDojN0ZCMTAwO30NCgkuc3Qxe2ZpbGw6I0ZGRkZGRjt9DQo8L3N0eWxlPg0KPGc+DQoJPGNpcmNsZSBjbGFzcz0ic3QwIiBjeD0iODUiIGN5PSI4NSIgcj0iNzguNjciLz4NCgk8Zz4NCgkJPGNpcmNsZSBjbGFzcz0ic3QxIiBjeD0iODUiIGN5PSIzNy44IiByPSIxNS43MyIvPg0KCQk8cG9seWdvbiBjbGFzcz0ic3QxIiBwb2ludHM9IjExMS43NSwxMzIuMiA4NSwxNDcuOTQgNTguMjUsMTMyLjIgODUsMjIuMDYgCQkiLz4NCgk8L2c+DQo8L2c+DQo8L3N2Zz4NCg==" />';
                 $msg .= '</div>';
             }
+            $msg .= '<div class="mainwp-child-connection-content">';
             $msg .= '<div style="font-size:1.5em;font-weight:bolder;margin-bottom:16px;">' . esc_html( $child_name ) . esc_html__( ' Plugin is Activated', 'mainwp-child' ) . '</div>';
-            $msg .= '<div style="font-size:1.2em;margin-bottom:8px">' . esc_html__( 'This site is now ready for connection. Please proceed with the connection process from your ', 'mainwp-child' ) . esc_html( $dashboard_name ) . ' ' . esc_html__( 'to start managing the site. ', 'mainwp-child' ) . '</div>';
+            // translators: Keep "MainWP Dashboard" as written; it is replaced with the branded name when branding is on.
+            $msg .= '<div style="font-size:1.2em;margin-bottom:8px">' . esc_html( str_replace( 'MainWP Dashboard', $dashboard_name, __( 'Next: open your MainWP Dashboard and add this site.', 'mainwp-child' ) ) ) . '</div>';
+            if ( is_array( $expired ) && isset( $expired['ttl'] ) ) {
+                $expired_ttl = (int) $expired['ttl'];
+                // translators: %d: Expired connection window in minutes.
+                $explanation  = sprintf( _n( 'MainWP Child switched itself off because no MainWP Dashboard connected to it within %d minute.', 'MainWP Child switched itself off because no MainWP Dashboard connected to it within %d minutes.', $expired_ttl, 'mainwp-child' ), $expired_ttl );
+                $explanation .= ' ' . __( 'This protects sites where the plugin is left active but never connected.', 'mainwp-child' );
+                if ( 'disabled' === $window['state'] ) {
+                    $explanation .= ' ' . __( 'It is active again.', 'mainwp-child' );
+                } else {
+                    // translators: %d: Current connection window in minutes.
+                    $explanation .= ' ' . sprintf( __( 'It is active again, with a %d-minute limit.', 'mainwp-child' ), $window['minutes'] );
+                }
+                $msg .= '<p>' . esc_html( str_replace( array( 'MainWP Child', 'MainWP Dashboard' ), array( $child_name, $dashboard_name ), $explanation ) ) . '</p>';
+            }
+            $copy_rows = array(
+                'site-url' => array(
+                    'label' => __( 'Site URL', 'mainwp-child' ),
+                    'value' => site_url(),
+                ),
+                'username' => array(
+                    'label' => __( 'Administrator username', 'mainwp-child' ),
+                    'value' => wp_get_current_user()->user_login,
+                ),
+            );
+            foreach ( $copy_rows as $id => $row ) {
+                $input_id = 'mainwp-child-copy-' . $id;
+                $msg     .= '<div class="mainwp-child-copy-row"><label id="' . esc_attr( $input_id . '-label' ) . '" for="' . esc_attr( $input_id ) . '">' . esc_html( $row['label'] ) . '</label>';
+                $msg     .= '<div class="mainwp-child-copy-fields"><input type="text" class="regular-text" readonly id="' . esc_attr( $input_id ) . '" value="' . esc_attr( $row['value'] ) . '" />';
+                $msg     .= '<button type="button" class="button mainwp-child-copy" data-target="' . esc_attr( $input_id ) . '" data-copied="' . esc_attr__( 'Copied', 'mainwp-child' ) . '" aria-describedby="' . esc_attr( $input_id . '-label' ) . '" aria-live="polite">' . esc_html__( 'Copy', 'mainwp-child' ) . '</button></div></div>';
+            }
+            // A must-use load is not in active_plugins and never switches off, so a countdown would be false.
+            if ( 'disabled' !== $window['state'] && $listed ) {
+                $minutes = (int) ceil( $window['remaining'] / MINUTE_IN_SECONDS );
+                // translators: %d: Minutes remaining before MainWP Child switches itself off.
+                $singular = _n( "For security, MainWP Child switches itself off in %d minute if it isn't connected.", "For security, MainWP Child switches itself off in %d minutes if it isn't connected.", 1, 'mainwp-child' );
+                // translators: %d: Minutes remaining before MainWP Child switches itself off.
+                $plural = _n( "For security, MainWP Child switches itself off in %d minute if it isn't connected.", "For security, MainWP Child switches itself off in %d minutes if it isn't connected.", 2, 'mainwp-child' );
+                $less   = __( "For security, MainWP Child switches itself off in less than a minute if it isn't connected.", 'mainwp-child' );
+                // translators: Shown once the countdown reaches zero. Unless the site was connected first, the plugin switches itself off on the next wp-admin request (page load or background request), so it may already be off.
+                $ended = __( "Time is up. If this site isn't connected yet, MainWP Child switches itself off. Reload the page to check, and if it's off, reactivate it from the Plugins page to start over.", 'mainwp-child' );
+                if ( $window['remaining'] <= 0 ) {
+                    $countdown = $ended;
+                } elseif ( $window['remaining'] < MINUTE_IN_SECONDS ) {
+                    $countdown = $less;
+                } else {
+                    // translators: %d: Minutes remaining before MainWP Child switches itself off.
+                    $countdown = sprintf( _n( "For security, MainWP Child switches itself off in %d minute if it isn't connected.", "For security, MainWP Child switches itself off in %d minutes if it isn't connected.", $minutes, 'mainwp-child' ), $minutes );
+                }
+                $msg .= '<p class="mainwp-child-countdown" data-remaining="' . esc_attr( $window['remaining'] ) . '" data-minute="' . esc_attr( str_replace( 'MainWP Child', $child_name, $singular ) ) . '" data-minutes="' . esc_attr( str_replace( 'MainWP Child', $child_name, $plural ) ) . '" data-less="' . esc_attr( str_replace( 'MainWP Child', $child_name, $less ) ) . '" data-ended="' . esc_attr( str_replace( 'MainWP Child', $child_name, $ended ) ) . '">' . esc_html( str_replace( 'MainWP Child', $child_name, $countdown ) ) . '</p>';
+            }
             // translators: 1: Opening link tag, 2: Closing link tag.
             $doc_link = sprintf( esc_html__( 'If you need assistance, refer to our %1$sdocumentation%2$s.', 'mainwp-child' ), '<a href="https://docs.mainwp.com/getting-started/get-started-with-mainwp#add-a-site-to-your-dashboard" target="_blank">', '</a>' );
             $msg     .= '<div style="font-size:1.2em;margin-bottom:8px">' . $doc_link . '</div>';
@@ -124,10 +206,61 @@ class MainWP_Pages {
                 // translators: 1: Opening link tag, 2: Closing link tag.
                 $settings_link = sprintf( esc_html__( ' %1$splugin settings%2$s. ', 'mainwp-child' ), '<a href="admin.php?page=mainwp_child_tab">', '</a>' );
                 $msg          .= '<div style="font-size:1.2em;">' . esc_html__( 'For additional security options, visit the ', 'mainwp-child' ) . esc_html( $child_name ) . $settings_link . '</div>';
-                $msg          .= '<div style="clear:both"></div>';
             }
-            $msg .= '</div>';
+            $msg .= '</div></div>';
             echo $msg; //phpcs:ignore -- NOSONAR - ok
+            if ( false !== $expired ) {
+                delete_option( 'mainwp_child_connection_window_expired' );
+            }
+            ?>
+            <script>
+            (function () {
+                var notice = document.getElementById('mainwp-child-connection-notice');
+                notice.querySelectorAll('.mainwp-child-copy').forEach(function (button) {
+                    var original = button.textContent;
+                    var reset;
+                    function copied() {
+                        button.textContent = button.getAttribute('data-copied');
+                        window.clearTimeout(reset);
+                        reset = window.setTimeout(function () { button.textContent = original; }, 2000);
+                    }
+                    function selectCopy() {
+                        var input = document.getElementById(button.getAttribute('data-target'));
+                        input.focus();
+                        input.select();
+                        input.setSelectionRange(0, input.value.length);
+                        try {
+                            if (document.execCommand('copy')) {
+                                copied();
+                            }
+                        } catch (error) {
+                            // Leave the value selected so it can be copied manually.
+                        }
+                    }
+                    button.addEventListener('click', function () {
+                        var input = document.getElementById(button.getAttribute('data-target'));
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(input.value).then(copied, selectCopy);
+                        } else {
+                            selectCopy();
+                        }
+                    });
+                });
+                var countdown = notice.querySelector('.mainwp-child-countdown');
+                if (countdown) {
+                    var deadline = Date.now() + Number(countdown.getAttribute('data-remaining')) * 1000;
+                    var interval = window.setInterval(function () {
+                        var seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+                        var minutes = Math.ceil(seconds / 60);
+                        countdown.textContent = seconds === 0 ? countdown.getAttribute('data-ended') : seconds < 60 ? countdown.getAttribute('data-less') : countdown.getAttribute(minutes === 1 ? 'data-minute' : 'data-minutes').replace('%d', minutes);
+                        if (seconds === 0) {
+                            window.clearInterval(interval);
+                        }
+                    }, 1000);
+                }
+            }());
+            </script>
+            <?php
         }
 
         if ( isset( $_GET['page'] ) && 'mainwp_child_tab' === $_GET['page'] && isset( $_GET['message'] ) ) { //phpcs:ignore -- ok.
@@ -161,7 +294,9 @@ class MainWP_Pages {
             global $mainWPChild;
             $mainWPChild->delete_connection_data( false );
             delete_option( 'mainwp_child_lasttime_not_connected' ); // reset.
-            wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&message=1' );
+            if ( wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&message=1' ) ) {
+                exit;
+            }
         }
 
         // phpcs:disable WordPress.Security.NonceVerification
@@ -177,7 +312,9 @@ class MainWP_Pages {
             }
             MainWP_Helper::update_option( 'mainwp_child_ttl_active_unconnected_site', ! empty( $_POST['mainwp_child_active_time_for_unconnected_site'] ) ? intval( $_POST['mainwp_child_active_time_for_unconnected_site'] ) : 0 );
             update_user_option( get_current_user_id(), 'mainwp_child_user_enable_passwd_auth_connect', $enable_pwd_auth_connect ? 1 : 0 );
-            wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&message=2' );
+            if ( wp_safe_redirect( 'options-general.php?page=mainwp_child_tab&message=2' ) ) {
+                exit;
+            }
         }
         // phpcs:enable
     }
@@ -189,15 +326,18 @@ class MainWP_Pages {
      * @uses \MainWP\Child\MainWP_Child_Branding::get_branding_options()
      */
     public function admin_menu() { //phpcs:ignore -- NOSONAR - complex method.
+        // $uri is the request path only: a query argument naming tools.php must not block an unrelated page.
         $branding_opts      = MainWP_Child_Branding::instance()->get_branding_options();
         $is_hide            = isset( $branding_opts['hide'] ) ? $branding_opts['hide'] : '';
         $cancelled_branding = $branding_opts['cancelled_branding'];
-        $uri                = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+        $uri                = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_parse_url( esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ), PHP_URL_PATH ) : '';
         if ( isset( $branding_opts['remove_wp_tools'] ) && $branding_opts['remove_wp_tools'] && ! $cancelled_branding ) {
             remove_menu_page( 'tools.php' );
             $pos = $uri ? stripos( $uri, 'tools.php' ) || stripos( $uri, 'import.php' ) || stripos( $uri, 'export.php' ) : false;
             if ( false !== $pos ) {
+                // Branding hides Tools, so the page stays blocked even when a filter cancels the redirect.
                 wp_safe_redirect( get_option( 'siteurl' ) . '/wp-admin/index.php' );
+                exit;
             }
         }
         // if preserve branding and do not remove menus.

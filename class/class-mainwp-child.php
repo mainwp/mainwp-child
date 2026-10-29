@@ -14,6 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // phpcs:disable -- required for debugging.
 if ( isset( $_REQUEST['mainwpsignature'] ) && ( ! defined('MAINWP_CHILD_DEBUG') || false === MAINWP_CHILD_DEBUG ) ) {
+    MainWP_Security::save_php_reporting_state();
     ini_set( 'display_errors', false );
     error_reporting( 0 );
 }
@@ -35,7 +36,7 @@ class MainWP_Child {
      *
      * @var string MainWP Child plugin version.
      */
-    public static $version = '6.3'; // NOSONAR - not IP.
+    public static $version = '6.4'; // NOSONAR - not IP.
 
     /**
      * Private variable containing the latest MainWP Child update version.
@@ -118,6 +119,14 @@ class MainWP_Child {
         MainWP_Pages::get_instance()->init();
         MainWP_Child_Assets::instance()->init();
 
+        // Backup task watchdog and runner - the watchdog cron re-enters
+        // stalled backup tasks when the Dashboard goes away mid-run, and the
+        // runner subscribes to its resume signal to advance the work.
+        MainWP_Child_Backup_Watchdog::instance()->init();
+        MainWP_Child_Backup_Task::instance()->register_pending_delete_hook();
+        MainWP_Child_Backup_Task_Runner::instance()->register_hooks();
+        MainWP_Child_Restore_Task_Runner::instance()->register_hooks();
+
         // Initialize admin-specific components.
         $this->init_admin_components();
 
@@ -144,31 +153,32 @@ class MainWP_Child {
      * This method handles all the admin-area specific initializations.
      */
     private function init_admin_components() {
-        if ( ! is_admin() ) {
-            return;
+
+        if ( is_admin() || isset( $_REQUEST['mainwpsignature'] ) ) {  // phpcs:ignore WordPress.Security.NonceVerification
+            // Update plugin version in database.
+            MainWP_Helper::update_option( 'mainwp_child_plugin_version', static::$version, 'yes' );
+
+            // Initialize connection-related components.
+            MainWP_Connect::instance()->check_other_auth();
+
+            // Initialize core features.
+            MainWP_Clone::instance()->init();
+            MainWP_Client_Report::instance()->init();
+
+            // Initiate MainWP Cache Control class.
+            MainWP_Child_Cache_Purge::instance();
+
+            // Initiate MainWP Users class to register password change tracking hooks.
+            MainWP_Child_Users::get_instance();
         }
 
-        // Update plugin version in database.
-        MainWP_Helper::update_option( 'mainwp_child_plugin_version', static::$version, 'yes' );
+        if ( is_admin() ) {
+            // Register screen-specific hooks.
+            $this->register_screen_hooks();
 
-        // Initialize connection-related components.
-        MainWP_Connect::instance()->check_other_auth();
-
-        // Initialize core features.
-        MainWP_Clone::instance()->init();
-        MainWP_Client_Report::instance()->init();
-
-        // Register screen-specific hooks.
-        $this->register_screen_hooks();
-
-        // Initiate MainWP Cache Control class.
-        MainWP_Child_Cache_Purge::instance();
-
-        // Initiate MainWP Users class to register password change tracking hooks.
-        MainWP_Child_Users::get_instance();
-
-        // Initiate MainWP Password Policy class.
-        MainWP_Child_Password_Policy::instance();
+            // Initiate MainWP Password Policy class.
+            MainWP_Child_Password_Policy::instance();
+        }
     }
 
     /**
@@ -621,12 +631,52 @@ class MainWP_Child {
                 } elseif ( $lasttime_active < time() - $ttl_pubkey * MINUTE_IN_SECONDS ) {
                     include_once ABSPATH . '/wp-admin/includes/plugin.php'; // NOSONAR -- WP compatible.
                     delete_option( 'mainwp_child_lasttime_not_connected' );
+                    // Silent deactivation skips hooks, so keep the reason for the next activation notice.
+                    // A must-use load is not in active_plugins, never deactivates, and has nothing to explain.
+                    if ( is_plugin_active( $this->plugin_slug ) ) {
+                        MainWP_Helper::update_option(
+                            'mainwp_child_connection_window_expired',
+                            array(
+                                'time' => time(),
+                                'ttl'  => $ttl_pubkey,
+                            )
+                        );
+                    }
                     deactivate_plugins( $this->plugin_slug, true );
                 }
             }
         }
 
         MainWP_Child_DB::maybe_cleanup_request_ids();
+    }
+
+    /**
+     * Reads the connection window without starting it during an unauthenticated pre-check.
+     *
+     * @return array Configured minutes, remaining seconds (null when disabled), and state.
+     */
+    public static function get_connection_window() {
+        $minutes = (int) get_option( 'mainwp_child_ttl_active_unconnected_site', 20 );
+        if ( 0 === $minutes ) {
+            return array(
+                'minutes'   => 0,
+                'remaining' => null,
+                'state'     => 'disabled',
+            );
+        }
+
+        // Negative values still expire under the existing nonzero TTL condition.
+        $started   = get_option( 'mainwp_child_lasttime_not_connected' );
+        $remaining = $minutes * MINUTE_IN_SECONDS;
+        if ( ! empty( $started ) ) {
+            $remaining -= time() - (int) $started;
+        }
+
+        return array(
+            'minutes'   => $minutes,
+            'remaining' => max( 0, (int) $remaining ),
+            'state'     => empty( $started ) ? 'not_started' : 'running',
+        );
     }
 
     /**
@@ -735,6 +785,8 @@ class MainWP_Child {
         $to_delete[] = 'mainwp_ext_snippets_enabled';
         $to_delete[] = 'mainwp_ext_code_snippets';
         $to_delete[] = 'mainwp_child_openssl_sign_algo';
+        // Sites registered by older versions still hold the pre-connection timestamp, which would switch Child off on the next request.
+        $to_delete[] = 'mainwp_child_lasttime_not_connected';
 
         foreach ( $to_delete as $delete ) {
             if ( get_option( $delete ) ) {

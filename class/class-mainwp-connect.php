@@ -94,6 +94,15 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
     }
 
     /**
+     * Whether a Dashboard signature has been verified in this request.
+     *
+     * @return bool Verified request provenance.
+     */
+    public static function is_request_authenticated() {
+        return true === self::$signature_checked;
+    }
+
+    /**
      * Method register_site()
      *
      * Register the current WordPress site thus generating teh public key.
@@ -127,8 +136,14 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             if ( ! $this->is_enabled_user_passwd_auth( wp_unslash( $_POST['user'] ) ) ) {
                 MainWP_Helper::instance()->error( esc_html__( 'Forced Reconnect requires Administrator Password authentication. Please enable Password Authentication in the MainWP Child Settings on the child site, or remove and re-add the site to resolve the issue.', 'mainwp-child' ), 'REG_ERROR10' );
             }
-            // Set disconnect status to yes here, it will empty after reconnected.
-            MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
+            $credentials_are_strings = ( ! isset( $_POST['userpwd'] ) || is_string( $_POST['userpwd'] ) ) && ( ! isset( $_POST['regverify'] ) || is_string( $_POST['regverify'] ) );
+            $reconnect_user          = get_user_by( 'login', wp_unslash( $_POST['user'] ) );
+            $has_password            = $credentials_are_strings && ! empty( $_POST['userpwd'] ) && '' !== trim( rawurldecode( $_POST['userpwd'] ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- Match existing password wire decoding.
+            $has_regverify           = $credentials_are_strings && ! empty( $_POST['regverify'] ) && '' !== sanitize_text_field( wp_unslash( $_POST['regverify'] ) );
+            if ( $reconnect_user && MainWP_Helper::is_admin( $reconnect_user ) && ( $has_password || $has_regverify ) && $this->is_verified_register( $reconnect_user->user_login ) ) {
+                // Let a verified administrator find the hidden plugin to reactivate it.
+                MainWP_Child_Branding::instance()->save_branding_options( 'branding_disconnected', 'yes' );
+            }
             MainWP_Helper::instance()->error( esc_html__( 'Public key already set. Please deactivate & reactivate the MainWP Child plugin on the child site and try again.', 'mainwp-child' ), 'REG_ERROR2' );
         }
 
@@ -185,6 +200,10 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         MainWP_Helper::update_option( 'mainwp_child_nonce', 0 );
 
         MainWP_Helper::update_option( 'mainwp_child_connected_admin', $current_user->user_login, 'yes' );
+
+        // A later Dashboard disconnect needs a fresh connection window without a stale expiry explanation.
+        delete_option( 'mainwp_child_lasttime_not_connected' );
+        delete_option( 'mainwp_child_connection_window_expired' );
 
         // register success.
         $new_verify = $this->may_be_generate_register_verify();
@@ -557,9 +576,10 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      * @param  string $signature MainWP Dashboard signature.
      * @param  string $func      Function to run.
      * @param  string $nonce     Security nonce.
-     * @param  array  $others Other data.
+     * @param  array  $others    Other data.
      *
      * @return int|bool $auth  Returns 1 if authenticated, false if authentication fails.
+     * @throws MainWP_Exception When the signed request is malformed or fails verification.
      */
     public function auth( $signature, $func, $nonce, $others = array() ) { // phpcs:ignore -- NOSONAR -complex.
 
@@ -567,6 +587,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             $others = array();
         }
 
+        $legacy_signature    = $signature;
         $connect_sign        = isset( $others['connect_sign'] ) ? $others['connect_sign'] : '';
         $mainwpsignature_adv = isset( $others['mainwpsignature_adv'] ) ? $others['mainwpsignature_adv'] : '';
 
@@ -595,21 +616,27 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
                 $data = $connect_sign;
             }
 
-            $auth = static::connect_verify( $data, base64_decode( $signature ), base64_decode( get_option( 'mainwp_child_pubkey' ) ), $algo ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- trust value.
+            $signature_bytes = base64_decode( $signature, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Signature wire format.
+            if ( false === $signature_bytes ) {
+                return false;
+            }
+            $auth = static::connect_verify( $data, $signature_bytes, base64_decode( get_option( 'mainwp_child_pubkey' ) ), $algo ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- trust value.
             if ( 1 !== $auth ) {
                 $auth = false;
             } elseif ( null === static::$signature_checked ) {  // The signature is verified only once per request.
                 $valid_code = true;
                 if ( $this->is_advanced_signature( $decode_connect_sign ) ) {
                     $valid_code = $this->verify_advanced_authed_request( $decode_connect_sign, $func );
-                    if ( true === $valid_code && isset( $_REQUEST['mainwpsignature'] ) ) {
-                        $request_id = rawurldecode( wp_unslash( $_REQUEST['mainwpsignature'] ) ); // phpcs:ignore --NOSONAR - WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-                        if ( strlen( $request_id ) > 50 ) { // base64 encoded string - Looks like a valid base signature was sent as well, so block it to prevent potential misuse.
-                            add_option( 'mainwp_child_blocked_request_id_' . hash( 'sha256', $request_id ), time(), '', false );
+                    if ( true === $valid_code ) {
+                        if ( strlen( $legacy_signature ) > 50 ) { // base64 encoded string - Looks like a valid base signature was sent as well, so block it to prevent potential misuse.
+                            $legacy_bytes = base64_decode( $legacy_signature, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Signature wire format.
+                            if ( false !== $legacy_bytes ) {
+                                add_option( 'mainwp_child_blocked_request_id_' . hash( 'sha256', $legacy_bytes ), time(), '', false );
+                            }
                         }
                     }
                 } else {
-                    $valid_code = $this->verify_authed_request();
+                    $valid_code = $this->verify_authed_request( $signature, $signature_bytes );
                 }
                 if ( true !== $valid_code ) {
                     $auth = false;
@@ -659,10 +686,10 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * Verify connect.
      *
-     * @param array $sign_data Signature data sign.
+     * @param array  $sign_data Signature data sign.
+     * @param string $func      Function call.
      *
      * @return string|bool True if valid request.
-     * @return string $func Function call.
      */
     private function verify_advanced_authed_request( $sign_data, $func ) { // phpcs:ignore --NOSONAR - complex.
 
@@ -730,29 +757,52 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Method verify_authed_request()
      *
+     * @param string $request_id      Verified legacy wire spelling.
+     * @param string $signature_bytes Verified decoded signature.
      * @return string|bool True if valid request.
      */
-    private function verify_authed_request() { // phpcs:ignore --NOSONAR - complex.
-
-        // phpcs:disable WordPress.Security.NonceVerification
-        $request_id = rawurldecode( isset( $_REQUEST['mainwpsignature'] ) ? wp_unslash( $_REQUEST['mainwpsignature'] ) : '' ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-        // phpcs:enable WordPress.Security.NonceVerification
+    private function verify_authed_request( $request_id, $signature_bytes ) { // phpcs:ignore --NOSONAR - complex.
 
         $now = time();
 
-        $hash_request_id = hash( 'sha256', $request_id );
+        $hash_request_id = hash( 'sha256', $signature_bytes );
+
+        // Retain replay history written before byte-based identities were introduced.
+        $request_hashes = array_unique(
+            array(
+                $hash_request_id,
+                hash( 'sha256', $request_id ),
+                hash( 'sha256', base64_encode( $signature_bytes ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- Historical canonical identity.
+            )
+        );
 
         $option_request_id  = 'mainwp_child_request_id_' . $hash_request_id;
         $blocked_request_id = 'mainwp_child_blocked_request_id_' . $hash_request_id;
 
-        $blocked = get_option( $blocked_request_id, false );
-
-        // A blocked request ID must never be accepted again.
-        if ( false !== $blocked ) {
-            return 'AUTH_ERROR2';
+        foreach ( $request_hashes as $request_hash ) {
+            $blocked = get_option( 'mainwp_child_blocked_request_id_' . $request_hash, false );
+            if ( false !== $blocked ) {
+                add_option( $blocked_request_id, $blocked, '', false );
+                return 'AUTH_ERROR2';
+            }
         }
 
-        $request_time = get_option( $option_request_id, false );
+        $request_time = false;
+        foreach ( $request_hashes as $request_hash ) {
+            $stored_time = get_option( 'mainwp_child_request_id_' . $request_hash, false );
+            if ( false !== $stored_time && ( false === $request_time || (int) $stored_time < $request_time ) ) {
+                $request_time = (int) $stored_time;
+            }
+        }
+
+        if ( false !== $request_time ) {
+            $byte_time = get_option( $option_request_id, false );
+            if ( false === $byte_time ) {
+                add_option( $option_request_id, $request_time, '', false );
+            } elseif ( (int) $byte_time > $request_time ) {
+                update_option( $option_request_id, $request_time, false );
+            }
+        }
 
         // First request: save the request ID and allow it.
         if ( false === $request_time && add_option( $option_request_id, $now, '', false ) ) {
@@ -963,10 +1013,6 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             }
         }
 
-        if ( is_user_logged_in() && ! MainWP_Helper::is_admin() ) {
-            $this->destroy_user_session();
-        }
-
         $signature = rawurldecode( isset( $_REQUEST['mainwpsignature'] ) ? wp_unslash( $_REQUEST['mainwpsignature'] ) : '' ); //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
         $file = $this->get_request_files();
@@ -996,8 +1042,18 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             return false;
         }
 
+        if ( is_user_logged_in() && ! MainWP_Helper::is_admin() ) {
+            $this->destroy_user_session();
+        }
+
         if ( ! is_user_logged_in() || $username !== $current_user->user_login ) {
+            // The signature already validated, so these requests provably
+            // come from the paired dashboard: a failure here must die with
+            // a reason, never fall through to the front page as if the
+            // jump had worked. Signature failures above stay silent - an
+            // arbitrary probe learns nothing it cannot already see.
             if ( ! $this->login( $username ) ) {
+                $this->login_required_bail( esc_html__( 'The dashboard could not log in: the requested account was not found on this child site.', 'mainwp-child' ) );
                 return false;
             }
 
@@ -1006,6 +1062,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             if ( ! MainWP_Helper::is_admin() && ! $alter_login_required ) {
                 // log out if connected admin is not admin level 10.
                 $this->destroy_user_session();
+                $this->login_required_bail( esc_html__( 'The dashboard could not log in: the requested account is not an administrator on this child site.', 'mainwp-child' ) );
 
                 return false;
             }
@@ -1020,6 +1077,19 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         do_action( 'mainwp_child_login_required_authed', $username );
         $this->check_redirects();
         return true;
+    }
+
+    /**
+     * Method login_required_bail()
+     *
+     * Stop a signature-valid login_required request with a visible
+     * reason. Only reachable after auth() succeeded, so the message goes
+     * to the dashboard user who initiated the jump, not to a probe.
+     *
+     * @param string $message Escaped failure reason.
+     */
+    protected function login_required_bail( $message ) {
+        wp_die( $message, esc_html__( 'Dashboard login failed', 'mainwp-child' ), array( 'response' => 403 ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- callers pass escaped text.
     }
 
     /**
@@ -1058,9 +1128,40 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
                 return false;
             }
 
-            $foffset = isset( $_REQUEST['foffset'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['foffset'] ) ) : 0;
+            // Cast to a non-negative integer - the value reaches fseek(); bounds
+            // against the file size are enforced in resolve_download_range().
+            $foffset = isset( $_REQUEST['foffset'] ) ? absint( wp_unslash( $_REQUEST['foffset'] ) ) : 0;
 
-            MainWP_Utility::instance()->upload_file_backup( $fdl, $foffset );
+            $dltoken = isset( $_REQUEST['dltoken'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['dltoken'] ) ) : '';
+            if ( '' !== $dltoken ) {
+                // One-time download authorization: validate and consume the
+                // token, then stream the file it is bound to. A rejected
+                // token never falls back to the token-less path.
+                $auth = MainWP_Child_Backup_Download_Token::instance()->authorize_download( $dltoken, $fdl );
+                if ( empty( $auth['ok'] ) ) {
+                    if ( ! headers_sent() ) {
+                        http_response_code( (int) $auth['status'] );
+                    }
+                    exit;
+                }
+                $served = MainWP_Utility::instance()->upload_file( basename( $auth['full_path'] ), dirname( $auth['full_path'] ) . DIRECTORY_SEPARATOR, $foffset );
+                $this->refuse_unserved_download( $served );
+                exit;
+            }
+
+            // Token-less path - kept for Dashboards that predate download
+            // authorization tokens. Once the connected dashboard has
+            // completed a token-authorized download, the ratchet refuses
+            // this path for good; see
+            // MainWP_Child_Backup_Download_Token::is_token_required().
+            if ( MainWP_Child_Backup_Download_Token::instance()->is_token_required() ) {
+                if ( ! headers_sent() ) {
+                    http_response_code( 401 );
+                }
+                exit;
+            }
+            $served = MainWP_Utility::instance()->upload_file_backup( $fdl, $foffset );
+            $this->refuse_unserved_download( $served );
             exit;
         }
 
@@ -1071,6 +1172,25 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         }
         // phpcs:enable
         $this->where_authed_redirect();
+    }
+
+    /**
+     * Method refuse_unserved_download()
+     *
+     * Turn an unserved backup download into an explicit retryable refusal.
+     * Without this, a bail-out before streaming exits with PHP's default
+     * empty 200 - the dashboard then records a zero-byte "success" during
+     * the child's post-completion settle window. Only fires while the
+     * response is still the untouched default, so a status the streamer
+     * already set (e.g. 416 on a bad range) is preserved.
+     *
+     * @param bool $served Whether the file streamed.
+     */
+    private function refuse_unserved_download( $served ) {
+        if ( true !== $served && ! headers_sent() && 200 === http_response_code() ) {
+            http_response_code( 503 );
+            header( 'Retry-After: 5' );
+        }
     }
 
     /**
@@ -1446,6 +1566,12 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         $user = get_user_by( 'login', $username );
+        if ( ! $user && is_email( $username ) ) {
+            // WP core login accepts an email address in place of the login
+            // name; a dashboard connected with an email-style admin username
+            // signs its jumps with that email, so resolve it the same way.
+            $user = get_user_by( 'email', $username );
+        }
         if ( $user ) {
             wp_set_current_user( $user->ID );
             wp_set_auth_cookie( $user->ID );
@@ -1453,7 +1579,10 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
                 do_action( 'wp_login', $user->user_login );
             }
 
-            $logged_in = ( is_user_logged_in() && $current_user->user_login === $username );
+            // Compare against the resolved account's login name: for an
+            // email-resolved user the raw $username is the email and would
+            // never match, reporting failure for a login that just happened.
+            $logged_in = ( is_user_logged_in() && $current_user->user_login === $user->user_login );
 
             if ( $logged_in ) {
                 $this->check_compatible_connect_info();
@@ -1516,7 +1645,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * Check if authentication is valid.
      *
-     * @param  string $key Contains the authentication key to check.
+     * @param  string $signature Contains the authentication signature to check.
      *
      * @return bool true|false If valid authentication, return true, if not, return false.
      */

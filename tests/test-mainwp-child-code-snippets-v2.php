@@ -341,6 +341,35 @@ class Test_MainWP_Child_Code_Snippets_V2 extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Stripping must not depend on wp_check_invalid_utf8(), whose strip mode returns false before
+	 * WordPress 6.9, and must drop exactly the bytes outside well-formed sequences.
+	 *
+	 * @dataProvider invalid_utf8_shapes
+	 *
+	 * @param string $raw      Output bytes.
+	 * @param string $expected Bytes that ship.
+	 */
+	public function test_invalid_utf8_strip_keeps_every_valid_sequence( $raw, $expected ) {
+		$strip = new ReflectionMethod( MainWP_Child_Misc::class, 'snippet_v2_strip_invalid_utf8' );
+		$strip->setAccessible( true );
+		$this->assertSame( $expected, $strip->invoke( $this->fixture, $raw ) );
+	}
+
+	public static function invalid_utf8_shapes() {
+		return array(
+			'valid untouched'        => array( "caf\xc3\xa9 \xe6\x97\xa5 \xf0\x9f\x98\x80", "caf\xc3\xa9 \xe6\x97\xa5 \xf0\x9f\x98\x80" ),
+			'lone lead byte'         => array( "before\xc3after", 'beforeafter' ),
+			'stray continuation'     => array( "a\x80b", 'ab' ),
+			'cut three-byte'         => array( "x\xe6\x97", 'x' ),
+			'overlong slash'         => array( "a\xc0\xafb", 'ab' ),
+			'surrogate'              => array( "a\xed\xa0\x80b", 'ab' ),
+			'above U+10FFFF'         => array( "a\xf4\x90\x80\x80b", 'ab' ),
+			'latin1 between valid'   => array( "\xc3\xa9\xe9\xc3\xa9", "\xc3\xa9\xc3\xa9" ),
+			'long valid run'         => array( str_repeat( "\xc3\xa9", 20000 ) . "\xff", str_repeat( "\xc3\xa9", 20000 ) ),
+		);
+	}
+
+	/**
 	 * The Dashboard advertises a 60000-byte code field and encodes it with default JSON flags, so a
 	 * maximal non-ASCII snippet reaches the Child six bytes per source byte. The wire bound has to
 	 * admit a body the Dashboard is allowed to send.

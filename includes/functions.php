@@ -268,7 +268,8 @@ if ( ! function_exists( '\mainwp_child_is_dashboard_request' ) ) {
      * @return bool
      */
     function mainwp_child_is_dashboard_request() {
-        return ( isset( $_POST['mainwpsignature'] ) && isset( $_POST['function'] ) ) ? true : false;
+        return isset( $_POST['mainwpsignature'], $_POST['function'] )
+            && \MainWP\Child\MainWP_Connect::is_request_authenticated();
     }
 }
 
@@ -282,7 +283,8 @@ if ( ! function_exists( '\mainwp_child_is_dashboard_premium_update_request' ) ) 
      */
     function mainwp_child_is_dashboard_premium_update_request() {
         return ! empty( $_POST['perform_premium_action'] )
-            && 'premium_update' === $_POST['perform_premium_action'];
+            && 'premium_update' === $_POST['perform_premium_action']
+            && ( \MainWP\Child\MainWP_Connect::is_request_authenticated() || \MainWP\Child\MainWP_Helper::is_admin() );
     }
 }
 

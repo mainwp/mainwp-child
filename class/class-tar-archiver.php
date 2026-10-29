@@ -26,12 +26,22 @@ class Tar_Archiver {
     const APPEND = 1;
     const CREATE = 2;
 
+    // PharData keeps member sizes and their 512-byte rounding in 32 bits.
+    const MAX_MEMBER_SIZE = 4294966784;
+
     /**
      * Whether to exclude zip archives.
      *
      * @var bool Set true to exclude ZIP archives from the backup.
      */
     protected $excludeZip;
+
+    /**
+     * Whether this pass appends its own clone/config.txt, so an on-disk one is skipped.
+     *
+     * @var bool
+     */
+    private $skipLeftoverConfig = false;
 
     /**
      * Backup archive file.
@@ -46,6 +56,34 @@ class Tar_Archiver {
      * @var string Backup file path.
      */
     protected $archivePath;
+
+    /**
+     * Path of the archive opened by read().
+     *
+     * @var string|null
+     */
+    protected $readPath = null;
+
+    /**
+     * Whether the current handle can write archive data.
+     *
+     * @var bool
+     */
+    protected $archiveWriting = false;
+
+    /**
+     * Uncompressed bytes in the current gzip member, modulo 2^32.
+     *
+     * @var int
+     */
+    protected $gzipMemberBytes = 0;
+
+    /**
+     * Number of files added to the archive, for the periodic disk space floor.
+     *
+     * @var int Added file count.
+     */
+    protected $addedFileCount = 0;
 
     /**
      * Backup archive file size.
@@ -132,6 +170,37 @@ class Tar_Archiver {
     protected $logHandle = false;
 
     /**
+     * Unix timestamp the traversal must stop at, or null for unbounded
+     * (legacy) behavior.
+     *
+     * @var int|null Slice deadline.
+     */
+    protected $budgetDeadline = null;
+
+    /**
+     * Whether an entry was written since the deadline was set. The budget
+     * never interrupts before at least one entry is added, so a slice always
+     * makes forward progress even when it starts past its deadline.
+     *
+     * @var bool Forward-progress marker.
+     */
+    protected $budgetProgress = false;
+
+    /**
+     * Completed entry writes; skipped archived entries do not increment this.
+     *
+     * @var int
+     */
+    protected $addedEntryCount = 0;
+
+    /**
+     * Liveness callback fired per added file, or null.
+     *
+     * @var callable|null Progress callback.
+     */
+    protected $progressCallback = null;
+
+    /**
      * Tar_Archiver constructor.
      *
      * Run any time class is called.
@@ -157,6 +226,44 @@ class Tar_Archiver {
             if ( ! function_exists( 'gzopen' ) ) {
                 $this->type = 'tar';
             }
+        }
+    }
+
+    /**
+     * Set or clear the traversal time budget.
+     *
+     * @param int|null $deadline Unix timestamp to stop at, null for unbounded.
+     */
+    public function set_budget_deadline( $deadline ) {
+        $this->budgetDeadline = $deadline;
+        $this->budgetProgress = false;
+    }
+
+    /**
+     * Set or clear the per-file liveness callback.
+     *
+     * @param callable|null $callback Callback, or null to clear.
+     */
+    public function set_progress_callback( $callback ) {
+        $this->progressCallback = $callback;
+    }
+
+    /**
+     * Interrupt the traversal when the slice deadline has passed.
+     *
+     * Only fires after at least one entry was written since the deadline
+     * was set, and closes the archive first so the file on disk ends at a
+     * complete entry that a later append run can extend.
+     *
+     * @throws MainWP_Backup_Budget_Exception When the slice budget is exhausted.
+     */
+    private function assert_within_budget() {
+        if ( null === $this->budgetDeadline || ! $this->budgetProgress ) {
+            return;
+        }
+        if ( time() >= $this->budgetDeadline ) {
+            $this->close();
+            throw new MainWP_Backup_Budget_Exception( 'File archiving exceeded its time budget for this slice.', null, MainWP_Backup_Error::ERR_TAR_WRITE_FAILED ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal control-flow message, code is a registry class constant.
         }
     }
 
@@ -194,7 +301,9 @@ class Tar_Archiver {
         if ( $this->archive ) {
             $this->init_log_handle( $archive . '.log' );
             foreach ( $files as $filepath ) {
-                $this->add_file( $filepath, basename( $filepath ) );
+                if ( ! $this->add_file( $filepath, basename( $filepath ) ) ) {
+                    $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+                }
             }
 
             $this->add_data( pack( 'a1024', '' ) );
@@ -232,6 +341,7 @@ class Tar_Archiver {
         global $wp_filesystem;
 
         $wp_filesystem->put_contents( $this->pidFile, $this->pidContent );
+        $this->protect_native_file( $this->pidFile );
 
         $this->pidUpdated = time();
 
@@ -249,21 +359,17 @@ class Tar_Archiver {
      * @return bool Return false on failure, true on success.
      */
     public function update_pid_file() {
-        if ( false === $this->pidFile ) {
-            return false;
-        }
         if ( time() - $this->pidUpdated < 40 ) {
             return false;
         }
-
-        /**
-         * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
-         *
-         * @global object $wp_filesystem Filesystem object.
-         */
-        global $wp_filesystem;
-
-        $wp_filesystem->put_contents( $this->pidFile, $this->pidContent );
+        if ( null !== $this->backup ) {
+            $this->backup->heartbeat();
+        }
+        if ( false !== $this->pidFile ) {
+            global $wp_filesystem;
+            $wp_filesystem->put_contents( $this->pidFile, $this->pidContent );
+            $this->protect_native_file( $this->pidFile );
+        }
         $this->pidUpdated = time();
 
         return true;
@@ -293,6 +399,7 @@ class Tar_Archiver {
 
         $filename = basename( $this->pidFile );
         $wp_filesystem->move( $this->pidFile, trailingslashit( dirname( $this->pidFile ) ) . substr( $filename, 0, strlen( $filename ) - 4 ) . '.done' );
+        $this->protect_native_file( trailingslashit( dirname( $this->pidFile ) ) . substr( $filename, 0, strlen( $filename ) - 4 ) . '.done' );
         $this->pidFile = false;
 
         return true;
@@ -340,6 +447,8 @@ class Tar_Archiver {
      */
     public function create_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp, $append = false ) {
 
+        $this->skipLeftoverConfig = (bool) $addConfig;
+
         $this->init_log_handle( $filepath . '.log' );
 
         $this->create_pid_file( $filepath );
@@ -357,33 +466,48 @@ class Tar_Archiver {
         }
 
         if ( $this->archive ) {
-            $nodes = glob( ABSPATH . '*' );
+            $nodes = $this->backup->glob_backup_nodes( ABSPATH );
+            if ( file_exists( ABSPATH . '.htaccess' ) ) {
+                $nodes[] = ABSPATH . '.htaccess';
+            }
             if ( ! $includeCoreFiles ) {
                 $this->include_core_files( $nodes );
             }
 
-            $db_files = $this->backup->create_backup_db( dirname( $filepath ) . DIRECTORY_SEPARATOR . 'dbBackup', false, $this );
+            $db_files = $this->backup->get_or_create_db_dump_files( $this->backup->db_dump_prefix( dirname( $filepath ) ), $this );
 
             foreach ( $db_files as $db_file ) {
-                $this->add_file( $db_file, basename( WP_CONTENT_DIR ) . '/' . basename( $db_file ) );
-            }
-
-            if ( file_exists( ABSPATH . '.htaccess' ) ) {
-                $this->add_file( ABSPATH . '.htaccess', 'mainwp-htaccess' );
+                if ( ! $this->add_file( $db_file, basename( WP_CONTENT_DIR ) . '/' . ( '.sql' === substr( $db_file, -4 ) ? 'dbBackup.sql' : basename( $db_file ) ) ) ) {
+                    $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+                }
             }
 
             foreach ( $nodes as $node ) {
+                if ( MainWP_Backup::is_file_link( $node ) ) {
+                    // An excluded path was never meant to be in the backup, so it is not a skip.
+                    if ( ! MainWP_Backup::excluded_by_path_or_target( $excludes, $node ) ) {
+                        MainWP_Backup::record_skipped_path( $node, 'link' );
+                    }
+                    continue;
+                }
+
+                $this->assert_within_budget();
+
                 if ( $excludenonwp && is_dir( $node ) ) {
                     if ( ! MainWP_Helper::starts_with( $node, WP_CONTENT_DIR ) && ! MainWP_Helper::starts_with( $node, ABSPATH . 'wp-admin' ) && ! MainWP_Helper::starts_with( $node, ABSPATH . WPINC ) ) {
                         continue;
                     }
                 }
 
-                if ( ! MainWP_Helper::in_excludes( $excludes, str_replace( ABSPATH, '', $node ) ) ) {
+                if ( ! MainWP_Backup::excluded_by_path_or_target( $excludes, $node ) ) {
+                    $addedEntryCount = $this->addedEntryCount;
                     if ( is_dir( $node ) ) {
-                        $this->add_dir( $node, $excludes );
+                        $this->add_dir( $node, $excludes, array( ABSPATH ) );
                     } elseif ( is_file( $node ) ) {
                         $this->add_file( $node, str_replace( ABSPATH, '', $node ) );
+                    }
+                    if ( $this->addedEntryCount > $addedEntryCount ) {
+                        $this->budgetProgress = true;
                     }
                 }
             }
@@ -392,6 +516,12 @@ class Tar_Archiver {
                 $string = $this->add_config();
                 $this->add_empty_directory( 'clone', 0, 0, 0, time() );
                 $this->add_file_from_string( 'clone/config.txt', $string );
+            }
+
+            if ( self::APPEND === $this->mode && 'tar.bz2' !== $this->type ) {
+                $this->close( false );
+                $this->append( $filepath );
+                $this->mode = self::CREATE;
             }
 
             $this->add_data( pack( 'a1024', '' ) );
@@ -469,6 +599,7 @@ class Tar_Archiver {
      * @see https://developer.wordpress.org/reference/functions/get_bloginfo/
      *
      * @used-by Tar_Archiver::create_full_backup() Create full backup.
+     * @throws \UnexpectedValueException When a legacy backup cannot report incomplete configuration.
      */
     private function add_config() {
 
@@ -481,31 +612,47 @@ class Tar_Archiver {
 
         $plugins = array();
         $dir     = WP_CONTENT_DIR . '/plugins/';
-        $fh      = opendir( $dir );
-        while ( $entry = readdir( $fh ) ) {
-            if ( ! is_dir( $dir . $entry ) ) {
-                continue;
+        $fh      = @opendir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- listing failures follow the native partial-content policy.
+        // A missing folder has nothing to list; only an existing one that cannot be read is a skip or a legacy failure.
+        if ( false === $fh && is_dir( $dir ) ) {
+            if ( null === $this->backup || ! $this->backup->is_native_task() ) {
+                throw new \UnexpectedValueException( 'The backup configuration directory could not be listed.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message contains no path or external input.
             }
-            if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
-                continue;
+            MainWP_Backup::record_skipped_path( rtrim( $dir, '/' ), 'unreadable' );
+        } elseif ( false !== $fh ) {
+            while ( $entry = readdir( $fh ) ) {
+                if ( ! is_dir( $dir . $entry ) ) {
+                    continue;
+                }
+                if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
+                    continue;
+                }
+                $plugins[] = $entry;
             }
-            $plugins[] = $entry;
+            closedir( $fh );
         }
-        closedir( $fh );
 
         $themes = array();
         $dir    = WP_CONTENT_DIR . '/themes/';
-        $fh     = opendir( $dir );
-        while ( $entry = readdir( $fh ) ) {
-            if ( ! is_dir( $dir . $entry ) ) {
-                continue;
+        $fh     = @opendir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- listing failures follow the native partial-content policy.
+        // A missing folder has nothing to list; only an existing one that cannot be read is a skip or a legacy failure.
+        if ( false === $fh && is_dir( $dir ) ) {
+            if ( null === $this->backup || ! $this->backup->is_native_task() ) {
+                throw new \UnexpectedValueException( 'The backup configuration directory could not be listed.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message contains no path or external input.
             }
-            if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
-                continue;
+            MainWP_Backup::record_skipped_path( rtrim( $dir, '/' ), 'unreadable' );
+        } elseif ( false !== $fh ) {
+            while ( $entry = readdir( $fh ) ) {
+                if ( ! is_dir( $dir . $entry ) ) {
+                    continue;
+                }
+                if ( ( '.' === $entry ) || ( '..' === $entry ) ) {
+                    continue;
+                }
+                $themes[] = $entry;
             }
-            $themes[] = $entry;
+            closedir( $fh );
         }
-        closedir( $fh );
 
         $string = wp_json_encode(
             array(
@@ -525,8 +672,12 @@ class Tar_Archiver {
     /**
      * Add directory to the backup archive file.
      *
-     * @param string $path     File path.
-     * @param array  $excludes List of file to exclude from the backup.
+     * @param string     $path      File path.
+     * @param array      $excludes  List of file to exclude from the backup.
+     * @param array      $ancestors Directories on the current descent chain.
+     * @param array|null $bases Containment bases retained through linked-directory descent.
+     *
+     * @throws MainWP_Exception|\UnexpectedValueException When traversal exceeds the depth limit or a legacy top-level directory cannot be listed.
      *
      * @uses \MainWP\Child\Tar_Archiver::add_empty_dir() Add empty directory to the backup archive file.
      * @uses \MainWP\Child\Tar_Archiver::add_file() Add file to the backup archive file.
@@ -534,30 +685,88 @@ class Tar_Archiver {
      *
      * @used-by \MainWP\Child\Tar_Archiver::create_full_backup() Create full backup.
      */
-    public function add_dir( $path, $excludes ) {
+    public function add_dir( $path, $excludes, $ancestors = array(), $bases = null ) {
         if ( ( '.' === basename( $path ) ) || ( '..' === basename( $path ) ) ) {
             return;
         }
 
-        $this->add_empty_dir( $path, str_replace( ABSPATH, '', $path ) );
-
-        if ( file_exists( rtrim( $path, '/' ) . '/.htaccess' ) ) {
-            $this->add_file( rtrim( $path, '/' ) . '/.htaccess', rtrim( str_replace( ABSPATH, '', $path ), '/' ) . '/mainwp-htaccess' );
+        if ( null === $bases ) {
+            $bases = array_merge( MainWP_Backup::default_backup_bases(), empty( $ancestors ) ? array( $path ) : array( ABSPATH ) );
+        }
+        if ( empty( $ancestors ) ) {
+            $ancestors = array( dirname( rtrim( $path, '/' ) ) );
+        }
+        if ( MainWP_Backup::is_file_link( $path ) || ! MainWP_Backup::is_safe_backup_path( $path, $bases, $ancestors ) ) {
+            MainWP_Backup::record_skipped_path( $path, MainWP_Backup::is_file_link( $path ) ? 'link' : 'unsafe' );
+            $this->log( 'Skipping unsafe path ' . $path );
+            return;
         }
 
-        $iterator = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $path ), \RecursiveIteratorIterator::SELF_FIRST, \RecursiveIteratorIterator::CATCH_GET_CHILD );
+        if ( count( $ancestors ) > MainWP_Backup::MAX_DIRECTORY_DEPTH + 1 ) {
+            $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+        }
+
+        $ancestors[] = $path;
+
+        $this->add_empty_dir( $path, str_replace( ABSPATH, '', $path ) );
+
+        try {
+            $iterator = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $path ), \RecursiveIteratorIterator::SELF_FIRST, \RecursiveIteratorIterator::CATCH_GET_CHILD );
+        } catch ( \UnexpectedValueException $e ) {
+            if ( null === $this->backup || ! $this->backup->is_native_task() ) {
+                // Legacy callers cannot publish partial content, so top-level listing failures still fail the backup.
+                throw $e;
+            }
+            if ( is_dir( $path ) ) {
+                MainWP_Backup::record_skipped_path( rtrim( $path, '/' ), 'unreadable' );
+            }
+            return;
+        }
 
         foreach ( $iterator as $path ) {
+            $this->assert_within_budget();
+
             $name = $path->__toString();
             if ( ( '.' === basename( $name ) ) || ( '..' === basename( $name ) ) ) {
                 continue;
             }
 
-            if ( ! MainWP_Helper::in_excludes( $excludes, str_replace( ABSPATH, '', $name ) ) ) {
-                if ( $path->isDir() ) {
+            $descent_chain  = $ancestors;
+            $iterator_depth = $iterator->getDepth();
+            for ( $depth = 0; $depth <= $iterator_depth; ++$depth ) {
+                $ancestor = $iterator->getSubIterator( $depth )->getPath();
+                if ( rtrim( $ancestor, '/\\' ) !== rtrim( end( $descent_chain ), '/\\' ) ) {
+                    $descent_chain[] = $ancestor;
+                }
+            }
+            if ( MainWP_Backup::is_file_link( $name ) || ! MainWP_Backup::is_safe_backup_path( $name, $bases, $descent_chain ) ) {
+                // An excluded path was never meant to be in the backup, so it is not a skip.
+                if ( ! MainWP_Backup::excluded_by_path_or_target( $excludes, $name ) ) {
+                    MainWP_Backup::record_skipped_path( $name, MainWP_Backup::is_file_link( $name ) ? 'link' : 'unsafe' );
+                }
+                $this->log( 'Skipping unsafe path ' . $name );
+                continue;
+            }
+
+            if ( ! MainWP_Backup::excluded_by_path_or_target( $excludes, $name ) ) {
+                $addedEntryCount = $this->addedEntryCount;
+                if ( $path->isDir() && count( $descent_chain ) > MainWP_Backup::MAX_DIRECTORY_DEPTH + 1 ) {
+                    $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+                }
+                if ( $path->isLink() && $path->isDir() ) {
+                    // RecursiveDirectoryIterator does not follow linked directories.
+                    $this->add_dir( $name, $excludes, $descent_chain, $bases );
+                } elseif ( $path->isDir() ) {
+                    // CATCH_GET_CHILD silently omits unreadable descendants in both native and legacy archives.
+                    if ( false === @scandir( $name, SCANDIR_SORT_NONE ) && is_dir( $name ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- preserve the existing archive tolerance and report missing content.
+                        MainWP_Backup::record_skipped_path( rtrim( $name, '/' ), 'unreadable' );
+                    }
                     $this->add_empty_dir( $name, str_replace( ABSPATH, '', $name ) );
                 } else {
-                    $this->add_file( $name, str_replace( ABSPATH, '', $name ) );
+                    $this->add_file( $name, str_replace( ABSPATH, '', $name ), $bases );
+                }
+                if ( $this->addedEntryCount > $addedEntryCount ) {
+                    $this->budgetProgress = true;
                 }
             }
             $name = null;
@@ -566,6 +775,17 @@ class Tar_Archiver {
 
         $iterator = null;
         unset( $iterator );
+    }
+
+    /**
+     * Throw a coded backup error with its registry message.
+     *
+     * @param string $code One of the MainWP_Backup_Error::ERR_* codes.
+     *
+     * @throws MainWP_Exception Always - carries the registry message and error code.
+     */
+    private function throw_backup_error( $code ) {
+        throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( $code ) ), null, $code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- message is escaped, code is a registry class constant.
     }
 
     /**
@@ -578,6 +798,7 @@ class Tar_Archiver {
      *
      * @used-by Tar_Archiver::create_full_backup() Create full backup.
      *
+     * @throws MainWP_Exception Archive write failure.
      * @throws \Exception Error message.
      */
     private function add_data( $data ) {
@@ -591,17 +812,23 @@ class Tar_Archiver {
             return;
         }
 
+        $len = strlen( $data );
+        if ( 0 === $len ) {
+            return;
+        }
+
         if ( 'tar.gz' === $this->type ) {
-            if ( false === gzwrite( $this->archive, $data, strlen( $data ) ) ) {
-                throw new \Exception( 'Could not write to archive' );
+            if ( gzwrite( $this->archive, $data, $len ) !== $len ) {
+                $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
+            $this->gzipMemberBytes = ( $this->gzipMemberBytes + $len ) & 0xFFFFFFFF;
         } elseif ( 'tar.bz2' === $this->type ) {
-            if ( false === bzwrite( $this->archive, $data, strlen( $data ) ) ) {
-                throw new \Exception( 'Could not write to archive' );
+            if ( bzwrite( $this->archive, $data, $len ) !== $len ) {
+                $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
         } else {
-            if ( false === fwrite( $this->archive, $data, strlen( $data ) ) ) {
-                throw new \Exception( 'Could not write to archive' );
+            if ( fwrite( $this->archive, $data, $len ) !== $len ) {
+                $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
             fflush( $this->archive );
         }
@@ -610,6 +837,7 @@ class Tar_Archiver {
     /**
      * Write backup chunk.
      *
+     * @throws MainWP_Exception Archive write failure.
      * @throws \Exception Error message.
      */
     private function write_chunk() {
@@ -618,20 +846,22 @@ class Tar_Archiver {
             return;
         }
 
+        MainWP_Backup::assert_disk_space_during_backup( dirname( (string) $this->archivePath ), null, $len );
         if ( 'tar.gz' === $this->type ) {
             $this->log( 'writing & flushing ' . $len );
             $this->chunk = gzencode( $this->chunk );
-            if ( false === fwrite( $this->archive, $this->chunk, strlen( $this->chunk ) ) ) {
-                throw new \Exception( 'Could not write to archive' );
+            $len         = strlen( $this->chunk );
+            if ( fwrite( $this->archive, $this->chunk, $len ) !== $len ) {
+                $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
             fflush( $this->archive );
         } elseif ( 'tar.bz2' === $this->type ) {
-            if ( false === bzwrite( $this->archive, $this->chunk, strlen( $len ) ) ) {
-                throw new \Exception( 'Could not write to archive' );
+            if ( bzwrite( $this->archive, $this->chunk, $len ) !== $len ) {
+                $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
         } else {
-            if ( false === fwrite( $this->archive, $len, strlen( $len ) ) ) {
-                throw new \Exception( 'Could not write to archive' );
+            if ( fwrite( $this->archive, $this->chunk, $len ) !== $len ) {
+                $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
             }
             fflush( $this->archive );
         }
@@ -677,45 +907,40 @@ class Tar_Archiver {
         }
 
         $prefix = '';
+        // PharData (the native restore) joins a ustar prefix to the name with a slash of its own,
+        // and its iterator then skips the entry, so every longer name goes in a long-name entry.
         if ( strlen( $entryName ) > 99 ) {
-            $prefix    = substr( $entryName, 0, strpos( $entryName, '/', strlen( $entryName ) - 100 ) + 1 );
-            $entryName = substr( $entryName, strlen( $prefix ) );
-            if ( strlen( $prefix ) > 154 || strlen( $entryName ) > 99 ) {
-                $entryName = $prefix . $entryName;
-                $prefix    = '';
+            $block = pack(
+                'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
+                '././@LongLink',
+                sprintf( '%07o', 0 ),
+                sprintf( '%07o', 0 ),
+                sprintf( '%07o', 0 ),
+                sprintf( '%011o', strlen( $entryName ) ),
+                sprintf( '%011o', 0 ),
+                '        ',
+                'L',
+                '',
+                'ustar',
+                ' ',
+                '',
+                '',
+                '',
+                '',
+                '',
+                ''
+            );
 
-                $block = pack(
-                    'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
-                    '././@LongLink',
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%011o', strlen( $entryName ) ),
-                    sprintf( '%011o', 0 ),
-                    '        ',
-                    'L',
-                    '',
-                    'ustar',
-                    ' ',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    ''
-                );
-
-                $checksum = 0;
-                for ( $i = 0; $i < 512; $i++ ) {
-                    $checksum += ord( substr( $block, $i, 1 ) );
-                }
-                $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
-                $block    = substr_replace( $block, $checksum, 148, 8 );
-
-                $this->add_data( $block );
-                $this->add_data( pack( 'a512', $entryName ) );
-                $entryName = substr( $entryName, 0, 100 );
+            $checksum = 0;
+            for ( $i = 0; $i < 512; $i++ ) {
+                $checksum += ord( substr( $block, $i, 1 ) );
             }
+            $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
+            $block    = substr_replace( $block, $checksum, 148, 8 );
+
+            $this->add_data( $block );
+            $this->add_data( self::long_name_payload( $entryName ) );
+            $entryName = substr( $entryName, 0, 100 );
         }
 
         $block = pack(
@@ -748,6 +973,7 @@ class Tar_Archiver {
 
         $this->add_data( $block );
 
+        ++$this->addedEntryCount;
         return true;
     }
 
@@ -782,8 +1008,9 @@ class Tar_Archiver {
     /**
      * Add file to the backup archive file.
      *
-     * @param string $path      File path.
-     * @param string $entryName Entry name.
+     * @param string     $path      File path.
+     * @param string     $entryName Entry name.
+     * @param array|null $bases Allowed containment bases, null for the shared defaults.
      *
      * @return bool Return false on failure, true on success.
      * @throws \Exception Error message.
@@ -793,7 +1020,10 @@ class Tar_Archiver {
      * @uses    \MainWP\Child\Tar_Archiver::update_pid_file() Update the PID file.
      * @uses    \MainWP\Child\MainWP_Helper::ends_with()
      */
-    private function add_file( $path, $entryName ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+    private function add_file( $path, $entryName, $bases = null ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+        if ( $this->backup instanceof MainWP_Backup && $this->backup->is_failed_add_skipped( $path ) ) {
+            return false;
+        }
         if ( ( '.' === basename( $path ) ) || ( '..' === basename( $path ) ) ) {
             return false;
         }
@@ -804,14 +1034,72 @@ class Tar_Archiver {
             return false;
         }
 
+        // A leftover would shadow the generated config for first-match readers. The exact
+        // entry name matches the manifest walker, so descendants and aliases stay in both.
+        if ( $this->skipLeftoverConfig && 'clone/config.txt' === $entryName ) {
+            return false;
+        }
+
+        // Walk-time metadata may predate a replaced file or link.
+        clearstatcache( true, $path );
+        if ( MainWP_Backup::is_file_link( $path ) || ! MainWP_Backup::is_safe_backup_path( $path, $bases ) ) {
+            MainWP_Backup::record_skipped_path( $path, MainWP_Backup::is_file_link( $path ) ? 'link' : 'unsafe' );
+            $this->log( 'Skipping unsafe path ' . $path );
+            return false;
+        }
+
         $this->log( 'Adding ' . $path );
 
         $this->update_pid_file();
+
+        if ( null !== $this->progressCallback ) {
+            call_user_func( $this->progressCallback );
+        }
+
+        // Open the source before matching it against the archive: a file skipped in
+        // an earlier slice that never checkpointed its failed paths (lost lease,
+        // hard kill) must be skipped again, not matched against the next entry.
+        $fp = @fopen( $path, 'rb' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- unreadable files are recorded below without exposing their paths.
+        // The header declares this size, so it is read once from the open handle. An oversized source is
+        // skipped like an unreadable one, and a resume that lost the skip must not match it to the next entry.
+        $stat      = $fp ? fstat( $fp ) : false;
+        $too_large = false !== $stat && $stat['size'] > self::MAX_MEMBER_SIZE;
+        if ( ! $fp || false === $stat || $too_large ) {
+            if ( self::APPEND === $this->mode ) {
+                // A source that became unreadable or outgrew the limit may already have a complete archived copy.
+                $startOffset = ftell( $this->archive );
+                try {
+                    $rslt = $this->is_next_file( $entryName );
+                } catch ( \Exception $e ) {
+                    $rslt = false;
+                }
+                if ( true === $rslt ) {
+                    if ( $fp ) {
+                        fclose( $fp );
+                    }
+                    return true;
+                }
+                fseek( $this->archive, $startOffset );
+            }
+            if ( $fp ) {
+                fclose( $fp );
+            }
+            if ( $too_large ) {
+                $this->log( 'Skipping oversized file ' . $path );
+            }
+            if ( $this->backup instanceof MainWP_Backup ) {
+                $this->backup->record_failed_add( $path, $too_large ? 'too_large' : 'unreadable' );
+            } elseif ( $too_large ) {
+                MainWP_Backup::record_skipped_path( $path, 'too_large' );
+            }
+            return false;
+        }
 
         $rslt = false;
         if ( self::APPEND === $this->mode ) {
             $rslt = $this->check_before_append( $entryName );
             if ( true === $rslt ) {
+                fclose( $fp );
                 return true;
             }
         }
@@ -832,56 +1120,52 @@ class Tar_Archiver {
             $this->gcCnt = 0;
         }
 
-        $stat = stat( $path ); // NOSONAR .
-        $fp   = fopen( $path, 'rb' ); // NOSONAR .
-        if ( ! $fp ) {
-            return;
+        // Hard low-disk floor every 100 files - a full disk mid-archive
+        // corrupts the backup silently otherwise.
+        ++$this->addedFileCount;
+        if ( 0 === $this->addedFileCount % 100 && ! empty( $this->archivePath ) ) {
+            MainWP_Backup::assert_disk_space_during_backup( dirname( $this->archivePath ) );
         }
 
         $prefix = '';
+        // PharData (the native restore) joins a ustar prefix to the name with a slash of its own,
+        // and its iterator then skips the entry, so every longer name goes in a long-name entry.
         if ( strlen( $entryName ) > 99 ) {
-            $prefix    = substr( $entryName, 0, strpos( $entryName, '/', strlen( $entryName ) - 100 ) + 1 );
-            $entryName = substr( $entryName, strlen( $prefix ) );
-            if ( strlen( $prefix ) > 154 || strlen( $entryName ) > 99 ) {
-                $entryName = $prefix . $entryName;
-                $prefix    = '';
+            $block = pack(
+                'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
+                '././@LongLink',
+                sprintf( '%07o', 0 ),
+                sprintf( '%07o', 0 ),
+                sprintf( '%07o', 0 ),
+                sprintf( '%011o', strlen( $entryName ) ),
+                sprintf( '%011o', 0 ),
+                '        ',
+                'L',
+                '',
+                'ustar',
+                ' ',
+                '',
+                '',
+                '',
+                '',
+                '',
+                ''
+            );
 
-                $block = pack(
-                    'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
-                    '././@LongLink',
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%011o', strlen( $entryName ) ),
-                    sprintf( '%011o', 0 ),
-                    '        ',
-                    'L',
-                    '',
-                    'ustar',
-                    ' ',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    ''
-                );
-
-                $checksum = 0;
-                for ( $i = 0; $i < 512; $i++ ) {
-                    $checksum += ord( substr( $block, $i, 1 ) );
-                }
-                $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
-                $block    = substr_replace( $block, $checksum, 148, 8 );
-
-                if ( ! isset( $rslt['bytesRead'] ) ) {
-                    $this->add_data( $block );
-                }
-                if ( ! isset( $rslt['bytesRead'] ) ) {
-                    $this->add_data( pack( 'a512', $entryName ) );
-                }
-                $entryName = substr( $entryName, 0, 100 );
+            $checksum = 0;
+            for ( $i = 0; $i < 512; $i++ ) {
+                $checksum += ord( substr( $block, $i, 1 ) );
             }
+            $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
+            $block    = substr_replace( $block, $checksum, 148, 8 );
+
+            if ( ! isset( $rslt['bytesRead'] ) ) {
+                $this->add_data( $block );
+            }
+            if ( ! isset( $rslt['bytesRead'] ) ) {
+                $this->add_data( self::long_name_payload( $entryName ) );
+            }
+            $entryName = substr( $entryName, 0, 100 );
         }
 
         $this->block = pack(
@@ -916,42 +1200,61 @@ class Tar_Archiver {
             $this->add_data( $this->block );
         }
 
-        if ( isset( $rslt['bytesRead'] ) ) {
-            fseek( $fp, $rslt['bytesRead'] );
-
-            $alreadyRead = ( $rslt['bytesRead'] % 512 );
-            $toRead      = 512 - $alreadyRead;
-            if ( $toRead > 0 ) {
-                $this->tempContent = fread( $fp, $toRead );
-
-                $this->add_data( $this->tempContent );
-
-                $remainder = 512 - ( strlen( $this->tempContent ) + $alreadyRead );
-                $this->log( 'DEBUG-Added ' . strlen( $this->tempContent ) . '(before: ' . $alreadyRead . ') will pack: ' . $remainder . ' (packed: ' . strlen( pack( 'a' . $remainder, '' ) ) );
-                if ( $remainder > 0 ) {
-                    $this->add_data( pack( 'a' . $remainder ), '' );
+        // The archived header fixes the next member's offset even if the source changes.
+        $declaredSize = isset( $rslt['bytesRead'] ) ? $rslt['size'] : $stat['size'];
+        $position     = isset( $rslt['bytesRead'] ) ? $rslt['bytesRead'] : 0;
+        $payloadArea  = $declaredSize + ( 512 - $declaredSize % 512 ) % 512;
+        $sourceEnded  = false;
+        if ( $position < $declaredSize ) {
+            fseek( $fp, $position );
+        }
+        while ( $position < $payloadArea ) {
+            $toWrite           = min( 1024000 * 5, $payloadArea - $position );
+            $this->tempContent = '';
+            if ( $position < $declaredSize && ! $sourceEnded ) {
+                $toRead            = min( $toWrite, $declaredSize - $position );
+                $this->tempContent = $this->read_source_data( $fp, $toRead );
+                if ( false === $this->tempContent ) {
+                    fclose( $fp );
+                    if ( $this->backup instanceof MainWP_Backup ) {
+                        $this->backup->record_failed_add( $path );
+                    }
+                    // A compressed entry cannot be rolled back after its header was written.
+                    $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+                }
+                if ( '' === $this->tempContent || ( strlen( $this->tempContent ) < $toRead && feof( $fp ) ) ) {
+                    $sourceEnded = true;
+                    MainWP_Backup::record_skipped_path( $path, 'changed' );
                 }
             }
-        }
-
-        while ( ! feof( $fp ) ) {
-            $this->tempContent = fread( $fp, 1024000 * 5 );
-
-            $read   = strlen( $this->tempContent );
-            $divide = $read % 512;
-
-            $this->add_data( substr( $this->tempContent, 0, $read - $divide ) );
-
-            if ( $divide > 0 ) {
-                $this->add_data( pack( 'a512', substr( $this->tempContent, - 1 * $divide ) ) );
+            if ( $sourceEnded || $position + strlen( $this->tempContent ) >= $declaredSize ) {
+                $this->tempContent = str_pad( $this->tempContent, $toWrite, "\0" );
             }
-
+            $written = strlen( $this->tempContent );
+            // A single file can consume the headroom between file-count checks.
+            MainWP_Backup::assert_disk_space_during_backup( dirname( (string) $this->archivePath ), null, $written );
+            $this->add_data( $this->tempContent );
+            $position += $written;
             $this->update_pid_file();
         }
 
         fclose( $fp );
 
-        return true;
+        ++$this->addedEntryCount;
+        // The member stays in the archive either way; the site walk ignores this result and reports the
+        // change, while the dump and zip_file() callers fail rather than ship a NUL-filled copy.
+        return ! $sourceEnded;
+    }
+
+    /**
+     * Keep source read warnings out of the Dashboard response.
+     *
+     * @param resource $handle Source stream.
+     * @param int      $length Maximum bytes to read.
+     * @return string|false Source bytes, or false on a read failure.
+     */
+    protected function read_source_data( $handle, $length ) {
+        return @fread( $handle, $length ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- the caller records the failed path and aborts the partial archive.
     }
 
     /**
@@ -973,46 +1276,42 @@ class Tar_Archiver {
             }
         }
 
+        MainWP_Backup::assert_disk_space_during_backup( dirname( (string) $this->archivePath ), null, strlen( $content ) + 2048 );
         $prefix = '';
+        // PharData (the native restore) joins a ustar prefix to the name with a slash of its own,
+        // and its iterator then skips the entry, so every longer name goes in a long-name entry.
         if ( strlen( $entryName ) > 99 ) {
-            $prefix    = substr( $entryName, 0, strpos( $entryName, '/', strlen( $entryName ) - 100 ) + 1 );
-            $entryName = substr( $entryName, strlen( $prefix ) );
-            if ( strlen( $prefix ) > 154 || strlen( $entryName ) > 99 ) {
-                $entryName = $prefix . $entryName;
-                $prefix    = '';
+            $block = pack(
+                'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
+                '././@LongLink',
+                sprintf( '%07o', 0 ),
+                sprintf( '%07o', 0 ),
+                sprintf( '%07o', 0 ),
+                sprintf( '%011o', strlen( $entryName ) ),
+                sprintf( '%011o', 0 ),
+                '        ',
+                'L',
+                '',
+                'ustar',
+                ' ',
+                '',
+                '',
+                '',
+                '',
+                '',
+                ''
+            );
 
-                $block = pack(
-                    'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
-                    '././@LongLink',
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%07o', 0 ),
-                    sprintf( '%011o', strlen( $entryName ) ),
-                    sprintf( '%011o', 0 ),
-                    '        ',
-                    'L',
-                    '',
-                    'ustar',
-                    ' ',
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
-                    ''
-                );
-
-                $checksum = 0;
-                for ( $i = 0; $i < 512; $i++ ) {
-                    $checksum += ord( substr( $block, $i, 1 ) );
-                }
-                $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
-                $block    = substr_replace( $block, $checksum, 148, 8 );
-
-                $this->add_data( $block );
-                $this->add_data( pack( 'a512', $entryName ) );
-                $entryName = substr( $entryName, 0, 100 );
+            $checksum = 0;
+            for ( $i = 0; $i < 512; $i++ ) {
+                $checksum += ord( substr( $block, $i, 1 ) );
             }
+            $checksum = pack( 'a8', sprintf( '%07o', $checksum ) );
+            $block    = substr_replace( $block, $checksum, 148, 8 );
+
+            $this->add_data( $block );
+            $this->add_data( self::long_name_payload( $entryName ) );
+            $entryName = substr( $entryName, 0, 100 );
         }
 
         $block = pack(
@@ -1044,13 +1343,72 @@ class Tar_Archiver {
         $block    = substr_replace( $block, $checksum, 148, 8 );
 
         $this->add_data( $block );
-        $i = 0;
-        while ( ( $line = substr( $content, $i * 512, 512 ) ) !== '' ) {
-            ++$i;
+        $contentLength = strlen( $content );
+        for ( $offset = 0; $offset < $contentLength; $offset += 512 ) {
+            $line = substr( $content, $offset, 512 );
             $this->add_data( pack( 'a512', $line ) );
         }
 
+        ++$this->addedEntryCount;
         return true;
+    }
+
+    /**
+     * GNU tar and extract_to() read the declared name length, so the name fills every block it needs.
+     *
+     * @param string $entryName Full entry name.
+     * @return string Name padded with NULs to whole 512-byte blocks.
+     */
+    private static function long_name_payload( $entryName ) {
+        return str_pad( $entryName, (int) ( ceil( strlen( $entryName ) / 512 ) * 512 ), "\0" );
+    }
+
+    /**
+     * Reads a GNU long-name payload and the header block after it.
+     *
+     * Archives written before long names were padded declare the full length but hold only the
+     * first 512 bytes; the block after that one is then the entry's own header. That shape is
+     * returned as cut so readers can step over it instead of reading the header as name bytes.
+     * The header's name field must match the first 100 name bytes and its prefix must be empty.
+     *
+     * @param int $length Declared name length.
+     * @return array|false Array of name, whether it was cut, and the following header block; false
+     *                     when the length is over 65536 or the archive ends inside the payload.
+     */
+    private function read_long_name( $length ) {
+        if ( $length < 0 || $length > 65536 ) {
+            return false;
+        }
+        $data = '';
+        if ( $length > 0 ) {
+            $data = fread( $this->archive, 512 );
+            if ( false === $data || 512 !== strlen( $data ) ) {
+                return false;
+            }
+        }
+        if ( $length > 512 && false === strpos( $data, "\0" ) ) {
+            $next = fread( $this->archive, 512 );
+            if ( false === $next || 512 !== strlen( $next ) ) {
+                return false;
+            }
+            if ( $this->is_header_block( $next ) && substr( $next, 0, 100 ) === substr( $data, 0, 100 ) && '' === rtrim( substr( $next, 345, 155 ), "\0" ) ) {
+                return array( $data, true, $next );
+            }
+            $data .= $next;
+        }
+        $remaining = (int) ( ceil( $length / 512 ) * 512 ) - strlen( $data );
+        if ( $remaining > 0 ) {
+            $rest = stream_get_contents( $this->archive, $remaining );
+            if ( false === $rest || strlen( $rest ) !== $remaining ) {
+                return false;
+            }
+            $data .= $rest;
+        }
+        $header = fread( $this->archive, 512 );
+        if ( false === $header || 512 !== strlen( $header ) ) {
+            return false;
+        }
+        return array( rtrim( substr( $data, 0, $length ), "\0" ), false, $header );
     }
 
     /**
@@ -1080,11 +1438,14 @@ class Tar_Archiver {
                 $startOffset = $rslt['startOffset'];
                 fseek( $this->archive, $startOffset );
                 ftruncate( $this->archive, $startOffset );
-            } elseif ( 'tar.gz' === $this->type ) {
+            } elseif ( 'tar.gz' === $this->type && isset( $rslt['bytesRead'] ) ) {
                 $readOffset = $rslt['readOffset'];
                 $bytesRead  = $rslt['bytesRead'];
 
-                $out = array( 'bytesRead' => $bytesRead );
+                $out = array(
+                    'bytesRead' => $bytesRead,
+                    'size'      => $rslt['size'],
+                );
             }
         } elseif ( false === $rslt ) {
             if ( 'tar' === $this->type ) {
@@ -1104,6 +1465,7 @@ class Tar_Archiver {
      *
      * @param string $entryName Entry name.
      *
+     * @throws MainWP_Exception Corrupt or unexpected archive content.
      * @throws \Exception Error message.
      *
      * @return array|bool If true,skip file, if false or number, nothing to read, will continue with current file.
@@ -1112,61 +1474,104 @@ class Tar_Archiver {
         $currentOffset = ftell( $this->archive );
         $rslt          = array( 'startOffset' => $currentOffset );
         try {
-            $block = fread( $this->archive, 512 );
+            while ( true ) {
+                $block = fread( $this->archive, 512 );
 
-            if ( false === $block || 0 === strlen( $block ) ) {
-                return $rslt;
-            }
-
-            if ( 512 !== strlen( $block ) ) {
-                throw new \Exception( 'Invalid block found' );
-            }
-
-            $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
-            if ( 'L' === $temp['type'] ) {
-                $fname          = trim( fread( $this->archive, 512 ) );
-                $block          = fread( $this->archive, 512 );
-                $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
-                $temp['prefix'] = '';
-                $temp['name']   = $fname;
-            }
-            $file = array(
-                'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
-                'stat'     => array(
-                    2 => $temp['mode'],
-                    4 => octdec( $temp['uid'] ),
-                    5 => octdec( $temp['gid'] ),
-                    7 => octdec( $temp['size'] ),
-                    9 => octdec( $temp['mtime'] ),
-                ),
-                'checksum' => octdec( $temp['checksum'] ),
-                'type'     => $temp['type'],
-                'magic'    => $temp['magic'],
-            );
-
-            if ( 5 === (int) $file['type'] ) {
-                if ( 0 === strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
-                    $this->log( 'Skipping directory [' . $file['name'] . ']' );
-
-                    return true;
-                } else {
-                    throw new \Exception( 'Unexpected directory [' . $file['name'] . ']' );
+                if ( false === $block || 0 === strlen( $block ) ) {
+                    return $rslt;
                 }
-            } elseif ( 0 === (int) $file['type'] ) {
-                if ( 0 === strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
-                    return $this->read_next_bytes( $file );
-                } else {
-                    $this->log( 'Unexpected file [' . $file['name'] . ']' );
-                    throw new \Exception( 'Unexpected file' );
+
+                if ( 512 !== strlen( $block ) ) {
+                    $this->throw_backup_error( MainWP_Backup_Error::ERR_FILE_CORRUPT );
                 }
+
+                $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
+                if ( 'L' === $temp['type'] ) {
+                    // A torn long name is corrupt, as a torn header block is above.
+                    $long = $this->read_long_name( (int) octdec( trim( $temp['size'], "\0 " ) ) );
+                    if ( false === $long ) {
+                        $this->throw_backup_error( MainWP_Backup_Error::ERR_FILE_CORRUPT );
+                    }
+                    $block          = $long[2];
+                    $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
+                    $temp['prefix'] = '';
+                    $temp['name']   = $long[0];
+                }
+                $file = array(
+                    'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
+                    'stat'     => array(
+                        2 => $temp['mode'],
+                        4 => octdec( trim( $temp['uid'], "\0 " ) ),
+                        5 => octdec( trim( $temp['gid'], "\0 " ) ),
+                        7 => octdec( trim( $temp['size'], "\0 " ) ),
+                        9 => octdec( trim( $temp['mtime'], "\0 " ) ),
+                    ),
+                    'checksum' => octdec( trim( $temp['checksum'], "\0 " ) ),
+                    'type'     => $temp['type'],
+                    'magic'    => $temp['magic'],
+                );
+
+                if ( 5 === (int) $file['type'] ) {
+                    if ( 0 === strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
+                        $this->log( 'Skipping directory [' . $file['name'] . ']' );
+
+                        return true;
+                    } else {
+                        $this->log( 'Unexpected directory [' . $file['name'] . ']' );
+                        throw new MainWP_Exception( esc_html__( 'Unexpected content found while reading the backup archive. The archive file may be corrupted. Try creating a new backup.', 'mainwp-child' ), null, MainWP_Backup_Error::ERR_FILE_CORRUPT );
+                    }
+                } elseif ( 0 === (int) $file['type'] ) {
+                    if ( 0 === strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
+                        return $this->read_next_bytes( $file );
+                    } elseif ( $this->skip_archived_file_link( $file ) ) {
+                        // If the archive ends here, append after this member instead of truncating it.
+                        $rslt['startOffset'] = ftell( $this->archive );
+                        continue;
+                    } else {
+                        $this->log( 'Unexpected file [' . $file['name'] . ']' );
+                        throw new MainWP_Exception( esc_html__( 'Unexpected content found while reading the backup archive. The archive file may be corrupted. Try creating a new backup.', 'mainwp-child' ), null, MainWP_Backup_Error::ERR_FILE_CORRUPT );
+                    }
+                }
+                break;
             }
 
             $this->log( 'ERROR' );
-            throw new \Exception( 'Should never get here?' );
+            throw new MainWP_Exception( esc_html__( 'An unexpected error occurred while processing the backup archive. Please try again and contact support if the issue persists.', 'mainwp-child' ), null, MainWP_Backup_Error::ERR_FILE_CORRUPT );
         } catch ( \Exception $e ) {
             $this->log( $e->getMessage() );
             throw $e;
         }
+    }
+
+    /**
+     * Step over an archived member whose source is now a file link.
+     *
+     * A partial archive written before file links were skipped, or a file the
+     * host replaced with a link between slices, holds a member the walk no
+     * longer adds. Matching it lazily here keeps the link skips free of
+     * backward seeks, which on a gzip stream re-inflate from the start.
+     *
+     * @param array $file Parsed member header.
+     *
+     * @throws MainWP_Exception When the member's data runs past the archive end.
+     *
+     * @return bool Whether the member was skipped.
+     */
+    private function skip_archived_file_link( $file ) {
+        $name = $file['name'];
+        $path = '/' === substr( $name, 0, 1 ) ? $name : ABSPATH . $name;
+        clearstatcache( true, $path );
+        if ( '' === $name || ! MainWP_Backup::is_file_link( $path ) ) {
+            return false;
+        }
+        $offset = ftell( $this->archive );
+        $bytes  = (int) ( ceil( $file['stat'][7] / 512 ) * 512 );
+        // A truncated member is corrupt, as it is for a regular file in read_next_bytes().
+        if ( false === $offset || ( false !== $this->archiveSize && $offset + $bytes > $this->archiveSize ) || 0 !== fseek( $this->archive, $offset + $bytes ) ) {
+            $this->throw_backup_error( MainWP_Backup_Error::ERR_FILE_CORRUPT );
+        }
+        $this->log( 'Skipping archived link [' . $name . ']' );
+        return true;
     }
 
     /**
@@ -1179,6 +1584,9 @@ class Tar_Archiver {
     private function read_next_bytes( $file ) {
         $previousFtell = ftell( $this->archive );
         $bytes         = $file['stat'][7] + ( 512 === ( 512 - $file['stat'][7] % 512 ) ? 0 : ( 512 - $file['stat'][7] % 512 ) );
+        if ( false !== $this->archiveSize && $previousFtell + $bytes > $this->archiveSize ) {
+            $this->throw_backup_error( MainWP_Backup_Error::ERR_FILE_CORRUPT );
+        }
         fseek( $this->archive, ftell( $this->archive ) + $bytes );
         $ftell = ftell( $this->archive );
         if ( 'tar.gz' === $this->type ) {
@@ -1210,6 +1618,7 @@ class Tar_Archiver {
 
                 $rslt['bytesRead']  = $bytesRead;
                 $rslt['readOffset'] = $previousFtell;
+                $rslt['size']       = $file['stat'][7];
 
                 $this->log( 'Will append this: ' . print_r( $rslt, 1 ) ); // phpcs:ignore -- debug feature.
 
@@ -1241,12 +1650,17 @@ class Tar_Archiver {
      * @param string $filepath File location path.
      */
     public function create( $filepath ) {
+        $this->archivePath     = $filepath;
+        $this->archiveWriting  = true;
+        $this->gzipMemberBytes = 0;
         $this->log( 'Creating ' . $filepath );
         if ( $this->debug ) {
             if ( 'tar.bz2' === $this->type ) {
                 $this->archive = bzopen( $filepath, 'w' );
+                $this->protect_native_file( $filepath );
             } else {
                 $this->archive = fopen( $filepath, 'wb+' ); // NOSONAR .
+                $this->protect_native_file( $filepath );
             }
 
             return;
@@ -1254,10 +1668,13 @@ class Tar_Archiver {
 
         if ( 'tar.gz' === $this->type ) {
             $this->archive = gzopen( $filepath, 'wb' );
+            $this->protect_native_file( $filepath );
         } elseif ( 'tar.bz2' === $this->type ) {
             $this->archive = bzopen( $filepath, 'w' );
+            $this->protect_native_file( $filepath );
         } else {
             $this->archive = fopen( $filepath, 'wb+' ); // NOSONAR .
+            $this->protect_native_file( $filepath );
         }
     }
 
@@ -1267,12 +1684,17 @@ class Tar_Archiver {
      * @param string $filepath File location path.
      */
     public function append( $filepath ) {
+        $this->archivePath     = $filepath;
+        $this->archiveWriting  = true;
+        $this->gzipMemberBytes = 0;
         $this->log( 'Appending to ' . $filepath );
         if ( $this->debug ) {
             if ( 'tar.bz2' === $this->type ) {
                 $this->archive = bzopen( $filepath, 'a' );
+                $this->protect_native_file( $filepath );
             } else {
                 $this->archive = fopen( $filepath, 'ab+' ); // NOSONAR .
+                $this->protect_native_file( $filepath );
             }
 
             return;
@@ -1280,10 +1702,13 @@ class Tar_Archiver {
 
         if ( 'tar.gz' === $this->type ) {
             $this->archive = gzopen( $filepath, 'ab' );
+            $this->protect_native_file( $filepath );
         } elseif ( 'tar.bz2' === $this->type ) {
             $this->archive = bzopen( $filepath, 'a' );
+            $this->protect_native_file( $filepath );
         } else {
             $this->archive = fopen( $filepath, 'ab+' ); // NOSONAR .
+            $this->protect_native_file( $filepath );
         }
     }
 
@@ -1304,6 +1729,17 @@ class Tar_Archiver {
      * @throws \Exception Error message.
      */
     public function prepare_append( $filepath ) {
+        $gzipSize = false;
+        if ( 'tar.gz' === $this->type ) {
+            $gzipSize = $this->complete_gzip_size( $filepath );
+            if ( false === $gzipSize ) {
+                // A new gzip member cannot finish an interrupted previous member.
+                $this->mode = self::CREATE;
+                $this->create( $filepath );
+                return;
+            }
+        }
+
         if ( $this->debug ) {
             if ( 'tar.gz' === substr( $filepath, - 6 ) ) {
                 $text        = chr( 31 ) . chr( 139 ) . chr( 8 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 ) . chr( 0 );
@@ -1343,6 +1779,58 @@ class Tar_Archiver {
         }
 
         $this->read( $filepath );
+        if ( false !== $gzipSize ) {
+            $this->archiveSize = $gzipSize;
+        }
+    }
+
+    /**
+     * Count decoded bytes only when every gzip member ends with a valid footer.
+     *
+     * @param string $filepath Archive path.
+     * @return int|false Decoded size, or false for an incomplete or invalid container.
+     */
+    private function complete_gzip_size( $filepath ) {
+        $handle = fopen( $filepath, 'rb' );
+        if ( false === $handle ) {
+            return false;
+        }
+
+        $inflater = null;
+        $complete = false;
+        $size     = 0;
+        try {
+            while ( ! feof( $handle ) ) {
+                // Bound the decoded allocation even for highly compressed input.
+                $data = fread( $handle, 1024 );
+                if ( false === $data || ( '' === $data && ! feof( $handle ) ) ) {
+                    return false;
+                }
+                while ( '' !== $data ) {
+                    if ( null === $inflater ) {
+                        $inflater = inflate_init( ZLIB_ENCODING_GZIP );
+                        if ( false === $inflater ) {
+                            return false;
+                        }
+                    }
+                    $before  = inflate_get_read_len( $inflater );
+                    $decoded = @inflate_add( $inflater, $data, ZLIB_SYNC_FLUSH ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- invalid input causes a clean archive restart.
+                    $read    = inflate_get_read_len( $inflater ) - $before;
+                    if ( false === $decoded || $read <= 0 ) {
+                        return false;
+                    }
+                    $size    += strlen( $decoded );
+                    $data     = substr( $data, $read );
+                    $complete = ZLIB_STREAM_END === inflate_get_status( $inflater );
+                    if ( $complete ) {
+                        $inflater = null;
+                    }
+                }
+            }
+            return $complete ? $size : false;
+        } finally {
+            fclose( $handle );
+        }
     }
 
     /**
@@ -1351,6 +1839,8 @@ class Tar_Archiver {
      * @param string $filepath File location path.
      */
     public function read( $filepath ) {
+        $this->archiveWriting = false;
+        $this->readPath       = $filepath;
         $this->log( 'Reading ' . $filepath );
         $this->archiveSize = false;
 
@@ -1361,15 +1851,13 @@ class Tar_Archiver {
             $this->type    = 'tar.bz2';
             $this->archive = bzopen( $filepath, 'r' );
         } else {
-            $currentPos = ftell( $this->archive );
-            fseek( $this->archive, 0, SEEK_END );
-            $lastPos = ftell( $this->archive );
-            fseek( $this->archive, $currentPos );
-
-            $this->archiveSize = $lastPos;
-
             $this->type    = 'tar';
             $this->archive = fopen( $filepath, 'rb' ); // NOSONAR .
+            if ( $this->archive ) {
+                fseek( $this->archive, 0, SEEK_END );
+                $this->archiveSize = ftell( $this->archive );
+                fseek( $this->archive, 0 );
+            }
         }
     }
 
@@ -1387,14 +1875,54 @@ class Tar_Archiver {
         }
 
         if ( $this->archive ) {
-            if ( 'tar.gz' === $this->type ) {
-                gzclose( $this->archive );
-            } elseif ( 'tar.bz2' === $this->type ) {
-                bzclose( $this->archive );
-            } else {
-                fclose( $this->archive );
+            $writing = $this->archiveWriting;
+            $gzip    = 'tar.gz' === $this->type && ! $this->debug;
+            $flushed = true;
+            if ( $writing && $gzip ) {
+                $flushed = @fflush( $this->archive ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- write failures use the backup error registry.
+            }
+            $closed               = $this->close_archive_stream();
+            $this->archive        = null;
+            $this->archiveWriting = false;
+            if ( $writing && 'tar.bz2' !== $this->type ) {
+                if ( ! $flushed || ! $closed ) {
+                    $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+                }
+                if ( $gzip ) {
+                    // gzclose() can report success even when the final footer write fails.
+                    $footer = @fopen( $this->archivePath, 'rb' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- missing output is a write failure, without a path-bearing warning.
+                    $size   = false;
+                    if ( false !== $footer ) {
+                        $stat = fstat( $footer );
+                        if ( false !== $stat && $stat['size'] >= 18 && 0 === fseek( $footer, -4, SEEK_END ) ) {
+                            $bytes = fread( $footer, 4 );
+                            if ( false !== $bytes && 4 === strlen( $bytes ) ) {
+                                $size = unpack( 'Vsize', $bytes )['size'];
+                            }
+                        }
+                        fclose( $footer );
+                    }
+                    if ( $size !== $this->gzipMemberBytes ) {
+                        $this->throw_backup_error( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+                    }
+                }
             }
         }
+    }
+
+    /**
+     * Chunked gzip output uses a plain file handle.
+     *
+     * @return bool Whether the stream closed successfully.
+     */
+    protected function close_archive_stream() {
+        if ( 'tar.gz' === $this->type && ! $this->debug ) {
+            return @gzclose( $this->archive ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- write failures use the backup error registry.
+        }
+        if ( 'tar.bz2' === $this->type ) {
+            return bzclose( $this->archive );
+        }
+        return @fclose( $this->archive ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- write failures use the backup error registry.
     }
 
     /**
@@ -1416,22 +1944,25 @@ class Tar_Archiver {
         while ( $block = fread( $this->archive, 512 ) ) {
             $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
             if ( 'L' === $temp['type'] ) {
-                $fname          = trim( fread( $this->archive, 512 ) );
-                $block          = fread( $this->archive, 512 );
+                $long = $this->read_long_name( (int) octdec( trim( $temp['size'], "\0 " ) ) );
+                if ( false === $long ) {
+                    break;
+                }
+                $block          = $long[2];
                 $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
                 $temp['prefix'] = '';
-                $temp['name']   = $fname;
+                $temp['name']   = $long[0];
             }
             $file = array(
                 'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
                 'stat'     => array(
                     2 => $temp['mode'],
-                    4 => octdec( $temp['uid'] ),
-                    5 => octdec( $temp['gid'] ),
-                    7 => octdec( $temp['size'] ),
-                    9 => octdec( $temp['mtime'] ),
+                    4 => octdec( trim( $temp['uid'], "\0 " ) ),
+                    5 => octdec( trim( $temp['gid'], "\0 " ) ),
+                    7 => octdec( trim( $temp['size'], "\0 " ) ),
+                    9 => octdec( trim( $temp['mtime'], "\0 " ) ),
                 ),
-                'checksum' => octdec( $temp['checksum'] ),
+                'checksum' => octdec( trim( $temp['checksum'], "\0 " ) ),
                 'type'     => $temp['type'],
                 'magic'    => $temp['magic'],
             );
@@ -1487,22 +2018,25 @@ class Tar_Archiver {
         while ( $block = fread( $this->archive, 512 ) ) {
             $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
             if ( 'L' === $temp['type'] ) {
-                $fname          = trim( fread( $this->archive, 512 ) );
-                $block          = fread( $this->archive, 512 );
+                $long = $this->read_long_name( (int) octdec( trim( $temp['size'], "\0 " ) ) );
+                if ( false === $long ) {
+                    break;
+                }
+                $block          = $long[2];
                 $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
                 $temp['prefix'] = '';
-                $temp['name']   = $fname;
+                $temp['name']   = $long[0];
             }
             $file = array(
                 'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
                 'stat'     => array(
                     2 => $temp['mode'],
-                    4 => octdec( $temp['uid'] ),
-                    5 => octdec( $temp['gid'] ),
-                    7 => octdec( $temp['size'] ),
-                    9 => octdec( $temp['mtime'] ),
+                    4 => octdec( trim( $temp['uid'], "\0 " ) ),
+                    5 => octdec( trim( $temp['gid'], "\0 " ) ),
+                    7 => octdec( trim( $temp['size'], "\0 " ) ),
+                    9 => octdec( trim( $temp['mtime'], "\0 " ) ),
                 ),
-                'checksum' => octdec( $temp['checksum'] ),
+                'checksum' => octdec( trim( $temp['checksum'], "\0 " ) ),
                 'type'     => $temp['type'],
                 'magic'    => $temp['magic'],
             );
@@ -1523,7 +2057,7 @@ class Tar_Archiver {
                 if ( 0 === strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
                     return true;
                 }
-            } elseif ( 0 === $file['type'] ) {
+            } elseif ( 0 === (int) $file['type'] ) {
                 if ( 0 === strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
                     return true;
                 } else {
@@ -1544,6 +2078,7 @@ class Tar_Archiver {
      * @param string $to Desired location to extract file.
      *
      * @return null
+     * @throws \Exception When an archive entry could escape the destination.
      */
     public function extract_to( $to ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
 
@@ -1555,104 +2090,164 @@ class Tar_Archiver {
         global $wp_filesystem;
 
         $to = trailingslashit( $to );
-        fseek( $this->archive, 0 );
-        while ( $block = fread( $this->archive, 512 ) ) {
-            $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
-            if ( 'L' === $temp['type'] ) {
-                $fname          = trim( fread( $this->archive, 512 ) );
-                $block          = fread( $this->archive, 512 );
-                $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
-                $temp['prefix'] = '';
-                $temp['name']   = $fname;
-            }
-            $file = array(
-                'name'     => trim( $temp['prefix'] ) . trim( $temp['name'] ),
-                'stat'     => array(
-                    2 => $temp['mode'],
-                    4 => octdec( $temp['uid'] ),
-                    5 => octdec( $temp['gid'] ),
-                    7 => octdec( $temp['size'] ),
-                    9 => octdec( $temp['mtime'] ),
-                ),
-                'checksum' => octdec( $temp['checksum'] ),
-                'type'     => $temp['type'],
-                'magic'    => $temp['magic'],
-            );
-
-            if ( 0x00000000 === $file['checksum'] ) {
-                break;
-            } elseif ( 'ustar' !== substr( $file['magic'], 0, 5 ) ) {
-                break;
-            }
-            $block    = substr_replace( $block, '        ', 148, 8 );
-            $checksum = 0;
-            for ( $i = 0; $i < 512; $i++ ) {
-                $checksum += ord( substr( $block, $i, 1 ) );
-            }
-            if ( 5 === (int) $file['type'] ) {
-                if ( ! is_dir( $to . $file['name'] ) ) {
-                    if ( ! empty( $wp_filesystem ) ) {
-                        $wp_filesystem->mkdir( $to . $file['name'], FS_CHMOD_DIR );
-                    } else {
-                        mkdir( $to . $file['name'], 0777, true );
-                    }
+        foreach ( array( true, false ) as $validate_only ) {
+            $meta = stream_get_meta_data( $this->archive );
+            if ( empty( $meta['seekable'] ) ) {
+                // bzip2 streams cannot seek, so each pass reopens the archive.
+                if ( empty( $this->readPath ) ) {
+                    throw new \Exception( 'Could not rewind the archive. Extraction aborted.' );
                 }
-            } elseif ( 0 === (int) $file['type'] ) {
-                if ( ! is_dir( dirname( $to . $file['name'] ) ) ) {
-                    if ( ! empty( $wp_filesystem ) ) {
-                        $wp_filesystem->mkdir( dirname( $to . $file['name'] ), FS_CHMOD_DIR );
-                    } else {
-                        mkdir( dirname( $to . $file['name'] ), 0777, true );
-                    }
+                'tar.bz2' === $this->type ? bzclose( $this->archive ) : fclose( $this->archive );
+                $this->read( $this->readPath );
+                if ( ! $this->archive ) {
+                    throw new \Exception( 'Could not reopen the archive. Extraction aborted.' );
                 }
-
-                if ( ! empty( $wp_filesystem ) && ( $file['stat'][7] < 2000000 ) ) {
-                    $contents    = '';
-                    $bytesToRead = $file['stat'][7];
-                    while ( $bytesToRead > 0 ) {
-                        $readNow      = $bytesToRead > 1024 ? 1024 : $bytesToRead;
-                        $contents    .= fread( $this->archive, $readNow );
-                        $bytesToRead -= $readNow;
+            } else {
+                fseek( $this->archive, 0 );
+            }
+            $ended = false;
+            while ( $block = fread( $this->archive, 512 ) ) {
+                if ( 512 !== strlen( $block ) ) {
+                    throw new \Exception( 'Archive ended inside a header. Extraction aborted.' );
+                }
+                if ( ! $this->check_extract_header( $block ) ) {
+                    $ended = true;
+                    break;
+                }
+                $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
+                if ( 'L' === $temp['type'] ) {
+                    $length = octdec( trim( $temp['size'], "\0 " ) );
+                    if ( $length > 65536 ) {
+                        throw new \Exception( 'Archive entry name is too long. Extraction aborted.' );
                     }
-
-                    $toRead = ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
-                    if ( $toRead > 0 ) {
-                        fread( $this->archive, ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 ) );
+                    $long = $this->read_long_name( (int) $length );
+                    if ( false === $long ) {
+                        throw new \Exception( 'Archive ended inside an entry. Extraction aborted.' );
                     }
+                    if ( $long[1] ) {
+                        // Writing the cut name would put the file at a different path than the source site had.
+                        throw new \Exception( sprintf( 'Archive entry name was cut to 512 bytes by an older MainWP Child version: %s. Update MainWP Child on the source site and create a new backup. Extraction aborted.', esc_html( MainWP_Clone_Install::entry_label( $long[0] ) ) ) );
+                    }
+                    $fname = $long[0];
+                    $block = $long[2];
+                    if ( ! $this->check_extract_header( $block ) ) {
+                        throw new \Exception( 'Archive ended inside a header. Extraction aborted.' );
+                    }
+                    $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
+                    $temp['prefix'] = '';
+                    $temp['name']   = $fname;
+                }
+                $file = array(
+                    'name'     => rtrim( $temp['prefix'], "\0" ) . rtrim( $temp['name'], "\0" ),
+                    'stat'     => array(
+                        2 => $temp['mode'],
+                        4 => octdec( trim( $temp['uid'], "\0 " ) ),
+                        5 => octdec( trim( $temp['gid'], "\0 " ) ),
+                        7 => octdec( trim( $temp['size'], "\0 " ) ),
+                        9 => octdec( trim( $temp['mtime'], "\0 " ) ),
+                    ),
+                    'checksum' => octdec( trim( $temp['checksum'], "\0 " ) ),
+                    'type'     => $temp['type'],
+                    'magic'    => $temp['magic'],
+                );
 
-                    if ( 'wp-config.php' !== $file['name'] ) {
-                        $wp_filesystem->put_contents( $to . $file['name'], $contents, FS_CHMOD_FILE );
+                $directory = '5' === $file['type'];
+                $regular   = in_array( $file['type'], array( '0', "\0", '' ), true );
+                if ( $regular && '/' === substr( $file['name'], -1 ) ) {
+                    throw new \Exception( sprintf( 'Archive file entry ends with a slash: %s. Extraction aborted.', esc_html( MainWP_Clone_Install::entry_label( $file['name'] ) ) ) );
+                }
+                $name   = $directory ? rtrim( $file['name'], '/' ) . '/' : $file['name'];
+                $target = MainWP_Clone_Install::clone_entry_target( $name, $to );
+                if ( $validate_only || null === $target ) {
+                    $this->skip_entry_payload( $file['stat'][7] );
+                    continue;
+                }
+                $fs = ! empty( $wp_filesystem ) && 'direct' !== $wp_filesystem->method ? $wp_filesystem : null;
+                if ( $directory ) {
+                    MainWP_Clone_Install::make_entry_dirs( $target, $to, $fs );
+                    $this->skip_entry_payload( $file['stat'][7] );
+                } elseif ( $regular ) {
+                    MainWP_Clone_Install::make_entry_dirs( dirname( $target ), $to, $fs );
+                    MainWP_Clone_Install::write_clone_file( $target, $this->archive, $file['stat'][7], $fs );
+                    $padding = ( 512 - $file['stat'][7] % 512 ) % 512;
+                    if ( $padding > 0 && strlen( fread( $this->archive, $padding ) ) !== $padding ) {
+                        throw new \Exception( 'Archive ended inside an entry. Extraction aborted.' );
                     }
                 } else {
-                    if ( 'wp-config.php' !== $file['name'] ) {
-                        $new = fopen( $to . $file['name'], 'wb+' );
-                    } else {
-                        $new = false;
-                    }
-                    $bytesToRead = $file['stat'][7];
-                    while ( $bytesToRead > 0 ) {
-                        $readNow = $bytesToRead > 1024 ? 1024 : $bytesToRead;
-                        if ( false !== $new ) {
-                            fwrite( $new, fread( $this->archive, $readNow ) );
-                        } else {
-                            fread( $this->archive, $readNow );
-                        }
-                        $bytesToRead -= $readNow;
-                    }
-
-                    $toRead = ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 );
-                    if ( $toRead > 0 ) {
-                        fread( $this->archive, ( 512 - $file['stat'][7] % 512 ) === 512 ? 0 : ( 512 - $file['stat'][7] % 512 ) );
-                    }
-                    if ( false !== $new ) {
-                        fclose( $new );
-                    }
+                    $this->skip_entry_payload( $file['stat'][7] );
                 }
+                unset( $file );
             }
-            unset( $file );
+            // A download cut on a block boundary would otherwise read as a complete archive.
+            if ( ! $ended ) {
+                throw new \Exception( 'Archive ended before its end marker. Extraction aborted.' );
+            }
         }
 
         return null;
+    }
+
+    /**
+     * A damaged header would otherwise supply the size and name both passes trust, so only an
+     * all-zero block ends the archive and every other header must be intact.
+     *
+     * @param string $block 512-byte header block.
+     * @return bool False for the end-of-archive block, true for a valid header.
+     * @throws \Exception When the header is damaged.
+     */
+    private function check_extract_header( $block ) {
+        if ( str_repeat( "\0", 512 ) === $block ) {
+            return false;
+        }
+        if ( ! $this->is_header_block( $block ) ) {
+            throw new \Exception( 'Archive header checksum mismatch. Extraction aborted.' );
+        }
+        return true;
+    }
+
+    /**
+     * Whether a block carries the ustar magic and a matching header checksum.
+     *
+     * @param string $block 512-byte block.
+     * @return bool
+     */
+    private function is_header_block( $block ) {
+        if ( 512 !== strlen( $block ) || 'ustar' !== substr( $block, 257, 5 ) ) {
+            return false;
+        }
+        $stored = trim( substr( $block, 148, 8 ), "\0 " );
+        return '' !== $stored && array_sum( unpack( 'C*', substr_replace( $block, '        ', 148, 8 ) ) ) === (int) octdec( $stored );
+    }
+
+    /**
+     * Skips an entry's padded data. Both extract_to() passes advance this way for every entry
+     * they do not write, so the write pass reads the same headers the validation pass checked.
+     *
+     * @param int $size Entry size from its header.
+     * @throws \Exception When the archive ends inside the entry.
+     */
+    private function skip_entry_payload( $size ) {
+        $skip = (int) ( ceil( $size / 512 ) * 512 );
+        if ( $skip <= 0 ) {
+            return;
+        }
+        // Seeking past EOF can succeed; compressed streams have no reliable length bound.
+        if ( false !== $this->archiveSize && null !== $this->archiveSize ) {
+            $position = ftell( $this->archive );
+            if ( false === $position || $skip > $this->archiveSize - $position ) {
+                throw new \Exception( 'Archive ended inside an entry. Extraction aborted.' );
+            }
+            if ( 0 === fseek( $this->archive, $skip, SEEK_CUR ) ) {
+                return;
+            }
+        }
+        while ( $skip > 0 ) {
+            $chunk = fread( $this->archive, min( 8192, $skip ) );
+            if ( false === $chunk || '' === $chunk ) {
+                throw new \Exception( 'Archive ended inside an entry. Extraction aborted.' );
+            }
+            $skip -= strlen( $chunk );
+        }
     }
 
     /**
@@ -1672,5 +2267,16 @@ class Tar_Archiver {
         $crcFound = ( ord( $crcFound[3] ) << 24 ) + ( ord( $crcFound[2] ) << 16 ) + ( ord( $crcFound[1] ) << 8 ) + ( ord( $crcFound[0] ) );
 
         return $crcFound === $crc;
+    }
+
+    /**
+     * Native backup files are private to the PHP user; legacy backups keep their old modes.
+     *
+     * @param string $path Created file.
+     */
+    private function protect_native_file( $path ) {
+        if ( null !== $this->backup && $this->backup->is_native_task() ) {
+            MainWP_Helper::protect_backup_path( $path );
+        }
     }
 }
