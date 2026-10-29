@@ -1029,27 +1029,38 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         // Build Final Target URL.
         $full_url = add_query_arg( $get_args, admin_url( '/' . $path ) );
 
-        $inner_lock_key = 'mainwp_child:mainwp_child_premium_update_lock';
+        // The request timeout issue requires separate locks for the simulated visit and plugin update,
+        // plus a shared gate lock to prevent race conditions when acquiring them.
 
-        if ( 'plugin' === $type ) {
-            $is_locked = MainWP_Child_Updates::is_premium_update_locked( $inner_lock_key );
-            // If it IS locked, bail out with the error message.
-            if ( $is_locked ) {
-                return array(
-                    'error' => __( 'A premium update request or another update process is already in progress. Please try again later.', 'mainwp-child' ),
-                );
-            }
-        }
+        $update_lock_key = 'mainwp_child:mainwp_child_premium_update_lock';
 
         $locked         = false;
-        $outer_lock_key = 'mainwp_child:mainwp_child_premium_update_visit_lock';
+        $gate_locked    = false;
+        $visit_lock_key = 'mainwp_child:mainwp_child_premium_update_visit_lock';
+        $gate_lock_key  = 'mainwp_child:mainwp_child_premium_update_gate_lock';
+
         try {
             if ( 'plugin' === $type ) {
-                $locked = MainWP_Child_Updates::acquire_premium_update_visit_lock( $outer_lock_key );
+
+                $gate_locked = MainWP_Child_Updates::acquire_premium_update_visit_lock( $gate_lock_key );
+                if ( ! $gate_locked ) {
+                    return array( 'error' => MainWP_Child_Updates::premium_update_locked_error( false ) );
+                }
+
+                $is_locked = MainWP_Child_Updates::is_premium_update_locked( $update_lock_key );
+                // If it IS locked, bail out with the error message.
+                if ( $is_locked ) {
+                    return array( 'error' => MainWP_Child_Updates::premium_update_locked_error( false ) );
+                }
+
+                $locked = MainWP_Child_Updates::acquire_premium_update_visit_lock( $visit_lock_key );
                 if ( ! $locked ) {
-                    return array(
-                        'error' => __( 'A premium update request or another update process is already in progress. Please try again later.', 'mainwp-child' ),
-                    );
+                    return array( 'error' => MainWP_Child_Updates::premium_update_locked_error( false ) );
+                }
+
+                if ( $gate_locked ) {
+                    $gate_locked = false;
+                    MainWP_Child_Updates::release_premium_update_visit_lock( $gate_lock_key );
                 }
             }
             add_filter( 'http_request_args', array( MainWP_Helper::get_class_name(), 'reject_unsafe_urls_child' ), 99, 2 );
@@ -1066,7 +1077,10 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             }
         } finally {
             if ( $locked ) {
-                MainWP_Child_Updates::release_premium_update_visit_lock( $outer_lock_key );
+                MainWP_Child_Updates::release_premium_update_visit_lock( $visit_lock_key );
+            }
+            if ( $gate_locked ) {
+                MainWP_Child_Updates::release_premium_update_visit_lock( $gate_lock_key );
             }
         }
 

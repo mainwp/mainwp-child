@@ -162,22 +162,40 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
 
         $plugin_update = false;
 
-        $inner_locked   = false;
-        $inner_lock_key = 'mainwp_child:mainwp_child_premium_update_lock';
+        $update_locked   = false;
+        $gate_locked     = false;
+        $update_lock_key = 'mainwp_child:mainwp_child_premium_update_lock';
+        $gate_lock_key   = 'mainwp_child:mainwp_child_premium_update_gate_lock';
+
         try {
             // phpcs:disable WordPress.Security.NonceVerification
             if ( isset( $_POST['type'] ) && 'plugin' === $_POST['type'] ) {
-                // Ordinary update: acquire the lock ourselves.
-                $inner_locked = self::acquire_premium_update_visit_lock( $inner_lock_key );
-                if ( ! $inner_locked ) {
-                    MainWP_Helper::instance()->error(
-                        esc_html__(
-                            'A premium update request or another update process is already in progress. Please try again later.',
-                            'mainwp-child'
-                        )
-                    );
+                $gate_locked = static::acquire_premium_update_visit_lock( $gate_lock_key );
+                if ( ! $gate_locked ) {
+                    self::premium_update_locked_error();
                     return;
                 }
+
+                $visit_lock_key = 'mainwp_child:mainwp_child_premium_update_visit_lock';
+                $nested_visit   = mainwp_child_is_dashboard_premium_update_request();
+                $is_locked      = ! $nested_visit && static::is_premium_update_locked( $visit_lock_key );
+                if ( $is_locked ) {
+                    self::premium_update_locked_error();
+                    return;
+                }
+
+                // Ordinary update: acquire the lock ourselves.
+                $update_locked = static::acquire_premium_update_visit_lock( $update_lock_key );
+                if ( ! $update_locked ) {
+                    self::premium_update_locked_error();
+                    return;
+                }
+
+                if ( $gate_locked ) {
+                    $gate_locked = false;
+                    self::release_premium_update_visit_lock( $gate_lock_key );
+                }
+
                 $this->upgrade_plugin( $information, $mwp_premium_updates_to_do, $mwp_premium_updates_to_do_slugs, $premiumUpgrader );
                 $plugin_update = true;
             } elseif ( isset( $_POST['type'] ) && 'theme' === $_POST['type'] ) {
@@ -190,8 +208,11 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
                 $this->update_premiums_to_do( $information, $premiumUpgrader, $mwp_premium_updates_to_do, $mwp_premium_updates_to_do_slugs );
             }
         } finally {
-            if ( $inner_locked ) {
-                self::release_premium_update_visit_lock( $inner_lock_key );
+            if ( $update_locked ) {
+                self::release_premium_update_visit_lock( $update_lock_key );
+            }
+            if ( $gate_locked ) {
+                self::release_premium_update_visit_lock( $gate_lock_key );
             }
         }
 
@@ -1326,7 +1347,7 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         $lock_key = self::get_premium_update_lock_key( $lock_key );
 
         $wpdb->last_error = '';
-        $connection_id = $wpdb->get_var(
+        $connection_id    = $wpdb->get_var(
             $wpdb->prepare(
                 'SELECT IS_USED_LOCK(%s)',
                 $lock_key
@@ -1359,6 +1380,27 @@ class MainWP_Child_Updates { //phpcs:ignore -- NOSONAR - multi methods.
         ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Named lock release must be checked.
 
         return empty( $wpdb->last_error ) && '1' === (string) $released;
+    }
+
+    /**
+     * Handle the premium update lock error message.
+     *
+     * @param bool $display Whether to display the error message.
+     *
+     * @return string|null Error message when not displayed, otherwise null.
+     */
+    public static function premium_update_locked_error( bool $display = true ) {
+        $message = esc_html__(
+            'A premium update request or another update process is already in progress. Please try again later.',
+            'mainwp-child'
+        );
+
+        if ( $display ) {
+            MainWP_Helper::instance()->error( $message );
+            return null;
+        }
+
+        return $message;
     }
 
 
