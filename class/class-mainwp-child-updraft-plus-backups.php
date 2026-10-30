@@ -1145,7 +1145,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
                                 $opts['settings'][ $settings_key ]['user'] = $settings[ $key ]['user'];
                                 $opts['settings'][ $settings_key ]['pass'] = $settings[ $key ]['pass'];
                                 $opts['settings'][ $settings_key ]['key']  = $settings[ $key ]['key'];
-                                if ( isset( $settings[ $key ]['fingerprint'] ) ) {
+                                if ( isset( $settings[ $key ]['fingerprint'] ) && is_string( $settings[ $key ]['fingerprint'] ) ) {
                                     $opts['settings'][ $settings_key ]['fingerprint'] = $settings[ $key ]['fingerprint'];
                                 }
                                 $opts['settings'][ $settings_key ]['path'] = $this->replace_tokens( $settings[ $key ]['path'] );
@@ -1157,7 +1157,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
                                 $opts['user'] = $settings[ $key ]['user'];
                                 $opts['pass'] = $settings[ $key ]['pass'];
                                 $opts['key']  = $settings[ $key ]['key'];
-                                if ( isset( $settings[ $key ]['fingerprint'] ) ) {
+                                if ( isset( $settings[ $key ]['fingerprint'] ) && is_string( $settings[ $key ]['fingerprint'] ) ) {
                                     $opts['fingerprint'] = $settings[ $key ]['fingerprint'];
                                 }
                                 $opts['path'] = $this->replace_tokens( $settings[ $key ]['path'] );
