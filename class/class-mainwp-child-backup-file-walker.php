@@ -264,6 +264,475 @@ class MainWP_Child_Backup_File_Walker { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
+     * Optional internal exclusion policy; legacy and fixture walks keep defaults.
+     *
+     * @var array|null
+     */
+    private $v2_runtime_options = null;
+
+    /**
+     * Walk qualified roots for an internally enabled task.
+     *
+     * @param MainWP_Child_Backup_Task_Runner $runner Task runner.
+     * @param string                          $backup_dir Scratch directory.
+     * @param MainWP_Child_Backup_Layout      $layout Pinned registry.
+     * @param array                           $descriptor Descriptor.
+     * @param array|null                      $cursor Saved cursor.
+     * @param int                             $deadline Slice deadline.
+     * @param array                           $runtime Local runtime policy.
+     * @return array Walk result.
+     */
+    public function capture_for_task( $runner, $backup_dir, $layout, $descriptor, $cursor, $deadline, $runtime ) {
+        if ( ! $runner instanceof MainWP_Child_Backup_Task_Runner || ! $runner->allows_v2_capture() ) {
+            MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_UNSUPPORTED_BACKUP_FORMAT );
+        }
+        return $this->emit_v2_policy_slice( $backup_dir, $layout, $descriptor, $cursor, $deadline, $runtime );
+    }
+
+    /**
+     * Translate local policy before entering the private qualified walker.
+     *
+     * @param string                     $backup_dir Private scratch directory.
+     * @param MainWP_Child_Backup_Layout $layout Pinned registry.
+     * @param array                      $descriptor Descriptor.
+     * @param array|null                 $cursor Saved cursor.
+     * @param int                        $deadline Slice deadline.
+     * @param array                      $runtime Local backup/cache flags and discovered storage directories.
+     * @return array Qualified walk result.
+     * @throws MainWP_Exception When an exclude has no known semantic owner.
+     */
+    private function emit_v2_policy_slice( $backup_dir, $layout, $descriptor, $cursor, $deadline, $runtime = array() ) {
+        $walker   = clone $this;
+        $bindings = $layout->capture_bindings( $descriptor );
+        $prefixes = array(
+            'wp-content/uploads'    => 'uploads',
+            'wp-content/plugins'    => 'plugins',
+            'wp-content/mu-plugins' => 'mu_plugins',
+            'wp-content'            => 'content',
+        );
+        foreach ( $bindings as $role => $paths ) {
+            if ( 'config' === $role ) {
+                continue;
+            }
+            $prefixes[ $paths[''] ] = $role;
+            if ( false !== $this->root_real && 0 === strpos( $paths[''], $this->root_real . '/' ) ) {
+                $prefixes[ substr( $paths[''], strlen( $this->root_real ) + 1 ) ] = $role;
+            }
+        }
+        if ( isset( $bindings['content'][''] ) ) {
+            foreach ( array(
+                'uploads'    => 'uploads',
+                'plugins'    => 'plugins',
+                'mu-plugins' => 'mu_plugins',
+            ) as $suffix => $role ) {
+                $prefixes[ $bindings['content'][''] . '/' . $suffix ] = $role;
+            }
+        }
+        foreach ( $prefixes as $prefix => $owner ) {
+            if ( ! isset( $bindings[ $owner ][''] ) ) {
+                continue;
+            }
+            $parent = $bindings[ $owner ][''];
+            foreach ( $bindings as $role => $paths ) {
+                if ( 'config' !== $role && $owner !== $role && 0 === strpos( $paths[''], $parent . '/' ) ) {
+                    $prefixes[ $prefix . '/' . substr( $paths[''], strlen( $parent ) + 1 ) ] = $role;
+                }
+            }
+        }
+        uksort(
+            $prefixes,
+            static function ( $left, $right ) {
+                return strlen( $right ) - strlen( $left );
+            }
+        );
+        $walker->excludes = array();
+        foreach ( $this->excludes as $exclude ) {
+            if ( '' === $exclude ) {
+                continue;
+            }
+            $translated = array();
+            if ( is_string( $exclude ) ) {
+                $exclude = rtrim( $exclude, '/' );
+                if ( '/administrator/backups' === $exclude || 'administrator/backups' === $exclude ) {
+                    $translated[] = 'roots/site/administrator/backups';
+                }
+                if ( defined( 'MAINWP_CHILD_PLUGIN_DIR' ) && rtrim( MAINWP_CHILD_PLUGIN_DIR, '/' ) === $exclude ) {
+                    $translated[] = 'roots/plugins/' . basename( $exclude );
+                }
+                foreach ( $runtime['storage_dirs'] ?? array() as $directory ) {
+                    if ( rtrim( $directory, '/' ) === $exclude ) {
+                        $translated[] = 'roots/uploads/mainwp';
+                    }
+                }
+                if ( 0 === strpos( $exclude, '/wp-content' ) ) {
+                    $exclude = ltrim( $exclude, '/' );
+                }
+                foreach ( $prefixes as $prefix => $role ) {
+                    if ( ! isset( $bindings[ $role ][''] ) ) {
+                        continue;
+                    }
+                    if ( $exclude === $prefix || 0 === strpos( $exclude, $prefix . '/' ) ) {
+                        $relative     = ltrim( substr( $exclude, strlen( $prefix ) ), '/' );
+                        $translated[] = 'roots/' . $role . '/' . ( '' === $relative ? '*' : $relative );
+                    } elseif ( MainWP_Helper::in_excludes( array( $exclude ), $prefix ) ) {
+                        // A parent exclusion must cover every independently walked child root.
+                        $translated[] = 'roots/' . $role . '/*';
+                    }
+                }
+                foreach ( $translated as $identity ) {
+                    try {
+                        MainWP_Child_Backup_Layout::parse_identity( $identity );
+                    } catch ( MainWP_Exception $error ) {
+                        $translated = array();
+                        break;
+                    }
+                }
+            }
+            if ( ! empty( $translated ) ) {
+                $walker->excludes = array_merge( $walker->excludes, array_values( array_unique( $translated ) ) );
+            } else {
+                throw new MainWP_Exception( 'This exclude cannot be mapped to a backup folder. Use a path under wp-content, uploads, plugins or mu-plugins.', null, MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- fixed internal message.
+            }
+        }
+        foreach ( $runtime['storage_dirs'] ?? array() as $directory ) {
+            $real = realpath( $directory );
+            if ( false !== $real && is_dir( $real ) ) {
+                $walker->skip_dirs[] = $real;
+                foreach ( $bindings as $role => $paths ) {
+                    if ( 'config' !== $role && ( $real === $paths[''] || 0 === strpos( $real, $paths[''] . '/' ) ) ) {
+                        $walker->excludes[] = $real === $paths[''] ? 'roots/' . $role . '/*' : $layout->identity( $real );
+                        break;
+                    }
+                }
+            }
+        }
+        $walker->v2_runtime_options = $runtime;
+        return $walker->emit_v2_sidecars_slice( $backup_dir, $layout, $descriptor, $cursor, $deadline );
+    }
+
+    /**
+     * Enumerate a pinned registry for internal fixtures; production never calls this seam.
+     *
+     * @param string                     $backup_dir Private scratch directory.
+     * @param MainWP_Child_Backup_Layout $layout Pinned registry.
+     * @param array                      $descriptor Descriptor.
+     * @param array|null                 $cursor Saved cursor.
+     * @param int                        $deadline Slice deadline.
+     * @return array Slice result and qualified coverage.
+     */
+    private function emit_v2_sidecars_slice( $backup_dir, $layout, $descriptor, $cursor, $deadline ) {
+        $scratch = realpath( $backup_dir );
+        if ( false === $scratch || ! is_dir( $scratch ) || ! is_writable( $scratch ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- private native streams require writable scratch.
+            MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE );
+        }
+        foreach ( $this->excludes as $exclude ) {
+            try {
+                MainWP_Child_Backup_Layout::parse_identity( $exclude );
+            } catch ( MainWP_Exception $error ) {
+                MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT );
+            }
+        }
+        $digest     = MainWP_Child_Backup_Layout::digest( $descriptor );
+        $descriptor = MainWP_Child_Backup_Layout::decode( wp_json_encode( $descriptor ), $digest );
+        $bindings   = $layout->capture_bindings( $descriptor );
+        $identity   = hash( 'sha256', wp_json_encode( array( $bindings, $this->excludes, $this->excludezip, $this->skip_dirs, array_keys( $this->skip_paths ) ) ) );
+        if ( null !== $this->v2_runtime_options ) {
+            $identity = hash( 'sha256', $identity . wp_json_encode( $this->v2_runtime_options ) );
+        }
+        $this->run_dir    = rtrim( $backup_dir, '/' ) . '/';
+        $roles            = array_keys( $bindings );
+        $role_count       = count( $roles );
+        $patterns         = $this->v2_excludes( $layout, $bindings );
+        $pattern_prefixes = MainWP_Child_Backup_Path_Cover::prefix_set( $patterns );
+        $walk             = array(
+            'backup_format'       => 2,
+            'done'                => false,
+            'complete'            => false,
+            'failed'              => false,
+            'excludes'            => $patterns,
+            'unarchived'          => array(),
+            'skipped_paths'       => array(),
+            'skipped_by_reason'   => array(),
+            'skipped_count'       => 0,
+            'unarchived_overflow' => false,
+        );
+        if ( null !== $cursor ) {
+            $cursor = MainWP_Child_Backup_Layout_State::decode( MainWP_Child_Backup_Layout_State::encode( $cursor ), $digest );
+            if ( ! hash_equals( $identity, $cursor['registry_identity'] ?? '' ) ) {
+                MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_LAYOUT_CHANGED );
+            }
+            $walk = $cursor['walk'];
+        } else {
+            $cursor = array(
+                'format'                   => 2,
+                'root_index'               => 0,
+                'layout_descriptor_sha256' => $digest,
+                'registry_identity'        => $identity,
+                'stack'                    => array(),
+                'runs'                     => array(),
+                'count'                    => 0,
+                'bytes'                    => 0,
+                'started'                  => false,
+                'walk'                     => $walk,
+            );
+            // The caller must persist the bindings before enumeration can write runs.
+            return array(
+                'done'        => false,
+                'cursor'      => $cursor,
+                'count'       => 0,
+                'total_bytes' => 0,
+                'walk'        => $walk,
+            );
+        }
+        if ( ! $cursor['started'] ) {
+            $this->delete_runs( (array) glob( $this->run_dir . self::RUN_PREFIX . '*' ) );
+            $cursor['started'] = true;
+        }
+        $this->buffer        = array();
+        $this->runs          = array_map(
+            function ( $name ) {
+                return $this->run_dir . basename( $name );
+            },
+            $cursor['runs']
+        );
+        $this->files_scanned = $cursor['count'];
+        $this->total_bytes   = $cursor['bytes'];
+        $stack               = $cursor['stack'];
+        while ( $cursor['root_index'] < $role_count ) {
+            $layout->capture_bindings( $descriptor );
+            if ( $this->walk_budget_exhausted( $deadline ) ) {
+                break;
+            }
+            $role = $roles[ $cursor['root_index'] ];
+            if ( empty( $stack ) ) {
+                $paths   = $bindings[ $role ];
+                $dir     = 'config' === $role ? null : $paths[''];
+                $stack[] = array(
+                    'dir'   => $dir,
+                    'index' => 0,
+                );
+            }
+            $top = count( $stack ) - 1;
+            $dir = $stack[ $top ]['dir'];
+            if ( isset( $stack[ $top ]['children'] ) ) {
+                $children = $stack[ $top ]['children'];
+            } elseif ( 'config' === $role ) {
+                $children = array_values( $bindings['config'] );
+                usort( $children, 'strcmp' );
+            } else {
+                $items = @scandir( $dir, SCANDIR_SORT_NONE ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failed listing records missing coverage.
+                if ( false === $items ) {
+                    if ( $dir === $bindings[ $role ][''] ) {
+                        MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT );
+                    }
+                    $this->v2_skip( $walk, $layout->identity( $dir ), 'unreadable' );
+                    $items = array();
+                }
+                $children = array();
+                foreach ( $items as $name ) {
+                    if ( '.' !== $name && '..' !== $name ) {
+                        $children[] = $dir . '/' . $name;
+                    }
+                }
+                usort( $children, 'strcmp' );
+            }
+            $stack[ $top ]['children'] = $children;
+            if ( $stack[ $top ]['index'] >= count( $children ) ) {
+                array_pop( $stack );
+                if ( empty( $stack ) ) {
+                    ++$cursor['root_index'];
+                }
+                continue;
+            }
+            $node      = $children[ $stack[ $top ]['index']++ ];
+            $qualified = $layout->identity( $node );
+            $owner     = MainWP_Child_Backup_Layout::parse_identity( is_dir( $node ) ? $layout->identity( $node . '/__mainwp_owner__' ) : $qualified );
+            // An owned subtree is visited only from its semantic root.
+            if ( $owner[0] !== $role ) {
+                continue;
+            }
+            $real        = realpath( $node );
+            $dump_litter = null !== $this->v2_runtime_options && 'content' === $role && MainWP_Helper::is_dump_litter( 'wp-content/' . $owner[1] );
+            if ( $dump_litter || MainWP_Helper::excluded_from_backup( $patterns, $qualified ) ) {
+                if ( ! MainWP_Child_Backup_Path_Cover::contains( $qualified, $pattern_prefixes ) ) {
+                    $this->v2_exclude( $walk, $qualified );
+                }
+                continue;
+            }
+            $excluded = false;
+            foreach ( array_merge( $this->skip_dirs, array( rtrim( $scratch, '/' ) ) ) as $skip ) {
+                if ( $real === $skip || ( false !== $real && 0 === strpos( $real, $skip . '/' ) ) ) {
+                    $excluded = true;
+                }
+            }
+            if ( $excluded || isset( $this->skip_paths[ $node ] ) || MainWP_Child_Backup_File_Restorer::is_reserved_temp_name( basename( $node ) ) ) {
+                $this->v2_exclude( $walk, $qualified );
+                continue;
+            }
+            if ( is_link( $node ) || false === $real ) {
+                $this->v2_skip( $walk, $qualified, is_link( $node ) ? 'link' : 'unresolved' );
+                continue;
+            }
+            if ( 'config' !== $role && ! MainWP_Backup::is_safe_backup_path( $node, array( $bindings[ $role ][''] ), array_column( $stack, 'dir' ) ) ) {
+                $this->v2_skip( $walk, $qualified, 'unsafe' );
+                continue;
+            }
+            if ( ! is_readable( $node ) ) {
+                $this->v2_skip( $walk, $qualified, 'unreadable' );
+                continue;
+            }
+            if ( is_dir( $node ) ) {
+                $stack[] = array(
+                    'dir'   => $node,
+                    'index' => 0,
+                );
+                continue;
+            }
+            if ( ! is_file( $node ) || ( $this->excludezip && MainWP_Helper::ends_with( $node, '.zip' ) ) ) {
+                $this->v2_exclude( $walk, $qualified );
+                continue;
+            }
+            $size  = @filesize( $node ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failed stat records missing coverage.
+            $mtime = @filemtime( $node ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- failed stat records missing coverage.
+            if ( false === $size || false === $mtime ) {
+                $this->v2_skip( $walk, $qualified, 'unreadable' );
+                continue;
+            }
+            $component = in_array( $role, array( 'plugins', 'mu_plugins' ), true ) ? 'plugins' : ( 'uploads' === $role ? 'uploads' : 'wp-content' );
+            if ( 'content' === $role && 0 === strpos( $owner[1], 'themes/' ) ) {
+                $component = 'themes';
+            }
+            $this->buffer[] = array( $qualified, (int) $size, (int) $mtime, $component );
+            ++$this->files_scanned;
+            $this->total_bytes += (int) $size;
+            if ( count( $this->buffer ) >= $this->chunk_size() ) {
+                $layout->capture_bindings( $descriptor );
+                $this->flush_chunk();
+            }
+        }
+        $layout->capture_bindings( $descriptor );
+        $this->flush_chunk();
+        $done             = $cursor['root_index'] >= count( $roles );
+        $walk['done']     = $done;
+        $walk['complete'] = $done;
+        foreach ( $stack as &$frame ) {
+            unset( $frame['children'] );
+        }
+        unset( $frame );
+        $cursor['stack'] = $stack;
+        $cursor['runs']  = array_map( 'basename', $this->runs );
+        $cursor['count'] = $this->files_scanned;
+        $cursor['bytes'] = $this->total_bytes;
+        $cursor['walk']  = $walk;
+        if ( $done ) {
+            $plain = $this->run_dir . 'v2-files.plain';
+            $paths = $this->run_dir . self::PATHS_CACHE . self::STAGED_SUFFIX;
+            $this->merge_runs( $this->runs, $plain, $paths );
+            $file_list = $this->run_dir . self::FILES_LIST . self::STAGED_SUFFIX;
+            ( new MainWP_Child_Backup_Layout_List() )->write( $file_list, $digest, array() );
+            $output = fopen( $file_list, 'ab' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- private sidecar stream.
+            $input  = fopen( $plain, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- private sidecar stream.
+            if ( false === $output || false === $input ) {
+                if ( is_resource( $input ) ) {
+                    fclose( $input ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- private sidecar stream.
+                }
+                if ( is_resource( $output ) ) {
+                    fclose( $output ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- private sidecar stream.
+                }
+                MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE );
+            }
+            try {
+                if ( false === stream_copy_to_stream( $input, $output ) ) {
+                    MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+                }
+            } finally {
+                fclose( $input ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- private sidecar stream.
+                fclose( $output ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- private sidecar stream.
+                wp_delete_file( $plain );
+            }
+        }
+        return array(
+            'done'        => $done,
+            'cursor'      => $done ? null : $cursor,
+            'count'       => $this->files_scanned,
+            'total_bytes' => $this->total_bytes,
+            'walk'        => $walk,
+        );
+    }
+
+    /**
+     * Record bounded qualified coverage without changing the skipped-path hook.
+     *
+     * @param array  $walk Coverage.
+     * @param string $identity Qualified path.
+     * @param string $reason Skip reason.
+     */
+    private function v2_skip( &$walk, $identity, $reason ) {
+        ++$walk['skipped_count'];
+        $walk['skipped_by_reason'][ $reason ] = 1 + ( $walk['skipped_by_reason'][ $reason ] ?? 0 );
+        if ( count( $walk['skipped_paths'] ) < 100 ) {
+            $walk['skipped_paths'][] = $identity;
+        }
+        if ( count( $walk['unarchived'] ) < 1000 ) {
+            $walk['unarchived'][] = $identity;
+        } else {
+            $walk['unarchived_overflow'] = true;
+        }
+    }
+
+    /**
+     * Keep default exclusions attached to their semantic folders.
+     *
+     * @param MainWP_Child_Backup_Layout $layout Registry.
+     * @param array                      $bindings Captured bindings.
+     * @return array Qualified exclusion patterns.
+     */
+    private function v2_excludes( $layout, $bindings ) {
+        $defaults = array( 'roots/content/object-cache.php', 'roots/uploads/mainwp', 'roots/plugins/' . basename( rtrim( MAINWP_CHILD_PLUGIN_DIR, '/' ) ), 'roots/uploads/backupbuddy_backups', 'roots/uploads/backupbuddy_temp', 'roots/uploads/pb_backupbuddy', 'roots/uploads/backwpup*', 'roots/content/managewp', 'roots/content/infinitewp', 'roots/content/backups', 'roots/plugins/wp-complete-backup/storage', 'roots/content/w3tc-cache', 'roots/content/w3tc', 'roots/content/cache/config', 'roots/content/cache/minify', 'roots/content/cache/page_enhanced', 'roots/content/cache/tmp', 'roots/content/cache/supercache', 'roots/content/cache/quick-cache', 'roots/content/hyper-cache/cache', 'roots/content/cache/all', 'roots/content/cache/wp-rocket' );
+        if ( null !== $this->v2_runtime_options ) {
+            $backups  = array_slice( $defaults, 3, 8 );
+            $caches   = array_slice( $defaults, 11 );
+            $defaults = array_slice( $defaults, 0, 3 );
+            if ( ! empty( $this->v2_runtime_options['excludebackup'] ) ) {
+                $defaults = array_merge( $defaults, $backups );
+            }
+            if ( ! empty( $this->v2_runtime_options['excludecache'] ) ) {
+                $defaults = array_merge( $defaults, $caches );
+            }
+        }
+        $excludes = $this->excludes;
+        foreach ( $defaults as $pattern ) {
+            list( $role, $relative ) = MainWP_Child_Backup_Layout::parse_identity( $pattern );
+            if ( isset( $bindings[ $role ][''] ) ) {
+                $excludes[] = $layout->identity( $bindings[ $role ][''] . '/' . $relative );
+            }
+        }
+        if ( defined( 'MAINWP_CHILD_PLUGIN_DIR' ) && false !== realpath( MAINWP_CHILD_PLUGIN_DIR ) ) {
+            foreach ( $bindings as $role => $paths ) {
+                if ( 'config' !== $role && 0 === strpos( realpath( MAINWP_CHILD_PLUGIN_DIR ) . '/', $paths[''] . '/' ) ) {
+                    $excludes[] = $layout->identity( realpath( MAINWP_CHILD_PLUGIN_DIR ) );
+                    break;
+                }
+            }
+        }
+        return array_values( array_unique( $excludes ) );
+    }
+
+    /**
+     * Bound omitted-path coverage just like unreadable paths.
+     *
+     * @param array  $walk Coverage.
+     * @param string $identity Qualified path.
+     */
+    private function v2_exclude( &$walk, $identity ) {
+        if ( count( $walk['excludes'] ) < 1000 ) {
+            $walk['excludes'][] = $identity;
+        } else {
+            $walk['unarchived_overflow'] = true;
+        }
+    }
+
+    /**
      * Walk the whole tree in one call and write the staged sidecars.
      *
      * The non-sliced wrapper around emit_sidecars_slice(): it loops the engine

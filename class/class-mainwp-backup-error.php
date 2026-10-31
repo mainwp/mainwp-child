@@ -54,6 +54,9 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
 
     const ERR_DL_RECORDED_HASH_UNREADABLE = 'mainwp_backup_dl_recorded_hash_unreadable';
 
+    const ERR_UNSUPPORTED_BACKUP_FORMAT = 'mainwp_backup_format_unsupported';
+    const ERR_LAYOUT_CHANGED            = 'mainwp_backup_layout_changed';
+
     const ERR_UNSUPPORTED_LAYOUT = 'mainwp_backup_unsupported_layout';
 
     const ERR_INCREMENTAL_BASE_MISSING = 'mainwp_backup_incremental_base_missing';
@@ -226,6 +229,8 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
             self::ERR_MEMORY_LIMIT               => esc_html__( 'The backup is approaching the PHP memory limit. Increase the child site PHP memory limit or exclude large folders from the backup.', 'mainwp-child' ),
             self::ERR_PERMISSIONS                => esc_html__( 'Could not create a file or directory for the backup. Check that the web server has write permission on the MainWP backup directory under wp-content/uploads.', 'mainwp-child' ),
             self::ERR_DIR_NOT_WRITABLE           => esc_html__( 'The backup directory is not writable. Check the directory permissions on the MainWP backup directory under wp-content/uploads.', 'mainwp-child' ),
+            self::ERR_UNSUPPORTED_BACKUP_FORMAT  => esc_html__( 'This request uses a newer backup format than this version of MainWP Child supports. Update MainWP Child and try again. Nothing on the site was changed.', 'mainwp-child' ),
+            self::ERR_LAYOUT_CHANGED             => esc_html__( 'The site layout changed. Start the backup or restore again.', 'mainwp-child' ),
             self::ERR_UNSUPPORTED_LAYOUT         => esc_html__( 'This file backup or restore cannot run on this site yet. Its wp-content or uploads folder is outside the WordPress core folder, either directly or through a symlink. Some managed hosts, such as Pressable and WordPress.com, and Bedrock installs use this layout. No backup or restore was started and nothing on the site was changed. Database-only backups and restores still work on this site. Use the backups your host provides for files for now.', 'mainwp-child' ),
             self::ERR_MISSING_EXTENSION          => esc_html__( 'A required PHP extension is not available on the child site. Ask your host to enable the ZipArchive or mysqli PHP extension.', 'mainwp-child' ),
             self::ERR_DB_CONNECTION_LOST         => esc_html__( 'The database connection was lost during the backup. The database server may be overloaded. Try running the backup again during low-traffic hours.', 'mainwp-child' ),

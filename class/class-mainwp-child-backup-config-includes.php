@@ -35,6 +35,51 @@ class MainWP_Child_Backup_Config_Includes extends MainWP_Child_Backup_Incrementa
     }
 
     /**
+     * Discover recovery files for the internally enabled task runner.
+     *
+     * @param MainWP_Child_Backup_Task_Runner $runner Task runner.
+     * @param string                          $root WordPress root.
+     * @return array Exact recovery files.
+     */
+    public function recovery_files_for_task( $runner, $root ) {
+        if ( ! $runner instanceof MainWP_Child_Backup_Task_Runner || ! $runner->allows_v2_capture() ) {
+            MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_UNSUPPORTED_BACKUP_FORMAT );
+        }
+        return $this->recovery_files( $root );
+    }
+
+    /**
+     * Discover exact external config files for private v2 recovery capture.
+     *
+     * @param string $root WordPress directory discovered on this site.
+     * @return array Logical config names to local files.
+     */
+    private function recovery_files( $root ) {
+        $root = realpath( $root );
+        if ( false === $root || ! is_dir( $root ) ) {
+            MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT );
+        }
+        $parent = dirname( $root );
+        $config = self::locate( $root );
+        if ( $parent . '/wp-config.php' !== $config ) {
+            return array();
+        }
+        $files   = array( 'wp-config.php' => $config );
+        $project = dirname( $parent );
+        // Standard Bedrock keeps its project config outside web/wp.
+        if ( 'wp' === basename( $root ) && 'web' === basename( $parent ) && is_file( $project . '/config/application.php' ) && is_file( $project . '/.env' ) ) {
+            $files['.env']                   = $project . '/.env';
+            $files['config/application.php'] = $project . '/config/application.php';
+        }
+        foreach ( $files as $path ) {
+            if ( is_link( $path ) || realpath( $path ) !== $path || ! is_file( $path ) || ! is_readable( $path ) ) {
+                MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_UNSUPPORTED_LAYOUT );
+            }
+        }
+        return $files;
+    }
+
+    /**
      * Inspect PHP tokens without running any configuration code.
      *
      * @param string $file Live config.
