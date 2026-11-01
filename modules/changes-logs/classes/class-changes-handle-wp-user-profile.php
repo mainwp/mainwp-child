@@ -105,7 +105,7 @@ class Changes_Handle_WP_User_Profile {
                     'actionname'    => 'added',
                 );
                 Changes_Logs_Logger::log_change( $type_id, $log_data );
-            } elseif ( is_array( $old_value ) && count( $old_value ) > 1 && empty( $_meta_value ) ) {
+            } elseif ( is_array( $old_value ) && count( $old_value ) > 1 && array() === $_meta_value ) {
                 $type_id  = ( 'user-edit' === $referer_check ) ? 1735 : 1730;
                 $log_data = array(
                     'roles'         => $current_roles_list,

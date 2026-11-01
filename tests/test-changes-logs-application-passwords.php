@@ -203,12 +203,28 @@ namespace {
 		}
 
 		/**
-		 * A non-array value written to the application password key is not counted.
+		 * Non-array values written to the application password key are not counted.
+		 *
+		 * @dataProvider non_array_values
+		 *
+		 * @param mixed $value Stored value.
 		 */
-		public function test_non_array_application_password_value_is_ignored() {
-			update_user_meta( $this->user_id, '_application_passwords', 'invalid' );
+		public function test_non_array_application_password_value_is_ignored( $value ) {
+			update_user_meta( $this->user_id, '_application_passwords', $value );
 
 			$this->assertSame( array(), $this->events() );
+		}
+
+		/**
+		 * Non-empty and empty scalar values.
+		 *
+		 * @return array Values.
+		 */
+		public function non_array_values() {
+			return array(
+				'string'       => array( 'invalid' ),
+				'empty string' => array( '' ),
+			);
 		}
 
 		/**
