@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 7.1.4
 Requires PHP: 7.4
-Stable tag: 6.4
+Stable tag: 6.4.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -114,6 +114,14 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 11. Dashboard Insights
 
 == Changelog ==
+
+= 6.4.1 - 11-3-2026 =
+
+* Fixed: Restored recent Changes Logs entries and their associated details.
+* Fixed: Prevented site errors when revoking Application Passwords during user profile updates.
+* Fixed: Corrected Pro Reports New Posts totals to exclude pages and custom post types.
+* Fixed: Corrected Network Activity entries for WordPress updates to display the previous and installed versions.
+* Maintenance: Prepared backup file handling for future compatibility improvements.
 
 = 6.4 - 10-29-2026 =
 
