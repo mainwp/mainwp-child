@@ -441,6 +441,131 @@ class BackupRestoreChunkReceiveTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Move a task's start and last-progress times into the past. MySQL time
+	 * is used on both sides so a PHP/MySQL timezone mismatch cannot skew it.
+	 *
+	 * @param string $task_id      Task id.
+	 * @param int    $started_ago  Seconds since the task started.
+	 * @param int    $progress_ago Seconds since the last progress write.
+	 */
+	protected function age_task( $task_id, $started_ago, $progress_ago ) {
+		global $wpdb;
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET started_at = DATE_SUB(NOW(), INTERVAL %d SECOND), last_progress_at = DATE_SUB(NOW(), INTERVAL %d SECOND) WHERE task_id = %s', $started_ago, $progress_ago, $task_id ) ); // phpcs:ignore WordPress.DB -- test fixture.
+	}
+
+	/**
+	 * Evaluate a SQL condition against one task row in MySQL time.
+	 *
+	 * @param string $task_id   Task id.
+	 * @param string $condition Literal SQL condition.
+	 *
+	 * @return bool
+	 */
+	protected function task_row_matches( $task_id, $condition ) {
+		global $wpdb;
+		return '1' === (string) $wpdb->get_var( $wpdb->prepare( 'SELECT ' . $condition . ' FROM ' . $this->spine->get_table_name() . ' WHERE task_id = %s', $task_id ) ); // phpcs:ignore WordPress.DB -- test assertion query with literal conditions.
+	}
+
+	/**
+	 * A staged restore stays queued for the whole chunk transfer. A transfer
+	 * that started 20 minutes ago and wrote a chunk a minute ago is active,
+	 * so the queued stall window must not fail it (MWP-2134).
+	 */
+	public function test_queued_restore_with_recent_chunk_progress_is_kept() {
+		$content = str_repeat( 'A', 100 ) . str_repeat( 'B', 100 );
+		$task_id = $this->make_task( $content );
+		$this->age_task( $task_id, 1200, 1200 );
+
+		// The real chunk path must refresh last_progress_at on its own.
+		$this->assertSame( 'ok', $this->send( $task_id, substr( $content, 0, 100 ), 0 )['result'] );
+		$this->assertTrue( $this->task_row_matches( $task_id, 'last_progress_at > DATE_SUB(NOW(), INTERVAL 60 SECOND)' ), 'A received chunk must refresh last_progress_at.' );
+
+		$this->age_task( $task_id, 1200, 60 );
+		$this->assertTrue( $this->task_row_matches( $task_id, 'max_wall_clock_at > NOW()' ), 'The absolute deadline must still be in the future.' );
+
+		$this->assertFalse( $this->spine->enforce_wall_clock_deadline( $task_id ) );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $this->spine->get_task( $task_id )->phase );
+
+		$this->assertSame( 'ok', $this->send( $task_id, substr( $content, 100 ), 100, true )['result'], 'The transfer must still be able to finish.' );
+	}
+
+	/**
+	 * A queued restore that received nothing for longer than the stall window
+	 * is abandoned. It fails with the restore transfer code and message, not
+	 * the backup wall-clock advice, and reports that nothing was changed.
+	 */
+	public function test_idle_queued_restore_fails_as_transfer_stalled() {
+		$content = str_repeat( 'A', 200 );
+		$task_id = $this->make_task( $content );
+		$this->send( $task_id, substr( $content, 0, 100 ), 0 );
+		$this->age_task( $task_id, 1200, 901 );
+		$this->assertTrue( $this->task_row_matches( $task_id, 'max_wall_clock_at > NOW()' ), 'The absolute deadline must still be in the future.' );
+
+		$this->assertTrue( $this->spine->enforce_wall_clock_deadline( $task_id ) );
+
+		$task    = $this->spine->get_task( $task_id );
+		$payload = $this->spine->status_payload( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_TRANSFER_STALLED, $payload['error_code'] );
+		$this->assertSame( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_TRANSFER_STALLED ), $payload['error'] );
+		$this->assertNotSame( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_WALL_CLOCK ), $payload['error'] );
+		$this->assertSame( 'queued', $payload['sub_state']['verification']['outcome']['phase_reached'] );
+	}
+
+	/**
+	 * Fresh chunk progress never extends the absolute deadline: a restore
+	 * past max_wall_clock_at fails with the wall-clock code even when its
+	 * last chunk just arrived.
+	 */
+	public function test_restore_past_deadline_with_fresh_progress_fails_as_wall_clock() {
+		global $wpdb;
+		$content = str_repeat( 'A', 200 );
+		$task_id = $this->make_task( $content );
+		$this->send( $task_id, substr( $content, 0, 100 ), 0 );
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET max_wall_clock_at = DATE_SUB(NOW(), INTERVAL 60 SECOND) WHERE task_id = %s', $task_id ) ); // phpcs:ignore WordPress.DB -- test fixture.
+		$this->assertTrue( $this->task_row_matches( $task_id, 'last_progress_at > DATE_SUB(NOW(), INTERVAL 60 SECOND)' ) );
+
+		$this->assertTrue( $this->spine->enforce_wall_clock_deadline( $task_id ) );
+
+		$task    = $this->spine->get_task( $task_id );
+		$payload = $this->spine->status_payload( $task, $this->dir );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_WALL_CLOCK, $payload['error_code'] );
+	}
+
+	/**
+	 * A chunk that lands after the eligibility read but before the terminal
+	 * write bumps the row version, so the write misses and the recheck sees
+	 * the fresh progress: an active transfer is never failed by that race.
+	 */
+	public function test_chunk_landing_during_stall_check_keeps_task() {
+		$content = str_repeat( 'A', 200 );
+		$task_id = $this->make_task( $content );
+		$this->send( $task_id, substr( $content, 0, 100 ), 0 );
+		$this->age_task( $task_id, 1200, 901 );
+
+		$raced = false;
+		$race  = function ( $query ) use ( $task_id, $content, &$raced, &$race ) {
+			if ( false !== strpos( $query, "SET phase = 'failed', active_slot = NULL" ) && false !== strpos( $query, $task_id ) ) {
+				remove_filter( 'query', $race );
+				$this->assertSame( 'ok', $this->send( $task_id, substr( $content, 100, 50 ), 100 )['result'] );
+				$raced = true;
+			}
+			return $query;
+		};
+		add_filter( 'query', $race );
+		try {
+			$result = $this->spine->enforce_wall_clock_deadline( $task_id );
+		} finally {
+			remove_filter( 'query', $race );
+		}
+
+		$this->assertTrue( $raced, 'The terminal write must have been attempted.' );
+		$this->assertFalse( $result );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_QUEUED, $this->spine->get_task( $task_id )->phase );
+	}
+
+	/**
 	 * The restore callables are dashboard-callable.
 	 */
 	public function test_restore_callables_registered() {

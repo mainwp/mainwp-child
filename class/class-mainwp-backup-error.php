@@ -84,6 +84,8 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
     const ERR_RESTORE_ROLLBACK_FAILED = 'mainwp_restore_rollback_failed';
     const ERR_RESTORE_SNAPSHOT_FAILED = 'mainwp_restore_snapshot_failed';
 
+    const ERR_RESTORE_TRANSFER_STALLED = 'mainwp_restore_transfer_stalled';
+
     const ERR_CHUNK_GAP         = 'mainwp_restore_chunk_gap';
     const ERR_CHUNK_HASH        = 'mainwp_restore_chunk_hash';
     const ERR_ARTIFACT_UNKNOWN  = 'mainwp_restore_artifact_unknown';
@@ -280,6 +282,8 @@ class MainWP_Backup_Error { // phpcs:ignore Generic.Classes.OpeningBraceSameLine
             self::ERR_RESTORE_ROLLED_BACK        => esc_html__( 'The database restore failed partway through, so the original site tables were restored from the copy taken before the restore. No data was permanently changed. Check the child site error log for the failing table and try the restore again.', 'mainwp-child' ),
             self::ERR_RESTORE_ROLLBACK_FAILED    => esc_html__( 'The database restore failed partway through and the automatic recovery could not finish, so the database may be in a partial state. The site has been left in maintenance mode on purpose. Ask your host or a database administrator to check the database before bringing the site back online.', 'mainwp-child' ),
             self::ERR_RESTORE_SNAPSHOT_FAILED    => esc_html__( 'A safe copy of the database tables could not be made before the restore, so the restore did not start. The live database was not changed. Free up disk space and confirm the database permissions on the child site, then try again.', 'mainwp-child' ),
+            self::ERR_RESTORE_TRANSFER_STALLED
+                => esc_html__( 'The restore stopped because this site received no backup data from the Dashboard for 15 minutes. Nothing on the site was changed. Check that the Dashboard can still reach this site, then start the restore again.', 'mainwp-child' ),
             self::ERR_CHUNK_GAP                  => esc_html__( 'The artifact data arrived out of order. The Dashboard will resend from the last received byte.', 'mainwp-child' ),
             self::ERR_CHUNK_HASH                 => esc_html__( 'A piece of the artifact failed its integrity check during transfer and was not written. The Dashboard will resend it.', 'mainwp-child' ),
             self::ERR_ARTIFACT_UNKNOWN           => esc_html__( 'The transferred file is not part of this restore. Only artifacts named when the restore was created are accepted.', 'mainwp-child' ),
