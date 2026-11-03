@@ -374,6 +374,146 @@ class MainWP_Child_Backup_Incremental_Zip_Writer { // phpcs:ignore Generic.Class
     }
 
     /**
+     * Write qualified parts for an internally enabled task.
+     *
+     * @param MainWP_Child_Backup_Task_Runner $runner Task runner.
+     * @param array                           $descriptor Descriptor.
+     * @param array                           $entries Qualified files.
+     * @param array                           $cursor Part cursor.
+     * @param int                             $deadline Slice deadline.
+     * @return array Part result.
+     */
+    public function capture_for_task( $runner, $descriptor, $entries, $cursor, $deadline ) {
+        if ( ! $runner instanceof MainWP_Child_Backup_Task_Runner || ! $runner->allows_v2_capture() ) {
+            MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_UNSUPPORTED_BACKUP_FORMAT );
+        }
+        return $this->write_v2_parts_slice( $descriptor, $entries, $cursor, $deadline );
+    }
+
+    /**
+     * Write bounded wrapped-tar parts through the private v2 capture seam.
+     *
+     * No request handler calls this entry while v2 capture is disabled.
+     *
+     * @param array $descriptor Canonical layout descriptor.
+     * @param array $entries Qualified identities to local source files.
+     * @param array $cursor Checkpoint returned by the preceding slice.
+     * @param float $deadline Slice deadline, checked between complete entries.
+     * @param int   $slice_entries Maximum complete entries per slice.
+     * @param int   $slice_bytes Maximum wrapper bytes per slice.
+     * @return array Completion, cursor and completed part records.
+     */
+    private function write_v2_parts_slice( $descriptor, $entries, $cursor, $deadline, $slice_entries = 100, $slice_bytes = 4194304 ) {
+        $digest  = MainWP_Child_Backup_Layout::digest( $descriptor );
+        $binding = hash( 'sha256', wp_json_encode( $entries ) );
+        if ( empty( $cursor ) ) {
+            $cursor = array(
+                'format'                   => 2,
+                'layout_descriptor_sha256' => $digest,
+                'entries_sha256'           => $binding,
+                'next_entry'               => 0,
+                'part_index'               => 1,
+                'part_entries'             => array(),
+                'codec'                    => array(),
+                'parts'                    => array(),
+            );
+        } elseif ( 2 !== ( $cursor['format'] ?? null ) || ( $cursor['layout_descriptor_sha256'] ?? null ) !== $digest || ( $cursor['entries_sha256'] ?? null ) !== $binding ) {
+            MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_LAYOUT_CHANGED );
+        }
+        if ( ! isset( $cursor['next_entry'], $cursor['part_index'], $cursor['part_entries'], $cursor['codec'], $cursor['parts'] ) || ! is_int( $cursor['next_entry'] ) || $cursor['next_entry'] < 0 || $cursor['next_entry'] > count( $entries ) || ! is_int( $cursor['part_index'] ) || $cursor['part_index'] < 1 || ! is_array( $cursor['part_entries'] ) || ! is_array( $cursor['codec'] ) || ! is_array( $cursor['parts'] ) ) {
+            MainWP_Child_Backup_Layout::refuse();
+        }
+        if ( empty( $cursor['part_entries'] ) && count( $entries ) === $cursor['next_entry'] ) {
+            return array(
+                'done'             => true,
+                'cursor'           => $cursor,
+                'parts'            => $cursor['parts'],
+                'omitted'          => $cursor['omitted'] ?? array(),
+                'omitted_overflow' => ! empty( $cursor['omitted_overflow'] ),
+            );
+        }
+        if ( empty( $cursor['part_entries'] ) ) {
+            $identities  = array_keys( $entries );
+            $bytes       = 0;
+            $roles       = array_column( $descriptor['roots'], 'coverage', 'role' );
+            $entry_count = count( $identities );
+            for ( $i = $cursor['next_entry']; $i < $entry_count; ++$i ) {
+                $identity     = $identities[ $i ];
+                $source       = $entries[ $identity ];
+                list( $role ) = MainWP_Child_Backup_Layout::parse_identity( $identity );
+                clearstatcache( true, $source );
+                $omittable = 'config' !== $role && ( is_link( $source ) || ! file_exists( $source ) );
+                if ( ! isset( $roles[ $role ] ) || 'preserved' === $roles[ $role ] || ( ! $omittable && ( ! MainWP_Backup::is_safe_backup_path( $source, $this->allowed_backup_bases ) || ! is_file( $source ) ) ) ) {
+                    MainWP_Child_Backup_Layout::refuse();
+                }
+                $size = $omittable ? 0 : filesize( $source );
+                if ( false === $size ) {
+                    MainWP_Child_Backup_Layout::refuse();
+                }
+                if ( ! empty( $cursor['part_entries'] ) && ( count( $cursor['part_entries'] ) >= $this->max_entries || $bytes + $size > $this->max_bytes ) ) {
+                    break;
+                }
+                $cursor['part_entries'][ $identity ] = $source;
+                $bytes                              += $size;
+            }
+        }
+        if ( array_slice( $entries, $cursor['next_entry'], count( $cursor['part_entries'] ), true ) !== $cursor['part_entries'] ) {
+            MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_LAYOUT_CHANGED );
+        }
+        $position = 0;
+        foreach ( $cursor['part_entries'] as $identity => $source ) {
+            if ( $position++ < ( $cursor['codec']['entry_index'] ?? 0 ) ) {
+                continue;
+            }
+            list( $role ) = MainWP_Child_Backup_Layout::parse_identity( $identity );
+            clearstatcache( true, $source );
+            $omittable = 'config' !== $role && ( is_link( $source ) || ! file_exists( $source ) );
+            if ( ! $omittable && ( ! MainWP_Backup::is_safe_backup_path( $source, $this->allowed_backup_bases ) || ! is_file( $source ) ) ) {
+                MainWP_Child_Backup_Layout::refuse();
+            }
+        }
+        // Retain the legacy stem and token rules, changing only the v2 suffix.
+        $basename = substr( self::part_basename( $this->component, $cursor['part_index'], $this->task_token ), 0, -4 ) . '.mwp2';
+        $path     = $this->backup_dir . '/' . $basename;
+        MainWP_Backup::assert_disk_space_during_backup( $this->backup_dir );
+        $result          = ( new MainWP_Child_Backup_Layout_Codec() )->write_slice( $path, $descriptor, $cursor['part_entries'], $cursor['codec'], $deadline, $slice_entries, $slice_bytes, true );
+        $cursor['codec'] = $result['cursor'];
+        foreach ( $cursor['codec']['omitted'] ?? array() as $identity => $reason ) {
+            if ( isset( $cursor['omitted'][ $identity ] ) || count( $cursor['omitted'] ?? array() ) < 1000 ) {
+                $cursor['omitted'][ $identity ] = $reason;
+            } else {
+                $cursor['omitted_overflow'] = true;
+            }
+        }
+        if ( ! empty( $cursor['codec']['omitted_overflow'] ) ) {
+            $cursor['omitted_overflow'] = true;
+        }
+        if ( $result['done'] ) {
+            clearstatcache( true, $path );
+            $cursor['parts'][]     = array(
+                'file'                     => $basename,
+                'size'                     => (int) filesize( $path ),
+                'entries'                  => count( $cursor['part_entries'] ) - ( $cursor['codec']['omitted_count'] ?? 0 ),
+                'index'                    => $cursor['part_index'],
+                'backup_format'            => 2,
+                'layout_descriptor_sha256' => $digest,
+            );
+            $cursor['next_entry'] += count( $cursor['part_entries'] );
+            ++$cursor['part_index'];
+            $cursor['part_entries'] = array();
+            $cursor['codec']        = array();
+            wp_delete_file( $path . '.tar' );
+        }
+        return array(
+            'done'             => $result['done'] && count( $entries ) === $cursor['next_entry'],
+            'cursor'           => $cursor,
+            'parts'            => $cursor['parts'],
+            'omitted'          => $cursor['omitted'] ?? array(),
+            'omitted_overflow' => ! empty( $cursor['omitted_overflow'] ),
+        );
+    }
+
+    /**
      * Index of the open part.
      *
      * @return int Part index.

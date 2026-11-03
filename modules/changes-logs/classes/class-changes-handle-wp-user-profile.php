@@ -66,6 +66,10 @@ class Changes_Handle_WP_User_Profile {
      */
     public static function callback_change_application_password_added( $meta_id, $user_id, $meta_key, $_meta_value ) { //phpcs:ignore --NOSONAR -complex.
 
+        if ( '_application_passwords' !== $meta_key ) {
+            return;
+        }
+
         $server_vars = filter_input_array( INPUT_SERVER );
         if ( ! isset( $server_vars['HTTP_REFERER'] ) || ! isset( $server_vars['REQUEST_URI'] ) ) {
             return;
@@ -101,7 +105,7 @@ class Changes_Handle_WP_User_Profile {
                     'actionname'    => 'added',
                 );
                 Changes_Logs_Logger::log_change( $type_id, $log_data );
-            } elseif ( ! empty( $old_value ) && count( $old_value ) > 1 && empty( $_meta_value ) ) {
+            } elseif ( is_array( $old_value ) && count( $old_value ) > 1 && array() === $_meta_value ) {
                 $type_id  = ( 'user-edit' === $referer_check ) ? 1735 : 1730;
                 $log_data = array(
                     'roles'         => $current_roles_list,
@@ -112,7 +116,7 @@ class Changes_Handle_WP_User_Profile {
                     'actionname'    => 'revoked',
                 );
                 Changes_Logs_Logger::log_change( $type_id, $log_data );
-            } elseif ( count( $_meta_value ) < count( $old_value ) ) {
+            } elseif ( is_array( $old_value ) && is_array( $_meta_value ) && count( $_meta_value ) < count( $old_value ) ) {
                 $revoked_pw      = array_diff( array_map( 'serialize', $old_value ), array_map( 'serialize', $_meta_value ) );
                 $revoked_pw      = array_values( array_map( 'unserialize', $revoked_pw ) );
                 $revoked_pw_name = $revoked_pw[0]['name'];

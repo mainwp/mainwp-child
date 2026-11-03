@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 7.1.4
 Requires PHP: 7.4
-Stable tag: 6.4
+Stable tag: 6.4.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -115,6 +115,14 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 
 == Changelog ==
 
+= 6.4.1 - 11-3-2026 =
+
+* Fixed: Restored recent Changes Logs entries and their associated details.
+* Fixed: Prevented site errors when revoking Application Passwords during user profile updates.
+* Fixed: Corrected Pro Reports New Posts totals to exclude pages and custom post types.
+* Fixed: Corrected Network Activity entries for WordPress updates to display the previous and installed versions.
+* Maintenance: Prepared backup file handling for future compatibility improvements.
+
 = 6.4 - 10-29-2026 =
 
 * Added: Support for MainWP Built-In Backups (beta), enabling Dashboard-managed full, database-only, files-only, and incremental backups, resumable transfers, and snapshot restores without an additional backup plugin.
@@ -126,6 +134,7 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 * Fixed: Missing Cache Control sync data when Dashboard connections use the front-end fallback.
 * Fixed: Child settings redirects and access to Tools pages hidden by branding.
 * Fixed: Code Snippets output now preserves valid text when invalid characters are encountered.
+* Fixed: Built-in Backups restores no longer time out after 15 minutes while backup data is still transferring to the child site.
 * Updated: Strengthened Dashboard request verification and replay protection.
 * Updated: Improved handling of folder names in Restore/Clone navigation.
 * Updated: Strengthened post and page checks to prevent actions on the wrong content type.

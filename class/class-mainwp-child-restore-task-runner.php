@@ -299,6 +299,54 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     }
 
     /**
+     * Inspect all format markers before sanitization, task creation or replay.
+     *
+     * @internal
+     * @param array $params Restore options and raw artifacts.
+     * @throws MainWP_Exception On an unsupported format or container name.
+     */
+    public static function require_supported_restore_format( $params ) {
+        parent::require_supported_backup_format( $params );
+        $artifacts = isset( $params['artifacts'] ) && is_array( $params['artifacts'] ) ? $params['artifacts'] : array();
+        foreach ( $artifacts as $artifact ) {
+            parent::require_supported_backup_format( $artifact );
+            if ( isset( $artifact['file'] ) && is_string( $artifact['file'] ) && '.mwp2' === substr( $artifact['file'], -5 ) ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_UNSUPPORTED_BACKUP_FORMAT ) ), null, MainWP_Backup_Error::ERR_UNSUPPORTED_BACKUP_FORMAT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+            }
+        }
+    }
+
+    /**
+     * Check every staged artifact before a phase can change the destination.
+     *
+     * @param object $task Task row.
+     * @param array  $sub_state Persisted cursor.
+     * @param string $backup_dir Task scratch root.
+     * @throws MainWP_Exception On a wrapped new-format artifact.
+     */
+    protected function require_supported_restore_artifacts( $task, $sub_state, $backup_dir ) {
+        $params = isset( $sub_state['params'] ) ? $sub_state['params'] : array();
+        self::require_supported_restore_format( $params );
+        $scratch   = $this->scratch_dir( $task->task_id, $backup_dir );
+        $artifacts = isset( $params['artifacts'] ) && is_array( $params['artifacts'] ) ? $params['artifacts'] : array();
+        foreach ( $artifacts as $artifact ) {
+            $path = $scratch . $artifact['file'];
+            if ( ! is_file( $path ) ) {
+                continue;
+            }
+            $handle = @fopen( $path, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions, WordPress.PHP.NoSilencedErrors.Discouraged -- existing transfer and integrity checks report unreadable staging files.
+            if ( false === $handle ) {
+                continue;
+            }
+            $magic = fread( $handle, strlen( MainWP_Child_Backup_Layout_Codec::MAGIC ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bounded private staging read.
+            fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- close the private staging handle.
+            if ( MainWP_Child_Backup_Layout_Codec::MAGIC === $magic ) {
+                throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_UNSUPPORTED_BACKUP_FORMAT ) ), null, MainWP_Backup_Error::ERR_UNSUPPORTED_BACKUP_FORMAT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+            }
+        }
+    }
+
+    /**
      * Validate params and create a restore task.
      *
      * @param string $sub_type 'full', 'db', or 'files'.
@@ -313,6 +361,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @return string Task id.
      */
     public function create_restore_task( $sub_type, $params, &$reused = false ) {
+        self::require_supported_restore_format( $params );
+
         global $wpdb;
         $reused = false;
 
@@ -1081,6 +1131,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $this->failure_outcome   = null;
         $this->after_file_change = null;
         try {
+            $this->require_supported_restore_artifacts( $task, $sub_state, $backup_dir );
             switch ( $task->phase ) {
                 case MainWP_Child_Backup_Task::PHASE_QUEUED:
                     $this->preflight_restore( $task, $backup_dir );
@@ -1114,7 +1165,12 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
         } catch ( \Throwable $e ) { // phpcs:ignore -- NOSONAR - cleanup must run on any phase failure.
             $this->after_file_change = null;
-            $fresh                   = MainWP_Child_Backup_Task::instance()->get_task( $task->task_id );
+            if ( $e instanceof MainWP_Exception && MainWP_Backup_Error::ERR_UNSUPPORTED_BACKUP_FORMAT === $e->get_message_error_code() ) {
+                // Admission refuses before target work, so cleanup is limited to staging.
+                $this->remove_scratch_dir( $task, $backup_dir );
+                throw $e;
+            }
+            $fresh = MainWP_Child_Backup_Task::instance()->get_task( $task->task_id );
             if ( null !== $fresh ) {
                 $task        = $fresh;
                 $fresh_state = MainWP_Child_Backup_Task::instance()->read_sub_state( $fresh, $backup_dir );

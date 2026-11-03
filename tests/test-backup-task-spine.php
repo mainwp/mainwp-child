@@ -1095,6 +1095,24 @@ class BackupTaskSpineTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Only restore tasks measure queued inactivity from their last progress
+	 * (MWP-2134). A queued backup still counts from started_at, so a recent
+	 * progress write does not keep it alive, and it keeps the wall-clock code.
+	 */
+	public function test_queued_backup_stall_window_still_counts_from_start() {
+		global $wpdb;
+		$spine   = MainWP_Child_Backup_Task::instance();
+		$task_id = $spine->create_task( 'full' );
+
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $spine->get_table_name() . ' SET started_at = DATE_SUB(NOW(), INTERVAL 1200 SECOND), last_progress_at = DATE_SUB(NOW(), INTERVAL 60 SECOND) WHERE task_id = %s', $task_id ) ); // phpcs:ignore -- test fixture.
+
+		$this->assertTrue( $spine->enforce_wall_clock_deadline( $task_id ) );
+		$task = $spine->get_task( $task_id );
+		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
+		$this->assertSame( MainWP_Backup_Error::ERR_WALL_CLOCK, $spine->status_payload( $task )['error_code'] );
+	}
+
+	/**
 	 * A backup forced terminal by the watchdog (resume cap) sweeps its spilled
 	 * walk-run files. The runner's own terminal branch cleans them, but a task
 	 * killed by the watchdog never runs the runner, so the watchdog must sweep.

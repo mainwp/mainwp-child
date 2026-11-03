@@ -569,10 +569,10 @@ class MainWP_Client_Report_Base { //phpcs:ignore -- NOSONAR - multi methods.
 
                 $valid_context = true;
             } elseif ( 'post' === $context && 'created' === $action ) {
+                // Leave $valid_context false so the context check below drops pages and custom post types, matching [section.posts.created].
                 if ( in_array( $record->ID, $skip_records ) ) {
                     continue;
                 }
-                $valid_context = true;
             } elseif ( 'menus' === $context ) {
                 $valid_context = true; // ok, pass, don't check context.
             } elseif ( 'editor' === $record->connector ) {

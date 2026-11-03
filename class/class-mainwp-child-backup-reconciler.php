@@ -17,6 +17,26 @@ if ( ! defined( 'ABSPATH' ) ) {
 class MainWP_Child_Backup_Reconciler extends MainWP_Child_Backup_Incremental_Diff {
 
     /**
+     * Read an explicitly selected v2 manifest namespace without deleting files.
+     *
+     * @internal
+     * @param string $manifest Qualified file-list path.
+     * @param array  $descriptor Verified source descriptor.
+     * @return array Qualified identities to size/mtime tuples.
+     */
+    public function read_layout_manifest( $manifest, $descriptor ) {
+        $rows  = ( new MainWP_Child_Backup_Layout_List() )->read( $manifest, MainWP_Child_Backup_Layout::digest( $descriptor ) );
+        $roles = array_column( $descriptor['roots'], 'coverage', 'role' );
+        foreach ( $rows as $identity => $fields ) {
+            list( $role ) = MainWP_Child_Backup_Layout::parse_identity( $identity );
+            if ( ! isset( $roles[ $role ] ) ) {
+                MainWP_Child_Backup_Layout::refuse();
+            }
+        }
+        return $rows;
+    }
+
+    /**
      * Uploads kept because a files-only restore retains the live database.
      *
      * @var string|null
