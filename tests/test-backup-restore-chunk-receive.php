@@ -521,9 +521,10 @@ class BackupRestoreChunkReceiveTest extends WP_UnitTestCase {
 		global $wpdb;
 		$content = str_repeat( 'A', 200 );
 		$task_id = $this->make_task( $content );
-		$this->send( $task_id, substr( $content, 0, 100 ), 0 );
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . $this->spine->get_table_name() . ' SET max_wall_clock_at = DATE_SUB(NOW(), INTERVAL 60 SECOND) WHERE task_id = %s', $task_id ) ); // phpcs:ignore WordPress.DB -- test fixture.
+		$this->send( $task_id, substr( $content, 0, 100 ), 0 );
 		$this->assertTrue( $this->task_row_matches( $task_id, 'last_progress_at > DATE_SUB(NOW(), INTERVAL 60 SECOND)' ) );
+		$this->assertTrue( $this->task_row_matches( $task_id, 'max_wall_clock_at < NOW()' ), 'A received chunk must not move the absolute deadline.' );
 
 		$this->assertTrue( $this->spine->enforce_wall_clock_deadline( $task_id ) );
 
