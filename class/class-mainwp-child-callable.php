@@ -678,9 +678,29 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      *
      * @return array Action result.
      *
+     * @throws MainWP_Exception On an unsupported format when response writing is disabled.
+     *
      * @uses \MainWP\Child\MainWP_Backup::backup()
      */
     public function backup( $write = true ) {
+        try {
+            MainWP_Child_Backup_Task_Runner::require_supported_backup_format(
+                array_intersect_key(
+                    $_POST, // phpcs:ignore WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput -- authenticated request; the format check accepts only the exact supported values.
+                    array(
+                        'backup_format'      => true,
+                        'expected_layout_id' => true,
+                        'layout_descriptor'  => true,
+                    )
+                )
+            );
+        } catch ( MainWP_Exception $e ) {
+            if ( ! $write ) {
+                throw $e;
+            }
+            MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
+            return;
+        }
         return MainWP_Backup::get()->backup( $write );
     }
 
@@ -747,6 +767,21 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses \MainWP\Child\MainWP_Child_Backup_Task_Runner::create_task_for_params()
      */
     public function backup_task_create() {
+        try {
+            MainWP_Child_Backup_Task_Runner::require_supported_backup_format(
+                array_intersect_key(
+                    $_POST, // phpcs:ignore WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput -- authenticated request; the format check accepts only the exact supported values.
+                    array(
+                        'backup_format'      => true,
+                        'expected_layout_id' => true,
+                        'layout_descriptor'  => true,
+                    )
+                )
+            );
+        } catch ( MainWP_Exception $e ) {
+            MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
+            return;
+        }
         // phpcs:disable WordPress.Security.NonceVerification -- authenticated MainWP request.
         $type    = isset( $_POST['type'] ) ? sanitize_text_field( wp_unslash( $_POST['type'] ) ) : '';
         $exclude = isset( $_POST['exclude'] ) ? explode( ',', wp_unslash( $_POST['exclude'] ) ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized in assemble_exclude_list().
@@ -1013,7 +1048,16 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             return;
         }
 
-        $artifacts = $this->sanitize_restore_artifacts( json_decode( (string) $artifacts_raw, true ) );
+        $raw_artifacts = json_decode( (string) $artifacts_raw, true );
+        $raw_options   = json_decode( (string) $options_raw, true );
+        try {
+            MainWP_Child_Restore_Task_Runner::require_supported_restore_format( array_merge( is_array( $raw_options ) ? $raw_options : array(), array( 'artifacts' => $raw_artifacts ) ) );
+        } catch ( MainWP_Exception $e ) {
+            MainWP_Helper::instance()->error( $e->getMessage(), $e->get_message_error_code() );
+            return;
+        }
+
+        $artifacts = $this->sanitize_restore_artifacts( $raw_artifacts );
         if ( empty( $artifacts ) ) {
             MainWP_Helper::instance()->error( esc_html__( 'The restore request did not name any artifacts to receive.', 'mainwp-child' ) );
             return;

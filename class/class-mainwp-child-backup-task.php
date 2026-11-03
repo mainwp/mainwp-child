@@ -85,7 +85,9 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * The dashboard's continue cron drives the first slice within ~5
      * minutes; 15 minutes leaves 3 cycles of margin before a never-started
      * task is treated as abandoned, well short of the full wall-clock window
-     * granted to a task that has actually made progress.
+     * granted to a task that has actually made progress. A staged restore
+     * stays queued for its whole chunk transfer, so for restores the window
+     * counts from the latest received chunk instead of from creation.
      */
     const QUEUED_STALL_WINDOW_SECONDS = 15 * MINUTE_IN_SECONDS;
 
@@ -1106,52 +1108,62 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                 ? MainWP_Backup_Error::ERR_RESTORE_ROLLBACK_FAILED
                 : MainWP_Backup_Error::ERR_WALL_CLOCK;
 
+            // A still-queued task is failed once it has sat untouched past the
+            // shorter stall window, even while its full wall-clock deadline is
+            // still in the future - see QUEUED_STALL_WINDOW_SECONDS. A staged
+            // restore stays queued while the Dashboard streams its chunks and
+            // each stored chunk refreshes last_progress_at, so a restore counts
+            // that window from its latest chunk; a backup leaves queued on its
+            // first slice and still counts from started_at. The SELECT and the
+            // UPDATE below must share this predicate.
+            $is_restore   = self::is_restore_type( $task->type );
+            $expired_sql  = '( max_wall_clock_at < NOW()
+                OR ( phase = %s AND GREATEST( started_at, IF( %d = 1, COALESCE( last_progress_at, started_at ), started_at ) ) < DATE_SUB( NOW(), INTERVAL %d SECOND ) ) )';
+            $expired_args = array( self::PHASE_QUEUED, $is_restore ? 1 : 0, self::QUEUED_STALL_WINDOW_SECONDS );
+
+            $outcome = null;
+            if ( $is_restore ) {
+                // Every restore poll lands here; the report reads the cursor and may
+                // probe the swap, so only a task the write below can fail pays for it.
+                $reason = $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- same predicates as the terminal write.
+                    $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- args passed as array match the placeholders.
+                        "SELECT IF( max_wall_clock_at < NOW(), 'deadline', 'stalled' ) FROM %i
+                         WHERE task_id = %s AND version = %d AND phase NOT IN ('completed','failed')
+                           AND ( lease_owner IS NULL OR lease_expires_at < NOW() )
+                           AND " . $expired_sql, // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal predicate shared with the terminal write.
+                        array_merge( array( $this->get_table_name(), $task_id, $read_version ), $expired_args )
+                    )
+                );
+                if ( null === $reason ) {
+                    $result = 0;
+                    continue;
+                }
+                // Only a queued restore can be stalled without being past its
+                // deadline: its transfer stopped, and nothing on the site changed.
+                if ( 'stalled' === $reason ) {
+                    $code = MainWP_Backup_Error::ERR_RESTORE_TRANSFER_STALLED;
+                }
+                $outcome = MainWP_Child_Restore_Task_Runner::instance()->terminal_outcome( $task, null, 'failed', $code );
+            }
+
             $terminal_state = array(
                 'error' => array(
                     'message' => MainWP_Backup_Error::message( $code ),
                     'code'    => $code,
                 ),
             );
-            if ( self::is_restore_type( $task->type ) ) {
-                // Every restore poll lands here; the report reads the cursor and may
-                // probe the swap, so only a task the write below can fail pays for it.
-                $eligible = $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- same predicates as the terminal write.
-                    $wpdb->prepare(
-                        'SELECT 1 FROM ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
-                        " WHERE task_id = %s AND version = %d AND phase NOT IN ('completed','failed')
-                           AND ( lease_owner IS NULL OR lease_expires_at < NOW() )
-                           AND ( max_wall_clock_at < NOW()
-                                 OR ( phase = %s AND started_at < DATE_SUB( NOW(), INTERVAL %d SECOND ) ) )",
-                        $task_id,
-                        $read_version,
-                        self::PHASE_QUEUED,
-                        self::QUEUED_STALL_WINDOW_SECONDS
-                    )
-                );
-                if ( '1' !== (string) $eligible ) {
-                    $result = 0;
-                    continue;
-                }
-                $terminal_state['verification']['outcome'] = MainWP_Child_Restore_Task_Runner::instance()->terminal_outcome( $task, null, 'failed', $code );
+            if ( null !== $outcome ) {
+                $terminal_state['verification']['outcome'] = $outcome;
             }
             $sub_state = wp_json_encode( $terminal_state );
 
-            // A still-queued task is failed once it has sat untouched past the
-            // shorter stall window, even while its full wall-clock deadline is
-            // still in the future - see QUEUED_STALL_WINDOW_SECONDS.
             $result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- conditional terminal write on the spine table.
-                $wpdb->prepare(
-                    'UPDATE ' . $this->get_table_name() . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name from trusted helper.
-                    " SET phase = 'failed', active_slot = NULL, sub_state = %s, version = version + 1
+                $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- args passed as array match the placeholders.
+                    "UPDATE %i SET phase = 'failed', active_slot = NULL, sub_state = %s, version = version + 1
                      WHERE task_id = %s AND version = %d AND phase NOT IN ('completed','failed')
                        AND ( lease_owner IS NULL OR lease_expires_at < NOW() )
-                       AND ( max_wall_clock_at < NOW()
-                             OR ( phase = %s AND started_at < DATE_SUB( NOW(), INTERVAL %d SECOND ) ) )",
-                    $sub_state,
-                    $task_id,
-                    $read_version,
-                    self::PHASE_QUEUED,
-                    self::QUEUED_STALL_WINDOW_SECONDS
+                       AND " . $expired_sql, // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal predicate shared with the eligibility read.
+                    array_merge( array( $this->get_table_name(), $sub_state, $task_id, $read_version ), $expired_args )
                 )
             );
 

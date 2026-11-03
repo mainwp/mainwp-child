@@ -1006,6 +1006,30 @@ class Tar_Archiver {
     protected $cnt = 0;
 
     /**
+     * Add an explicitly named v2 member without changing legacy traversal names.
+     *
+     * @internal
+     * @param string $path Local source file.
+     * @param string $identity Qualified member name.
+     * @param array  $bases Authorized physical source roots.
+     * @return bool Whether the file was written.
+     */
+    public function add_layout_file( $path, $identity, $bases ) {
+        MainWP_Child_Backup_Layout::parse_identity( $identity );
+        return $this->add_file( $path, $identity, $bases );
+    }
+
+    /**
+     * Write the descriptor through the same tar header writer.
+     *
+     * @internal
+     * @param array $descriptor Validated layout descriptor.
+     */
+    public function add_layout_descriptor( $descriptor ) {
+        $this->add_file_from_string( 'mainwp-layout.json', MainWP_Child_Backup_Layout::metadata_bytes( $descriptor ) );
+    }
+
+    /**
      * Add file to the backup archive file.
      *
      * @param string     $path      File path.

@@ -574,8 +574,9 @@ class Changes_Logs_DB_Log {
 
         $prepared_array = array();
 
-        $log_table_name  = static::table_name( 'changes_logs' );
-        $meta_table_name = static::table_name( 'changes_meta' );
+        // Column aliases built by get_logs_data(), not the physical table names.
+        $log_table_name  = 'tbllogs';
+        $meta_table_name = 'tblmeta';
 
         $map_fields = static::$mapping_db_fields['mapping_fields'];
 
@@ -600,8 +601,13 @@ class Changes_Logs_DB_Log {
                             continue;
                         }
 
-                        $prepared_array[ $log_id ]['meta_values'][ $name ] = maybe_unserialize( $row[ $log_table_name . $field ] );
+                        // Plain columns hold scalars, and user_agent is visitor-supplied: never unserialize them.
+                        $prepared_array[ $log_id ]['meta_values'][ $name ] = $row[ $log_table_name . $field ];
                     }
+                }
+                // The LEFT JOIN yields a NULL meta row for a log that has no metadata.
+                if ( ! isset( $row[ $meta_table_name . 'name' ] ) ) {
+                    continue;
                 }
                 $prepared_array[ $log_id ]['meta_values'][ $row[ $meta_table_name . 'name' ] ] = maybe_unserialize( $row[ $meta_table_name . 'value' ] );
             }

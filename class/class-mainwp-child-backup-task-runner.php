@@ -135,6 +135,23 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
     }
 
     /**
+     * Keep new-format requests off until capture and restore are implemented.
+     *
+     * @internal
+     * @param array $params Request or persisted task params.
+     * @throws MainWP_Exception On an unsupported format or v2 negotiation field.
+     */
+    public static function require_supported_backup_format( $params ) {
+        if ( is_array( $params ) && (
+            ( array_key_exists( 'backup_format', $params ) && ! in_array( $params['backup_format'], array( 1, '1' ), true ) ) ||
+            array_key_exists( 'expected_layout_id', $params ) ||
+            array_key_exists( 'layout_descriptor', $params )
+        ) ) {
+            throw new MainWP_Exception( esc_html( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_UNSUPPORTED_BACKUP_FORMAT ) ), null, MainWP_Backup_Error::ERR_UNSUPPORTED_BACKUP_FORMAT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- registry message.
+        }
+    }
+
+    /**
      * Validate request params and create a new task on the machine.
      *
      * @param string $type   Backup type (full/db/files).
@@ -147,6 +164,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @return string Task id.
      */
     public function create_task_for_params( $type, $params ) {
+        self::require_supported_backup_format( $params );
+
         if ( ! in_array( $type, array( 'full', 'db', 'files', 'incremental' ), true ) ) {
             throw new MainWP_Exception( 'Unknown backup type requested for the backup task.', null, '' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal message.
         }
@@ -625,6 +644,8 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @return array { version: int, yield: bool, abandon: bool }
      */
     protected function run_phase( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        self::require_supported_backup_format( isset( $sub_state['params'] ) ? $sub_state['params'] : array() );
+
         switch ( $task->phase ) {
             case MainWP_Child_Backup_Task::PHASE_QUEUED:
                 return $this->run_queued( $task, $version, $sub_state, $backup_dir );
@@ -805,6 +826,10 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
      * @return array Slice result.
      */
     protected function run_archiving_files( $task, $version, $sub_state, $deadline, $backup_dir ) {
+        if ( $this->v2_capture_enabled() ) {
+            return $this->run_v2_archiving( $task, $version, $sub_state, $deadline, $backup_dir );
+        }
+
         $remaining = $deadline - time();
         if ( $remaining < self::MIN_PHASE_BUDGET ) {
             return $this->slice_result( $version, true );
@@ -953,6 +978,335 @@ class MainWP_Child_Backup_Task_Runner { // phpcs:ignore Generic.Classes.OpeningB
         } finally {
             remove_action( 'mainwp_child_backup_skipped_path', $record_skip, 10 );
         }
+    }
+
+    /** Default-off internal rollout seam, replaced by negotiated admission later. */
+    private const V2_CAPTURE_ENABLED = false;
+
+    /**
+     * Read the internal policy without consulting request fields.
+     *
+     * @return bool Capture enabled.
+     */
+    protected function v2_capture_enabled() {
+        return self::V2_CAPTURE_ENABLED;
+    }
+
+    /**
+     * Authorize production capture bridges for this runner.
+     *
+     * @return bool Capture allowed.
+     */
+    public function allows_v2_capture() {
+        return $this->v2_capture_enabled();
+    }
+
+    /**
+     * Check the PHP tar reader required by the v2 codec.
+     *
+     * @return bool Tar available.
+     */
+    protected function v2_tar_available() {
+        return class_exists( '\\PharData' );
+    }
+
+    /**
+     * Discover semantic roots from local WordPress paths.
+     *
+     * @return array Captured roots.
+     */
+    protected function v2_capture_roots() {
+        $uploads = wp_upload_dir( null, false );
+        $roots   = array(
+            'site'    => $this->site_root(),
+            'content' => WP_CONTENT_DIR,
+            'uploads' => $uploads['basedir'],
+            'plugins' => WP_PLUGIN_DIR,
+        );
+        if ( is_dir( WPMU_PLUGIN_DIR ) ) {
+            $roots['mu_plugins'] = WPMU_PLUGIN_DIR;
+        }
+        return $roots;
+    }
+
+    /**
+     * Advance internally enabled root capture without entering legacy engines.
+     *
+     * @param object $task Task row.
+     * @param int    $version Owned version.
+     * @param array  $state Saved state.
+     * @param int    $deadline Slice deadline.
+     * @param string $backup_dir Scratch directory.
+     * @return array Existing checkpoint or phase result.
+     * @throws MainWP_Exception When tar support is unavailable.
+     */
+    private function run_v2_archiving( $task, $version, $state, $deadline, $backup_dir ) {
+        if ( ! $this->v2_tar_available() ) {
+            throw new MainWP_Exception( 'New-format file backups need PHP tar support. Database-only backups still work.', null, MainWP_Backup_Error::ERR_UNSUPPORTED_BACKUP_FORMAT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- fixed internal message.
+        }
+        $params   = $state['params'] ?? array();
+        $roots    = $this->v2_capture_roots();
+        $configs  = ( new MainWP_Child_Backup_Config_Includes() )->recovery_files_for_task( $this, $roots['site'] );
+        $layout   = new MainWP_Child_Backup_Layout( $roots, $configs );
+        $roles    = array();
+        $physical = array();
+        foreach ( MainWP_Child_Backup_Layout::ROLES as $role ) {
+            if ( isset( $roots[ $role ] ) ) {
+                $roles[] = array(
+                    'role'     => $role,
+                    'coverage' => 'site' === $role ? 'preserved' : 'restore',
+                );
+                if ( 'site' !== $role ) {
+                    $physical[ $role ] = realpath( $roots[ $role ] );
+                }
+            }
+        }
+        if ( ! empty( $configs ) ) {
+            $roles[]            = array(
+                'role'     => 'config',
+                'coverage' => 'recovery_only',
+            );
+            $physical['config'] = $configs;
+        }
+        $runtime                   = array(
+            'excludebackup' => ! empty( $params['excludebackup'] ),
+            'excludecache'  => ! empty( $params['excludecache'] ),
+            'storage_dirs'  => array( $backup_dir ),
+        );
+        $mainwp_storage            = MainWP_Helper::get_mainwp_dir( 'backup' );
+        $mainwp_storage_root       = MainWP_Helper::get_mainwp_dir();
+        $runtime['storage_dirs'][] = $mainwp_storage[0];
+        $runtime['storage_dirs'][] = $mainwp_storage_root[0];
+        $policy                    = array( $params['excludes'] ?? array(), ! empty( $params['excludezip'] ), ! empty( $params['excludenonwp'] ), $runtime['excludebackup'], $runtime['excludecache'], realpath( $mainwp_storage[0] ), realpath( $mainwp_storage_root[0] ) );
+        $descriptor                = MainWP_Child_Backup_Layout::descriptor( $roles, hash( 'sha256', wp_json_encode( array( $physical, $policy ) ) ) );
+        $digest                    = MainWP_Child_Backup_Layout::digest( $descriptor );
+        if ( isset( $state['layout_descriptor_sha256'] ) && $state['layout_descriptor_sha256'] !== $digest ) {
+            MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_LAYOUT_CHANGED );
+        }
+        $state['backup_format']            = 2;
+        $state['layout_descriptor']        = $descriptor;
+        $state['layout_descriptor_sha256'] = $digest;
+        $dir                               = rtrim( $backup_dir, '/' ) . '/';
+        $current                           = $dir . MainWP_Child_Backup_File_Walker::FILES_LIST . MainWP_Child_Backup_File_Walker::STAGED_SUFFIX;
+        if ( empty( $state['walk_done'] ) ) {
+            $walker = new MainWP_Child_Backup_File_Walker( $roots['site'], $params['excludes'] ?? array(), ! empty( $params['excludezip'] ), ! empty( $params['excludenonwp'] ), array( $backup_dir ) );
+            $walker->set_progress_callback( $this->dump_heartbeat() );
+            $walk                  = $walker->capture_for_task( $this, $backup_dir, $layout, $descriptor, $state['walk_cursor'] ?? null, $deadline, $runtime );
+            $state['walk_cursor']  = $walk['cursor'];
+            $state['v2_walk']      = $walk['walk'];
+            $state['_skip_report'] = array_merge(
+                $state['_skip_report'] ?? array( 'seen' => array() ),
+                array_intersect_key( $walk['walk'], array_flip( array( 'skipped_count', 'skipped_paths', 'skipped_by_reason' ) ) )
+            );
+            if ( ! empty( $walk['walk']['unarchived_overflow'] ) ) {
+                $state['_unreadable']['unlisted'] = true;
+            }
+            if ( ! $walk['done'] ) {
+                return $this->checkpoint_sub_state( $task, $version, $state, $backup_dir, true );
+            }
+            $state['walk_done']        = true;
+            $state['manifest']         = $this->manifest_from_walk( $walk );
+            $state['manifest']['size'] = filesize( $current );
+        }
+        $lists = new MainWP_Child_Backup_Layout_List();
+        $input = $current;
+        if ( 'incremental' === $task->type ) {
+            $input = $dir . MainWP_Child_Backup_Incremental_Diff::CHANGES_LIST;
+            if ( empty( $state['diff_done'] ) ) {
+                $parent = $this->resolve_parent_manifest( $state, $backup_dir );
+                $lists->diff_for_task( $this, $parent, $current, $input, $dir . MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST, $digest, $state['v2_walk'] );
+                $state['diff_done'] = true;
+            }
+        }
+        if ( empty( $state['v2_pack_entries'] ) && empty( $state['v2_input_done'] ) ) {
+            $page                          = $this->v2_capture_page( $input, $digest, $state['v2_input_offset'] ?? 0, $state['v2_previous_identity'] ?? null, $backup_dir );
+            $state['v2_input_offset']      = $page['offset'];
+            $state['v2_input_done']        = $page['done'];
+            $state['v2_previous_identity'] = $page['previous'];
+            $state['v2_pack_entries']      = array();
+            foreach ( $page['rows'] as $identity => $fields ) {
+                list( $role, $relative ) = MainWP_Child_Backup_Layout::parse_identity( $identity );
+                $bindings                = $layout->capture_bindings( $descriptor );
+                $candidate               = 'config' === $role ? ( $bindings['config'][ $relative ] ?? '' ) : $bindings[ $role ][''] . '/' . $relative;
+                // A leaf link is passed only to the writer's omission path, never followed.
+                $state['v2_pack_entries'][ $identity ] = 'config' !== $role && is_link( $candidate ) ? $candidate : $layout->resolve( $identity );
+            }
+        }
+        if ( ! empty( $state['v2_pack_entries'] ) ) {
+            $bases = array_values( array_diff_key( $roots, array( 'site' => true ) ) );
+            foreach ( $configs as $config ) {
+                $bases[] = dirname( $config );
+            }
+            $batch      = $state['v2_batch'] ?? 0;
+            $part_index = $state['v2_pack_cursor']['part_index'] ?? 1;
+            $active     = substr( MainWP_Child_Backup_Incremental_Zip_Writer::part_basename( 'files', $part_index, $task->task_id . 'b' . $batch ), 0, -4 ) . '.mwp2';
+            if ( ( $state['archive_file'] ?? null ) !== $active ) {
+                // Cleanup and cancellation use the existing cursor names, including unfinished tar bytes.
+                $state['archive_file'] = $active;
+                $state['artifacts']    = array_merge( $state['completed_parts'] ?? array(), array( array( 'file' => $active . '.tar' ) ) );
+                $tracked               = $this->checkpoint_sub_state( $task, $version, $state, $backup_dir, false );
+                if ( $tracked['abandon'] ) {
+                    return $tracked;
+                }
+                $version = $tracked['version'];
+            }
+            $writer                  = $this->make_v2_part_writer( $backup_dir, $task->task_id . 'b' . $batch, $bases );
+            $packed                  = $writer->capture_for_task( $this, $descriptor, $state['v2_pack_entries'], $state['v2_pack_cursor'] ?? array(), $deadline );
+            $state['v2_pack_cursor'] = $packed['cursor'];
+            foreach ( $packed['omitted'] ?? array() as $identity => $reason ) {
+                if ( isset( $state['v2_pack_omitted'][ $identity ] ) ) {
+                    continue;
+                }
+                if ( count( $state['v2_pack_omitted'] ?? array() ) >= 1000 ) {
+                    $state['v2_walk']['unarchived_overflow'] = true;
+                    $state['_unreadable']['unlisted']        = true;
+                    break;
+                }
+                $state['v2_pack_omitted'][ $identity ] = $reason;
+                $state['v2_walk']['unarchived'][]      = $identity;
+                if ( count( $state['v2_walk']['skipped_paths'] ) < 100 ) {
+                    $state['v2_walk']['skipped_paths'][] = $identity;
+                }
+                ++$state['v2_walk']['skipped_count'];
+                $state['v2_walk']['skipped_by_reason'][ $reason ] = ( $state['v2_walk']['skipped_by_reason'][ $reason ] ?? 0 ) + 1;
+            }
+            if ( ! empty( $packed['omitted_overflow'] ) ) {
+                $state['v2_walk']['unarchived_overflow'] = true;
+                $state['_unreadable']['unlisted']        = true;
+            }
+            $state['_skip_report']    = array_merge( $state['_skip_report'], array_intersect_key( $state['v2_walk'], array_flip( array( 'skipped_count', 'skipped_paths', 'skipped_by_reason' ) ) ) );
+            $state['completed_parts'] = array_merge( $state['v2_completed_parts'] ?? array(), $packed['parts'] );
+            if ( ! $packed['done'] ) {
+                return $this->checkpoint_sub_state( $task, $version, $state, $backup_dir, true );
+            }
+            $state['v2_completed_parts'] = array_merge( $state['v2_completed_parts'] ?? array(), $packed['parts'] );
+            $state['completed_parts']    = $state['v2_completed_parts'];
+            $state['v2_batch']           = $batch + 1;
+            unset( $state['v2_pack_entries'], $state['v2_pack_cursor'] );
+        }
+        if ( empty( $state['v2_input_done'] ) ) {
+            return $this->checkpoint_sub_state( $task, $version, $state, $backup_dir, true );
+        }
+        if ( 'incremental' === $task->type && ! empty( $state['v2_pack_omitted'] ) ) {
+            // Pack-time omissions also protect parent descendants from deletion.
+            $parent = $this->resolve_parent_manifest( $state, $backup_dir );
+            $lists->diff_for_task( $this, $parent, $current, $input, $dir . MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST, $digest, $state['v2_walk'] );
+        }
+        $artifacts = array();
+        foreach ( $state['v2_completed_parts'] ?? array() as $index => $part ) {
+            $part['role'] = 'incremental' === $task->type || $index > 0 ? 'part' : 'full';
+            $artifacts[]  = $part;
+        }
+        $artifacts[] = array(
+            'file'                     => MainWP_Child_Backup_File_Walker::FILES_LIST,
+            'size'                     => filesize( $current ),
+            'sha256'                   => hash_file( 'sha256', $current ),
+            'role'                     => 'manifest',
+            'backup_format'            => 2,
+            'layout_descriptor'        => $descriptor,
+            'layout_descriptor_sha256' => $digest,
+            'walk'                     => $state['v2_walk'],
+        );
+        if ( 'incremental' === $task->type ) {
+            $name        = MainWP_Child_Backup_Incremental_Diff::TOMBSTONES_LIST;
+            $artifacts[] = array(
+                'file'                     => $name,
+                'size'                     => filesize( $dir . $name ),
+                'role'                     => 'tombstones',
+                'backup_format'            => 2,
+                'layout_descriptor_sha256' => $digest,
+            );
+        }
+        if ( ! empty( $state['db_files'] ) ) {
+            $db = $this->archive_db_artifact( $state['db_files'], $state['db_prefix'], 'zip' );
+            if ( ! $db || ! is_file( $db ) ) {
+                MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_ZIP_FAILED );
+            }
+            $artifacts[] = array(
+                'file' => basename( $db ),
+                'size' => filesize( $db ),
+                'role' => 'db',
+            );
+            unset( $state['db_files'] );
+        }
+        $state['artifacts'] = $artifacts;
+        $state['artifact']  = array(
+            'file' => MainWP_Child_Backup_File_Walker::FILES_LIST,
+            'size' => filesize( $current ),
+        );
+        return $this->advance_phase( $task, $version, $state, $backup_dir );
+    }
+
+    /**
+     * Build the task writer with the existing production part thresholds.
+     *
+     * @param string $backup_dir Private backup directory.
+     * @param string $token Task and page token.
+     * @param array  $bases Allowed capture bases.
+     * @return MainWP_Child_Backup_Incremental_Zip_Writer Part writer.
+     */
+    protected function make_v2_part_writer( $backup_dir, $token, $bases ) {
+        return new MainWP_Child_Backup_Incremental_Zip_Writer( $backup_dir, 'files', null, null, $token, $bases );
+    }
+
+    /**
+     * Validate at most one page through the existing versioned list reader.
+     *
+     * @param string      $input Qualified sidecar.
+     * @param string      $digest Descriptor digest.
+     * @param int         $offset Saved byte offset, zero for the header.
+     * @param string|null $previous Last identity from the preceding page.
+     * @param string      $backup_dir Private scratch directory.
+     * @return array Validated rows and next offset.
+     */
+    private function v2_capture_page( $input, $digest, $offset, $previous, $backup_dir ) {
+        // phpcs:disable WordPress.WP.AlternativeFunctions -- bounded private sidecar streams.
+        $source = fopen( $input, 'rb' );
+        $page   = tempnam( $backup_dir, 'mwp-page-' );
+        MainWP_Helper::protect_backup_path( $page );
+        $target = fopen( $page, 'wb' );
+        if ( false === $source || false === $target ) {
+            MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_DIR_NOT_WRITABLE );
+        }
+        try {
+            $header = fgets( $source, 256 );
+            if ( ! is_string( $header ) || strlen( $header ) !== fwrite( $target, $header ) || ( 0 !== $offset && 0 !== fseek( $source, $offset ) ) ) {
+                MainWP_Child_Backup_Layout::refuse();
+            }
+            for ( $count = 0; $count < 100; ++$count ) {
+                $line = fgets( $source, 131073 );
+                if ( false === $line ) {
+                    break;
+                }
+                if ( strlen( $line ) !== fwrite( $target, $line ) ) {
+                    MainWP_Child_Backup_Layout::refuse( MainWP_Backup_Error::ERR_TAR_WRITE_FAILED );
+                }
+            }
+            $next = ftell( $source );
+            $done = feof( $source );
+            if ( false === $next || ( ! $done && 0 === $count ) ) {
+                MainWP_Child_Backup_Layout::refuse();
+            }
+            fclose( $target );
+            $target = null;
+            $rows   = ( new MainWP_Child_Backup_Layout_List() )->read( $page, $digest );
+            if ( ! empty( $rows ) && null !== $previous && strcmp( $previous, array_key_first( $rows ) ) >= 0 ) {
+                MainWP_Child_Backup_Layout::refuse();
+            }
+            return array(
+                'rows'     => $rows,
+                'offset'   => $next,
+                'done'     => $done,
+                'previous' => empty( $rows ) ? $previous : array_key_last( $rows ),
+            );
+        } finally {
+            fclose( $source );
+            if ( is_resource( $target ) ) {
+                fclose( $target );
+            }
+            wp_delete_file( $page );
+        }
+        // phpcs:enable WordPress.WP.AlternativeFunctions
     }
 
     /**
