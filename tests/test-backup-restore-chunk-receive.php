@@ -508,6 +508,8 @@ class BackupRestoreChunkReceiveTest extends WP_UnitTestCase {
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_FAILED, $task->phase );
 		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_TRANSFER_STALLED, $payload['error_code'] );
 		$this->assertSame( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_RESTORE_TRANSFER_STALLED ), $payload['error'] );
+		// The Dashboard adds its own "nothing changed" line from the outcome, so the message must not repeat it.
+		$this->assertSame( 'The restore stopped because this site received no backup data from the Dashboard for 15 minutes. Check that the Dashboard can still reach this site, then start the restore again.', $payload['error'] );
 		$this->assertNotSame( MainWP_Backup_Error::message( MainWP_Backup_Error::ERR_WALL_CLOCK ), $payload['error'] );
 		$this->assertSame( 'queued', $payload['sub_state']['verification']['outcome']['phase_reached'] );
 	}
