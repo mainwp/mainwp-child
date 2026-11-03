@@ -134,6 +134,7 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 * Fixed: Missing Cache Control sync data when Dashboard connections use the front-end fallback.
 * Fixed: Child settings redirects and access to Tools pages hidden by branding.
 * Fixed: Code Snippets output now preserves valid text when invalid characters are encountered.
+* Fixed: Built-in Backups restores no longer time out after 15 minutes while backup data is still transferring to the child site.
 * Updated: Strengthened Dashboard request verification and replay protection.
 * Updated: Improved handling of folder names in Restore/Clone navigation.
 * Updated: Strengthened post and page checks to prevent actions on the wrong content type.
