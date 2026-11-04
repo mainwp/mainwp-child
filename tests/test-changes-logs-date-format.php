@@ -208,6 +208,22 @@ class Test_Changes_Logs_Date_Format extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Calendar and translation plugins that filter date_i18n still reach these dates.
+	 */
+	public function test_date_i18n_filter_still_applies() {
+		$this->set_site_timezone( '', '-4' );
+		$filter = static function ( $date, $format, $timestamp_with_offset ) {
+			return "filtered $date $format $timestamp_with_offset";
+		};
+		add_filter( 'date_i18n', $filter, 10, 3 );
+
+		$formatted = Changes_Helper::get_formatted_date( self::WINTER_TS );
+		remove_filter( 'date_i18n', $filter, 10 );
+
+		$this->assertSame( 'filtered 2026-01-15 08:00 ' . self::DATE_FORMAT . ' ' . ( self::WINTER_TS - 4 * HOUR_IN_SECONDS ), $formatted );
+	}
+
+	/**
 	 * The reported path: scheduling a cron event logs it, with an empty offset.
 	 */
 	public function test_cron_creation_callback_with_empty_offset_logs_the_event() {

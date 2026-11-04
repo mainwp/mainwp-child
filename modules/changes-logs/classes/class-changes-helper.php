@@ -364,9 +364,10 @@ class Changes_Helper {
             return $result;
         }
 
-        // wp_date() uses the site timezone's offset at this timestamp and reads an empty gmt_offset as UTC.
-        $date = wp_date( $format, (int) $timestamp );
-        return false === $date ? $result : $date;
+        // The offset in force at this timestamp. wp_timezone() reads an empty gmt_offset as UTC.
+        $timestamp = (int) $timestamp;
+        $offset    = wp_timezone()->getOffset( new \DateTime( '@' . $timestamp ) );
+        return date_i18n( $format, $timestamp + $offset ); // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date
     }
 
     /**
