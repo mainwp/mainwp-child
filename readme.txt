@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 7.1.4
 Requires PHP: 7.4
-Stable tag: 6.4.1
+Stable tag: 6.4.2-rc.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -114,6 +114,12 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 11. Dashboard Insights
 
 == Changelog ==
+
+= 6.4.2-rc.1 - 11-5-2026 = 
+
+* Added: Support for saving UpdraftPlus SFTP server fingerprints while preserving existing values when no replacement is supplied.
+* Fixed: Prevented Changes Logs errors caused by empty timezone offsets and corrected dates across daylight-saving changes.
+* Fixed: Reduced the risk of unintended plugin deactivation during overlapping premium update checks and plugin updates.
 
 = 6.4.1 - 11-3-2026 =
 
