@@ -792,7 +792,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
 
         $pathname_only = (bool) preg_grep( '/\?/', array_keys( $locations ) );
         if ( $pathname_only ) {
-            $phar->setFlags( \FilesystemIterator::CURRENT_AS_PATHNAME );
+            $phar->setFlags( ( $phar->getFlags() & ~\FilesystemIterator::CURRENT_MODE_MASK ) | \FilesystemIterator::CURRENT_AS_PATHNAME );
         }
         $iterator = new \RecursiveIteratorIterator( $phar, \RecursiveIteratorIterator::SELF_FIRST );
         foreach ( $iterator as $item ) {
@@ -804,13 +804,17 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             if ( false !== strpos( $phar_url, "\0" ) ) {
                 throw new \RuntimeException( esc_html( self::TAR_MALFORMED ) );
             }
-            $info      = $pathname_only ? $iterator->getInnerIterator() : $item;
+            $info   = $pathname_only ? $iterator->getInnerIterator() : $item;
+            $is_dir = $info->isDir();
+            if ( ! $is_dir && ! isset( $locations[ $name ] ) ) {
+                throw new \RuntimeException( esc_html( self::TAR_MALFORMED ) );
+            }
             $entries[] = array(
                 'name'     => str_replace( '\\', '/', $name ),
-                'dir'      => $info->isDir(),
+                'dir'      => $is_dir,
                 'phar_url' => $phar_url,
                 'size'     => $info->getSize(),
-                'offset'   => $locations[ $name ] ?? 0,
+                'offset'   => $is_dir ? 0 : $locations[ $name ],
             );
             if ( count( $entries ) > $limits['entries'] ) {
                 throw new MainWP_Exception( sprintf( 'Restore entry count limit exceeded: %s.', esc_html( $name ) ), null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- entry name is escaped; code is a registry constant.

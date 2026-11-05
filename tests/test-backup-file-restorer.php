@@ -742,6 +742,15 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		}
 	}
 
+	public function test_tar_question_mark_does_not_bypass_raw_payload_name_agreement() {
+		$path = $this->dir . '/mixed-names.tar';
+		file_put_contents( $path, $this->tar_entry_bytes( 'first.txt', 'first' ) . $this->tar_entry_bytes( 'a\\b', 'XY' ) . $this->tar_entry_bytes( 'c?d', 'question' ) );
+		$result = $this->run_all( $this->config( array( $path ) ) );
+		$this->assertFalse( $result['done'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertSame( array( '.', '..' ), scandir( $this->extract_to ) );
+	}
+
 	public function test_readable_ustar_prefix_restores_normally() {
 		$prefix = rtrim( str_repeat( 'prefix/', 15 ), '/' );
 		$path = $this->dir . '/readable-prefix.tar';
