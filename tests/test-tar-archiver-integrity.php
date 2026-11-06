@@ -561,7 +561,7 @@ class TarArchiverIntegrityTest extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_resume_still_refuses_a_stray_member_whose_source_is_not_a_link() {
+	public function test_resume_preserves_a_valid_member_when_traversal_order_changes() {
 		$this->archive_path = substr( $this->archive_path, 0, -3 );
 		$backup   = MainWP_Backup::get();
 		$archiver = new Tar_Archiver( $backup, 'tar' );
@@ -584,7 +584,11 @@ class TarArchiverIntegrityTest extends WP_UnitTestCase {
 			} catch ( MainWP_Exception $e ) {
 				$error = $e->get_message_error_code();
 			}
-			$this->assertSame( MainWP_Backup_Error::ERR_FILE_CORRUPT, $error );
+			$this->assertNull( $error );
+			$archiver->close();
+			$archiver->read( $this->archive_path );
+			$this->assertSame( $this->contents['file-0.txt'], $archiver->get_from_name( str_replace( ABSPATH, '', $a ) ) );
+			$this->assertSame( $this->contents['file-1.txt'], $archiver->get_from_name( str_replace( ABSPATH, '', $b ) ) );
 		} finally {
 			$archiver->close();
 			$backup->reset_failed_adds();

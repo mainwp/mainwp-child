@@ -558,9 +558,8 @@ class TarArchiverResumeConfigDuplicateTest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A walk that diverges before the clone entries (a file added or removed
-	 * between passes) refuses the archive as corrupt rather than appending
-	 * a second config after the first.
+	 * A changed walk retains the captured members and never duplicates config.
+	 * A finished archive remains a capture of the first completed pass.
 	 *
 	 * @dataProvider variants
 	 *
@@ -584,11 +583,12 @@ class TarArchiverResumeConfigDuplicateTest extends WP_UnitTestCase {
 				$caught = $e;
 			}
 
-			$this->assertInstanceOf( MainWP_Exception::class, $caught, "A $change file must stop the resume." );
-			$this->assertSame( MainWP_Backup_Error::ERR_FILE_CORRUPT, $caught->get_message_error_code() );
+			$this->assertNull( $caught, "A $change file must not invalidate captured members." );
 			$names = $this->header_names( $this->tar_bytes( $type, $path ) );
 			$this->assertSame( 1, $this->count_entry( $names, 'clone/config.txt' ), "A $change file must not add a second config." );
-			$this->assertSame( $before, $this->tar_bytes( $type, $path ), 'A refused resume must leave the archive untouched.' );
+			$after = $this->tar_bytes( $type, $path );
+			$this->assertSame( $before, substr( $after, 0, strlen( $before ) ), 'Captured members must survive unchanged.' );
+			$this->assertSame( $padding || 'removed' === $change ? 0 : 1, $this->count_entry( $names, basename( $this->fixture ) . '/zz-new.txt' ) );
 
 			if ( 'added' === $change ) {
 				unlink( $this->fixture . '/zz-new.txt' );
