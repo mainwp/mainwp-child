@@ -47,7 +47,7 @@ class BackupKnownLocationsTest extends WP_UnitTestCase {
         try {
             foreach ( $folders as $folder ) {
                 $this->assertDirectoryDoesNotExist( WP_CONTENT_DIR . '/' . $folder );
-                mkdir( WP_CONTENT_DIR . '/' . $folder );
+                $this->assertTrue( mkdir( WP_CONTENT_DIR . '/' . $folder ) );
                 $created[] = $folder;
                 file_put_contents( WP_CONTENT_DIR . '/' . $folder . '/marker.txt', 'MWP-2192' );
             }
@@ -77,7 +77,10 @@ class BackupKnownLocationsTest extends WP_UnitTestCase {
             }
         } finally {
             foreach ( $created as $folder ) {
-                unlink( WP_CONTENT_DIR . '/' . $folder . '/marker.txt' );
+                $marker = WP_CONTENT_DIR . '/' . $folder . '/marker.txt';
+                if ( is_file( $marker ) ) {
+                    unlink( $marker );
+                }
                 rmdir( WP_CONTENT_DIR . '/' . $folder );
             }
             foreach ( glob( $scratch . '/*.tar' ) as $archive ) {
