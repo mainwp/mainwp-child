@@ -38,7 +38,12 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      * @uses MainWP_Security::remove_php_reporting() Disable the PHP error reporting.
      */
     public static function fix_all() {
-        static::save_php_reporting_state();
+        if ( null === self::$original_reporting_state ) {
+            self::$original_reporting_state = array(
+                'php_reporting' => static::remove_php_reporting_ok(),
+                'db_reporting'  => static::remove_database_reporting_ok(),
+            );
+        }
         static::remove_php_reporting();
         if ( static::get_security_option( 'db_reporting' ) ) {
             static::remove_database_reporting();
@@ -68,15 +73,6 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      * call in a request saves a value.
      */
     public static function save_php_reporting_state() {
-        global $wpdb;
-
-        if ( null === self::$original_reporting_state ) {
-            self::$original_reporting_state = array(
-                'display_errors'         => ini_get( 'display_errors' ),
-                'display_startup_errors' => ini_get( 'display_startup_errors' ),
-                'db_show_errors'         => $wpdb->show_errors,
-            );
-        }
         if ( null === self::$saved_display_errors ) {
             self::$saved_display_errors = ini_get( 'display_errors' );
         }
@@ -140,7 +136,10 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
          */
         global $wpdb;
 
-        return false === ( $original && null !== self::$original_reporting_state ? self::$original_reporting_state['db_show_errors'] : $wpdb->show_errors );
+        if ( $original && null !== self::$original_reporting_state ) {
+            return self::$original_reporting_state['db_reporting'];
+        }
+        return false === $wpdb->show_errors;
     }
 
     /**
@@ -158,7 +157,7 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
      */
     public static function remove_php_reporting_ok( $original = false ) {
         if ( $original && null !== self::$original_reporting_state ) {
-            return self::ini_value_is_off( self::$original_reporting_state['display_errors'] ) && self::ini_value_is_off( self::$original_reporting_state['display_startup_errors'] );
+            return self::$original_reporting_state['php_reporting'];
         }
         if ( null !== self::$saved_display_errors && ! self::ini_value_is_off( self::$saved_display_errors ) ) {
             return false;
