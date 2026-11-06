@@ -935,7 +935,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
 
         update_option( 'mainwp_cache_control_last_purged', time() );
 
-        return $this->purge_result( esc_html( 'RunCache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')' ), 'SUCCESS', 'provider_confirmed' );
+        return $this->purge_result( esc_html( 'RunCache => Cache auto cleared on: (' . current_time( 'mysql' ) . ')' ), 'SUCCESS', 'dispatched_unverified' );
     }
 
     /**
