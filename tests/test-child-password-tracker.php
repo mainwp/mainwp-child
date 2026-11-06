@@ -27,6 +27,9 @@ class Test_Child_Password_Tracker extends \WP_UnitTestCase {
         MainWP_Child_Password_Tracker::get_instance();
         $id = self::factory()->user->create();
         delete_user_meta( $id, 'mainwp_last_password_change' );
+        $writes = 0;
+        $listener = static function () use ( &$writes ) { ++$writes; };
+        add_action( 'set_transient_mainwp_old_password_hash_' . $id, $listener );
         $data = array( 'ID' => $id, 'user_pass' => 'new-test-password' );
         if ( $insert ) {
             $data['user_login'] = get_userdata( $id )->user_login;
@@ -38,6 +41,8 @@ class Test_Child_Password_Tracker extends \WP_UnitTestCase {
         $this->assertSame( $id, $result );
         $this->assertNotEmpty( get_user_meta( $id, 'mainwp_last_password_change', true ) );
         $this->assertFalse( get_transient( 'mainwp_old_password_hash_' . $id ) );
+        $this->assertSame( 0, $writes, 'The password hash transient must never be written.' );
+        remove_action( 'set_transient_mainwp_old_password_hash_' . $id, $listener );
         update_user_meta( $id, 'mainwp_last_password_change', 123 );
         wp_update_user( array( 'ID' => $id, 'display_name' => 'Changed name' ) );
         $this->assertSame( '123', get_user_meta( $id, 'mainwp_last_password_change', true ) );

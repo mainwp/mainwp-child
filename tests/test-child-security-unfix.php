@@ -24,6 +24,11 @@ namespace MainWP\Child {
     }
 }
 namespace {
+    class Test_WPDB {
+        public $show_errors;
+        public function hide_errors() { $this->show_errors = false; }
+        public function suppress_errors() {}
+    }
     function sanitize_text_field( $value ) { return $value; }
     function wp_unslash( $value ) { return $value; }
     function get_option( $name, $default ) { return $GLOBALS['options'][ $name ] ?? $default; }
@@ -31,12 +36,16 @@ namespace {
     $enabled = (bool) $argv[1];
     $feature = $argv[2];
     ini_set( 'display_errors', $enabled ? '1' : '0' );
-    ini_set( 'display_startup_errors', '0' );
-    $GLOBALS['wpdb'] = (object) array( 'show_errors' => $enabled );
+    ini_set( 'display_startup_errors', $enabled ? '1' : '0' );
+    $GLOBALS['wpdb'] = new Test_WPDB();
+    $GLOBALS['wpdb']->show_errors = $enabled;
     $GLOBALS['options'] = array( 'mainwp_security' => array( $feature => true ) );
     $_POST['feature'] = $feature;
     require $argv[3] . '/class/class-mainwp-security.php';
     require $argv[3] . '/class/class-mainwp-child-misc.php';
+    \MainWP\Child\MainWP_Security::save_php_reporting_state();
+    ini_set( 'display_errors', '0' );
+    \MainWP\Child\MainWP_Security::fix_all();
     (new \MainWP\Child\MainWP_Child_Misc())->do_security_un_fix();
 }
 PHP;

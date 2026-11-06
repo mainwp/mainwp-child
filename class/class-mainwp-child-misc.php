@@ -321,12 +321,12 @@ class MainWP_Child_Misc {
 
         if ( 'all' === $feature || 'php_reporting' === $feature ) {
             $security['php_reporting']    = false;
-            $information['php_reporting'] = ( ! MainWP_Security::remove_php_reporting_ok() ? 'N' : 'Y' );
+            $information['php_reporting'] = ( ! MainWP_Security::remove_php_reporting_ok( true ) ? 'N' : 'Y' );
         }
 
         if ( 'all' === $feature || 'db_reporting' === $feature ) {
             $security['db_reporting']    = false;
-            $information['db_reporting'] = ( ! MainWP_Security::remove_database_reporting_ok() ? 'N' : 'Y' );
+            $information['db_reporting'] = ( ! MainWP_Security::remove_database_reporting_ok( true ) ? 'N' : 'Y' );
         }
 
         MainWP_Helper::update_option( 'mainwp_security', $security, 'yes' );
