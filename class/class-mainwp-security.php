@@ -45,13 +45,6 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
     }
 
     /**
-     * Private static variable to hold the directory listing information.
-     *
-     * @var mixed Default null
-     */
-    private static $listingDirectories = null;
-
-    /**
      * Private static variable to hold the site's display_errors value from before a
      * signed Dashboard request turned it off.
      *
@@ -69,54 +62,6 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
     public static function save_php_reporting_state() {
         if ( null === self::$saved_display_errors ) {
             self::$saved_display_errors = ini_get( 'display_errors' );
-        }
-    }
-
-    /**
-     * Method init_listing_directories()
-     *
-     * Get directories array to prevent listing.
-     */
-    private static function init_listing_directories() {
-        if ( null === static::$listingDirectories ) {
-            $wp_upload_dir              = wp_upload_dir();
-            static::$listingDirectories = array(
-                WP_CONTENT_DIR,
-                WP_PLUGIN_DIR,
-                get_theme_root(),
-                $wp_upload_dir['basedir'],
-            );
-        }
-    }
-
-    /**
-     * Method prevent_listing()
-     *
-     * Prevent directory listing by creating the index.php file.
-     *
-     * @used-by \MainWP\Child\MainWP_Security::fix_all() Fire off functions to fix detected security issues.
-     * @uses    \MainWP\Child\MainWP_Helper::get_wp_filesystem()
-     */
-    public static function prevent_listing() {
-        static::init_listing_directories();
-
-        /**
-         * Global variable containing the instance of the (auto-)configured filesystem object after the filesystem "factory" has been run.
-         *
-         * @global object $wp_filesystem Filesystem object.
-         */
-        global $wp_filesystem;
-
-        MainWP_Helper::get_wp_filesystem();
-
-        foreach ( static::$listingDirectories as $directory ) {
-            $file = $directory . DIRECTORY_SEPARATOR . 'index.php';
-            if ( ! $wp_filesystem->exists( $file ) ) {
-                $content  = "<?php \n";
-                $content .= "header(\$_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden' );\n";
-                $content .= "die( '403 Forbidden' );\n";
-                $wp_filesystem->put_contents( $file, $content );
-            }
         }
     }
 
@@ -158,50 +103,6 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
         $wpdb->hide_errors();
         $wpdb->suppress_errors();
     }
-
-    /**
-     * Method remove_script_versions()
-     *
-     * Remove scripts versions.
-     *
-     * @param string $src Script or stylesheet location path.
-     *
-     * @used-by MainWP_Security::fix_all() Fire off functions to fix detected security issues.
-     *
-     * @return string $src Script or stylesheet striped location path.
-     */
-    public static function remove_script_versions( $src ) {
-        if ( static::get_security_option( 'scripts_version' ) ) {
-            if ( strpos( $src, '?ver=' ) ) {
-                $src = remove_query_arg( 'ver', $src );
-            }
-            return $src;
-        }
-        return $src;
-    }
-
-
-    /**
-     * Method remove_theme_versions()
-     *
-     * Remove themes versions.
-     *
-     * @param string $src Theme stylesheet location path.
-     *
-     * @used-by MainWP_Security::fix_all() Fire off functions to fix detected security issues.
-     *
-     * @return string $src Theme stylesheet striped location path.
-     */
-    public static function remove_theme_versions( $src ) {
-        if ( static::get_security_option( 'styles_version' ) ) {
-            if ( strpos( $src, '?ver=' ) ) {
-                $src = remove_query_arg( 'ver', $src );
-            }
-            return $src;
-        }
-        return $src;
-    }
-
 
     /**
      * Method remove_database_reporting_ok()
@@ -375,7 +276,7 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Method phpversion_ok()
      *
-     * Check PHP version matches the WP requirement.
+     * Check whether PHP is version 8.0 or later.
      */
     public static function phpversion_ok() {
         require_once ABSPATH . WPINC . '/version.php'; // NOSONAR - WP compatible.
@@ -406,7 +307,7 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Method outdated_plugins_ok()
      *
-     * Check WP Config and check if debugging is disabled.
+     * Check whether no plugin updates are available.
      */
     public static function outdated_plugins_ok() {
         return MainWP_Child_Stats::get_instance()->found_plugins_updates() ? false : true;
@@ -415,7 +316,7 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Method inactive_plugins_ok()
      *
-     * Check WP Config and check if debugging is disabled.
+     * Check whether no inactive plugins are installed.
      */
     public static function inactive_plugins_ok() {
         return MainWP_Child_Stats::get_instance()->found_inactive_plugins() ? false : true;
@@ -425,7 +326,7 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Method outdated_themes_ok()
      *
-     * Check WP Config and check if debugging is disabled.
+     * Check whether no theme updates are available.
      */
     public static function outdated_themes_ok() {
         return MainWP_Child_Stats::get_instance()->found_themes_updates() ? false : true;
@@ -434,7 +335,7 @@ class MainWP_Security { //phpcs:ignore -- NOSONAR - multi methods.
     /**
      * Method inactive_themes_ok()
      *
-     * Check WP Config and check if debugging is disabled.
+     * Check whether inactive themes meet the allowed parent and default-theme rules.
      */
     public static function inactive_themes_ok() {
         return MainWP_Child_Stats::get_instance()->is_good_themes() ? true : false;

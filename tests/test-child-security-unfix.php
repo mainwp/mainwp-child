@@ -1,0 +1,56 @@
+<?php
+/**
+ * Unfix reports the effective error display settings.
+ *
+ * @package MainWP_Child
+ */
+
+namespace MainWP\Child;
+
+class Test_Child_Security_Unfix extends \WP_UnitTestCase {
+    public function test_unfix_reports_effective_settings() {
+        foreach ( array( false, true ) as $enabled ) {
+            foreach ( array( 'php_reporting', 'db_reporting' ) as $feature ) {
+                $script = <<<'PHP'
+namespace MainWP\Child {
+    class MainWP_Helper {
+        public static function update_option( $name, $value, $autoload ) {
+            $GLOBALS['options'][ $name ] = $value;
+        }
+        public static function write( $value ) {
+            echo json_encode( array( $value, $GLOBALS['options'] ) );
+            exit;
+        }
+    }
+}
+namespace {
+    function sanitize_text_field( $value ) { return $value; }
+    function wp_unslash( $value ) { return $value; }
+    function get_option( $name, $default ) { return $GLOBALS['options'][ $name ] ?? $default; }
+    define( 'ABSPATH', '/' );
+    $enabled = (bool) $argv[1];
+    $feature = $argv[2];
+    ini_set( 'display_errors', $enabled ? '1' : '0' );
+    ini_set( 'display_startup_errors', '0' );
+    $GLOBALS['wpdb'] = (object) array( 'show_errors' => $enabled );
+    $GLOBALS['options'] = array( 'mainwp_security' => array( $feature => true ) );
+    $_POST['feature'] = $feature;
+    require $argv[3] . '/class/class-mainwp-security.php';
+    require $argv[3] . '/class/class-mainwp-child-misc.php';
+    (new \MainWP\Child\MainWP_Child_Misc())->do_security_un_fix();
+}
+PHP;
+                $command = escapeshellarg( PHP_BINARY ) . ' -r ' . escapeshellarg( $script ) . ' ' .
+                    escapeshellarg( $enabled ? '1' : '0' ) . ' ' . escapeshellarg( $feature ) . ' ' .
+                    escapeshellarg( dirname( __DIR__ ) );
+                $output = array();
+                exec( $command, $output, $status );
+                $this->assertSame( 0, $status, implode( "\n", $output ) );
+                $result = json_decode( implode( "\n", $output ), true );
+                $this->assertIsArray( $result );
+                $this->assertSame( $enabled ? 'N' : 'Y', $result[0][ $feature ] );
+                $this->assertFalse( $result[1]['mainwp_security'][ $feature ] );
+            }
+        }
+    }
+}
