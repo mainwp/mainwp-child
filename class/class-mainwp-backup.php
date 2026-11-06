@@ -594,6 +594,9 @@ class MainWP_Backup {
         }
 
         if ( $excludebackup ) {
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/ai1wm-backups';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/updraft';
+            $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/duplicator-backups';
             $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backupbuddy_backups';
             $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/backupbuddy_temp';
             $newExcludes[] = str_replace( ABSPATH, '', WP_CONTENT_DIR ) . '/uploads/pb_backupbuddy';
