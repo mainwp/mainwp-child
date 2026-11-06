@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 7.1.4
 Requires PHP: 7.4
-Stable tag: 6.4.2-rc.1
+Stable tag: 6.4.2-rc.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -114,6 +114,16 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 11. Dashboard Insights
 
 == Changelog ==
+
+= 6.4.2-rc.2 - 11-6-2026 =
+
+* Added: RunCache detection and cache-purge dispatch while preserving RunCloud Hub support.
+* Fixed: TAR restore extraction of filenames containing literal question marks, preserving original names and file contents.
+* Fixed: Pre-restore safety backups failing when cache files change during TAR archive creation.
+* Fixed: Known backup locations exclusions for All-in-One WP Migration, UpdraftPlus, and Duplicator folders.
+* Fixed: Site Hardening Unfix reporting.
+* Updated: Tracked password changes without temporarily storing password hashes.
+* Updated: Corrected Password Policy documentation to describe password-change reminders.
 
 = 6.4.2-rc.1 - 11-5-2026 = 
 
