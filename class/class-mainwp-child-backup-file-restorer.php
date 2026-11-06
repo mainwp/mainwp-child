@@ -352,29 +352,24 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         }
 
         // Validate every header before PharData parses the archive, so it never reads a shape the walk refuses.
-        $members = null;
-        if ( 0 === $cursor['entry_index'] ) {
-            $members = $this->tar_header_members( $plain );
-            if ( is_string( $members ) ) {
-                $this->discard_plain_tar( $part, $plain );
-                return $this->result( false, $cursor, $members, MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
-            }
+        $members = $this->tar_header_members( $plain );
+        if ( is_string( $members ) ) {
+            $this->discard_plain_tar( $part, $plain );
+            return $this->result( false, $cursor, $members, MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
 
         try {
             $phar    = new \PharData( $plain );
-            $entries = $this->tar_entry_names( $phar );
+            $entries = $this->tar_entry_names( $phar, $members['locations'] );
         } catch ( \Throwable $e ) {
             $this->discard_plain_tar( $part, $plain );
             return $this->result( false, $cursor, $this->archive_open_error( $e, $part, $plain ), MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
 
-        if ( null !== $members ) {
-            $error = $this->tar_listing_error( $members, $entries );
-            if ( null !== $error ) {
-                $this->discard_plain_tar( $part, $plain );
-                return $this->result( false, $cursor, $error, MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
-            }
+        $error = $this->tar_listing_error( $members, $entries );
+        if ( null !== $error ) {
+            $this->discard_plain_tar( $part, $plain );
+            return $this->result( false, $cursor, $error, MainWP_Backup_Error::ERR_RESTORE_EXTRACT );
         }
 
         $this->real_htaccess_entries = array();
@@ -415,12 +410,15 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                     }
                 } else {
                     $target = static::validate_extract_path( $entry['name'], $extract_to );
-                    $stream = fopen( $entry['phar_url'], 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- streaming extraction from the tar.
+                    $stream = fopen( $plain, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- read the validated payload without phar URL parsing.
                     if ( false === $stream ) {
                         throw new \Exception( sprintf( 'Could not read archive entry: %s.', esc_html( $entry['name'] ) ) );
                     }
                     try {
-                        $this->write_entry_stream( $stream, $target, $cursor, 0, $entry['name'], $extract_to );
+                        if ( 0 !== fseek( $stream, $entry['offset'] ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions -- validated payload offset.
+                            throw new \Exception( 'Could not seek to archive entry.' );
+                        }
+                        $this->write_entry_stream( $stream, $target, $cursor, 0, $entry['name'], $extract_to, $entry['size'] );
                     } finally {
                         fclose( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- paired with fopen above.
                     }
@@ -775,34 +773,48 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
     /**
      * Enumerate a tar's entries in a stable order.
      *
-     * The relative name (for the extraction path guard) derives from
-     * the iterator's own phar URL, which is also kept verbatim as the
-     * read source - PharData aliases compressed archives internally,
-     * so a URL reconstructed from the on-disk file name can miss.
+     * Keep the manifest's names for validation and ordering. Member reads use
+     * payload offsets from the checked headers, because phar URLs parse a
+     * literal question mark as a query separator.
      *
      * @param \PharData $phar Open archive.
+     * @param array     $locations Validated member payload offsets.
      *
      * @throws MainWP_Exception When the archive exceeds the entry limit.
+     * @throws \RuntimeException When a member name contains a NUL byte.
      *
-     * @return array<int,array{name:string,dir:bool,phar_url:string,size:int}> Sorted entries.
+     * @return array<int,array{name:string,dir:bool,phar_url:string,size:int,offset:int}> Sorted entries.
      */
-    private function tar_entry_names( $phar ) {
+    private function tar_entry_names( $phar, $locations ) {
         $prefix  = 'phar://' . $phar->getPath() . '/';
         $entries = array();
         $limits  = $this->extraction_limits();
 
+        $pathname_only = (bool) preg_grep( '/\?/', array_keys( $locations ) );
+        if ( $pathname_only ) {
+            $phar->setFlags( ( $phar->getFlags() & ~\FilesystemIterator::CURRENT_MODE_MASK ) | \FilesystemIterator::CURRENT_AS_PATHNAME );
+        }
         $iterator = new \RecursiveIteratorIterator( $phar, \RecursiveIteratorIterator::SELF_FIRST );
         foreach ( $iterator as $item ) {
-            $phar_url = (string) $item->getPathname();
+            $phar_url = $pathname_only ? (string) $item : (string) $item->getPathname();
             $name     = 0 === strpos( $phar_url, $prefix ) ? substr( $phar_url, strlen( $prefix ) ) : '';
             if ( '' === $name ) {
                 continue;
             }
+            if ( false !== strpos( $phar_url, "\0" ) ) {
+                throw new \RuntimeException( esc_html( self::TAR_MALFORMED ) );
+            }
+            $info   = $pathname_only ? $iterator->getInnerIterator() : $item;
+            $is_dir = $info->isDir();
+            if ( ! $is_dir && ! isset( $locations[ $name ] ) ) {
+                throw new \RuntimeException( esc_html( self::TAR_MALFORMED ) );
+            }
             $entries[] = array(
                 'name'     => str_replace( '\\', '/', $name ),
-                'dir'      => $item->isDir(),
+                'dir'      => $is_dir,
                 'phar_url' => $phar_url,
-                'size'     => $item->getSize(),
+                'size'     => $info->getSize(),
+                'offset'   => $is_dir ? 0 : $locations[ $name ],
             );
             if ( count( $entries ) > $limits['entries'] ) {
                 throw new MainWP_Exception( sprintf( 'Restore entry count limit exceeded: %s.', esc_html( $name ) ), null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- entry name is escaped; code is a registry constant.
@@ -843,6 +855,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         }
         $limits     = $this->extraction_limits();
         $members    = array();
+        $locations  = array();
         $prefixed   = array();
         $dirs       = array();
         $ancestors  = array();
@@ -920,12 +933,13 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
                     if ( $count > $limits['entries'] ) {
                         return 'Restore entry count limit exceeded while checking backup archive headers.';
                     }
-                    $skip   = $size + $padding;
-                    $field  = explode( "\0", substr( $header, 0, 100 ), 2 )[0];
-                    $prefix = null === $long_name ? explode( "\0", substr( $header, 345, 155 ), 2 )[0] : '';
-                    $name   = null !== $long_name ? $long_name : ( '' === $prefix ? $field : $prefix . '/' . $field );
-                    $is_dir = '5' === $type;
-                    $key    = $this->tar_comparison_name( $name, $is_dir );
+                    $skip              = $size + $padding;
+                    $field             = explode( "\0", substr( $header, 0, 100 ), 2 )[0];
+                    $prefix            = null === $long_name ? explode( "\0", substr( $header, 345, 155 ), 2 )[0] : '';
+                    $name              = null !== $long_name ? $long_name : ( '' === $prefix ? $field : $prefix . '/' . $field );
+                    $is_dir            = '5' === $type;
+                    $key               = $this->tar_comparison_name( $name, $is_dir );
+                    $locations[ $key ] = ftell( $stream ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- retain the validated payload position.
                     if ( null === $long_name ) {
                         $name_bytes += strlen( $name );
                         if ( $name_bytes > $limits['name_bytes'] ) {
@@ -982,6 +996,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         }
         return array(
             'members'   => $members,
+            'locations' => $locations,
             'prefixed'  => $prefixed,
             'dirs'      => $dirs,
             'ancestors' => $ancestors,
@@ -1271,11 +1286,12 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @param int      $compressed Compressed entry size, zero for tar entries.
      * @param string   $entry_name Archive entry name.
      * @param string   $extract_to Extraction root.
+     * @param int|null $size       Exact TAR payload length; null for a ZIP member stream.
      *
      * @throws \Exception When writing or promoting the entry fails.
      * @throws \Throwable After discarding failed temporary output.
      */
-    private function write_entry_stream( $stream, $target, &$cursor, $compressed, $entry_name, $extract_to ) {
+    private function write_entry_stream( $stream, $target, &$cursor, $compressed, $entry_name, $extract_to, $size = null ) {
         $directory = dirname( $target );
         $this->sweep_entry_temps( $directory );
         $perms = false;
@@ -1293,7 +1309,7 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
         $mode               = false === $perms ? null : ( $perms & 0777 );
         list( $temp, $out ) = $this->create_entry_temp( $target, $entry_name );
         try {
-            $this->copy_bounded_entry( $stream, $out, $cursor, $compressed, $entry_name );
+            $this->copy_bounded_entry( $stream, $out, $cursor, $compressed, $entry_name, $size );
             $closed = fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- finish the temporary file before promotion.
             $out    = null;
             if ( ! $closed ) {
@@ -1550,18 +1566,24 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
      * @param array    $cursor     Cumulative extraction counters (by reference).
      * @param int      $compressed Compressed entry size, zero for tar entries.
      * @param string   $entry_name Archive entry name.
+     * @param int|null $size       Exact TAR payload length; null to read to EOF.
      *
      * @throws MainWP_Exception When a limit is exceeded or a stream fails.
+     * @throws \Exception When a TAR payload ends early.
      */
-    private function copy_bounded_entry( $stream, $out, &$cursor, $compressed, $entry_name ) {
+    private function copy_bounded_entry( $stream, $out, &$cursor, $compressed, $entry_name, $size = null ) {
         $limits      = $this->extraction_limits();
         $entry_bytes = 0;
         while ( ! feof( $stream ) ) {
+            if ( null !== $size && $entry_bytes === $size ) {
+                break;
+            }
             $remaining = $limits['expanded_bytes'] - $cursor['expanded_bytes'];
             if ( $compressed > 0 && $compressed >= $limits['ratio_min_bytes'] ) {
                 $remaining = min( $remaining, $compressed * $limits['ratio'] - $entry_bytes );
             }
-            $chunk = fread( $stream, min( 262144, max( 1, $remaining ) ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bounded archive stream.
+            $read_size = null === $size ? 262144 : min( 262144, $size - $entry_bytes );
+            $chunk     = fread( $stream, min( $read_size, max( 1, $remaining ) ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- bounded archive stream.
             if ( false === $chunk || ( '' === $chunk && ! feof( $stream ) ) ) {
                 throw new MainWP_Exception( sprintf( 'Could not read archive entry: %s.', esc_html( $entry_name ) ), null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- entry name is escaped; code is a registry constant.
             }
@@ -1579,6 +1601,9 @@ class MainWP_Child_Backup_File_Restorer { // phpcs:ignore Generic.Classes.Openin
             if ( strlen( $chunk ) !== $written ) {
                 throw new MainWP_Exception( sprintf( 'Could not write extracted file: %s.', esc_html( $entry_name ) ), null, MainWP_Backup_Error::ERR_RESTORE_EXTRACT ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- entry name is escaped; code is a registry constant.
             }
+        }
+        if ( null !== $size && $entry_bytes !== $size ) {
+            throw new \Exception( 'Archive entry ended before its declared size.' );
         }
     }
 

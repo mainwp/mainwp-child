@@ -726,6 +726,31 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertSame( 'last content', file_get_contents( $this->extract_to . '/z-normal.txt' ) );
 	}
 
+	public function test_tar_literal_question_mark_preserves_names_and_bytes() {
+		$members = array( 'wp-content/uploads/test?x', 'ordinary', 'hash#name', '日本語', 'literal%3F', 'dir?/nested' );
+		$bytes = '';
+		foreach ( $members as $name ) {
+			$bytes .= $this->tar_entry_bytes( $name, "bytes\0" . $name );
+		}
+		$path = $this->dir . '/question.tar';
+		file_put_contents( $path, $bytes );
+		$result = $this->run_all( $this->config( array( $path ) ) );
+		$this->assertNull( $result['error'] );
+		$this->assertTrue( $result['done'] );
+		foreach ( $members as $name ) {
+			$this->assertSame( "bytes\0" . $name, file_get_contents( $this->extract_to . '/' . $name ) );
+		}
+	}
+
+	public function test_tar_question_mark_does_not_bypass_raw_payload_name_agreement() {
+		$path = $this->dir . '/mixed-names.tar';
+		file_put_contents( $path, $this->tar_entry_bytes( 'first.txt', 'first' ) . $this->tar_entry_bytes( 'a\\b', 'XY' ) . $this->tar_entry_bytes( 'c?d', 'question' ) );
+		$result = $this->run_all( $this->config( array( $path ) ) );
+		$this->assertFalse( $result['done'] );
+		$this->assertSame( MainWP_Backup_Error::ERR_RESTORE_EXTRACT, $result['error_code'] );
+		$this->assertSame( array( '.', '..' ), scandir( $this->extract_to ) );
+	}
+
 	public function test_readable_ustar_prefix_restores_normally() {
 		$prefix = rtrim( str_repeat( 'prefix/', 15 ), '/' );
 		$path = $this->dir . '/readable-prefix.tar';
@@ -765,7 +790,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$this->assertSame( array( '.', '..' ), scandir( $this->extract_to ) );
 	}
 
-	public function test_resumed_tar_slice_does_not_repeat_header_walk() {
+	public function test_resumed_tar_slice_rebuilds_validated_payload_offsets() {
 		$this->restorer = new class() extends MainWP_Child_Backup_File_Restorer {
 			public $walks = 0;
 			protected function tar_header_members( $plain ) {
@@ -782,7 +807,7 @@ class BackupFileRestorerTest extends WP_UnitTestCase {
 		$second = $this->restorer->restore_slice( $first['cursor'], $config, microtime( true ) + 10 );
 		$this->assertNull( $second['error'] );
 		$this->assertTrue( $second['done'] );
-		$this->assertSame( 1, $this->restorer->walks );
+		$this->assertSame( 2, $this->restorer->walks );
 		$this->assertSame( 'second', file_get_contents( $this->extract_to . '/b.txt' ) );
 	}
 
