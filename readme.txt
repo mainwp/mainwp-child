@@ -291,7 +291,7 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 = 6.0 - 2-24-2026 =
 
 * Added: New maintenance options to selectively clean expired transients or remove all transients from the site.
-* Added: Password policy management to set and enforce password expiration rules.
+* Added: Password policy management to set password-change reminders for users on child sites.
 * Added: Extended post retrieval to support ID-based filtering for more targeted synchronization.
 * Added: Caching for recently updated custom posts with automatic invalidation on post changes, and included cached data in sync payloads to improve performance.
 * Added: Support for the upcoming Patchstack Integration for MainWP.
