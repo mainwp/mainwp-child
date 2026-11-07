@@ -1528,7 +1528,8 @@ class Tar_Archiver {
         $rslt          = array( 'startOffset' => $currentOffset );
         try {
             while ( true ) {
-                $block = fread( $this->archive, 512 );
+                $headerOffset = ftell( $this->archive );
+                $block        = fread( $this->archive, 512 );
 
                 if ( false === $block || 0 === strlen( $block ) ) {
                     return $rslt;
@@ -1613,7 +1614,15 @@ class Tar_Archiver {
             }
 
             $this->log( 'ERROR' );
-            throw new MainWP_Exception( esc_html__( 'An unexpected error occurred while processing the backup archive. Please try again and contact support if the issue persists.', 'mainwp-child' ), null, MainWP_Backup_Error::ERR_FILE_CORRUPT );
+            $name = substr( $file['name'], 0, 256 );
+            if ( '' === wp_check_invalid_utf8( $name ) ) {
+                $name = 'hex:' . bin2hex( $name );
+            }
+            if ( strlen( $file['name'] ) > 256 ) {
+                $name .= '...';
+            }
+            $detail = 'decoded offset=' . $headerOffset . '; type=0x' . bin2hex( $file['type'] ) . '; unexpected entry=' . $name;
+            throw new MainWP_Exception( esc_html__( 'An unexpected error occurred while processing the backup archive. Please try again and contact support if the issue persists.', 'mainwp-child' ) . ' ' . esc_html( $detail ), esc_html( $detail ), MainWP_Backup_Error::ERR_FILE_CORRUPT );
         } catch ( \Exception $e ) {
             $this->log( $e->getMessage() );
             throw $e;
