@@ -56,6 +56,15 @@ class BackupManifestChunkReceiveTest extends WP_UnitTestCase {
 	 */
 	public function set_up() {
 		parent::set_up();
+		remove_filter( 'query', array( $this, '_create_temporary_tables' ) );
+		remove_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+		try {
+			delete_option( \MainWP\Child\MainWP_Child_Backup_Task::DB_VERSION_OPTION );
+			\MainWP\Child\MainWP_Child_Backup_Task::instance()->install();
+		} finally {
+			add_filter( 'query', array( $this, '_create_temporary_tables' ) );
+			add_filter( 'query', array( $this, '_drop_temporary_tables' ) );
+		}
 		$this->dir = sys_get_temp_dir() . '/mainwp-manifest-chunk-' . uniqid();
 		mkdir( $this->dir, 0777, true );
 		$this->receiver                  = new Manifest_Chunk_Test_Receiver();
