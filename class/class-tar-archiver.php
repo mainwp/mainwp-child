@@ -201,6 +201,20 @@ class Tar_Archiver {
     protected $progressCallback = null;
 
     /**
+     * Validated members passed while looking for a different traversal entry.
+     *
+     * @var array
+     */
+    private $resumeEntries = array();
+
+    /**
+     * A finished archive is already a complete capture, even if its walk changed.
+     *
+     * @var bool
+     */
+    private $resumeComplete = false;
+
+    /**
      * Tar_Archiver constructor.
      *
      * Run any time class is called.
@@ -446,6 +460,9 @@ class Tar_Archiver {
      * @uses \MainWP\Child\MainWP_Helper::in_excludes()
      */
     public function create_full_backup( $filepath, $excludes, $addConfig, $includeCoreFiles, $excludezip, $excludenonwp, $append = false ) {
+
+        $this->resumeEntries  = array();
+        $this->resumeComplete = false;
 
         $this->skipLeftoverConfig = (bool) $addConfig;
 
@@ -900,6 +917,9 @@ class Tar_Archiver {
      * @used-by Tar_Archiver::add_empty_dir() Fire off the add_empty_directory() function.
      */
     private function add_empty_directory( $entryName, $mode, $uid, $gid, $mtime ) {
+        if ( $this->resumeComplete || isset( $this->resumeEntries[ trim( $entryName ) ] ) ) {
+            return true;
+        }
         if ( self::APPEND === $this->mode ) {
             if ( true === $this->check_before_append( $entryName ) ) {
                 return true;
@@ -1045,6 +1065,9 @@ class Tar_Archiver {
      * @uses    \MainWP\Child\MainWP_Helper::ends_with()
      */
     private function add_file( $path, $entryName, $bases = null ) { // phpcs:ignore -- Current complexity is the only way to achieve desired results, pull request solutions appreciated.
+        if ( isset( $this->resumeEntries[ trim( $entryName ) ] ) ) {
+            return true;
+        }
         if ( $this->backup instanceof MainWP_Backup && $this->backup->is_failed_add_skipped( $path ) ) {
             return false;
         }
@@ -1097,7 +1120,7 @@ class Tar_Archiver {
                 } catch ( \Exception $e ) {
                     $rslt = false;
                 }
-                if ( true === $rslt ) {
+                if ( true === $rslt && ( ! $this->resumeComplete || isset( $this->resumeEntries[ trim( $entryName ) ] ) ) ) {
                     if ( $fp ) {
                         fclose( $fp );
                     }
@@ -1292,6 +1315,9 @@ class Tar_Archiver {
      * @return bool Return false on failure, true on success.
      */
     private function add_file_from_string( $entryName, $content ) {
+        if ( $this->resumeComplete || isset( $this->resumeEntries[ trim( $entryName ) ] ) ) {
+            return true;
+        }
         $this->log( 'Add from string ' . $entryName );
 
         if ( self::APPEND === $this->mode ) {
@@ -1495,6 +1521,9 @@ class Tar_Archiver {
      * @return array|bool If true,skip file, if false or number, nothing to read, will continue with current file.
      */
     private function is_next_file( $entryName ) {
+        if ( $this->resumeComplete || isset( $this->resumeEntries[ trim( $entryName ) ] ) ) {
+            return true;
+        }
         $currentOffset = ftell( $this->archive );
         $rslt          = array( 'startOffset' => $currentOffset );
         try {
@@ -1509,6 +1538,23 @@ class Tar_Archiver {
                     $this->throw_backup_error( MainWP_Backup_Error::ERR_FILE_CORRUPT );
                 }
 
+                if ( str_repeat( "\0", 512 ) === $block ) {
+                    if ( str_repeat( "\0", 512 ) !== fread( $this->archive, 512 ) ) {
+                        $this->throw_backup_error( MainWP_Backup_Error::ERR_FILE_CORRUPT );
+                    }
+                    while ( ! feof( $this->archive ) ) {
+                        $padding = fread( $this->archive, 8192 );
+                        if ( false === $padding || '' !== trim( $padding, "\0" ) ) {
+                            $this->throw_backup_error( MainWP_Backup_Error::ERR_FILE_CORRUPT );
+                        }
+                    }
+                    $this->resumeComplete = true;
+                    return true;
+                }
+                if ( ! $this->is_header_block( $block ) ) {
+                    $this->throw_backup_error( MainWP_Backup_Error::ERR_FILE_CORRUPT );
+                }
+
                 $temp = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
                 if ( 'L' === $temp['type'] ) {
                     // A torn long name is corrupt, as a torn header block is above.
@@ -1516,7 +1562,10 @@ class Tar_Archiver {
                     if ( false === $long ) {
                         $this->throw_backup_error( MainWP_Backup_Error::ERR_FILE_CORRUPT );
                     }
-                    $block          = $long[2];
+                    $block = $long[2];
+                    if ( ! $this->is_header_block( $block ) ) {
+                        $this->throw_backup_error( MainWP_Backup_Error::ERR_FILE_CORRUPT );
+                    }
                     $temp           = unpack( 'a100name/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100symlink/a6magic/a2temp/a32temp/a32temp/a8temp/a8temp/a155prefix/a12temp', $block );
                     $temp['prefix'] = '';
                     $temp['name']   = $long[0];
@@ -1535,25 +1584,29 @@ class Tar_Archiver {
                     'magic'    => $temp['magic'],
                 );
 
-                if ( 5 === (int) $file['type'] ) {
+                if ( '5' === $file['type'] ) {
+                    if ( 0 !== $file['stat'][7] ) {
+                        $this->throw_backup_error( MainWP_Backup_Error::ERR_FILE_CORRUPT );
+                    }
                     if ( 0 === strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
                         $this->log( 'Skipping directory [' . $file['name'] . ']' );
 
                         return true;
                     } else {
-                        $this->log( 'Unexpected directory [' . $file['name'] . ']' );
-                        throw new MainWP_Exception( esc_html__( 'Unexpected content found while reading the backup archive. The archive file may be corrupted. Try creating a new backup.', 'mainwp-child' ), null, MainWP_Backup_Error::ERR_FILE_CORRUPT );
+                        $this->resumeEntries[ $file['name'] ] = true;
+                        $rslt['startOffset']                  = ftell( $this->archive );
+                        continue;
                     }
-                } elseif ( 0 === (int) $file['type'] ) {
+                } elseif ( '0' === $file['type'] || '' === $file['type'] ) {
                     if ( 0 === strcmp( trim( $file['name'] ), trim( $entryName ) ) ) {
                         return $this->read_next_bytes( $file );
-                    } elseif ( $this->skip_archived_file_link( $file ) ) {
-                        // If the archive ends here, append after this member instead of truncating it.
-                        $rslt['startOffset'] = ftell( $this->archive );
-                        continue;
                     } else {
-                        $this->log( 'Unexpected file [' . $file['name'] . ']' );
-                        throw new MainWP_Exception( esc_html__( 'Unexpected content found while reading the backup archive. The archive file may be corrupted. Try creating a new backup.', 'mainwp-child' ), null, MainWP_Backup_Error::ERR_FILE_CORRUPT );
+                        // A resumed directory walk can add, remove or reorder names. Keep the
+                        // validated archived copy and avoid duplicating it later in this pass.
+                        $this->skip_archived_member( $file );
+                        $this->resumeEntries[ $file['name'] ] = true;
+                        $rslt['startOffset']                  = ftell( $this->archive );
+                        continue;
                     }
                 }
                 break;
@@ -1568,34 +1621,21 @@ class Tar_Archiver {
     }
 
     /**
-     * Step over an archived member whose source is now a file link.
-     *
-     * A partial archive written before file links were skipped, or a file the
-     * host replaced with a link between slices, holds a member the walk no
-     * longer adds. Matching it lazily here keeps the link skips free of
-     * backward seeks, which on a gzip stream re-inflate from the start.
+     * Step over a validated member independently of its current source path.
      *
      * @param array $file Parsed member header.
      *
      * @throws MainWP_Exception When the member's data runs past the archive end.
      *
-     * @return bool Whether the member was skipped.
+     * @return void
      */
-    private function skip_archived_file_link( $file ) {
-        $name = $file['name'];
-        $path = '/' === substr( $name, 0, 1 ) ? $name : ABSPATH . $name;
-        clearstatcache( true, $path );
-        if ( '' === $name || ! MainWP_Backup::is_file_link( $path ) ) {
-            return false;
-        }
+    private function skip_archived_member( $file ) {
         $offset = ftell( $this->archive );
         $bytes  = (int) ( ceil( $file['stat'][7] / 512 ) * 512 );
         // A truncated member is corrupt, as it is for a regular file in read_next_bytes().
         if ( false === $offset || ( false !== $this->archiveSize && $offset + $bytes > $this->archiveSize ) || 0 !== fseek( $this->archive, $offset + $bytes ) ) {
             $this->throw_backup_error( MainWP_Backup_Error::ERR_FILE_CORRUPT );
         }
-        $this->log( 'Skipping archived link [' . $name . ']' );
-        return true;
     }
 
     /**

@@ -205,6 +205,9 @@ class Test_MainWP_Security_PHP_Reporting extends WP_UnitTestCase {
         $property = new \ReflectionProperty( MainWP_Security::class, 'saved_display_errors' );
         $property->setAccessible( true );
         $property->setValue( null, null );
+        $property = new \ReflectionProperty( MainWP_Security::class, 'original_reporting_state' );
+        $property->setAccessible( true );
+        $property->setValue( null, null );
     }
 
     /**
