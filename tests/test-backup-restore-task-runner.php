@@ -2322,6 +2322,102 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( array( 'status' => 'skipped', 'reason' => 'no_manifest' ), $sub['verification']['reconcile'] );
 	}
 
+	/**
+	 * Rollback uses its safety inventory and preserves excluded and uncaptured files.
+	 */
+	public function test_mwp2259_adopted_safety_inventory_prunes_only_captured_scope() {
+		$this->prepare_reconcile_fixture();
+		$plugin = 'wp-content/plugins/';
+		file_put_contents( $this->site . '/' . $plugin . 'v1-only.php', 'v1' );
+		file_put_contents( $this->site . '/' . $plugin . 'excluded.php', 'excluded' );
+		file_put_contents( $this->site . '/' . $plugin . 'unarchived.php', 'unarchived' );
+		file_put_contents( $this->site . '/outside.txt', 'outside' );
+		mkdir( $this->site . '/wp-content/uploads', 0777, true );
+		file_put_contents( $this->site . '/wp-content/uploads/live.txt', 'live upload' );
+		$this->assertTrue( symlink( $this->site . '/outside.txt', $this->site . '/' . $plugin . 'linked.php' ) );
+		$artifacts = array(
+			$this->make_named_zip_artifact( 'safety-v2.zip', array( $plugin . 'current.php' => 'v2' ), 'full' ),
+			$this->make_db_artifact(),
+			$this->make_manifest_artifact( array( $plugin . 'current.php' ) ),
+		);
+		foreach ( $artifacts as &$artifact ) {
+			$artifact['adopt_only'] = true;
+		}
+		unset( $artifact );
+		$options = $this->reconcile_options( array( 'outside.txt', $plugin . 'excluded.php', 'wp-content/uploads' ) );
+		$options['reconcile']['walk']['unarchived'] = array( $plugin . 'unarchived.php' );
+		$task = $this->drive( $this->make_task( 'full', $artifacts, $options ) );
+		$this->assertSame( 'completed', $task->phase );
+		$this->assertFileDoesNotExist( $this->site . '/' . $plugin . 'v1-only.php' );
+		$this->assertSame( 'v2', file_get_contents( $this->site . '/' . $plugin . 'current.php' ) );
+		foreach ( array( $plugin . 'excluded.php' => 'excluded', $plugin . 'unarchived.php' => 'unarchived', 'outside.txt' => 'outside', 'wp-content/uploads/live.txt' => 'live upload' ) as $path => $bytes ) {
+			$this->assertSame( $bytes, file_get_contents( $this->site . '/' . $path ) );
+		}
+		$this->assertTrue( is_link( $this->site . '/' . $plugin . 'linked.php' ) );
+		$this->assertSame( $this->site . '/outside.txt', readlink( $this->site . '/' . $plugin . 'linked.php' ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( 'done', $sub['verification']['reconcile']['status'] );
+	}
+
+	/**
+	 * Recovery sync expires an abandoned verifier only once its lease is clear.
+	 */
+	public function test_mwp2259_unreachable_verify_site_recovery_releases_active_slot() {
+		global $wpdb;
+		$id = $this->make_task( 'files', array( $this->make_files_archive_artifact() ) );
+		$this->pause_outcome_task( $id, 'verify_site' );
+		$this->assertSame( 0, $this->spine->reclaim_expired_tasks( $this->dir ) );
+		$this->assertSame( 'verify_site', $this->spine->get_task( $id )->phase );
+		$table = $this->spine->get_table_name();
+		$this->assertNotFalse( $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET max_wall_clock_at = DATE_SUB(NOW(), INTERVAL 60 SECOND), lease_owner = 'unreachable', lease_expires_at = DATE_ADD(NOW(), INTERVAL 60 SECOND) WHERE task_id = %s", $id ) ) );
+		$before = $this->spine->get_task( $id );
+		$recovery_at = strtotime( $wpdb->get_var( 'SELECT NOW()' ) );
+		$this->assertLessThan( $recovery_at, strtotime( $before->max_wall_clock_at ) );
+		$this->assertGreaterThan( $recovery_at, strtotime( $before->lease_expires_at ) );
+		$this->assertSame( 0, $this->spine->reclaim_expired_tasks( $this->dir ) );
+		$this->assertSame( 'verify_site', $this->spine->get_task( $id )->phase );
+		$this->assertNotFalse( $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s", $id ) ) );
+		$this->assertSame( 1, $this->spine->reclaim_expired_tasks( $this->dir ) );
+		$task = $this->spine->get_task( $id );
+		$this->assertSame( 'failed', $task->phase );
+		$this->assertNull( $task->active_slot );
+		$this->assertEmpty( $this->spine->get_active_tasks() );
+		$backup_id = $this->runner->create_task_for_params( 'full', array() );
+		$this->assertIsString( $backup_id );
+		$backup = $this->spine->get_task( $backup_id );
+		$this->assertNotFalse( $this->spine->checkpoint( $backup_id, (int) $backup->version, array( 'phase' => 'failed', 'sub_state' => array() ), true, $this->dir ) );
+		$this->assertIsString( $this->make_task( 'files', array( $this->make_files_archive_artifact() ) ) );
+	}
+
+	/**
+	 * @dataProvider mwp2259_untrusted_safety_cases
+	 */
+	public function test_mwp2259_untrusted_safety_inventory_never_prunes( $mode ) {
+		$this->prepare_reconcile_fixture();
+		$artifacts = array( $this->make_files_archive_artifact() );
+		$options = array();
+		if ( 'missing' !== $mode ) {
+			$manifest = $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) );
+			if ( 'corrupt' === $mode ) { $manifest['sha256'] = str_repeat( 'a', 64 ); }
+			$artifacts[] = $manifest;
+			$options = $this->reconcile_options();
+			if ( 'walk' === $mode ) { unset( $options['reconcile']['walk']['excludes'] ); }
+		}
+		foreach ( $artifacts as &$artifact ) { $artifact['adopt_only'] = true; }
+		unset( $artifact );
+		$task = $this->drive( $this->make_task( 'files', $artifacts, $options ) );
+		$this->assertSame( 'corrupt' === $mode ? 'failed' : 'completed', $task->phase );
+		$this->assertSame( 'extra', file_get_contents( $this->site . '/wp-content/plugins/persist.php' ) );
+		if ( 'corrupt' !== $mode ) {
+			$sub = $this->spine->read_sub_state( $task, $this->dir );
+			$this->assertSame( 'skipped', $sub['verification']['reconcile']['status'] );
+		}
+	}
+
+	public static function mwp2259_untrusted_safety_cases() {
+		return array( 'missing inventory' => array( 'missing' ), 'mismatched digest' => array( 'corrupt' ), 'invalid scope' => array( 'walk' ) );
+	}
+
 	public function test_mu_plugins_kept_sample_is_limited_to_twenty() {
 		$this->prepare_mu_plugins_fixture();
 		$paths = array();
@@ -4627,6 +4723,8 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 			$this->assertSame( $limit, $wpdb->query( 'INSERT INTO `rt_options` (option_name, option_value, autoload) VALUES ' . implode( ',', $values ) ) );
 		}
 		$identity = array(
+			'home'                              => 'https://destination.example',
+			'siteurl'                           => 'https://destination.example/wordpress',
 			'mainwp_child_pubkey'                 => str_repeat( 'k', 800 ),
 			'mainwp_child_uniqueId'               => str_repeat( 'u', 32 ),
 			'mainwp_child_nonce'                  => str_repeat( 'n', 64 ),
@@ -4649,7 +4747,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( MainWP_Child_Backup_Task::PHASE_REPLAYING_DB, $task->phase );
 		$state = $this->spine->read_sub_state( $task, $this->dir );
 		$this->assertIsArray( $state );
-		$this->assertCount( 3 * $limit + 9, $state['identity_preserve'] );
+		$this->assertCount( 3 * $limit + 11, $state['identity_preserve'] );
 		$this->assertTrue( $state['db_replay']['snapshot_done'] );
 		$this->assertNotEmpty( $state['fk_snapshot']['files'] );
 		$this->assertArrayHasKey( 'params', $state );
@@ -9916,5 +10014,137 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 	public static function outcome_repair_probes() {
 		return array( 'not-committed' => array( false ), 'committed' => array( true ), 'unknown' => array( null ) );
 	}
+
+    /**
+     * A full task may complete only with the separately captured destination URLs.
+     *
+     * @dataProvider destination_url_task_cases
+     * @param bool $corrupt Corrupt home after write-back.
+     * @param bool $fk Use in-place foreign-key replay.
+     * @param bool $legacy Resume with a pre-change identity-count baseline.
+     * @param bool $legacy_rewrite Legacy cursors still rewrite uncaptured URL rows.
+     */
+    public function test_full_restore_destination_urls( $corrupt, $fk = false, $legacy = false, $legacy_rewrite = false ) {
+        global $wpdb;
+        $destination = array( 'home' => home_url(), 'siteurl' => $legacy_rewrite ? site_url() : site_url() . '/wordpress' );
+        foreach ( $destination as $name => $value ) {
+            $this->assertSame( 1, $wpdb->insert( 'rt_options', array( 'option_name' => $name, 'option_value' => $value, 'autoload' => 'yes' ) ) );
+        }
+        $engine = $this->runner->fake_engine;
+        $engine->tables = array( 'options' => array( 'status' => 'ok', 'rows' => 2 ) );
+        $engine->verify_real_counts = true;
+        $engine->on_database_live = function () use ( $wpdb ) {
+            $this->assertSame( 2, $wpdb->query( "UPDATE `rt_options` SET option_value = 'https://source.example'" ) );
+        };
+        $id = $this->make_task( 'full', array( $this->make_db_artifact( $fk ) ), $fk ? array( 'source_prefix' => 'rt_' ) : array() );
+        $initial = $this->spine->read_sub_state( $this->spine->get_task( $id ), $this->dir );
+        if ( ! $fk ) {
+            $tmp = $engine->tmp_prefix( $initial['params']['restore_id'] ) . 'options';
+            $this->identity_fixture_tables[] = $tmp;
+            $this->assertNotFalse( $wpdb->query( 'CREATE TABLE `' . $tmp . '` LIKE `rt_options`' ) );
+            $this->assertSame( 2, $wpdb->query( 'INSERT INTO `' . $tmp . '` SELECT * FROM `rt_options`' ) );
+        }
+        $scratch_method = new ReflectionMethod( $this->runner, 'scratch_dir' );
+        $scratch_method->setAccessible( true );
+        $recovery_probe = $scratch_method->invoke( $this->runner, $id, $this->dir ) . 'url-recovery.sql.php';
+        $corrupted = false;
+        $corrupt_url = function ( $checkpoint ) use ( $corrupt, $wpdb, $fk, $recovery_probe, &$corrupted ) {
+            if ( $corrupt && 'before_post_swap_check' === $checkpoint ) {
+                $corrupted = 2 === $wpdb->query( "UPDATE `rt_options` SET option_value = 'https://source.example' WHERE option_name IN ('home', 'siteurl')" );
+                if ( $fk ) {
+                    file_put_contents( $recovery_probe, 'snapshot must survive until rollback' );
+                }
+            }
+        };
+        add_action( 'mainwp_child_restore_checkpoint', $corrupt_url );
+        try {
+            if ( $legacy ) {
+                $this->runner->yield_before_url_rewrite = true;
+                $task = $this->spine->get_task( $id );
+                for ( $slice = 0; $slice < 30 && 'rewriting_urls' !== $task->phase && ! MainWP_Child_Backup_Task::is_terminal_phase( $task->phase ); ++$slice ) {
+                    $task = $this->runner->advance_one_slice( $task, 'legacy-url-count' );
+                }
+                $this->assertSame( 'rewriting_urls', $task->phase );
+                $state = $this->spine->read_sub_state( $task, $this->dir );
+                $this->assertSame( 2, $state['identity_dump_count'] );
+                $state['identity_dump_count'] = 0;
+                unset( $state['identity_count_urls'] );
+                $state['identity_preserve'] = array_values( array_filter( $state['identity_preserve'], static function ( $row ) {
+                    return ! in_array( $row['option_name'], array( 'home', 'siteurl' ), true );
+                } ) );
+                $this->assertSame( array(), $state['identity_preserve'] );
+                if ( $legacy_rewrite ) {
+                    $this->assertSame( 2, $wpdb->query( "UPDATE `rt_options` SET option_value = 'https://source.example'" ) );
+                    $state['db_replay']['banner_info']['site_url'] = 'https://source.example';
+                    $state['db_replay']['banner_info']['home_url'] = 'https://source.example';
+                }
+                $this->assertNotFalse( $this->spine->checkpoint( $id, (int) $task->version, array( 'sub_state' => $state ) ) );
+            }
+            if ( $fk && $corrupt ) {
+                $this->runner->pause_before_phase = 'fk_rollback';
+                $task = $this->spine->get_task( $id );
+                for ( $slice = 0; $slice < 30 && 'fk_rollback' !== $task->phase && ! MainWP_Child_Backup_Task::is_terminal_phase( $task->phase ); ++$slice ) {
+                    $task = $this->runner->advance_one_slice( $task, 'url-recovery' );
+                }
+                $this->assertSame( 'fk_rollback', $task->phase );
+                $this->assertFileExists( $recovery_probe, 'Keep recovery material until the rollback runs.' );
+            }
+            $task = $this->drive( $id );
+        } finally {
+            remove_action( 'mainwp_child_restore_checkpoint', $corrupt_url );
+        }
+        $this->assertSame( $corrupt ? 'failed' : 'completed', $task->phase );
+        if ( $corrupt ) {
+            $this->assertTrue( $corrupted, 'The post-write corruption must actually reach the verification gate.' );
+            $error = $this->spine->read_sub_state( $task, $this->dir )['error'];
+            if ( $fk ) {
+                $this->assertStringContainsString( 'rolled back', $error['message'] );
+                $this->assertStringNotContainsString( 'wp option update', $error['message'] );
+            } else {
+                $this->assertStringContainsString( 'wp option update home DESTINATION_HOME_URL', $error['message'] );
+                $this->assertStringContainsString( 'wp option update siteurl DESTINATION_SITEURL', $error['message'] );
+            }
+            $this->assertNotContains( 'drop_old_tables', $engine->calls );
+            if ( $fk ) {
+                $this->assertContains( 'rollback_aside_slice', $engine->calls, 'URL verification must use FK recovery before removing its snapshot.' );
+            }
+        } else {
+            foreach ( $destination as $name => $value ) {
+                $this->assertSame( $value, $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM `rt_options` WHERE option_name = %s', $name ) ), $name );
+            }
+            $post = self::factory()->post->create( array( 'post_status' => 'publish' ) );
+            $original_options = $wpdb->options;
+            try {
+                $wpdb->options = 'rt_options';
+                wp_cache_delete( 'alloptions', 'options' );
+                wp_cache_delete( 'notoptions', 'options' );
+                wp_cache_delete( 'home', 'options' );
+                wp_cache_delete( 'siteurl', 'options' );
+                $this->assertSame( $destination['home'], get_option( 'home' ) );
+                $this->assertSame( $destination['siteurl'], get_option( 'siteurl' ) );
+                $this->assertStringStartsWith( $destination['home'] . '/', get_permalink( $post ) );
+            } finally {
+                $wpdb->options = $original_options;
+                wp_cache_delete( 'alloptions', 'options' );
+                wp_cache_delete( 'notoptions', 'options' );
+                wp_cache_delete( 'home', 'options' );
+                wp_cache_delete( 'siteurl', 'options' );
+            }
+        }
+    }
+
+    /**
+     * @return array Success and failed-persistence cases.
+     */
+    public static function destination_url_task_cases() {
+        return array(
+            'persisted' => array( false ),
+            'not persisted' => array( true ),
+            'FK recovery' => array( true, true ),
+            'legacy swap count' => array( false, false, true ),
+            'legacy FK count' => array( false, true, true ),
+            'legacy URL rewrite' => array( false, false, true, true ),
+        );
+    }
 
 }
