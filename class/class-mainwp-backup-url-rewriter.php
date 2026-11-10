@@ -339,10 +339,16 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
      * @return string Replaced value.
      */
     public function replace_value( $value, $pairs ) {
-        $result = $value;
+        $replacements = array();
         foreach ( $pairs as $pair ) {
-            $result = $this->recursive_replace( $pair['from'], $pair['to'], $result );
+            if ( '' !== $pair['from'] && ! isset( $replacements[ $pair['from'] ] ) ) {
+                $replacements[ $pair['from'] ] = $pair['to'];
+            }
         }
+        if ( empty( $replacements ) ) {
+            return $value;
+        }
+        $result = $this->recursive_replace( $replacements, '', $value );
         return is_string( $result ) ? $result : $value;
     }
 
@@ -353,11 +359,11 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
      * unserialization: objects become incomplete-class stubs that are
      * skipped for replacement and re-serialize byte-identical.
      *
-     * @param string $from       Needle.
-     * @param string $to         Replacement.
-     * @param mixed  $data       Value (string, array, object on recursion).
-     * @param bool   $serialised Whether to re-serialize the result.
-     * @param int    $depth      Current nesting depth.
+     * @param string|array $from       Needle or simultaneous replacement map.
+     * @param string       $to         Replacement (unused for a map).
+     * @param mixed        $data       Value (string, array, object on recursion).
+     * @param bool         $serialised Whether to re-serialize the result.
+     * @param int          $depth      Current nesting depth.
      *
      * @return mixed Replaced value.
      */
@@ -387,10 +393,10 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
                 // nosemgrep: AIK_unserialize-use -- Serialized strings are decoded with allowed_classes false, so no classes are instantiated.
                 $inner = unserialize( $data, array( 'allowed_classes' => false ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- restricted unserialize of a plain string.
                 if ( false !== $inner ) {
-                    $data = serialize( str_replace( $from, $to, $inner ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- re-serializing a plain string.
+                    $data = serialize( is_array( $from ) ? $this->replace_mapped_value( $inner, $from ) : str_replace( $from, $to, $inner ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions -- re-serializing a plain string.
                 }
             } elseif ( is_string( $data ) ) {
-                $data = str_replace( $from, $to, $data );
+                $data = is_array( $from ) ? $this->replace_mapped_value( $data, $from ) : str_replace( $from, $to, $data );
             }
 
             if ( $serialised ) {
@@ -401,6 +407,66 @@ class MainWP_Backup_Url_Rewriter { // phpcs:ignore Generic.Classes.OpeningBraceS
         }
 
         return $data;
+    }
+
+    /**
+     * Replace URL prefixes once, without matching part of a host or path segment.
+     *
+     * @param string $value Stored string.
+     * @param array  $replacements Simultaneous replacement map.
+     * @return string Replaced string.
+     */
+    private function replace_mapped_value( $value, $replacements ) {
+        uksort(
+            $replacements,
+            static function ( $left, $right ) {
+                $length = strlen( $right ) - strlen( $left );
+                return 0 !== $length ? $length : strcmp( $left, $right );
+            }
+        );
+        $alternatives = array();
+        foreach ( $replacements as $from => $to ) {
+            $alternatives[] = preg_quote( $from, '~' );
+        }
+        $count  = 0;
+        $result = preg_replace_callback(
+            '~(?:' . implode( '|', $alternatives ) . ')~',
+            static function ( $matches ) use ( $replacements, $value ) {
+                $matched = $matches[0][0];
+                $offset  = $matches[0][1];
+                $prefix  = substr( $value, 0, $offset );
+                foreach ( $replacements as $from => $to ) {
+                    if ( 0 !== strpos( $matched, (string) $from ) ) {
+                        continue;
+                    }
+                    $tail     = substr( $value, $offset + strlen( $from ) );
+                    $boundary = ! preg_match( '~^https?://~i', $from ) || '/' === substr( $from, -1 ) || '' === $tail || preg_match( '~^[/?#"\x27<>\\\\\s]~', $tail );
+                    if ( ! $boundary && '&' === $tail[0] ) {
+                        // An ampersand separates outer query parameters only when this URL is their value.
+                        $boundary = preg_match( '~[?&](?:amp;)*[^?&#=\s"\x27<>]*=$~', $prefix );
+                    }
+                    if ( ! $boundary ) {
+                        $literal_url  = preg_match( '~(?:["\x27]|(?:href|src|action|poster)\s*=\s*|[?&](?:amp;)*[^?&#=\s"\x27<>]*=)$~i', $prefix );
+                        $markdown_end = ')' === $tail[0] && preg_match( '~\]\([^\s"\x27<>]*=$~', $prefix );
+                        if ( $markdown_end ) {
+                            $destination  = substr( $prefix, strrpos( $prefix, '](' ) + 2 ) . $from;
+                            $destination  = preg_replace( '~\\\\.~s', '', $destination );
+                            $markdown_end = substr_count( $destination, '(' ) === substr_count( $destination, ')' );
+                        }
+                        $boundary = ( ! $literal_url || $markdown_end ) && preg_match( '~^(?:[)\]\x60][.,;:!?]*|[.,;:!?]+)(?:$|[\s"\x27<>)\]\x60])~', $tail );
+                    }
+                    if ( $boundary ) {
+                        return $to . substr( $matched, strlen( $from ) );
+                    }
+                }
+                return $matched;
+            },
+            $value,
+            -1,
+            $count,
+            PREG_OFFSET_CAPTURE
+        );
+        return null === $result ? $value : $result;
     }
 
     /**
