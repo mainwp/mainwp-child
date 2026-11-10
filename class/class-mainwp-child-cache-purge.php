@@ -209,6 +209,7 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
             'swis-performance/swis-performance.php'       => 'Swis Performance',
             'pressable-cache-management/pressable-cache-management.php' => 'Pressable Cache Management',
             'runcloud-hub/runcloud-hub.php'               => 'RunCloud Hub',
+            'runcache/runcache.php'                       => 'RunCache',
             'clsop/clsop.php'                             => 'AccelerateWP',
             'fastpixel-website-accelerator/fastpixel.php' => 'FastPixel Website Accelerator',
         );
@@ -324,6 +325,9 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
                         break;
                     case 'RunCloud Hub':
                         $information = $this->runcloud_hub_auto_purge_cache();
+                        break;
+                    case 'RunCache':
+                        $information = $this->runcloud_runcache_auto_purge_cache();
                         break;
                     case 'FastPixel Website Accelerator':
                         $information = $this->fastpixel_cache_auto_purge_cache();
@@ -909,6 +913,29 @@ class MainWP_Child_Cache_Purge { //phpcs:ignore -- NOSONAR - multi methods.
         } else {
             return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
         }
+    }
+
+    /**
+     * Purge RunCache cache.
+     *
+     * @return array Purge results array.
+     */
+    public function runcloud_runcache_auto_purge_cache() {
+
+        $error_message = esc_html( 'RunCache => There was an issue purging your cache.' );
+
+        if ( ! class_exists( '\\RunCache\\Core\\Purger' ) || ! method_exists( '\\RunCache\\Core\\Purger', 'purge_all' ) ) {
+            return $this->purge_result( $error_message, 'ERROR', 'provider_missing' );
+        }
+
+        $purger = new \RunCache\Core\Purger();
+        if ( ! $purger->purge_all() ) {
+            return $this->purge_result( $error_message, 'ERROR', 'attempt_failed' );
+        }
+
+        update_option( 'mainwp_cache_control_last_purged', time() );
+
+        return $this->purge_result( esc_html( 'RunCache => Cache purge dispatched on: (' . current_time( 'mysql' ) . ')' ), 'SUCCESS', 'dispatched_unverified' );
     }
 
     /**

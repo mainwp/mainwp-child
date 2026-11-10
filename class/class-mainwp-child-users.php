@@ -556,8 +556,6 @@ class MainWP_Child_Users {
             MainWP_Helper::write( array() );
         }
 
-        require_once ABSPATH . WPINC . '/registration.php'; // NOSONAR - WP compatible.
-
         $id     = wp_update_user(
             array(
                 'ID'        => $user->ID,

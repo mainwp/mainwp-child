@@ -61,13 +61,6 @@ class Changes_Helper {
 
 
     /**
-     * GMT Offset
-     *
-     * @var string
-     */
-    private static $gmt_offset_sec = 0;
-
-    /**
      * Date format.
      *
      * @var string
@@ -346,7 +339,6 @@ class Changes_Helper {
     public static function get_formatted_date( $timestamp, $type = 'datetime' ) {
 
         if ( null === self::$date_format ) {
-            self::$gmt_offset_sec  = get_option( 'gmt_offset' ) * HOUR_IN_SECONDS;
             self::$date_format     = get_option( 'date_format' );
             self::$time_format     = get_option( 'time_format' );
             self::$datetime_format = get_option( 'date_format' );
@@ -372,8 +364,10 @@ class Changes_Helper {
             return $result;
         }
 
-        $tz_adj_timestamp = $timestamp + self::$gmt_offset_sec;
-        return date_i18n( $format, (int) $tz_adj_timestamp ); // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date
+        // The offset in force at this timestamp. wp_timezone() reads an empty gmt_offset as UTC.
+        $timestamp = (int) $timestamp;
+        $offset    = wp_timezone()->getOffset( new \DateTime( '@' . $timestamp ) );
+        return date_i18n( $format, $timestamp + $offset ); // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date
     }
 
     /**
