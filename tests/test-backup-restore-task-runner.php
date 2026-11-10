@@ -2322,6 +2322,102 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		$this->assertSame( array( 'status' => 'skipped', 'reason' => 'no_manifest' ), $sub['verification']['reconcile'] );
 	}
 
+	/**
+	 * Rollback uses its safety inventory and preserves excluded and uncaptured files.
+	 */
+	public function test_mwp2259_adopted_safety_inventory_prunes_only_captured_scope() {
+		$this->prepare_reconcile_fixture();
+		$plugin = 'wp-content/plugins/';
+		file_put_contents( $this->site . '/' . $plugin . 'v1-only.php', 'v1' );
+		file_put_contents( $this->site . '/' . $plugin . 'excluded.php', 'excluded' );
+		file_put_contents( $this->site . '/' . $plugin . 'unarchived.php', 'unarchived' );
+		file_put_contents( $this->site . '/outside.txt', 'outside' );
+		mkdir( $this->site . '/wp-content/uploads', 0777, true );
+		file_put_contents( $this->site . '/wp-content/uploads/live.txt', 'live upload' );
+		$this->assertTrue( symlink( $this->site . '/outside.txt', $this->site . '/' . $plugin . 'linked.php' ) );
+		$artifacts = array(
+			$this->make_named_zip_artifact( 'safety-v2.zip', array( $plugin . 'current.php' => 'v2' ), 'full' ),
+			$this->make_db_artifact(),
+			$this->make_manifest_artifact( array( $plugin . 'current.php' ) ),
+		);
+		foreach ( $artifacts as &$artifact ) {
+			$artifact['adopt_only'] = true;
+		}
+		unset( $artifact );
+		$options = $this->reconcile_options( array( 'outside.txt', $plugin . 'excluded.php', 'wp-content/uploads' ) );
+		$options['reconcile']['walk']['unarchived'] = array( $plugin . 'unarchived.php' );
+		$task = $this->drive( $this->make_task( 'full', $artifacts, $options ) );
+		$this->assertSame( 'completed', $task->phase );
+		$this->assertFileDoesNotExist( $this->site . '/' . $plugin . 'v1-only.php' );
+		$this->assertSame( 'v2', file_get_contents( $this->site . '/' . $plugin . 'current.php' ) );
+		foreach ( array( $plugin . 'excluded.php' => 'excluded', $plugin . 'unarchived.php' => 'unarchived', 'outside.txt' => 'outside', 'wp-content/uploads/live.txt' => 'live upload' ) as $path => $bytes ) {
+			$this->assertSame( $bytes, file_get_contents( $this->site . '/' . $path ) );
+		}
+		$this->assertTrue( is_link( $this->site . '/' . $plugin . 'linked.php' ) );
+		$this->assertSame( $this->site . '/outside.txt', readlink( $this->site . '/' . $plugin . 'linked.php' ) );
+		$sub = $this->spine->read_sub_state( $task, $this->dir );
+		$this->assertSame( 'done', $sub['verification']['reconcile']['status'] );
+	}
+
+	/**
+	 * Recovery sync expires an abandoned verifier only once its lease is clear.
+	 */
+	public function test_mwp2259_unreachable_verify_site_recovery_releases_active_slot() {
+		global $wpdb;
+		$id = $this->make_task( 'files', array( $this->make_files_archive_artifact() ) );
+		$this->pause_outcome_task( $id, 'verify_site' );
+		$this->assertSame( 0, $this->spine->reclaim_expired_tasks( $this->dir ) );
+		$this->assertSame( 'verify_site', $this->spine->get_task( $id )->phase );
+		$table = $this->spine->get_table_name();
+		$this->assertNotFalse( $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET max_wall_clock_at = DATE_SUB(NOW(), INTERVAL 60 SECOND), lease_owner = 'unreachable', lease_expires_at = DATE_ADD(NOW(), INTERVAL 60 SECOND) WHERE task_id = %s", $id ) ) );
+		$before = $this->spine->get_task( $id );
+		$recovery_at = strtotime( $wpdb->get_var( 'SELECT NOW()' ) );
+		$this->assertLessThan( $recovery_at, strtotime( $before->max_wall_clock_at ) );
+		$this->assertGreaterThan( $recovery_at, strtotime( $before->lease_expires_at ) );
+		$this->assertSame( 0, $this->spine->reclaim_expired_tasks( $this->dir ) );
+		$this->assertSame( 'verify_site', $this->spine->get_task( $id )->phase );
+		$this->assertNotFalse( $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET lease_expires_at = DATE_SUB(NOW(), INTERVAL 1 SECOND) WHERE task_id = %s", $id ) ) );
+		$this->assertSame( 1, $this->spine->reclaim_expired_tasks( $this->dir ) );
+		$task = $this->spine->get_task( $id );
+		$this->assertSame( 'failed', $task->phase );
+		$this->assertNull( $task->active_slot );
+		$this->assertEmpty( $this->spine->get_active_tasks() );
+		$backup_id = $this->runner->create_task_for_params( 'full', array() );
+		$this->assertIsString( $backup_id );
+		$backup = $this->spine->get_task( $backup_id );
+		$this->assertNotFalse( $this->spine->checkpoint( $backup_id, (int) $backup->version, array( 'phase' => 'failed', 'sub_state' => array() ), true, $this->dir ) );
+		$this->assertIsString( $this->make_task( 'files', array( $this->make_files_archive_artifact() ) ) );
+	}
+
+	/**
+	 * @dataProvider mwp2259_untrusted_safety_cases
+	 */
+	public function test_mwp2259_untrusted_safety_inventory_never_prunes( $mode ) {
+		$this->prepare_reconcile_fixture();
+		$artifacts = array( $this->make_files_archive_artifact() );
+		$options = array();
+		if ( 'missing' !== $mode ) {
+			$manifest = $this->make_manifest_artifact( array( 'wp-content/uploads/restored.txt' ) );
+			if ( 'corrupt' === $mode ) { $manifest['sha256'] = str_repeat( 'a', 64 ); }
+			$artifacts[] = $manifest;
+			$options = $this->reconcile_options();
+			if ( 'walk' === $mode ) { unset( $options['reconcile']['walk']['excludes'] ); }
+		}
+		foreach ( $artifacts as &$artifact ) { $artifact['adopt_only'] = true; }
+		unset( $artifact );
+		$task = $this->drive( $this->make_task( 'files', $artifacts, $options ) );
+		$this->assertSame( 'corrupt' === $mode ? 'failed' : 'completed', $task->phase );
+		$this->assertSame( 'extra', file_get_contents( $this->site . '/wp-content/plugins/persist.php' ) );
+		if ( 'corrupt' !== $mode ) {
+			$sub = $this->spine->read_sub_state( $task, $this->dir );
+			$this->assertSame( 'skipped', $sub['verification']['reconcile']['status'] );
+		}
+	}
+
+	public static function mwp2259_untrusted_safety_cases() {
+		return array( 'missing inventory' => array( 'missing' ), 'mismatched digest' => array( 'corrupt' ), 'invalid scope' => array( 'walk' ) );
+	}
+
 	public function test_mu_plugins_kept_sample_is_limited_to_twenty() {
 		$this->prepare_mu_plugins_fixture();
 		$paths = array();
