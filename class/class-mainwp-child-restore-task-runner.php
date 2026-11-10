@@ -51,6 +51,11 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     const MAX_REMOVAL_DEPTH = 64;
 
     /**
+     * Prefix identifying a destination URL verification failure during rollback.
+     */
+    const DESTINATION_URL_ERROR = 'The destination URLs could not be confirmed.';
+
+    /**
      * Swap evidence captured before terminal cleanup removes tmp tables.
      *
      * @var array|null
@@ -211,8 +216,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
     /**
      * Options whose live presence, raw value and autoload survive database restore.
      * Values stay as stored, including encrypted mainwp_child_server. Dump-only
-     * rows are removed. siteurl/home follow url_pairs(); active_plugins follows
-     * the dump.
+     * rows are removed. The destination siteurl/home survive independently;
+     * active_plugins follows the dump.
      *
      * The task-spine marker mainwp_child_backup_task_db_version rides along
      * because the restore keeps the live spine table (it is in skip_stems)
@@ -222,6 +227,8 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * check and overlaps the restore's tail.
      */
     const IDENTITY_OPTIONS = array(
+        'home',
+        'siteurl',
         'mainwp_child_pubkey',
         'mainwp_child_uniqueId',
         'mainwp_child_nonce',
@@ -2418,7 +2425,11 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 return $this->terminal_dump_lease_holds( $task->task_id, $owner );
             }
         );
-        return $this->fail_terminal( $task, $version, $sub_state, $backup_dir, $fkr['original_error'], MainWP_Backup_Error::ERR_RESTORE_ROLLED_BACK );
+        $message = $fkr['original_error'];
+        if ( 0 === strpos( $message, self::DESTINATION_URL_ERROR ) ) {
+            $message = 'The restore could not retain the destination URLs. The database restore was rolled back to its pre-restore state; no URL correction is needed.';
+        }
+        return $this->fail_terminal( $task, $version, $sub_state, $backup_dir, $message, MainWP_Backup_Error::ERR_RESTORE_ROLLED_BACK );
     }
 
     /**
@@ -2586,6 +2597,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
         }
 
+        $preserve_options = array_values( array_diff( self::IDENTITY_OPTIONS, array( 'home', 'siteurl' ) ) );
+        foreach ( (array) ( $sub_state['identity_preserve'] ?? array() ) as $row ) {
+            if ( is_array( $row ) && isset( $row['option_name'], $row['option_value'], $row['autoload'] ) && in_array( $row['option_name'], array( 'home', 'siteurl' ), true ) ) {
+                $preserve_options[] = $row['option_name'];
+            }
+        }
+
         $cursor  = isset( $sub_state['url_rewrite'] ) ? $sub_state['url_rewrite'] : array();
         $outcome = $this->url_rewriter()->rewrite_slice(
             $cursor,
@@ -2596,7 +2614,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 'rename_option_names'      => $rename_option_names,
                 'prefix_pair'              => $prefix_pair,
                 'prefix_anchored'          => $prefix_anchored,
-                'preserve_options'         => array( $target_prefix . 'options' => self::IDENTITY_OPTIONS ),
+                'preserve_options'         => array( $target_prefix . 'options' => $preserve_options ),
                 // Dump-only ledger rows also need protection from URL replacement.
                 'preserve_option_prefixes' => array( $target_prefix . 'options' => self::IDENTITY_PREFIXES ),
             ),
@@ -2825,12 +2843,14 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                 }
                 $rows = array_merge( $rows, $ledger );
             }
+            $sub_state['identity_count_urls'] = true;
             if ( empty( $sub_state['db_replay']['fk_path'] ) && in_array( 'options', $this->loaded_stems( $sub_state ), true ) ) {
                 // Persist the dump baseline before the rename, including across a partial write-back.
                 $tmp_table                        = $this->restore_engine()->tmp_prefix( $sub_state['params']['restore_id'] ) . 'options';
                 $sub_state['identity_dump_count'] = self::identity_count( $tmp_table );
             }
-            $sub_state['identity_preserve'] = $rows;
+            $sub_state['identity_absent_urls'] = array_values( array_diff( array( 'home', 'siteurl' ), array_column( $rows, 'option_name' ) ) );
+            $sub_state['identity_preserve']    = $rows;
         } finally {
             $wpdb->suppress_errors( $suppress );
         }
@@ -2840,13 +2860,16 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * Use the same row scope before and after write-back so retries cannot skew verification.
      *
      * @param string $table Options table.
+     * @param bool   $count_urls Include URL rows in a new baseline's scope.
      * @throws MainWP_Exception When the identity rows cannot be read.
      * @return int Identity and ledger row count.
      */
-    private static function identity_count( $table ) {
+    private static function identity_count( $table, $count_urls = true ) {
         global $wpdb;
-        $where = 'option_name IN (' . implode( ', ', array_fill( 0, count( self::IDENTITY_OPTIONS ), '%s' ) ) . ')';
-        $args  = self::IDENTITY_OPTIONS;
+        // Older cursors counted identity rows without home and siteurl.
+        $names = $count_urls ? self::IDENTITY_OPTIONS : array_values( array_diff( self::IDENTITY_OPTIONS, array( 'home', 'siteurl' ) ) );
+        $where = 'option_name IN (' . implode( ', ', array_fill( 0, count( $names ), '%s' ) ) . ')';
+        $args  = $names;
         foreach ( self::IDENTITY_PREFIXES as $prefix ) {
             $where .= ' OR option_name LIKE %s';
             $args[] = $wpdb->esc_like( $prefix ) . '%';
@@ -2899,11 +2922,11 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                     if ( ! isset( $sub_state['identity_dump_count'] ) ) {
                         // FK replay has no tmp options table; keep its baseline before the first write.
                         $sub_state['identity_dump_count'] = self::identity_count( $table );
+                        $sub_state['identity_count_urls'] = true;
                     }
                     foreach ( self::IDENTITY_OPTIONS as $name ) {
-                        // The live site always has this row while a restore runs, so a capture without it came
-                        // from an older build; deleting the restored row would re-key the backup directory.
-                        if ( ! isset( $saved[ $name ] ) && 'mainwp_backup_dir_hash' === $name ) {
+                        // Preserve the backup directory key and URL rows whose absence was not captured by an older build.
+                        if ( ! isset( $saved[ $name ] ) && ( 'mainwp_backup_dir_hash' === $name || ( in_array( $name, array( 'home', 'siteurl' ), true ) && ! in_array( $name, (array) ( $sub_state['identity_absent_urls'] ?? array() ), true ) ) ) ) {
                             continue;
                         }
                         if ( ! isset( $saved[ $name ] ) ) {
@@ -2921,6 +2944,13 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                             }
                         }
                         if ( false === $result ) {
+                            if ( in_array( $name, array( 'home', 'siteurl' ), true ) ) {
+                                $message = self::DESTINATION_URL_ERROR . ' Replace each placeholder with its pre-restore destination value and run: wp option update home DESTINATION_HOME_URL; wp option update siteurl DESTINATION_SITEURL';
+                                if ( ! isset( $saved[ $name ] ) ) {
+                                    $message = self::DESTINATION_URL_ERROR . ' Restore the missing destination option with: wp option delete ' . $name;
+                                }
+                                $last_exception = new MainWP_Exception( esc_html( $message ), null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+                            }
                             break;
                         }
                         wp_cache_delete( $name, 'options' );
@@ -2950,7 +2980,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
                         }
                     }
                     if ( false !== $result ) {
-                        $delta = self::identity_count( $table ) - $sub_state['identity_dump_count'];
+                        $delta = self::identity_count( $table, ! empty( $sub_state['identity_count_urls'] ) ) - $sub_state['identity_dump_count'];
                     }
                 } catch ( MainWP_Exception $e ) {
                     $last_exception = $e;
@@ -2971,6 +3001,9 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             }
         } finally {
             $wpdb->suppress_errors( $suppress );
+            foreach ( array( 'home', 'siteurl', 'alloptions', 'notoptions' ) as $key ) {
+                wp_cache_delete( $key, 'options' );
+            }
         }
     }
 
@@ -3428,7 +3461,7 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         $identity_verify_delta = 0;
         if ( isset( $expected['options'], $sub_state['identity_dump_count'] ) ) {
             // The request ledger grows after identity write-back; verification runs in a later request.
-            $identity_verify_delta = self::identity_count( $target_prefix . 'options' ) - (int) $sub_state['identity_dump_count'];
+            $identity_verify_delta = self::identity_count( $target_prefix . 'options', ! empty( $sub_state['identity_count_urls'] ) ) - (int) $sub_state['identity_dump_count'];
             $expected['options']  += $identity_verify_delta;
         }
 
@@ -3520,9 +3553,18 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
      * @param array  $sub_state  Cursor.
      * @param string $backup_dir Scratch root.
      *
+     * @throws MainWP_Exception When destination URL verification fails on the swap path.
      * @return array Slice result.
      */
     protected function finish_post_restore_verify( $task, $version, $sub_state, $backup_dir ) {
+        try {
+            $this->verify_destination_urls( $sub_state );
+        } catch ( MainWP_Exception $e ) {
+            if ( ! empty( $sub_state['db_replay']['fk_path'] ) ) {
+                return $this->enter_fk_rollback( $task, $version, $sub_state, $backup_dir, $e->getMessage(), MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY );
+            }
+            throw $e;
+        }
         // Every files/full path, including adopted rollback archives and Woo merges, converges here.
         if ( 'restore_db' !== $task->type && ! isset( $sub_state['cache_purge'] ) ) {
             return $this->run_page_cache_purge( $task, $version, $sub_state, $backup_dir );
@@ -3571,6 +3613,49 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
         }
 
         return $this->advance_phase( $task, $version, $sub_state, $backup_dir );
+    }
+
+    /**
+     * Do not complete a restore on cached or filtered URL option values.
+     *
+     * @param array $sub_state Restore cursor.
+     * @throws MainWP_Exception When a captured destination URL was not persisted.
+     */
+    protected function verify_destination_urls( $sub_state ) {
+        if ( ! in_array( 'options', $this->loaded_stems( $sub_state ), true ) ) {
+            return;
+        }
+        global $wpdb;
+        $saved = array();
+        foreach ( (array) ( $sub_state['identity_preserve'] ?? array() ) as $row ) {
+            if ( ! is_array( $row ) || ! isset( $row['option_name'], $row['option_value'], $row['autoload'] ) || ! in_array( $row['option_name'], array( 'home', 'siteurl' ), true ) ) {
+                continue;
+            }
+            $saved[ $row['option_name'] ] = $row;
+        }
+        foreach ( $saved as $row ) {
+            $stored = $wpdb->get_row( $wpdb->prepare( 'SELECT option_value FROM ' . $this->prepare_table_ident( $this->target_prefix() . 'options' ) . ' WHERE option_name = %s', $row['option_name'] ), ARRAY_A ); // phpcs:ignore WordPress.DB -- persisted URL verification must bypass the options cache.
+            if ( '' !== $wpdb->last_error || ! is_array( $stored ) || $stored['option_value'] !== $row['option_value'] ) {
+                wp_cache_delete( $row['option_name'], 'options' );
+                wp_cache_delete( 'alloptions', 'options' );
+                wp_cache_delete( 'notoptions', 'options' );
+                $message = self::DESTINATION_URL_ERROR . ' Replace each placeholder with its pre-restore destination value and run: wp option update home DESTINATION_HOME_URL; wp option update siteurl DESTINATION_SITEURL';
+                throw new MainWP_Exception( esc_html( $message ), null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+            }
+        }
+        foreach ( array( 'home', 'siteurl' ) as $name ) {
+            if ( isset( $saved[ $name ] ) || ! in_array( $name, (array) ( $sub_state['identity_absent_urls'] ?? array() ), true ) ) {
+                continue;
+            }
+            $present = $wpdb->get_var( $wpdb->prepare( 'SELECT option_name FROM ' . $this->prepare_table_ident( $this->target_prefix() . 'options' ) . ' WHERE option_name = %s', $name ) ); // phpcs:ignore WordPress.DB -- distinguish an absent option from an empty stored value.
+            if ( '' !== $wpdb->last_error || null !== $present ) {
+                foreach ( array( $name, 'alloptions', 'notoptions' ) as $key ) {
+                    wp_cache_delete( $key, 'options' );
+                }
+                $message = self::DESTINATION_URL_ERROR . ' Restore the missing destination option with: wp option delete ' . $name;
+                throw new MainWP_Exception( esc_html( $message ), null, MainWP_Backup_Error::ERR_RESTORE_DB_REPLAY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped inline.
+            }
+        }
     }
 
     /**
@@ -3925,23 +4010,41 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
 
         $upload  = wp_upload_dir();
         $current = array(
-            'site_url'    => site_url(),
-            'home_url'    => home_url(),
-            'content_url' => content_url(),
+            'home_url'    => (string) get_option( 'home' ),
+            'site_url'    => (string) get_option( 'siteurl' ),
+            'content_url' => set_url_scheme( content_url(), wp_parse_url( WP_CONTENT_URL, PHP_URL_SCHEME ) ),
             'upload_url'  => isset( $upload['baseurl'] ) ? $upload['baseurl'] : '',
         );
 
         foreach ( $current as $key => $to ) {
             $from = isset( $info[ $key ] ) ? (string) $info[ $key ] : '';
-            if ( '' !== $from && '' !== $to && $from !== $to ) {
-                $pairs[] = array(
+            if ( '' !== $from && '' !== $to && ! isset( $pairs[ $from ] ) ) {
+                // Home wins an identical source, including a home URL that is already correct.
+                $pairs[ $from ] = array(
                     'from' => $from,
                     'to'   => $to,
                 );
             }
         }
 
-        return $pairs;
+        $changes = array_filter(
+            $pairs,
+            static function ( $pair ) {
+                return $pair['from'] !== $pair['to'];
+            }
+        );
+        if ( empty( $changes ) ) {
+            return array();
+        }
+        uksort(
+            $pairs,
+            static function ( $left, $right ) {
+                $length = strlen( $right ) - strlen( $left );
+                return 0 !== $length ? $length : strcmp( $left, $right );
+            }
+        );
+
+        return array_values( $pairs );
     }
 
     /**
