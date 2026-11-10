@@ -335,6 +335,11 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             foreach ( array_slice( $rows, 1 ) as $row ) {
                 $terminal_state = $failure;
                 if ( self::is_restore_type( $row->type ) ) {
+                    $cursor = $this->read_sub_state( $row, (string) $this->existing_backup_directory() );
+                    if ( isset( $cursor['params'] ) && is_array( $cursor['params'] ) ) {
+                        $terminal_state['params'] = $cursor['params'];
+                        unset( $terminal_state['params']['pull_manifest'] );
+                    }
                     $terminal_state['verification']['outcome'] = MainWP_Child_Restore_Task_Runner::instance()->terminal_outcome( $row, null, 'failed', MainWP_Backup_Error::ERR_ALREADY_RUNNING );
                 }
                 $sub_state = wp_json_encode( $terminal_state );
@@ -770,16 +775,20 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
         if ( isset( $fields['phase'] ) && self::is_terminal_phase( $fields['phase'] ) ) {
             $task = $this->get_task( $task_id );
             if ( null !== $task && self::is_restore_type( $task->type ) ) {
-                if ( isset( $fields['sub_state'] ) ) {
-                    $task->sub_state = is_string( $fields['sub_state'] ) ? $fields['sub_state'] : wp_json_encode( $fields['sub_state'] );
-                }
                 if ( null === $backup_dir ) {
                     $dirs       = MainWP_Helper::get_mainwp_dir( 'backup' );
                     $backup_dir = $dirs[0];
                 }
+                $original_state = $this->read_sub_state( $task, $backup_dir );
+                if ( isset( $fields['sub_state'] ) ) {
+                    $task->sub_state = is_string( $fields['sub_state'] ) ? $fields['sub_state'] : wp_json_encode( $fields['sub_state'] );
+                }
                 $sub_state = $this->read_sub_state( $task, $backup_dir );
                 if ( null === $sub_state ) {
                     return false;
+                }
+                if ( ! isset( $sub_state['params'] ) && isset( $original_state['params'] ) && is_array( $original_state['params'] ) ) {
+                    $sub_state['params'] = $original_state['params'];
                 }
                 if ( isset( $sub_state['identity_preserve'] ) ) {
                     $sub_state['identity_preserved'] = true;
@@ -855,9 +864,17 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
      * @param string $backup_dir Scratch directory (the randomized backup dir).
      * @param int    $version    Version the writing slice owns.
      *
-     * @return string|false Column value (inline JSON or pointer JSON), false on write failure.
+     * @return string|false Column value, or false when a non-safety sidecar cannot be written.
      */
     public function write_sub_state( $task_id, $sub_state, $backup_dir, $version ) {
+        $safety_artifact = ! empty( $sub_state['params']['safety_restore_id'] ) && isset( $sub_state['artifact'] );
+        if ( $safety_artifact ) {
+            $sub_state['artifact']['safety_restore_id'] = (string) $sub_state['params']['safety_restore_id'];
+            $archive                                    = trailingslashit( $backup_dir ) . $sub_state['artifact']['file'];
+            if ( ! isset( $sub_state['artifact']['mtime'] ) && is_file( $archive ) && ! is_link( $archive ) ) {
+                $sub_state['artifact']['mtime'] = filemtime( $archive );
+            }
+        }
         $json = wp_json_encode( $sub_state );
         if ( strlen( $json ) <= self::SUB_STATE_INLINE_MAX ) {
             return $json;
@@ -872,7 +889,8 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             if ( file_exists( $temp ) ) {
                 unlink( $temp ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- scratch cleanup.
             }
-            return false;
+            // Keep the stamped proof when a safety cursor uses the existing inline fallback.
+            return $safety_artifact ? $json : false;
         }
 
         $pointer = array(
@@ -1152,6 +1170,14 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
                     'code'    => $code,
                 ),
             );
+            if ( $is_restore ) {
+                $cursor = $this->read_sub_state( $task, (string) $this->existing_backup_directory() );
+                if ( isset( $cursor['params'] ) && is_array( $cursor['params'] ) ) {
+                    // Failed restores retain their source claims for recovery and cleanup.
+                    $terminal_state['params'] = $cursor['params'];
+                    unset( $terminal_state['params']['pull_manifest'] );
+                }
+            }
             if ( null !== $outcome ) {
                 $terminal_state['verification']['outcome'] = $outcome;
             }
@@ -1576,6 +1602,174 @@ class MainWP_Child_Backup_Task { // phpcs:ignore Generic.Classes.OpeningBraceSam
             }
         }
         return false;
+    }
+
+    /**
+     * Validate a safety archive, or remove only that archive under the native mutex.
+     *
+     * @param array  $binding Authenticated Dashboard history binding.
+     * @param bool   $delete Whether to delete the verified archive.
+     * @param string $backup_dir Child backup directory.
+     * @return array Authoritative state or a refusal.
+     */
+    public function safety_archive( $binding, $delete, $backup_dir ) {
+        $refused = array( 'error' => 'The safety backup could not be verified or is still needed for recovery.' );
+        if ( ! is_array( $binding ) || ! isset( $binding['task_id'], $binding['restore_id'], $binding['file'], $binding['size'] )
+            || ! is_string( $binding['task_id'] ) || ! is_string( $binding['restore_id'] ) || '' === $binding['restore_id'] || ! is_numeric( $binding['size'] )
+            || ! is_string( $binding['file'] ) || ! $this->is_pending_delete_name( $binding['file'] ) || 'tombstones.list' === $binding['file'] ) {
+            return $refused;
+        }
+        $owner = 'safety-delete-' . wp_generate_uuid4();
+        if ( true !== MainWP_Child_Backup_Mutex::acquire( 'native', $owner, self::CLEANUP_MUTEX_TTL ) ) {
+            return $refused;
+        }
+        try {
+            $task = $this->get_task( $binding['task_id'] );
+            if ( null === $task || 'full' !== $task->type || 'completed' !== $task->phase ) {
+                return $refused;
+            }
+            $state = $this->read_sub_state( $task, $backup_dir );
+            if ( ! is_array( $state ) ) {
+                return $refused;
+            }
+            $artifact = $state['artifact'] ?? null;
+            if ( ! is_array( $artifact ) || ( $artifact['file'] ?? null ) !== $binding['file'] || (int) ( $artifact['size'] ?? 0 ) !== (int) $binding['size'] || (int) $binding['size'] <= 0 ) {
+                return $refused;
+            }
+            $marked         = isset( $state['params']['safety_restore_id'], $artifact['safety_restore_id'] )
+                && (string) $state['params']['safety_restore_id'] === (string) $binding['restore_id']
+                && (string) $artifact['safety_restore_id'] === (string) $binding['restore_id'];
+            $legacy_binding = ! isset( $state['params']['safety_restore_id'] ) && ! empty( $binding['legacy_attestation'] )
+                && isset( $binding['restore_task_id'], $binding['restore_job_uuid'] ) && is_string( $binding['restore_task_id'] ) && '' !== $binding['restore_task_id'] && is_string( $binding['restore_job_uuid'] );
+            if ( ! empty( $state['safety_removal'] ) && $state['safety_removal']['restore_id'] !== (string) $binding['restore_id'] ) {
+                return $refused;
+            }
+            $path = trailingslashit( $backup_dir ) . $binding['file'];
+            clearstatcache( true, $path );
+            if ( ! file_exists( $path ) && ! is_link( $path ) && ! empty( $state['safety_removal'] ) ) {
+                $receipt = $state['safety_removal'];
+                if ( ( ! $marked && ! $legacy_binding ) || ! isset( $binding['mtime'], $binding['task_started_at'], $receipt['mtime'], $receipt['task_started_at'] )
+                    || (int) $binding['mtime'] !== (int) $receipt['mtime'] || $binding['task_started_at'] !== $receipt['task_started_at']
+                    || $task->started_at !== $receipt['task_started_at'] || (int) $binding['size'] !== (int) $receipt['size']
+                    || ( ! $marked && ( ( $receipt['restore_task_id'] ?? null ) !== $binding['restore_task_id'] || ( $receipt['restore_job_uuid'] ?? null ) !== $binding['restore_job_uuid'] ) ) ) {
+                    return $refused;
+                }
+                return array(
+                    'state'   => 'removed',
+                    'task_id' => $task->task_id,
+                    'file'    => $binding['file'],
+                );
+            }
+            $legacy = false;
+            if ( $legacy_binding ) {
+                $restore = $this->get_task( $binding['restore_task_id'] );
+                $legacy  = null !== $restore && self::is_restore_type( $restore->type )
+                    && (string) $restore->restore_id === (string) $binding['restore_job_uuid']
+                    && $task->started_at <= $restore->started_at;
+            }
+            if ( ! $marked && ! $legacy ) {
+                return $refused;
+            }
+            $resolved = $this->download_delete_target( $path );
+            global $wpdb;
+            $restore_started = $legacy ? $wpdb->get_var( $wpdb->prepare( 'SELECT UNIX_TIMESTAMP(started_at) FROM %i WHERE task_id = %s', $this->get_table_name(), $restore->task_id ) ) : null; // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- fresh Child provenance timestamp.
+            if ( false === $resolved || realpath( $backup_dir ) !== dirname( $resolved ) || filesize( $resolved ) !== (int) $binding['size']
+                || ( $legacy && ( null === $restore_started || filemtime( $resolved ) > (int) $restore_started ) ) ) {
+                return $refused;
+            }
+            if ( ! empty( $state['safety_removal'] ) && ( filemtime( $resolved ) !== (int) $state['safety_removal']['mtime'] || filesize( $resolved ) !== (int) $state['safety_removal']['size'] ) ) {
+                return $refused;
+            }
+            $recorded_mtime = (int) ( $artifact['mtime'] ?? 0 );
+            if ( $marked && filemtime( $resolved ) !== $recorded_mtime ) {
+                return $refused;
+            }
+            if ( isset( $binding['mtime'] ) && filemtime( $resolved ) !== (int) $binding['mtime'] ) {
+                return $refused;
+            }
+            if ( isset( $binding['task_started_at'] ) && $task->started_at !== $binding['task_started_at'] ) {
+                return $refused;
+            }
+            $active = $this->get_active_tasks();
+            $intact = array_merge(
+                $refused,
+                array(
+                    'state'   => 'present',
+                    'task_id' => $task->task_id,
+                    'file'    => $binding['file'],
+                )
+            );
+            if ( '' !== $wpdb->last_error ) {
+                return $refused;
+            }
+            if ( ! empty( $active ) || $this->live_task_claims_file( $binding['file'], $backup_dir ) ) {
+                return $intact;
+            }
+            $live_restores = $this->get_live_restore_tasks();
+            if ( '' !== $wpdb->last_error ) {
+                return $refused;
+            }
+            if ( ! empty( $live_restores ) ) {
+                return $intact;
+            }
+            $failed_restores = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE type IN ('restore','restore_db','restore_files') AND phase = 'failed'", $this->get_table_name() ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- terminal recovery claims must be read fresh.
+            if ( '' !== $wpdb->last_error ) {
+                return $refused;
+            }
+            foreach ( (array) $failed_restores as $failed_restore ) {
+                if ( $this->is_restore_tombstone( $failed_restore, $backup_dir ) ) {
+                    continue;
+                }
+                $recovery = $this->read_sub_state( $failed_restore, $backup_dir );
+                if ( ! is_array( $recovery ) || ! isset( $recovery['params']['artifacts'] ) || ! is_array( $recovery['params']['artifacts'] ) ) {
+                    return array( 'error' => 'A failed restore has no recovery-source record. The safety backup was kept.' );
+                }
+                foreach ( $recovery['params']['artifacts'] ?? array() as $source ) {
+                    if ( ( $source['file'] ?? null ) === $binding['file'] ) {
+                        return $intact;
+                    }
+                }
+            }
+            if ( ! $delete ) {
+                return array(
+                    'state'           => 'present',
+                    'task_id'         => $task->task_id,
+                    'file'            => $binding['file'],
+                    'mtime'           => filemtime( $resolved ),
+                    'task_started_at' => $task->started_at,
+                );
+            }
+            $mtime      = filemtime( $resolved );
+            $started_at = $task->started_at;
+            if ( ! isset( $binding['mtime'], $binding['task_started_at'] ) || $mtime !== (int) $binding['mtime'] || $started_at !== $binding['task_started_at'] ) {
+                return $refused;
+            }
+            $state['safety_removal'] = array(
+                'restore_id'      => (string) $binding['restore_id'],
+                'size'            => (int) $binding['size'],
+                'mtime'           => filemtime( $resolved ),
+                'task_started_at' => $started_at,
+            );
+            if ( $legacy ) {
+                $state['safety_removal']['restore_task_id']  = (string) $restore->task_id;
+                $state['safety_removal']['restore_job_uuid'] = (string) $restore->restore_id;
+            }
+            if ( false === $this->checkpoint( $task->task_id, (int) $task->version, array( 'sub_state' => $state ), false, $backup_dir ) ) {
+                return $refused;
+            }
+            if ( ! MainWP_Child_Backup_Mutex::refresh( $owner, self::CLEANUP_MUTEX_TTL ) ) {
+                return $refused;
+            }
+            wp_delete_file( $resolved );
+            clearstatcache( true, $resolved );
+            return file_exists( $resolved ) ? $refused : array(
+                'state'   => 'removed',
+                'task_id' => $task->task_id,
+                'file'    => $binding['file'],
+            );
+        } finally {
+            MainWP_Child_Backup_Mutex::release( $owner );
+        }
     }
 
     /**

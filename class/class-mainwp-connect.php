@@ -593,6 +593,10 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
         $decode_connect_sign = ! empty( $connect_sign ) && is_string( $connect_sign ) ? json_decode( $connect_sign, true ) : ''; // If it is not a valid JSON-encoded array, it is a legacy signature.
 
+        if ( 'backup_safety_archive' === $func && ! $this->is_advanced_signature( $decode_connect_sign ) ) {
+            throw static::create_signature_exception( 'AUTH_INVALID_FIELDS' );
+        }
+
         if ( $this->is_advanced_signature( $decode_connect_sign ) ) {
             $signature = $mainwpsignature_adv;
         }
@@ -665,6 +669,10 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
         $valid_fields = array( 'req_id', 'base_function', 'user', 'nonce', 'expires' );
 
+        if ( 'backup_safety_archive' === $func ) {
+            $valid_fields = array_merge( $valid_fields, array( 'binding', 'remove' ) );
+        }
+
         if ( 'process_premium_updates' === $func ) {
             $valid_fields = array_merge( $valid_fields, array( 'premium_perform', 'premium_type' ) );
             if ( isset( $sign_data['premium_perform'] ) && 'premium_update' === $sign_data['premium_perform'] ) {
@@ -695,6 +703,17 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
         if ( ! $this->has_required_signature_fields( $sign_data, $func ) ) {
             return 'AUTH_INVALID_FIELDS';
+        }
+
+        if ( 'backup_safety_archive' === $func ) {
+            foreach ( array( 'binding', 'remove' ) as $field ) {
+                if ( ! is_string( $sign_data[ $field ] ) || ! isset( $_POST[ $field ] ) || ! is_string( $_POST[ $field ] ) || wp_unslash( $_POST[ $field ] ) !== $sign_data[ $field ] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- exact signed bytes are compared before the action validates their contents.
+                    return 'AUTH_INVALID_SIGN';
+                }
+            }
+            if ( ! in_array( $sign_data['remove'], array( '0', '1' ), true ) ) {
+                return 'AUTH_INVALID_FIELDS';
+            }
         }
 
         // phpcs:disable WordPress.Security.NonceVerification

@@ -9988,6 +9988,7 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		global $wpdb;
 		$id = $this->make_task( 'full', array() );
 		$this->set_outcome_cursor( $id, 'swapping_db', array( 'db_replay' => array( 'cursor' => array( 'tables' => array( 'items' => array( 'status' => 'ok', 'rows' => 2 ) ) ) ) ) );
+		$before = $this->spine->read_sub_state( $this->spine->get_task( $id ), $this->dir );
 		$this->runner->fake_engine->swap_committed = $probe;
 		$this->runner->fake_engine->calls = array();
 		$this->assertSame( 1, $wpdb->insert( $this->spine->get_table_name(), array( 'task_id' => 'newer-active-fixture', 'type' => 'full', 'phase' => 'queued', 'active_slot' => null, 'started_at' => gmdate( 'Y-m-d H:i:s', time() + 60 ), 'sub_state' => '{}' ) ) );
@@ -10001,6 +10002,9 @@ class BackupRestoreTaskRunnerTest extends WP_UnitTestCase {
 		}
 		$task = $this->spine->get_task( $id );
 		$this->assertSame( 'failed', $task->phase );
+		$after = $this->spine->read_sub_state( $task, $this->dir );
+		unset( $before['params']['pull_manifest'] );
+		$this->assertSame( $before['params'], $after['params'] ?? null );
 		$this->assertSame( MainWP_Backup_Error::ERR_ALREADY_RUNNING, $this->spine->status_payload( $task, $this->dir )['error_code'] );
 		$this->assertSame( false === $probe ? 'not_started' : 'left_partial', $this->stored_outcome( $id )['database'] );
 		$this->assertSame( 'queued', $this->spine->get_task( 'newer-active-fixture' )->phase );
