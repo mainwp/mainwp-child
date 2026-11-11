@@ -80,10 +80,7 @@ class MainWP_Child_Updraft_Plus_Backups { //phpcs:ignore -- NOSONAR - multi meth
 
         add_filter( 'mainwp_site_sync_others_data', array( $this, 'sync_others_data' ), 10, 2 );
 
-        // Reports owns the UpdraftPlus backup cursor when its callback is available.
-        if ( false === has_filter( 'updraftplus_save_last_backup', array( 'WP_MainWP_Stream\MainWP_Child_Report_Helper', 'hook_updraftplus_save_last_backup' ) ) ) {
-            add_filter( 'updraftplus_save_last_backup', array( __CLASS__, 'hook_updraft_plus_save_last_backup' ) );
-        }
+        add_filter( 'updraftplus_save_last_backup', array( __CLASS__, 'hook_updraft_plus_save_last_backup' ) );
 
         self::register_premium_update_guards();
     }
