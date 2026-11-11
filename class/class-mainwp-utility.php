@@ -334,11 +334,13 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
 
         // MWP-2286 diagnostic build 5814c3d8: response evidence only; authorization and range decisions stay unchanged.
         try {
-            $diagnostic_headers = $this->get_download_diagnostic_headers( $fullpath, $file_size, $range_header, $range );
-            // A server-generated 413 can replace every response header; retain the same bounded evidence in the existing PHP log.
-            error_log( '[MWP-2286] ' . wp_json_encode( $diagnostic_headers ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- temporary archive diagnostics, typed metadata only.
-            foreach ( $diagnostic_headers as $header_line ) {
-                header( $header_line );
+            if ( defined( 'MAINWP_CHILD_DOWNLOAD_DIAGNOSTICS' ) && MAINWP_CHILD_DOWNLOAD_DIAGNOSTICS ) {
+                $diagnostic_headers = $this->get_download_diagnostic_headers( $fullpath, $file_size, $range_header, $range );
+                // A server-generated 413 can replace every response header; retain the same bounded evidence in the existing PHP log.
+                error_log( '[MWP-2286] ' . wp_json_encode( $diagnostic_headers ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- temporary archive diagnostics, typed metadata only.
+                foreach ( $diagnostic_headers as $header_line ) {
+                    header( $header_line );
+                }
             }
         } catch ( \Throwable $diagnostic_error ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement -- diagnostics must not affect archive delivery.
         }
