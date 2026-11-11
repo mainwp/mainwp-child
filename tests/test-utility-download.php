@@ -41,6 +41,31 @@ class Recording_Refusal_Utility extends MainWP_Utility {
 class UtilityDownloadTest extends WP_UnitTestCase {
 
 	/**
+	 * Diagnostic headers retain typed range evidence and hide arbitrary input.
+	 */
+	public function test_download_diagnostic_headers_are_typed_and_redacted() {
+		$utility = new MainWP_Utility();
+		$method  = new ReflectionMethod( MainWP_Utility::class, 'get_download_diagnostic_headers' );
+		$method->setAccessible( true );
+		$range   = $utility->resolve_download_range( 150000, 'bytes=0-4095' );
+		$headers = $method->invoke( $utility, $this->fixture, 150000, 'bytes=0-4095', $range );
+		$this->assertContains( 'X-MainWP-Diag-Range: bytes=0-4095', $headers );
+		$this->assertContains( 'X-MainWP-Diag-Status: 206', $headers );
+		$this->assertContains( 'X-MainWP-Diag-Length: 4096', $headers );
+		$this->assertContains( 'X-MainWP-Diag-Content-Range: bytes 0-4095/150000', $headers );
+		$this->assertContains( 'X-MainWP-Diag-Size: 150000', $headers );
+		$this->assertContains( 'X-MainWP-Diag-File: ' . hash( 'sha256', basename( $this->fixture ) ), $headers );
+		$headers = $method->invoke( $utility, $this->fixture, 150000, 'bytes=secret-token-value', $range );
+		$this->assertContains( 'X-MainWP-Diag-Range: invalid', $headers );
+		$this->assertStringNotContainsString( 'secret-token-value', implode( "\n", $headers ) );
+		$this->assertStringNotContainsString( $this->fixture, implode( "\n", $headers ) );
+		$headers = $method->invoke( $utility, $this->fixture, 150000, null, $utility->resolve_download_range( 150000, null ) );
+		$this->assertContains( 'X-MainWP-Diag-Range: absent', $headers );
+		$this->assertContains( 'X-MainWP-Diag-Status: 200', $headers );
+		$this->assertContains( 'X-MainWP-Diag-Length: 150000', $headers );
+	}
+
+	/**
 	 * Path to the fixture file.
 	 *
 	 * @var string
