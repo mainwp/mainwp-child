@@ -63,6 +63,10 @@ class UtilityDownloadTest extends WP_UnitTestCase {
 		$this->assertContains( 'X-MainWP-Diag-Range: absent', $headers );
 		$this->assertContains( 'X-MainWP-Diag-Status: 200', $headers );
 		$this->assertContains( 'X-MainWP-Diag-Length: 150000', $headers );
+		$headers = $method->invoke( $utility, $this->fixture, 150000, 'bytes=150000-', $utility->resolve_download_range( 150000, 'bytes=150000-' ) );
+		$this->assertContains( 'X-MainWP-Diag-Status: 416', $headers );
+		$this->assertContains( 'X-MainWP-Diag-Length: absent', $headers );
+		$this->assertContains( 'X-MainWP-Diag-Content-Range: bytes */150000', $headers );
 	}
 
 	/**

@@ -376,7 +376,7 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             $received = $range_header;
         }
         $content_range = 'absent';
-        $length        = 0;
+        $length        = 'absent';
         foreach ( $this->get_download_headers( basename( $fullpath ), $file_size, $range ) as $line ) {
             if ( 0 === strpos( $line, 'Content-Length: ' ) ) {
                 $length = (int) substr( $line, 16 );
