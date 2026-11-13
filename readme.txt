@@ -5,9 +5,9 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 6.2
-Tested up to: 7.1.4
+Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 6.4.2-rc.2
+Stable tag: 6.5-rc.1
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -115,21 +115,28 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 
 == Changelog ==
 
-= 6.4.2-rc.2 - 11-6-2026 =
+= 6.5-rc.1 - 11-13-2026 =
+
+* Added: Enabled MainWP Dashboard to delete a restore’s safety backup from "Restore History".
+* Fixed: Prevented the newer comment moderation interface from permanently deleting comments when users select "Trash" on a site where Trash is disabled.
+* Fixed: Resolved a PHP 8 error that could interrupt scheduled jobs, including BackUpWordPress backups.
+* Fixed: Corrected the timing of front-end "Password Policy" reminders to use the date the user last changed their password when available.
+* Fixed: Corrected the last backup date so it refreshes after a successful UpdraftPlus backup when Child Reports is active.
+* Updated: Backup error messages now identify the unexpected archive entry that stopped the backup.
+
+= 6.4.2 - 11-10-2026 =
 
 * Added: RunCache detection and cache-purge dispatch while preserving RunCloud Hub support.
+* Added: Support for saving UpdraftPlus SFTP server fingerprints while preserving existing values when no replacement is supplied.
 * Fixed: TAR restore extraction of filenames containing literal question marks, preserving original names and file contents.
 * Fixed: Pre-restore safety backups failing when cache files change during TAR archive creation.
 * Fixed: Known backup locations exclusions for All-in-One WP Migration, UpdraftPlus, and Duplicator folders.
 * Fixed: Site Hardening Unfix reporting.
-* Updated: Tracked password changes without temporarily storing password hashes.
-* Updated: Corrected Password Policy documentation to describe password-change reminders.
-
-= 6.4.2-rc.1 - 11-5-2026 = 
-
-* Added: Support for saving UpdraftPlus SFTP server fingerprints while preserving existing values when no replacement is supplied.
 * Fixed: Prevented Changes Logs errors caused by empty timezone offsets and corrected dates across daylight-saving changes.
 * Fixed: Reduced the risk of unintended plugin deactivation during overlapping premium update checks and plugin updates.
+* Fixed: WP-CLI restores to a different domain retaining the source site’s URLs. Restores now preserve the destination’s Site Address (home) and WordPress Address (siteurl).
+* Updated: Tracked password changes without temporarily storing password hashes.
+* Updated: Corrected Password Policy documentation to describe password-change reminders.
 
 = 6.4.1 - 11-3-2026 =
 
