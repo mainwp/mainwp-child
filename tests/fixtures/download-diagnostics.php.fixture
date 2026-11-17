@@ -1,0 +1,49 @@
+<?php
+/**
+ * Isolated download diagnostics probe without WordPress response output.
+ *
+ * @package MainWP/Child
+ */
+
+namespace MainWP\Child {
+
+	/** Capture headers instead of changing the test process response. */
+	function header( $line ) {
+		$GLOBALS['download_headers'][] = $line;
+	}
+
+	/** Capture only the diagnostic logging performed by upload_file(). */
+	function error_log( $line ) {
+		$GLOBALS['download_logs'][] = $line;
+	}
+}
+
+namespace {
+
+	define( 'ABSPATH', __DIR__ );
+	if ( 'on' === $argv[1] ) {
+		define( 'MAINWP_CHILD_DOWNLOAD_DIAGNOSTICS', true );
+	}
+	/** The fixture name contains only ordinary filename characters. */
+	function sanitize_file_name( $name ) {
+		return $name;
+	}
+
+	/** Encode the same typed metadata as WordPress. */
+	function wp_json_encode( $value ) {
+		return json_encode( $value );
+	}
+
+	$GLOBALS['download_headers'] = array();
+	$GLOBALS['download_logs']    = array();
+	require dirname( __DIR__, 2 ) . '/class/class-mainwp-utility.php';
+	$file = tempnam( sys_get_temp_dir(), 'mwp-diag-' );
+	file_put_contents( $file, 'fixture' );
+	$utility = new \MainWP\Child\MainWP_Utility();
+	try {
+		$result = $utility->upload_file( $file, false, 1000 );
+	} finally {
+		unlink( $file );
+	}
+	echo json_encode( array( 'result' => $result, 'headers' => $GLOBALS['download_headers'], 'logs' => $GLOBALS['download_logs'] ) );
+}

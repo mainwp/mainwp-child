@@ -340,32 +340,10 @@ class MainWP_Child_Password_Policy {
             return;
         }
 
-        // Check policy status inline.
-        $max_age_days = get_option( 'mainwp_pw_max_age_days', 0 );
-        if ( 0 === intval( $max_age_days ) ) {
-            return;
-        }
+        $status_data = $this->get_user_password_status( $user_id );
+        $status      = $status_data['status'];
 
-        $policy_enabled_at = get_option( 'mainwp_pw_policy_enabled_at', null );
-        $due_soon_days     = get_option( 'mainwp_pw_due_soon_days', 7 );
-        $last_change       = get_user_meta( $user_id, 'mainwp_last_password_change', true );
-
-        if ( empty( $last_change ) ) {
-            $basis_time = intval( $last_change );
-        } elseif ( ! empty( $policy_enabled_at ) ) {
-            $basis_time = intval( $policy_enabled_at );
-        } else {
-            $basis_time = time();
-        }
-
-        $due_time = $basis_time + ( $max_age_days * DAY_IN_SECONDS );
-        $now      = time();
-
-        if ( $now >= $due_time ) {
-            $status = 'OVERDUE';
-        } elseif ( $now >= $due_time - ( $due_soon_days * DAY_IN_SECONDS ) ) {
-            $status = 'DUE';
-        } else {
+        if ( ! in_array( $status, array( 'DUE', 'OVERDUE' ), true ) ) {
             return;
         }
 

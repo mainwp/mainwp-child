@@ -635,6 +635,49 @@ class TarArchiverIntegrityTest extends WP_UnitTestCase {
 		$this->assertSame( 'read bytes', gzdecode( file_get_contents( $this->archive_path ) ) );
 	}
 
+	/** @dataProvider diagnostic_archive_types */
+	public function test_append_error_identifies_member_and_decoded_offset( $type, $member = null, $type_byte = "2", $expected_name = "file-1.txt" ) {
+		$tar = $this->create_entry_prefix();
+		$offset = 512 + (int) ( ceil( 277 / 512 ) * 512 );
+		$header = substr( $tar, $offset, 512 );
+		if ( null !== $member ) { $header = substr_replace( $header, str_pad( substr( $member, 0, 100 ), 100, "\0" ), 0, 100 ); }
+		$header[156] = $type_byte;
+		$header = substr_replace( $header, str_repeat( ' ', 8 ), 148, 8 );
+		$checksum = array_sum( unpack( 'C*', $header ) );
+		$header = substr_replace( $header, sprintf( "%06o\0 ", $checksum ), 148, 8 );
+		if ( null !== $member && strlen( $member ) > 100 ) {
+			$long_header = substr_replace( $header, 'L', 156, 1 );
+			$long_header = substr_replace( $long_header, sprintf( "%011o\0", strlen( $member ) + 1 ), 124, 12 );
+			$long_header = substr_replace( $long_header, str_repeat( ' ', 8 ), 148, 8 );
+			$long_header = substr_replace( $long_header, sprintf( "%06o\0 ", array_sum( unpack( 'C*', $long_header ) ) ), 148, 8 );
+			$header = $long_header . str_pad( $member . "\0", (int) ( ceil( ( strlen( $member ) + 1 ) / 512 ) * 512 ), "\0" ) . $header;
+		}
+		$tar = substr_replace( $tar, $header, $offset, 512 );
+		$bytes = 'tar.gz' === $type ? gzencode( $tar ) : $tar;
+		file_put_contents( $this->archive_path, $bytes );
+		$reader = new Tar_Archiver( MainWP_Backup::get(), $type );
+		$reader->read( $this->archive_path );
+		try {
+			$this->invoke_private( $reader, 'check_before_append', 'missing.txt' );
+			$this->fail( 'Unexpected member must reject append.' );
+		} catch ( MainWP_Exception $error ) {
+			$this->assertSame( MainWP_Backup_Error::ERR_FILE_CORRUPT, $error->get_message_error_code() );
+			$this->assertStringContainsString( $expected_name, $error->get_message_extra() );
+			$this->assertStringContainsString( 'offset=1024', $error->get_message_extra() );
+			$this->assertStringContainsString( 'type=0x' . bin2hex( $type_byte ), $error->get_message_extra() );
+			$this->assertStringContainsString( $expected_name, $error->getMessage() );
+			$this->assertStringContainsString( 'offset=1024', $error->getMessage() );
+			$this->assertStringContainsString( 'type=0x' . bin2hex( $type_byte ), $error->getMessage() );
+		} finally {
+			$reader->close( false );
+		}
+		$this->assertSame( $bytes, file_get_contents( $this->archive_path ) );
+	}
+
+	public static function diagnostic_archive_types() {
+		return array( array( 'tar' ), array( 'tar.gz' ), array( 'tar', "caf\xe9.jpg", "\x80", 'hex:636166e92e6a7067' ), array( 'tar.gz', '<member>.txt', "\0", '&lt;member&gt;.txt' ), array( 'tar.gz', str_repeat( 'a', 700 ), '2', str_repeat( 'a', 256 ) . '...' ) );
+	}
+
 	protected function invoke_private( $archiver, $name, ...$args ) {
 		$method = new ReflectionMethod( Tar_Archiver::class, $name );
 		$method->setAccessible( true );

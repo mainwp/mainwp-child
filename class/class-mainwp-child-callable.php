@@ -71,6 +71,7 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         'backup_task_run'               => 'backup_task_run',
         'backup_task_cancel'            => 'backup_task_cancel',
         'backup_task_prune'             => 'backup_task_prune',
+        'backup_safety_archive'         => 'backup_safety_archive',
         'backup_download_token'         => 'backup_download_token',
         'backup_manifest_chunk'         => 'backup_manifest_chunk',
         'restore_preflight'             => 'restore_preflight',
@@ -804,6 +805,9 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
             'loadFilesBeforeZip' => isset( $_POST['loadFilesBeforeZip'] ) ? sanitize_text_field( wp_unslash( $_POST['loadFilesBeforeZip'] ) ) : true,
             'emit_manifest'      => isset( $_POST['emit_manifest'] ) && '1' === $_POST['emit_manifest'],
         );
+        if ( isset( $_POST['safety_restore_id'] ) && is_string( $_POST['safety_restore_id'] ) && '' !== $_POST['safety_restore_id'] ) {
+            $params['safety_restore_id'] = sanitize_text_field( wp_unslash( $_POST['safety_restore_id'] ) );
+        }
 
         if ( 'incremental' === $type ) {
             $raw_manifest = isset( $_POST['parent_manifest'] ) ? wp_unslash( $_POST['parent_manifest'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated as strict base64 below.
@@ -903,6 +907,18 @@ class MainWP_Child_Callable { //phpcs:ignore -- NOSONAR - multi methods.
         }
 
         MainWP_Helper::write( $outcome );
+    }
+
+    /**
+     * Read or remove one safety archive after authenticating the Dashboard request.
+     */
+    public function backup_safety_archive() {
+        // phpcs:disable WordPress.Security.NonceVerification -- authenticated Dashboard request.
+        $binding = isset( $_POST['binding'] ) && is_string( $_POST['binding'] ) ? json_decode( wp_unslash( $_POST['binding'] ), true ) : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- decoded binding is validated against Child-owned task and archive metadata.
+        $delete  = isset( $_POST['remove'] ) && '1' === $_POST['remove'];
+        // phpcs:enable WordPress.Security.NonceVerification
+        $dirs = MainWP_Helper::get_mainwp_dir( 'backup' );
+        MainWP_Helper::write( MainWP_Child_Backup_Task::instance()->safety_archive( $binding, $delete, $dirs[0] ) );
     }
 
     /**

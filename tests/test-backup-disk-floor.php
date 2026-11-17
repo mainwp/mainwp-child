@@ -258,32 +258,45 @@ class BackupDiskFloorTest extends WP_UnitTestCase {
 		$this->assertFileDoesNotExist( $path );
 	}
 
-	public function test_real_zip_close_exposes_full_temporary_part_copy() {
-		if ( PHP_VERSION_ID < 80000 || ! class_exists( 'ZipArchive' ) || ! method_exists( 'ZipArchive', 'registerProgressCallback' ) ) {
-			$this->markTestSkipped( 'ZipArchive progress callbacks require PHP 8.0+.' );
-		}
-		$path = $this->dir . '/rewrite.zip';
-		$zip = new ZipArchive();
-		$this->assertTrue( $zip->open( $path, ZipArchive::CREATE ) );
-		$zip->addFromString( 'prior', random_bytes( 2 * self::MB ) );
-		$zip->setCompressionName( 'prior', ZipArchive::CM_STORE );
-		$this->assertTrue( $zip->close() );
-		$old_size = filesize( $path );
-		$this->assertTrue( $zip->open( $path ) );
-		$zip->addFromString( 'next', random_bytes( 2 * self::MB ) );
-		$zip->setCompressionName( 'next', ZipArchive::CM_STORE );
-		$observed = array();
-		$this->assertTrue( $zip->registerProgressCallback( 0.001, function ( $progress ) use ( $path, &$observed ) {
-			foreach ( (array) glob( $path . '.*.part' ) as $copy ) {
-				clearstatcache( true, $copy );
-				$observed[] = filesize( $copy );
-			}
-		} ) );
-		$this->assertTrue( $zip->close() );
-		$this->assertNotEmpty( $observed, 'close() must expose its .part rewrite in the same directory.' );
-		$this->assertGreaterThanOrEqual( $old_size - 1024, max( $observed ), 'The temporary file includes the prior archive data.' );
-		$this->assertSame( array(), glob( $path . '.*.part' ) );
-	}
+    public function test_real_zip_close_exposes_full_temporary_part_copy() {
+        if ( PHP_VERSION_ID < 80000 || ! class_exists( 'ZipArchive' ) || ! method_exists( 'ZipArchive', 'registerProgressCallback' ) ) {
+            $this->markTestSkipped( 'ZipArchive progress callbacks require PHP 8.0+.' );
+        }
+        $path = $this->dir . '/rewrite.zip';
+        $zip = new ZipArchive();
+        $this->assertTrue( $zip->open( $path, ZipArchive::CREATE ) );
+        $zip->addFromString( 'prior', random_bytes( 2 * self::MB ) );
+        $zip->setCompressionName( 'prior', ZipArchive::CM_STORE );
+        $this->assertTrue( $zip->close() );
+        $old_size = filesize( $path );
+        $this->assertTrue( $zip->open( $path ) );
+        $zip->addFromString( 'next', random_bytes( 2 * self::MB ) );
+        $zip->setCompressionName( 'next', ZipArchive::CM_STORE );
+        $observed = array();
+        $this->assertTrue( $zip->registerProgressCallback( 0.001, function ( $progress ) use ( $path, &$observed ) {
+            // libzip versions use different suffixes, including no .part suffix.
+            foreach ( (array) glob( $path . '.*' ) as $copy ) {
+                clearstatcache( true, $copy );
+                $observed[] = filesize( $copy );
+            }
+        } ) );
+        $this->assertTrue( $zip->close() );
+        $this->assertNotEmpty( $observed, 'close() must expose its temporary rewrite in the same directory.' );
+        $this->assertGreaterThanOrEqual( $old_size - 1024, max( $observed ), 'The temporary file includes the prior archive data.' );
+        $this->assertSame( array(), glob( $path . '.*' ) );
+
+        $backup = $this->backup();
+        $file = $this->source( 'rewrite-guard', 100 );
+        $before = file_get_contents( $path );
+        $backup->after_add = function () use ( $before ) {
+            $this->space( 20 * self::GB, self::GB + strlen( $before ) + 99 );
+        };
+        $this->disk_error( function () use ( $backup, $file, $path ) {
+            $backup->m_zip_file( array( $file ), $path );
+        } );
+        $this->assertSame( $before, file_get_contents( $path ) );
+        $this->assertNull( $backup->zip_handle() );
+    }
 
 	public function test_db_only_fresh_request_enforces_floor_and_unlinks_partial() {
 		$backup = $this->backup();

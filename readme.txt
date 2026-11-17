@@ -5,9 +5,9 @@ Author: mainwp
 Author URI: https://mainwp.com
 Plugin URI: https://mainwp.com
 Requires at least: 6.2
-Tested up to: 7.1.4
+Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 6.4.2
+Stable tag: 6.5
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -114,6 +114,15 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 11. Dashboard Insights
 
 == Changelog ==
+
+= 6.5 - 11-17-2026 =
+
+* Added: Enabled MainWP Dashboard to delete a restore’s safety backup from "Restore History".
+* Fixed: Prevented the newer comment moderation interface from permanently deleting comments when users select "Trash" on a site where Trash is disabled.
+* Fixed: Resolved a PHP 8 error that could interrupt scheduled jobs, including BackUpWordPress backups.
+* Fixed: Corrected the timing of front-end "Password Policy" reminders to use the date the user last changed their password when available.
+* Fixed: Corrected the last backup date so it refreshes after a successful UpdraftPlus backup when Child Reports is active.
+* Updated: Backup error messages now identify the unexpected archive entry that stopped the backup.
 
 = 6.4.2 - 11-10-2026 =
 

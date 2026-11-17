@@ -849,6 +849,10 @@ class MainWP_Child_Restore_Task_Runner extends MainWP_Child_Backup_Task_Runner {
             ),
             'verification' => array( 'outcome' => $this->terminal_outcome( $task, $sub_state, 'cancelled', MainWP_Backup_Error::ERR_RESTORE_CANCELLED ) ),
         );
+        if ( isset( $sub_state['params'] ) && is_array( $sub_state['params'] ) ) {
+            $terminal_state['params'] = $sub_state['params'];
+            unset( $terminal_state['params']['pull_manifest'] );
+        }
         if ( false === $this->terminal_cleanup( $task, $sub_state, $backup_dir, $owner ) ) {
             $spine->release_lease( $task_id, $owner, $version );
             $fresh = $spine->get_task( $task_id );

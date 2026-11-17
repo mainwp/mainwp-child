@@ -301,6 +301,13 @@ class BackupRequestAdmissionTest extends WP_UnitTestCase {
 		$this->assertSame( wp_json_encode( $expected ), wp_json_encode( $state['params'] ) );
 	}
 
+	public function test_safety_callable_persists_explicit_purpose_without_changing_ordinary_params() {
+		$response = $this->callable( 'backup_task_create', array( 'type' => 'full', 'safety_restore_id' => '91' ) );
+		$this->assertArrayHasKey( 'task_id', $response );
+		$state = $this->spine->read_sub_state( $this->spine->get_task( $response['task_id'] ), $this->dir );
+		$this->assertSame( '91', $state['params']['safety_restore_id'] );
+	}
+
 	/** @dataProvider supported_formats */
 	public function test_v1_legacy_callable_keeps_engine_response( $format ) {
 		$post = array( 'type' => 'db' );

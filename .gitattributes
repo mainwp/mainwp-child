@@ -1,5 +1,6 @@
 # Ignore all test and documentation with “export-ignore”
 .github export-ignore
+.coderabbit.yaml export-ignore
 .idea export-ignore
 bin export-ignore
 composer.* export-ignore
