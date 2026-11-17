@@ -118,7 +118,18 @@ class MainWP_Child_WP_Seopress {
                 return $information;
             }
 
-            $settings = json_decode( stripslashes( wp_unslash( $_POST['settings'] ) ), true );  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+            $payload  = wp_unslash( $_POST['settings'] );  //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON, decoded below and sanitized by SEOPress.
+            $settings = json_decode( $payload, true );
+
+            // Older SEOPress for MainWP versions add slashes to the JSON to survive the extra stripslashes() this method used to apply.
+            if ( ! is_array( $settings ) ) {
+                $settings = json_decode( stripslashes( $payload ), true );
+            }
+
+            if ( ! is_array( $settings ) ) {
+                $information['error'] = esc_html__( 'Settings could not be imported. The settings received are not valid JSON.', 'mainwp-child' );
+                return $information;
+            }
 
             seopress_do_import_settings( $settings );
 
@@ -219,7 +230,7 @@ class MainWP_Child_WP_Seopress {
             return $information;
         }
 
-        seopress_reset_pro_licence( $licence );
+        seopress_reset_pro_licence();
 
         $information['message'] = esc_html__( 'Reset successful', 'mainwp-child' );
 
