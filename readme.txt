@@ -7,7 +7,7 @@ Plugin URI: https://mainwp.com
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 6.5-rc.1
+Stable tag: 6.5
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -115,7 +115,7 @@ Please report security bugs found in the source code of the MainWP Child plugin 
 
 == Changelog ==
 
-= 6.5-rc.1 - 11-13-2026 =
+= 6.5 - 11-17-2026 =
 
 * Added: Enabled MainWP Dashboard to delete a restore’s safety backup from "Restore History".
 * Fixed: Prevented the newer comment moderation interface from permanently deleting comments when users select "Trash" on a site where Trash is disabled.
