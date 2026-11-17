@@ -470,6 +470,11 @@ class MainWP_Child_Comments {
                 continue;
             }
 
+            if ( 'trash' === $request['action'] && ! EMPTY_TRASH_DAYS ) {
+                $results[] = $this->moderation_result( $item['comment_id'], 'failed', $before, $before, 'mutation_failed', 'Trash is disabled on this site, so trash would permanently delete the comment. Use the delete_permanently operation for explicit permanent deletion of trashed comments.' );
+                continue;
+            }
+
             $claimed = $this->claim_v2_comment( $comment );
             if ( null === $claimed ) {
                 $results[] = $this->moderation_result( $item['comment_id'], 'failed', $before, null, 'status_unavailable', 'The comment status could not be verified.' );

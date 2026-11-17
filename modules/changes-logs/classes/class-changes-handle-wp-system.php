@@ -205,7 +205,9 @@ class Changes_Handle_WP_System { //phpcs:ignore --NOSONAR -complex.
                                     }
                                     self::$executed_cron = false;
                                 }
-                            }
+                            },
+                            10,
+                            0
                         );
                     }
                 }

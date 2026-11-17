@@ -40,6 +40,59 @@ class Recording_Refusal_Utility extends MainWP_Utility {
  */
 class UtilityDownloadTest extends WP_UnitTestCase {
 
+	/** Diagnostic output is opt-in; the ordinary response remains identical. */
+	public function test_download_diagnostics_are_disabled_by_default() {
+		$results = array();
+		foreach ( array( 'off', 'on' ) as $mode ) {
+			$process = proc_open( array( PHP_BINARY, __DIR__ . '/fixtures/download-diagnostics.php.fixture', $mode ), array( 1 => array( 'pipe', 'w' ), 2 => array( 'pipe', 'w' ) ), $pipes );
+			$this->assertIsResource( $process );
+			$output = stream_get_contents( $pipes[1] );
+			$error  = stream_get_contents( $pipes[2] );
+			fclose( $pipes[1] );
+			fclose( $pipes[2] );
+			$this->assertSame( 0, proc_close( $process ), $error );
+			$results[ $mode ] = json_decode( $output, true );
+			$this->assertIsArray( $results[ $mode ], $output . $error );
+			$this->assertFalse( $results[ $mode ]['result'] );
+		}
+		$this->assertSame( array(), $results['off']['logs'] );
+		$this->assertCount( 1, $results['on']['logs'] );
+		$diagnostic = static function ( $line ) { return 0 === strpos( $line, 'X-MainWP-Diag-' ); };
+		$this->assertSame( array(), array_values( array_filter( $results['off']['headers'], $diagnostic ) ) );
+		$this->assertCount( 8, array_filter( $results['on']['headers'], $diagnostic ) );
+		$ordinary = static function ( $line ) use ( $diagnostic ) { return ! $diagnostic( $line ) && 0 !== strpos( $line, 'Content-Disposition:' ); };
+		$this->assertSame( array_values( array_filter( $results['off']['headers'], $ordinary ) ), array_values( array_filter( $results['on']['headers'], $ordinary ) ) );
+	}
+
+	/**
+	 * Diagnostic headers retain typed range evidence and hide arbitrary input.
+	 */
+	public function test_download_diagnostic_headers_are_typed_and_redacted() {
+		$utility = new MainWP_Utility();
+		$method  = new ReflectionMethod( MainWP_Utility::class, 'get_download_diagnostic_headers' );
+		$method->setAccessible( true );
+		$range   = $utility->resolve_download_range( 150000, 'bytes=0-4095' );
+		$headers = $method->invoke( $utility, $this->fixture, 150000, 'bytes=0-4095', $range );
+		$this->assertContains( 'X-MainWP-Diag-Range: bytes=0-4095', $headers );
+		$this->assertContains( 'X-MainWP-Diag-Status: 206', $headers );
+		$this->assertContains( 'X-MainWP-Diag-Length: 4096', $headers );
+		$this->assertContains( 'X-MainWP-Diag-Content-Range: bytes 0-4095/150000', $headers );
+		$this->assertContains( 'X-MainWP-Diag-Size: 150000', $headers );
+		$this->assertContains( 'X-MainWP-Diag-File: ' . hash( 'sha256', basename( $this->fixture ) ), $headers );
+		$headers = $method->invoke( $utility, $this->fixture, 150000, 'bytes=secret-token-value', $range );
+		$this->assertContains( 'X-MainWP-Diag-Range: invalid', $headers );
+		$this->assertStringNotContainsString( 'secret-token-value', implode( "\n", $headers ) );
+		$this->assertStringNotContainsString( $this->fixture, implode( "\n", $headers ) );
+		$headers = $method->invoke( $utility, $this->fixture, 150000, null, $utility->resolve_download_range( 150000, null ) );
+		$this->assertContains( 'X-MainWP-Diag-Range: absent', $headers );
+		$this->assertContains( 'X-MainWP-Diag-Status: 200', $headers );
+		$this->assertContains( 'X-MainWP-Diag-Length: 150000', $headers );
+		$headers = $method->invoke( $utility, $this->fixture, 150000, 'bytes=150000-', $utility->resolve_download_range( 150000, 'bytes=150000-' ) );
+		$this->assertContains( 'X-MainWP-Diag-Status: 416', $headers );
+		$this->assertContains( 'X-MainWP-Diag-Length: absent', $headers );
+		$this->assertContains( 'X-MainWP-Diag-Content-Range: bytes */150000', $headers );
+	}
+
 	/**
 	 * Path to the fixture file.
 	 *

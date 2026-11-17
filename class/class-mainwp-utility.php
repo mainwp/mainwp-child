@@ -332,6 +332,19 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
         $range_header = isset( $_SERVER['HTTP_RANGE'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_RANGE'] ) ) : null;
         $range        = $this->resolve_download_range( $file_size, $range_header, $offset );
 
+        // MWP-2286 diagnostic build 5814c3d8: response evidence only; authorization and range decisions stay unchanged.
+        try {
+            if ( defined( 'MAINWP_CHILD_DOWNLOAD_DIAGNOSTICS' ) && MAINWP_CHILD_DOWNLOAD_DIAGNOSTICS ) {
+                $diagnostic_headers = $this->get_download_diagnostic_headers( $fullpath, $file_size, $range_header, $range );
+                // A server-generated 413 can replace every response header; retain the same bounded evidence in the existing PHP log.
+                error_log( '[MWP-2286] ' . wp_json_encode( $diagnostic_headers ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- temporary archive diagnostics, typed metadata only.
+                foreach ( $diagnostic_headers as $header_line ) {
+                    header( $header_line );
+                }
+            }
+        } catch ( \Throwable $diagnostic_error ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement -- diagnostics must not affect archive delivery.
+        }
+
         if ( ! headers_sent() ) {
             http_response_code( $range['status'] );
         }
@@ -348,6 +361,41 @@ class MainWP_Utility { //phpcs:ignore -- NOSONAR - multi methods.
             $this->readfile_chunked( $fullpath, $range['start'], $range['end'] - $range['start'] + 1 );
         }
         return true;
+    }
+
+    /**
+     * Describe the received range and the selected response without exposing download credentials.
+     *
+     * @param string      $fullpath Archive path, used only for a basename digest and stat.
+     * @param int         $file_size Measured archive size.
+     * @param string|null $range_header Received Range header.
+     * @param array       $range Resolved response window.
+     * @return array Diagnostic header lines.
+     */
+    private function get_download_diagnostic_headers( $fullpath, $file_size, $range_header, $range ) {
+        $received = null === $range_header ? 'absent' : 'invalid';
+        if ( is_string( $range_header ) && preg_match( '/^bytes=\d{0,20}-\d{0,20}$/D', $range_header ) ) {
+            $received = $range_header;
+        }
+        $content_range = 'absent';
+        $length        = 'absent';
+        foreach ( $this->get_download_headers( basename( $fullpath ), $file_size, $range ) as $line ) {
+            if ( 0 === strpos( $line, 'Content-Length: ' ) ) {
+                $length = (int) substr( $line, 16 );
+            } elseif ( 0 === strpos( $line, 'Content-Range: ' ) ) {
+                $content_range = substr( $line, 15 );
+            }
+        }
+        return array(
+            'X-MainWP-Diag-Build: MWP-2286-5814c3d8',
+            'X-MainWP-Diag-Range: ' . $received,
+            'X-MainWP-Diag-Size: ' . (int) $file_size,
+            'X-MainWP-Diag-Mtime: ' . (int) filemtime( $fullpath ),
+            'X-MainWP-Diag-File: ' . hash( 'sha256', basename( $fullpath ) ),
+            'X-MainWP-Diag-Status: ' . (int) $range['status'],
+            'X-MainWP-Diag-Length: ' . $length,
+            'X-MainWP-Diag-Content-Range: ' . $content_range,
+        );
     }
 
     /**

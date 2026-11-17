@@ -23,6 +23,44 @@ class Test_MainWP_Child_Comments_V2 extends WP_UnitTestCase {
 		$this->post_id  = self::factory()->post->create( array( 'post_title' => 'Protocol Post' ) );
 	}
 
+	/**
+	 * Trash-disabled moderation must refuse before acquiring a claim.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_trash_disabled_refuses_without_claim_or_mutation() {
+		define( 'MainWP\\Child\\EMPTY_TRASH_DAYS', 0 );
+		$comment_id = $this->create_comment( '0' );
+		$before     = get_comment( $comment_id )->to_array();
+		$meta       = get_comment_meta( $comment_id );
+		$claims     = 0;
+		$mutations  = 0;
+		$claim_hook = function () use ( &$claims ) { ++$claims; };
+		$write_hook = function () use ( &$mutations ) { ++$mutations; };
+		add_action( 'added_comment_meta', $claim_hook );
+		add_action( 'trash_comment', $write_hook );
+		add_action( 'delete_comment', $write_hook );
+		try {
+			$result = $this->moderate( 'trash', $comment_id, 'pending' );
+		} finally {
+			remove_action( 'added_comment_meta', $claim_hook );
+			remove_action( 'trash_comment', $write_hook );
+			remove_action( 'delete_comment', $write_hook );
+		}
+		$this->assertSame( 0, $result['applied'] );
+		$this->assertSame( 'failed', $result['results'][0]['outcome'] );
+		$this->assertSame( 'mutation_failed', $result['results'][0]['error_code'] );
+		$this->assertSame( 'Trash is disabled on this site, so trash would permanently delete the comment. Use the delete_permanently operation for explicit permanent deletion of trashed comments.', $result['results'][0]['error_message'] );
+		$this->assertSame( 'pending', $result['results'][0]['status_before'] );
+		$this->assertSame( 'pending', $result['results'][0]['status_after'] );
+		$this->assertSame( 0, $claims );
+		$this->assertSame( 0, $mutations );
+		$this->assertNotNull( get_comment( $comment_id ) );
+		$this->assertSame( $before, get_comment( $comment_id )->to_array() );
+		$this->assertSame( $meta, get_comment_meta( $comment_id ) );
+	}
+
 	/** Exact reads are redacted and return a truthful absence record. */
 	public function test_get_comment_is_exact_bounded_and_redacted() {
 		$comment_id = $this->create_comment( '0', 'Private body' );
