@@ -27,13 +27,15 @@ class MainWP_Child_Exact_Update {
      *
      * @param array $request Exact slug, current_version and target_version.
      * @return array|\WP_Error Confirmed selection or update failure.
-     * @SuppressWarnings(PHPMD.StaticAccess) WordPress exposes updater locks as static APIs.
+     * @SuppressWarnings(PHPMD.StaticAccess) WordPress and MainWP expose updater locks and the cache purger as static APIs.
      */
     public function update( $request ) {
         $invalid = $this->validate_request( $request );
         if ( is_wp_error( $invalid ) ) {
             return $invalid;
         }
+        // As in regular updates, integrations prepare here, before update offers are read.
+        do_action( 'mainwp_child_before_update_plugin_theme' );
         // Only fixed WordPress include paths are used here.
         require_once ABSPATH . 'wp-admin/includes/file.php';
         require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -57,10 +59,13 @@ class MainWP_Child_Exact_Update {
             if ( is_wp_error( $offer ) ) {
                 return $offer;
             }
-            return $this->run_update( $request, $offer->package, $lock );
+            $result = $this->run_update( $request, $offer->package, $lock );
         } finally {
             $this->release_owned_lock( $lock );
         }
+        // As in regular updates, purge after any attempt, once the lock is released.
+        MainWP_Child_Cache_Purge::instance()->auto_purge_cache();
+        return $result;
     }
 
     /**
@@ -198,8 +203,11 @@ class MainWP_Child_Exact_Update {
         add_filter( 'async_update_translation', $translations, PHP_INT_MAX );
         try {
             ob_start();
-            $results = $upgrader->bulk_upgrade( array( $request['slug'] ) );
-            $result  = $results[ $request['slug'] ] ?? null;
+            $plugins = array( $request['slug'] );
+            do_action( 'mainwp_child_before_update', 'plugin', $plugins );
+            $results = $upgrader->bulk_upgrade( $plugins );
+            do_action( 'mainwp_child_after_update', 'plugin', $results, $plugins );
+            $result = $results[ $request['slug'] ] ?? null;
             if ( is_wp_error( $result ) ) {
                 return $result;
             }

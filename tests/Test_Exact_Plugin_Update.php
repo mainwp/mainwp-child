@@ -7,6 +7,8 @@
 
 use MainWP\Child\MainWP_Child_Exact_Update;
 use MainWP\Child\MainWP_Child_Callable;
+use MainWP\Child\MainWP_Connect;
+use MainWP\Child\MainWP_Exception;
 
 class Test_Exact_Plugin_Update extends WP_UnitTestCase {
 	private $slug = 'mainwp-exact-fixture/fixture.php';
@@ -18,6 +20,8 @@ class Test_Exact_Plugin_Update extends WP_UnitTestCase {
 	private $offer_reads    = 0;
 	private $change_package = false;
 	private $fail_download  = false;
+	private $events         = array();
+	private static $key;
 
 	public function setUp(): void {
 		parent::setUp();
@@ -98,6 +102,7 @@ class Test_Exact_Plugin_Update extends WP_UnitTestCase {
 
 	public function download( $reply, $package, $upgrader, $extra ) {
 		++$this->downloads;
+		$this->events[] = 'download';
 		if ( $this->fail_download ) {
 			return new WP_Error( 'fixture_download_failed', 'Fixture download failed.' );
 		}
@@ -165,6 +170,147 @@ class Test_Exact_Plugin_Update extends WP_UnitTestCase {
 		} finally {
 			$_POST = $previous;
 			unlink( $fixture );
+		}
+	}
+
+	/**
+	 * MainWP reaches the command only after auth() accepts the request.
+	 *
+	 * @dataProvider signed_requests
+	 */
+	public function test_signature_binds_the_exact_selection( $change, $expected ) {
+		$this->skipWithMultisite();
+		$selection = array(
+			'slug'            => $this->slug,
+			'current_version' => '1.0',
+			'target_version'  => '1.1',
+		);
+		$checked   = new ReflectionProperty( MainWP_Connect::class, 'signature_checked' );
+		$checked->setAccessible( true );
+		$checked->setValue( null, null );
+		if ( null === self::$key ) {
+			self::$key = openssl_pkey_new( array( 'private_key_bits' => 2048 ) );
+		}
+		update_option( 'mainwp_child_pubkey', base64_encode( openssl_pkey_get_details( self::$key )['key'] ) );
+		$previous = array( $_POST, $_REQUEST );
+		try {
+			$_POST  = array( 'function' => 'upgradepluginexact', 'user' => 'admin', 'nonce' => wp_generate_uuid4(), 'sign_algo' => OPENSSL_ALGO_SHA256 ) + $selection;
+			$signed = array( 'req_id' => wp_generate_uuid4(), 'base_function' => 'upgradepluginexact', 'user' => 'admin', 'nonce' => $_POST['nonce'], 'expires' => time() + 60 ) + $selection;
+			list( $action, $field ) = explode( ' ', $change . ' ' );
+			if ( 'unsigned' === $action ) {
+				unset( $signed[ $field ] );
+			}
+			$data   = 'legacy' === $action ? null : wp_json_encode( $signed );
+			$legacy = 'legacy' === $action ? 'upgradepluginexact' . $_POST['nonce'] : '';
+			$this->assertTrue( openssl_sign( $legacy . $data, $signature, self::$key, OPENSSL_ALGO_SHA256 ) );
+			if ( 'changed' === $action ) {
+				$_POST[ $field ] = 'slug' === $field ? 'mainwp-exact-other/other.php' : '1.0.1';
+			} elseif ( 'missing' === $action ) {
+				unset( $_POST[ $field ] );
+			} elseif ( 'array' === $action ) {
+				$_POST[ $field ] = array( $_POST[ $field ] );
+			}
+			$_REQUEST = $_POST;
+			try {
+				$accepted = 1 === MainWP_Connect::instance()->auth(
+					$legacy ? base64_encode( $signature ) : '',
+					'upgradepluginexact',
+					$_POST['nonce'],
+					array(
+						'connect_sign'        => $data,
+						'mainwpsignature_adv' => $legacy ? '' : base64_encode( $signature ),
+					)
+				);
+			} catch ( MainWP_Exception $error ) {
+				$accepted = false;
+			}
+			$this->assertSame( $expected, $accepted );
+			if ( $accepted ) {
+				$this->assertNotWPError( ( new MainWP_Child_Exact_Update() )->update( wp_unslash( $_POST ) ) );
+				$this->assert_unchanged( '1.1' );
+			}
+		} finally {
+			list( $_POST, $_REQUEST ) = $previous;
+			$checked->setValue( null, null );
+		}
+	}
+
+	public function signed_requests() {
+		$requests = array(
+			'signed selection' => array( 'signed', true ),
+			'legacy signature' => array( 'legacy', false ),
+		);
+		foreach ( array( 'slug', 'current_version', 'target_version' ) as $field ) {
+			foreach ( array( 'changed', 'missing', 'array', 'unsigned' ) as $action ) {
+				$requests[ "$action $field" ] = array( "$action $field", false );
+			}
+		}
+		return $requests;
+	}
+
+	/** @dataProvider attempts */
+	public function test_attempt_runs_mainwp_lifecycle_and_configured_cache_purge( $fail_download ) {
+		$this->skipWithMultisite();
+		$this->fail_download = $fail_download;
+		$record = function () {
+			$this->events[] = array_merge( array( current_filter() ), func_get_args() );
+		};
+		$purge  = function ( $option ) {
+			if ( 'mainwp_cache_control_log' === $option ) {
+				$this->events[] = 'purge';
+			}
+		};
+		update_option( 'mainwp_child_auto_purge_cache', 1 );
+		delete_option( 'mainwp_cache_control_log' );
+		add_action( 'mainwp_child_before_update_plugin_theme', $record, 10, 0 );
+		add_action( 'mainwp_child_before_update', $record, 10, 2 );
+		add_action( 'mainwp_child_after_update', $record, 10, 3 );
+		add_action( 'added_option', $purge );
+		try {
+			$this->assertSame( $fail_download, is_wp_error( $this->request() ) );
+			$this->assertSame( array( 'mainwp_child_before_update_plugin_theme' ), $this->events[0] );
+			$this->assertSame( array( 'mainwp_child_before_update', 'plugin', array( $this->slug ) ), $this->events[1] );
+			$this->assertSame( 'download', $this->events[2] );
+			list( $hook, $type, $results, $plugins ) = $this->events[3];
+			$this->assertSame( array( 'mainwp_child_after_update', 'plugin', array( $this->slug ) ), array( $hook, $type, $plugins ) );
+			$this->assertSame( array( $this->slug ), array_keys( $results ) );
+			$this->assertSame( $fail_download, is_wp_error( $results[ $this->slug ] ) );
+			$this->assertSame( array( 'purge' ), array_slice( $this->events, 4 ) );
+			$this->assertFalse( get_option( 'auto_updater.lock' ), 'Purge providers must not hold the updater lock.' );
+			$log = json_decode( get_option( 'mainwp_cache_control_log' ), true );
+			$this->assertSame( 'provider_missing', $log['result_basis'], 'Enabled purging must be attempted, not skipped.' );
+		} finally {
+			remove_action( 'mainwp_child_before_update_plugin_theme', $record, 10 );
+			remove_action( 'mainwp_child_before_update', $record, 10 );
+			remove_action( 'mainwp_child_after_update', $record, 10 );
+			remove_action( 'added_option', $purge );
+		}
+	}
+
+	public function attempts() {
+		return array(
+			'updated'         => array( false ),
+			'download failed' => array( true ),
+		);
+	}
+
+	public function test_refused_update_runs_no_update_hooks_or_cache_purge() {
+		$this->skipWithMultisite();
+		$this->write_installed( '0.9' );
+		$fired = 0;
+		$count = static function () use ( &$fired ) {
+			++$fired;
+		};
+		delete_option( 'mainwp_cache_control_log' );
+		add_action( 'mainwp_child_before_update', $count );
+		add_action( 'mainwp_child_after_update', $count );
+		try {
+			$this->assertWPError( $this->request() );
+			$this->assertSame( 0, $fired );
+			$this->assertFalse( get_option( 'mainwp_cache_control_log' ) );
+		} finally {
+			remove_action( 'mainwp_child_before_update', $count );
+			remove_action( 'mainwp_child_after_update', $count );
 		}
 	}
 
