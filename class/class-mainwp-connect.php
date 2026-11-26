@@ -593,7 +593,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
         $decode_connect_sign = ! empty( $connect_sign ) && is_string( $connect_sign ) ? json_decode( $connect_sign, true ) : ''; // If it is not a valid JSON-encoded array, it is a legacy signature.
 
-        if ( 'backup_safety_archive' === $func && ! $this->is_advanced_signature( $decode_connect_sign ) ) {
+        if ( $this->signed_post_fields( $func ) && ! $this->is_advanced_signature( $decode_connect_sign ) ) {
             throw static::create_signature_exception( 'AUTH_INVALID_FIELDS' );
         }
 
@@ -655,6 +655,23 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
 
 
     /**
+     * POST fields a command acts on, which its signature must therefore cover.
+     *
+     * These commands refuse legacy signatures, which cannot bind any field.
+     *
+     * @param mixed $func Function callable.
+     *
+     * @return string[] Fields required in the signed data and compared with POST.
+     */
+    private function signed_post_fields( $func ) {
+        $fields = array(
+            'backup_safety_archive' => array( 'binding', 'remove' ),
+            'upgradepluginexact'    => array( 'slug', 'current_version', 'target_version' ),
+        );
+        return is_string( $func ) && isset( $fields[ $func ] ) ? $fields[ $func ] : array();
+    }
+
+    /**
      * Method has_required_signature_fields()
      *
      * @param array  $sign_data Signature data sign.
@@ -667,11 +684,7 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             return false;
         }
 
-        $valid_fields = array( 'req_id', 'base_function', 'user', 'nonce', 'expires' );
-
-        if ( 'backup_safety_archive' === $func ) {
-            $valid_fields = array_merge( $valid_fields, array( 'binding', 'remove' ) );
-        }
+        $valid_fields = array_merge( array( 'req_id', 'base_function', 'user', 'nonce', 'expires' ), $this->signed_post_fields( $func ) );
 
         if ( 'process_premium_updates' === $func ) {
             $valid_fields = array_merge( $valid_fields, array( 'premium_perform', 'premium_type' ) );
@@ -705,15 +718,13 @@ class MainWP_Connect { //phpcs:ignore -- NOSONAR - multi methods.
             return 'AUTH_INVALID_FIELDS';
         }
 
-        if ( 'backup_safety_archive' === $func ) {
-            foreach ( array( 'binding', 'remove' ) as $field ) {
-                if ( ! is_string( $sign_data[ $field ] ) || ! isset( $_POST[ $field ] ) || ! is_string( $_POST[ $field ] ) || wp_unslash( $_POST[ $field ] ) !== $sign_data[ $field ] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- exact signed bytes are compared before the action validates their contents.
-                    return 'AUTH_INVALID_SIGN';
-                }
+        foreach ( $this->signed_post_fields( $func ) as $field ) {
+            if ( ! is_string( $sign_data[ $field ] ) || ! isset( $_POST[ $field ] ) || ! is_string( $_POST[ $field ] ) || wp_unslash( $_POST[ $field ] ) !== $sign_data[ $field ] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- exact signed bytes are compared before the action validates their contents.
+                return 'AUTH_INVALID_SIGN';
             }
-            if ( ! in_array( $sign_data['remove'], array( '0', '1' ), true ) ) {
-                return 'AUTH_INVALID_FIELDS';
-            }
+        }
+        if ( 'backup_safety_archive' === $func && ! in_array( $sign_data['remove'], array( '0', '1' ), true ) ) {
+            return 'AUTH_INVALID_FIELDS';
         }
 
         // phpcs:disable WordPress.Security.NonceVerification
